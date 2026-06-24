@@ -56,8 +56,8 @@
 #property copyright "Wing-Master"
 #property version   "1.00"
 #property strict
-#property description "Trend Following EA for XAUUSD - Turtle style breakout"
-#property description "EMA200 trend filter + Donchian breakout + ADX + ATR risk sizing"
+#property description "Trend Following EA for XAUUSD - Turtle style breakout (Multi-Timeframe)"
+#property description "EMA200 trend filter (HTF) + Donchian breakout/ADX/ATR (entry TF) + ATR risk sizing"
 
 #include <Trade\Trade.mqh>
 
@@ -74,18 +74,21 @@ input double          ATR_Multiplier   = 2.0;          // Multiplicateur ATR pou
 input double          Reward_Ratio     = 3.0;          // Ratio Risque/Recompense (TP = R x ratio)
 input int             MaxSpreadPoints  = 50;           // Spread maximum autorise (points)
 input ulong           MagicNumber      = 20260624;     // Magic number
-input ENUM_TIMEFRAMES TradeTimeframe   = PERIOD_H1;    // Timeframe de trading
+input ENUM_TIMEFRAMES TradeTimeframe   = PERIOD_H1;    // Timeframe d'entree (breakout/ADX/ATR)
+input ENUM_TIMEFRAMES TrendTimeframe   = PERIOD_H4;    // Timeframe de tendance (EMA - HTF)
+input bool            UseTrendTF       = true;         // Activer le filtre de tendance multi-TF
 
 //+------------------------------------------------------------------+
 //| Globals                                                          |
 //+------------------------------------------------------------------+
 CTrade   trade;
 
-int      hEMA  = INVALID_HANDLE;   // handle iMA
-int      hADX  = INVALID_HANDLE;   // handle iADX
-int      hATR  = INVALID_HANDLE;   // handle iATR
+int      hEMA  = INVALID_HANDLE;   // handle iMA (sur le timeframe de tendance HTF)
+int      hADX  = INVALID_HANDLE;   // handle iADX (sur le timeframe d'entree)
+int      hATR  = INVALID_HANDLE;   // handle iATR (sur le timeframe d'entree)
 
-datetime g_lastBarTime = 0;        // pour ne traiter qu'une fois par bougie close
+ENUM_TIMEFRAMES g_trendTF = PERIOD_CURRENT;  // timeframe effectif du filtre de tendance
+datetime g_lastBarTime    = 0;               // pour ne traiter qu'une fois par bougie close
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -109,8 +112,20 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
    }
 
+   // --- Choix du timeframe de tendance (HTF si multi-TF active, sinon le TF d'entree) ---
+   g_trendTF = (UseTrendTF ? TrendTimeframe : TradeTimeframe);
+
+   // Le TF de tendance doit etre >= au TF d'entree pour avoir du sens
+   if(UseTrendTF && PeriodSeconds(TrendTimeframe) < PeriodSeconds(TradeTimeframe))
+   {
+      PrintFormat("ATTENTION: TrendTimeframe (%s) est inferieur au TradeTimeframe (%s). "
+                  "Le filtre multi-TF perd son sens.",
+                  EnumToString(TrendTimeframe), EnumToString(TradeTimeframe));
+   }
+
    // --- Creation des indicateurs ---
-   hEMA = iMA(_Symbol, TradeTimeframe, EMA_Period, 0, MODE_EMA, PRICE_CLOSE);
+   // EMA sur le timeframe de tendance (HTF), breakout/ADX/ATR sur le TF d'entree
+   hEMA = iMA(_Symbol, g_trendTF, EMA_Period, 0, MODE_EMA, PRICE_CLOSE);
    hADX = iADX(_Symbol, TradeTimeframe, ADX_Period);
    hATR = iATR(_Symbol, TradeTimeframe, ATR_Period);
 
@@ -127,9 +142,9 @@ int OnInit()
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetDeviationInPoints(20);
 
-   PrintFormat("INIT OK | Symbole=%s | TF=%s | EMA=%d | Breakout=%d | ADX=%d(min %.1f) | ATR=%d x%.1f | RR=%.1f | Risk=%.2f%% | Magic=%I64u",
-               _Symbol, EnumToString(TradeTimeframe), EMA_Period, Breakout_Period,
-               ADX_Period, ADX_Min, ATR_Period, ATR_Multiplier, Reward_Ratio,
+   PrintFormat("INIT OK | Symbole=%s | EntryTF=%s | TrendTF=%s(EMA%d) | Breakout=%d | ADX=%d(min %.1f) | ATR=%d x%.1f | RR=%.1f | Risk=%.2f%% | Magic=%I64u",
+               _Symbol, EnumToString(TradeTimeframe), EnumToString(g_trendTF), EMA_Period,
+               Breakout_Period, ADX_Period, ADX_Min, ATR_Period, ATR_Multiplier, Reward_Ratio,
                RiskPercent, MagicNumber);
 
    return(INIT_SUCCEEDED);
@@ -210,11 +225,23 @@ void OnTick()
    // --- Prix courants ---
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double lastClose = iClose(_Symbol, TradeTimeframe, 1);
+
+   // --- Filtre de tendance MULTI-TIMEFRAME ---
+   // L'EMA est calculee sur g_trendTF ; on compare au close de la derniere
+   // bougie cloturee de CE meme timeframe pour rester coherent.
+   double trendClose = iClose(_Symbol, g_trendTF, 1);
+   if(trendClose <= 0.0)
+   {
+      Print("Close du timeframe de tendance non disponible, trade ignore.");
+      return;
+   }
 
    // --- Conditions Turtle ---
-   bool trendUp   = (lastClose > ema);
-   bool trendDown = (lastClose < ema);
+   bool trendUp   = (trendClose > ema);
+   bool trendDown = (trendClose < ema);
+
+   // close du TF d'entree pour confirmer la cassure
+   double lastClose = iClose(_Symbol, TradeTimeframe, 1);
 
    bool breakoutUp   = (lastClose > hh) || (ask > hh);   // cassure du plus haut
    bool breakoutDown = (lastClose < ll) || (bid < ll);   // cassure du plus bas

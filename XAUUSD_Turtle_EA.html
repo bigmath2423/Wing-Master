@@ -51,44 +51,65 @@
 <script id="src" type="text/plain">//+------------------------------------------------------------------+
 //|                                           XAUUSD_Turtle_EA.mq5    |
 //|                  Trend Following EA inspired by Turtle Trading    |
-//|                              (Richard Dennis / Donchian breakout) |
+//|              (Richard Dennis / Donchian breakout) - v2.0 PRO      |
+//|                                                                  |
+//|  Multi-Timeframe :                                               |
+//|    - EMA200 sur un timeframe de tendance (HTF, defaut H4)         |
+//|    - Breakout / ADX / ATR sur le timeframe d'entree (defaut H1)   |
+//|  Gestion : trailing stop ATR + mise a break-even automatique.     |
 //+------------------------------------------------------------------+
 #property copyright "Wing-Master"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
-#property description "Trend Following EA for XAUUSD - Turtle style breakout (Multi-Timeframe)"
-#property description "EMA200 trend filter (HTF) + Donchian breakout/ADX/ATR (entry TF) + ATR risk sizing"
+#property description "Turtle Trend Following EA pour XAUUSD - Multi-Timeframe PRO"
+#property description "EMA200 (HTF) + Donchian breakout + ADX + ATR sizing + trailing/break-even"
 
 #include <Trade\Trade.mqh>
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
+input group "=== Gestion du risque ==="
 input double          RiskPercent      = 1.0;          // Risque par trade (% du capital)
+input double          ATR_Multiplier   = 2.0;          // Multiplicateur ATR pour le Stop-Loss
+input double          Reward_Ratio     = 3.0;          // Take-profit en multiple de R (ex: 3 = 3R)
+
+input group "=== Filtre de tendance (Multi-Timeframe) ==="
+input bool            UseTrendTF       = true;         // Activer le filtre de tendance HTF
+input ENUM_TIMEFRAMES TrendTimeframe   = PERIOD_H4;    // Timeframe de tendance (EMA)
 input int             EMA_Period       = 200;          // Periode EMA (filtre de tendance)
+
+input group "=== Signaux d'entree ==="
+input ENUM_TIMEFRAMES TradeTimeframe   = PERIOD_H1;    // Timeframe d'entree (breakout/ADX/ATR)
 input int             Breakout_Period  = 20;           // Periode breakout (Donchian)
 input int             ADX_Period       = 14;           // Periode ADX
 input double          ADX_Min          = 25.0;         // Seuil ADX minimum
 input int             ATR_Period       = 14;           // Periode ATR
-input double          ATR_Multiplier   = 2.0;          // Multiplicateur ATR pour le SL
-input double          Reward_Ratio     = 3.0;          // Ratio Risque/Recompense (TP = R x ratio)
-input int             MaxSpreadPoints  = 50;           // Spread maximum autorise (points)
+
+input group "=== Gestion de la position ==="
+input bool            UseBreakEven     = true;         // Passer le SL a break-even
+input double          BreakEvenTriggerR= 1.0;          // Declenche le BE apres X R de profit
+input double          BreakEvenBufferR = 0.05;         // Profit verrouille au BE (en R)
+input bool            UseTrailing      = true;         // Activer le trailing stop ATR
+input double          TrailStartR      = 1.0;          // Demarre le trailing apres X R de profit
+input double          TrailATRMult     = 2.0;          // Distance du trailing (x ATR)
+
+input group "=== Execution / broker ==="
+input int             MaxSpreadPoints  = 100;          // Spread maximum autorise (points)
+input int             SlippagePoints   = 30;           // Deviation max autorisee (points)
 input ulong           MagicNumber      = 20260624;     // Magic number
-input ENUM_TIMEFRAMES TradeTimeframe   = PERIOD_H1;    // Timeframe d'entree (breakout/ADX/ATR)
-input ENUM_TIMEFRAMES TrendTimeframe   = PERIOD_H4;    // Timeframe de tendance (EMA - HTF)
-input bool            UseTrendTF       = true;         // Activer le filtre de tendance multi-TF
 
 //+------------------------------------------------------------------+
 //| Globals                                                          |
 //+------------------------------------------------------------------+
 CTrade   trade;
 
-int      hEMA  = INVALID_HANDLE;   // handle iMA (sur le timeframe de tendance HTF)
-int      hADX  = INVALID_HANDLE;   // handle iADX (sur le timeframe d'entree)
-int      hATR  = INVALID_HANDLE;   // handle iATR (sur le timeframe d'entree)
+int      hEMA  = INVALID_HANDLE;   // handle iMA (timeframe de tendance HTF)
+int      hADX  = INVALID_HANDLE;   // handle iADX (timeframe d'entree)
+int      hATR  = INVALID_HANDLE;   // handle iATR (timeframe d'entree)
 
 ENUM_TIMEFRAMES g_trendTF = PERIOD_CURRENT;  // timeframe effectif du filtre de tendance
-datetime g_lastBarTime    = 0;               // pour ne traiter qu'une fois par bougie close
+datetime g_lastBarTime    = 0;               // pour ne traiter les entrees qu'a la cloture
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -112,19 +133,14 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
    }
 
-   // --- Choix du timeframe de tendance (HTF si multi-TF active, sinon le TF d'entree) ---
+   // --- Choix du timeframe de tendance (HTF si multi-TF active) ---
    g_trendTF = (UseTrendTF ? TrendTimeframe : TradeTimeframe);
 
-   // Le TF de tendance doit etre >= au TF d'entree pour avoir du sens
    if(UseTrendTF && PeriodSeconds(TrendTimeframe) < PeriodSeconds(TradeTimeframe))
-   {
-      PrintFormat("ATTENTION: TrendTimeframe (%s) est inferieur au TradeTimeframe (%s). "
-                  "Le filtre multi-TF perd son sens.",
+      PrintFormat("ATTENTION: TrendTimeframe (%s) < TradeTimeframe (%s) : le filtre multi-TF perd son sens.",
                   EnumToString(TrendTimeframe), EnumToString(TradeTimeframe));
-   }
 
    // --- Creation des indicateurs ---
-   // EMA sur le timeframe de tendance (HTF), breakout/ADX/ATR sur le TF d'entree
    hEMA = iMA(_Symbol, g_trendTF, EMA_Period, 0, MODE_EMA, PRICE_CLOSE);
    hADX = iADX(_Symbol, TradeTimeframe, ADX_Period);
    hATR = iATR(_Symbol, TradeTimeframe, ATR_Period);
@@ -140,12 +156,17 @@ int OnInit()
    trade.SetExpertMagicNumber(MagicNumber);
    trade.SetMarginMode();
    trade.SetTypeFillingBySymbol(_Symbol);
-   trade.SetDeviationInPoints(20);
+   trade.SetDeviationInPoints(SlippagePoints);
 
-   PrintFormat("INIT OK | Symbole=%s | EntryTF=%s | TrendTF=%s(EMA%d) | Breakout=%d | ADX=%d(min %.1f) | ATR=%d x%.1f | RR=%.1f | Risk=%.2f%% | Magic=%I64u",
+   long curSpread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
+   PrintFormat("INIT OK | %s | EntryTF=%s | TrendTF=%s(EMA%d) | Breakout=%d | ADX=%d(min %.1f) | ATR=%d x%.1f | RR=%.1f | Risk=%.2f%%",
                _Symbol, EnumToString(TradeTimeframe), EnumToString(g_trendTF), EMA_Period,
-               Breakout_Period, ADX_Period, ADX_Min, ATR_Period, ATR_Multiplier, Reward_Ratio,
-               RiskPercent, MagicNumber);
+               Breakout_Period, ADX_Period, ADX_Min, ATR_Period, ATR_Multiplier, Reward_Ratio, RiskPercent);
+   PrintFormat("INIT OK | Spread actuel=%d points (max autorise=%d) | BE=%s | Trailing=%s | Magic=%I64u",
+               (int)curSpread, MaxSpreadPoints,
+               (UseBreakEven ? "ON" : "OFF"), (UseTrailing ? "ON" : "OFF"), MagicNumber);
+   if(curSpread > MaxSpreadPoints)
+      Print("ATTENTION: le spread actuel depasse deja MaxSpreadPoints. Augmente MaxSpreadPoints si aucun trade ne se declenche (l'or a un spread large).");
 
    return(INIT_SUCCEEDED);
 }
@@ -167,15 +188,18 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-   // --- Ne travailler qu'a l'ouverture d'une nouvelle bougie ---
+   // === 1) Gestion des positions ouvertes (a chaque tick) ===
+   if(HasOpenPosition())
+   {
+      ManageOpenPositions();   // trailing stop + break-even
+      return;                  // max 1 trade : pas de nouvelle entree tant qu'une position est ouverte
+   }
+
+   // === 2) Recherche d'entree : uniquement a l'ouverture d'une nouvelle bougie d'entree ===
    datetime curBarTime = (datetime)SeriesInfoInteger(_Symbol, TradeTimeframe, SERIES_LASTBAR_DATE);
    if(curBarTime == g_lastBarTime)
       return;
    g_lastBarTime = curBarTime;
-
-   // --- Un seul trade ouvert a la fois (meme magic / meme symbole) ---
-   if(HasOpenPosition())
-      return;
 
    // --- Verification du spread ---
    long spread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
@@ -185,9 +209,8 @@ void OnTick()
       return;
    }
 
-   // --- Lecture des indicateurs (sur la bougie cloturee, index 1) ---
+   // --- Lecture des indicateurs (bougie cloturee, index 1) ---
    double emaBuf[1], adxBuf[1], atrBuf[1];
-
    if(CopyBuffer(hEMA, 0, 1, 1, emaBuf) < 1 ||
       CopyBuffer(hADX, 0, 1, 1, adxBuf) < 1 ||
       CopyBuffer(hATR, 0, 1, 1, atrBuf) < 1)
@@ -208,12 +231,9 @@ void OnTick()
 
    // --- Filtre ADX ---
    if(adx <= ADX_Min)
-   {
-      // pas de tendance suffisante - rien a faire
-      return;
-   }
+      return;   // tendance trop faible
 
-   // --- Plus haut / plus bas des Breakout_Period bougies cloturees (index 1..N) ---
+   // --- Donchian : plus haut / plus bas des Breakout_Period bougies cloturees ---
    double hh = HighestHigh(Breakout_Period, 1);
    double ll = LowestLow(Breakout_Period, 1);
    if(hh <= 0.0 || ll <= 0.0)
@@ -226,28 +246,23 @@ void OnTick()
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
-   // --- Filtre de tendance MULTI-TIMEFRAME ---
-   // L'EMA est calculee sur g_trendTF ; on compare au close de la derniere
-   // bougie cloturee de CE meme timeframe pour rester coherent.
+   // --- Filtre de tendance MULTI-TIMEFRAME (EMA + close du HTF) ---
    double trendClose = iClose(_Symbol, g_trendTF, 1);
    if(trendClose <= 0.0)
    {
       Print("Close du timeframe de tendance non disponible, trade ignore.");
       return;
    }
-
-   // --- Conditions Turtle ---
    bool trendUp   = (trendClose > ema);
    bool trendDown = (trendClose < ema);
 
-   // close du TF d'entree pour confirmer la cassure
-   double lastClose = iClose(_Symbol, TradeTimeframe, 1);
-
-   bool breakoutUp   = (lastClose > hh) || (ask > hh);   // cassure du plus haut
-   bool breakoutDown = (lastClose < ll) || (bid < ll);   // cassure du plus bas
+   // --- Cassure (confirmee par le close du TF d'entree ou le prix courant) ---
+   double lastClose  = iClose(_Symbol, TradeTimeframe, 1);
+   bool breakoutUp   = (lastClose > hh) || (ask > hh);
+   bool breakoutDown = (lastClose < ll) || (bid < ll);
 
    // --- BUY ---
-   if(trendUp && breakoutUp && adx > ADX_Min)
+   if(trendUp && breakoutUp)
    {
       double slDist = ATR_Multiplier * atr;
       double sl     = NormalizePrice(ask - slDist);
@@ -257,7 +272,7 @@ void OnTick()
    }
 
    // --- SELL ---
-   if(trendDown && breakoutDown && adx > ADX_Min)
+   if(trendDown && breakoutDown)
    {
       double slDist = ATR_Multiplier * atr;
       double sl     = NormalizePrice(bid + slDist);
@@ -275,15 +290,106 @@ bool HasOpenPosition()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket == 0)
-         continue;
-      if(!PositionSelectByTicket(ticket))
-         continue;
+      if(ticket == 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
       if(PositionGetString(POSITION_SYMBOL) == _Symbol &&
          (ulong)PositionGetInteger(POSITION_MAGIC) == MagicNumber)
          return(true);
    }
    return(false);
+}
+
+//+------------------------------------------------------------------+
+//| Gestion des positions : break-even + trailing stop ATR           |
+//+------------------------------------------------------------------+
+void ManageOpenPositions()
+{
+   if(!UseBreakEven && !UseTrailing)
+      return;
+
+   // ATR courant (bougie cloturee) pour le trailing
+   double atrBuf[1];
+   double atr = 0.0;
+   if(CopyBuffer(hATR, 0, 1, 1, atrBuf) >= 1)
+      atr = atrBuf[0];
+
+   double point   = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   long   stopsLv = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDist = stopsLv * point;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if((ulong)PositionGetInteger(POSITION_MAGIC) != MagicNumber) continue;
+
+      long   type   = PositionGetInteger(POSITION_TYPE);
+      double open   = PositionGetDouble(POSITION_PRICE_OPEN);
+      double curSL  = PositionGetDouble(POSITION_SL);
+      double curTP  = PositionGetDouble(POSITION_TP);
+
+      // R = risque initial en prix = ATR_Multiplier * ATR (coherent avec l'entree)
+      double rDist = ATR_Multiplier * atr;
+      if(rDist <= 0.0) continue;
+
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double newSL = curSL;
+
+      if(type == POSITION_TYPE_BUY)
+      {
+         double profit = bid - open;
+
+         // Break-even
+         if(UseBreakEven && profit >= BreakEvenTriggerR * rDist)
+         {
+            double be = open + BreakEvenBufferR * rDist;
+            if(be > newSL) newSL = be;
+         }
+         // Trailing ATR
+         if(UseTrailing && profit >= TrailStartR * rDist)
+         {
+            double trail = bid - TrailATRMult * atr;
+            if(trail > newSL) newSL = trail;
+         }
+         // Applique si amelioration et distance valide
+         newSL = NormalizePrice(newSL);
+         if(newSL > curSL && (bid - newSL) >= minDist)
+            ModifySL(ticket, newSL, curTP, "BUY");
+      }
+      else if(type == POSITION_TYPE_SELL)
+      {
+         double profit = open - ask;
+
+         if(UseBreakEven && profit >= BreakEvenTriggerR * rDist)
+         {
+            double be = open - BreakEvenBufferR * rDist;
+            if(curSL == 0.0 || be < newSL) newSL = be;
+         }
+         if(UseTrailing && profit >= TrailStartR * rDist)
+         {
+            double trail = ask + TrailATRMult * atr;
+            if(curSL == 0.0 || trail < newSL) newSL = trail;
+         }
+         newSL = NormalizePrice(newSL);
+         if((curSL == 0.0 || newSL < curSL) && (newSL - ask) >= minDist)
+            ModifySL(ticket, newSL, curTP, "SELL");
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Modifie le SL d'une position (TP inchange)                       |
+//+------------------------------------------------------------------+
+void ModifySL(const ulong ticket, const double sl, const double tp, const string tag)
+{
+   if(trade.PositionModify(ticket, sl, tp))
+      PrintFormat("%s SL ajuste -> %.5f (ticket %I64u)", tag, sl, ticket);
+   else
+      PrintFormat("%s echec modif SL %.5f | retcode=%u (%s)",
+                  tag, sl, trade.ResultRetcode(), trade.ResultRetcodeDescription());
 }
 
 //+------------------------------------------------------------------+
@@ -295,11 +401,9 @@ double HighestHigh(const int count, const int start)
    ArraySetAsSeries(highs, true);
    if(CopyHigh(_Symbol, TradeTimeframe, start, count, highs) < count)
       return(0.0);
-
    double maxH = highs[0];
    for(int i = 1; i < count; i++)
-      if(highs[i] > maxH)
-         maxH = highs[i];
+      if(highs[i] > maxH) maxH = highs[i];
    return(maxH);
 }
 
@@ -312,11 +416,9 @@ double LowestLow(const int count, const int start)
    ArraySetAsSeries(lows, true);
    if(CopyLow(_Symbol, TradeTimeframe, start, count, lows) < count)
       return(0.0);
-
    double minL = lows[0];
    for(int i = 1; i < count; i++)
-      if(lows[i] < minL)
-         minL = lows[i];
+      if(lows[i] < minL) minL = lows[i];
    return(minL);
 }
 
@@ -334,8 +436,7 @@ double NormalizePrice(const double price)
 //+------------------------------------------------------------------+
 double CalculateLot(const double slDistancePrice)
 {
-   if(slDistancePrice <= 0.0)
-      return(0.0);
+   if(slDistancePrice <= 0.0) return(0.0);
 
    double balance   = AccountInfoDouble(ACCOUNT_BALANCE);
    double riskMoney = balance * RiskPercent / 100.0;
@@ -349,10 +450,8 @@ double CalculateLot(const double slDistancePrice)
       return(0.0);
    }
 
-   // Perte (en devise du compte) pour 1 lot si le SL est touche
-   double lossPerLot = (slDistancePrice / tickSize) * tickValue;
-   if(lossPerLot <= 0.0)
-      return(0.0);
+   double lossPerLot = (slDistancePrice / tickSize) * tickValue;  // perte (devise compte) pour 1 lot
+   if(lossPerLot <= 0.0) return(0.0);
 
    double lot = riskMoney / lossPerLot;
 
@@ -363,11 +462,9 @@ double CalculateLot(const double slDistancePrice)
 
    if(lotStep > 0.0)
       lot = MathFloor(lot / lotStep) * lotStep;
-
    if(lot < minLot) lot = minLot;
    if(lot > maxLot) lot = maxLot;
 
-   // Arrondi au pas pour eviter les erreurs d'arrondi flottant
    int lotDigits = 2;
    if(lotStep > 0.0)
       lotDigits = (int)MathMax(0, MathRound(-MathLog10(lotStep)));
@@ -394,7 +491,6 @@ void OpenTrade(const ENUM_ORDER_TYPE type, const double price,
    long   stopsLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
    double point      = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    double minDist    = stopsLevel * point;
-
    if(minDist > 0.0 && slDist < minDist)
    {
       PrintFormat("OpenTrade: SL trop proche (%.5f < min %.5f), trade ignore.", slDist, minDist);
@@ -413,26 +509,18 @@ void OpenTrade(const ENUM_ORDER_TYPE type, const double price,
 
    bool ok = false;
    if(type == ORDER_TYPE_BUY)
-   {
       ok = trade.Buy(lot, _Symbol, 0.0, sl, tp, "Turtle BUY");
-   }
    else if(type == ORDER_TYPE_SELL)
-   {
       ok = trade.Sell(lot, _Symbol, 0.0, sl, tp, "Turtle SELL");
-   }
 
    if(ok)
-   {
-      PrintFormat("%s OUVERT | lot=%.2f | prix=%.5f | SL=%.5f | TP=%.5f | ATR=%.5f | ADX=%.1f | HH20=%.5f | LL20=%.5f | retcode=%u",
+      PrintFormat("%s OUVERT | lot=%.2f | prix=%.5f | SL=%.5f | TP=%.5f | risk=%.2f%% | ATR=%.5f | ADX=%.1f | HH=%.5f | LL=%.5f",
                   (type == ORDER_TYPE_BUY ? "BUY" : "SELL"),
-                  lot, price, sl, tp, atr, adx, hh, ll, trade.ResultRetcode());
-   }
+                  lot, price, sl, tp, RiskPercent, atr, adx, hh, ll);
    else
-   {
       PrintFormat("ECHEC ouverture %s | retcode=%u (%s) | lot=%.2f SL=%.5f TP=%.5f",
                   (type == ORDER_TYPE_BUY ? "BUY" : "SELL"),
                   trade.ResultRetcode(), trade.ResultRetcodeDescription(), lot, sl, tp);
-   }
 }
 //+------------------------------------------------------------------+
 </script>

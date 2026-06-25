@@ -7,6 +7,18 @@ dans un repère 400×640 mis à l'échelle par `transform:scale`).
 Objectif global : rendu **jeu mobile premium** (style Clash Royale / Supercell) sur tout
 le jeu : ligues, oiseaux, œufs, boutique, classement.
 
+## Règles permanentes (résumé — à respecter à CHAQUE modification)
+1. Rendu **premium 4K réaliste**, **jamais** arcade / cartoon cheap.
+2. Style **jeu mobile haut de gamme** type **Supercell / Clash Royale** (profondeur,
+   lumière, textures, ombres, reflets, contours dorés, contraste).
+3. **Ne jamais superposer** d'éléments par-dessus l'ancien design.
+4. **Modifier le système complet**, pas seulement une ligue.
+5. **Garder toutes les fonctionnalités existantes** (aucune régression).
+6. **Vérifier** que HTML/CSS/JS ne cassent pas (node --check + rendu headless + erreurs).
+7. **Appliquer le style premium partout** : toutes les ligues, menus, boutique, œufs,
+   oiseaux et classement.
+
+
 ## Skill 1 — UI premium mobile game
 - Viser un rendu **premium** : profondeur, lumière, ombres réalistes, textures, reflets,
   contours dorés, contraste. **Pas** d'aspect plat / arcade / cartoon cheap.

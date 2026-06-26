@@ -17,6 +17,9 @@ le jeu : ligues, oiseaux, œufs, boutique, classement.
 6. **Vérifier** que HTML/CSS/JS ne cassent pas (node --check + rendu headless + erreurs).
 7. **Appliquer le style premium partout** : toutes les ligues, menus, boutique, œufs,
    oiseaux et classement.
+8. **Toute modification va DIRECTEMENT dans `index.html`** (fichier de jeu unique et
+   autonome). Les assets (images) sont **embarqués en base64** dans `index.html` pour
+   qu'il fonctionne ouvert seul, sans dépendance externe.
 
 
 ## Skill 1 — UI premium mobile game

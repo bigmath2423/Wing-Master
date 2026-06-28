@@ -48,6 +48,35 @@ le jeu : ligues, oiseaux, œufs, boutique, classement.
 - **Faire une sauvegarde** avant gros changement (dossier `backup/`).
 - **Expliquer** les fichiers modifiés et ce qui a changé.
 
+## Skill 4 — Pipeline d'assets (découpe de planches)
+*Adapté de « visual-asset-generator » : pas de génération IA ici → on extrait depuis les planches fournies.*
+- Méthode éprouvée pour découper une planche en pièces/frames propres :
+  1. Détourer le fond (flood-fill / seuil de luminance), garder la **plus grosse
+     composante connexe** (supprime confettis, lignes de vitesse, parasites).
+  2. **Autocrop** sur l'alpha, puis **recadrage**.
+  3. Pour une **animation** (strip de frames) : aligner toutes les frames d'un même état
+     par **centroïde + échelle uniforme** (corps stable, ailes/tête bougent → pas de jitter).
+  4. Exporter en PNG transparent, taille raisonnable (≈256px), puis **embarquer en base64**
+     dans `index.html`.
+- Toujours **vérifier par un montage** (planche-contact) avant d'intégrer.
+
+## Skill 5 — Animation vivante (modèle officiel)
+*Adapté de « game-developer » : discipline d'états d'animation.*
+- Le **moineau** est le **modèle officiel** : jeu d'images `EMBED_MOINEAU` + machine d'états
+  `moineauState()` / `moineauFrame()` (idle, vol, montée, descente, blink, victoire, défaite).
+- États pilotés par le jeu : `vol` en partie, `montée`/`descente` selon `bird.v`,
+  `victoire`/`défaite` au game over, `blink` ponctuel au repos.
+- **Réutilisable** pour les 54 autres oiseaux : même structure, marquer le skin `anim:'<id>'`.
+  Repli `drawBird()` sprite/vecteur inchangé pour les oiseaux non encore riggés (zéro régression).
+
+## Skill 6 — Revue visuelle avant livraison
+*Adapté de « ui-designer » : checklist de design review.*
+- Avant de livrer, passer l'écran au crible : **hiérarchie** (titre > stats > actions),
+  **alignement / espacements** réguliers, **contraste** lisible, **cohérence** des boutons,
+  ombres et contours dorés, **pas de débordement** hors du repère 400×640.
+- Comparer **avant/après** par capture headless ; vérifier que rien n'est **superposé**
+  ni régressé sur les **9 ligues**.
+
 ## Architecture à connaître (pour ne rien casser)
 - `EMBED_WORLDS` (fonds de jeu, propres), `EMBED_LEAGUES` (blasons PNG),
   `EMBED_SKINS` (anciennes images d'accueil avec UI cuite — **plus utilisées** pour le menu).

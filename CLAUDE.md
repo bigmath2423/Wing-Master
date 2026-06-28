@@ -100,6 +100,35 @@ les oiseaux et leurs animations DIRECTEMENT en code (canvas vectoriel), 0 dépen
 - Le moineau garde ses **vraies frames** (planche) ; les autres utilisent le générateur.
   Pour passer un oiseau en frames : fournir sa planche → pipeline Skill 4 + `anim:'<id>'`.
 
+## Skill 8 — Pratiques AAA « façon Unity », adaptées HTML/CSS/JS (auto)
+*À appliquer AUTOMATIQUEMENT à chaque modif, sans demander. Le projet reste 100% HTML/CSS/JS :
+on s'inspire des techniques Unity, on ne convertit jamais vers Unity.*
+
+Correspondances Unity → Web (à utiliser quand pertinent) :
+- **Tweening / DOTween / easing curves** → `transition`/`@keyframes` avec `cubic-bezier`,
+  ou Web Animations API. Courbes maison : `--ease-out-back`(overshoot), `--ease-spring`,
+  `--ease-out-quint`. Jamais de mouvement linéaire pour de l'UI.
+- **Coroutines / Update()** → `requestAnimationFrame` (boucle `loop()` existante) ;
+  timers d'état via compteurs de `frame`. Pas de `setInterval` pour l'animation.
+- **Object pooling** (particules) → pools/limites strictes : `fxParts` plafonné, peu de
+  nœuds GPU (cf. `.hb-air` = 6). Réutiliser, ne pas spammer.
+- **Canvas Scaler / anchors** → repère fixe 400×640 mis à l'échelle (`#home` + `transform:scale`).
+- **Game feel / juice** : squash & stretch sur impulsion, anticipation, rebond (overshoot),
+  micro-décalages, hit-stop léger, parallax du fond, ombre dynamique. Toujours subtil.
+- **Feedback / micro-interactions** : chaque bouton = état `:hover` (lift+glow) + `:active`
+  (rebond/scale) ; halo lumineux ; retour « haptique » simulé (bounce). 
+- **Polish UI/UX** : hiérarchie (titre > stats > actions), espacements réguliers, contraste,
+  cohérence des contours dorés, profondeur (ombres réalistes + reflets + glassmorphism léger).
+- **Transitions d'écran** : entrées animées (`hbIn*`), jamais d'apparition brutale.
+
+Performance (priorité mobile, non négociable) :
+- Animer **uniquement** `transform` et `opacity` (compositeur GPU). Éviter d'animer
+  `width/height/top/left/box-shadow` en boucle sur beaucoup d'éléments.
+- `will-change` ciblé sur les éléments réellement animés ; pas partout.
+- Ne pas recréer de gradients/objets lourds **par frame** (les mettre en cache).
+- Respecter `prefers-reduced-motion`.
+- Désactiver les effets lourds hors écran ou en `performanceMode` (cf. `lite`/`homeLite`).
+
 ## Architecture à connaître (pour ne rien casser)
 - `EMBED_WORLDS` (fonds de jeu, propres), `EMBED_LEAGUES` (blasons PNG),
   `EMBED_SKINS` (anciennes images d'accueil avec UI cuite — **plus utilisées** pour le menu).

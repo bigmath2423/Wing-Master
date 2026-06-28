@@ -77,6 +77,20 @@ le jeu : ligues, oiseaux, œufs, boutique, classement.
 - Comparer **avant/après** par capture headless ; vérifier que rien n'est **superposé**
   ni régressé sur les **9 ligues**.
 
+## Skill 7 — Générateur d'oiseaux procédural (code, sans IA d'image)
+*Réalité technique : aucun générateur d'images IA dans cet environnement. On « génère »
+les oiseaux et leurs animations DIRECTEMENT en code (canvas vectoriel), 0 dépendance.*
+- `drawBird()` est le **générateur** : corps/ventre/aile/queue/œil/bec paramétriques,
+  recolorables par skin (`body/belly/wing/beak`) + accessoires (`horns/crown/bigwings/
+  sparkle/rainbow/ghost/cosmic`). Variété = couleurs + accessoires + features.
+- Animations générées en code : respiration, battement (`flapT`), balancement de queue,
+  clignement périodique, inclinaison selon la vélocité en jeu (`bird.rot`).
+- **Expressions d'humeur** (`mood`) pilotées par l'état : `happy` (yeux plissés joyeux)
+  au record/victoire, `sad` (œil mi-clos + larme) à la défaite, sinon neutre. Forçable
+  via `opts.mood`. S'applique à **tous** les oiseaux vectoriels.
+- Le moineau garde ses **vraies frames** (planche) ; les autres utilisent le générateur.
+  Pour passer un oiseau en frames : fournir sa planche → pipeline Skill 4 + `anim:'<id>'`.
+
 ## Architecture à connaître (pour ne rien casser)
 - `EMBED_WORLDS` (fonds de jeu, propres), `EMBED_LEAGUES` (blasons PNG),
   `EMBED_SKINS` (anciennes images d'accueil avec UI cuite — **plus utilisées** pour le menu).

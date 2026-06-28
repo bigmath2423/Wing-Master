@@ -60,14 +60,23 @@ le jeu : ligues, oiseaux, œufs, boutique, classement.
      dans `index.html`.
 - Toujours **vérifier par un montage** (planche-contact) avant d'intégrer.
 
-## Skill 5 — Animation vivante (modèle officiel)
+## Skill 5 — Animation vivante (modèle officiel + moteur générique)
 *Adapté de « game-developer » : discipline d'états d'animation.*
-- Le **moineau** est le **modèle officiel** : jeu d'images `EMBED_MOINEAU` + machine d'états
-  `moineauState()` / `moineauFrame()` (idle, vol, montée, descente, blink, victoire, défaite).
-- États pilotés par le jeu : `vol` en partie, `montée`/`descente` selon `bird.v`,
-  `victoire`/`défaite` au game over, `blink` ponctuel au repos.
-- **Réutilisable** pour les 54 autres oiseaux : même structure, marquer le skin `anim:'<id>'`.
-  Repli `drawBird()` sprite/vecteur inchangé pour les oiseaux non encore riggés (zéro régression).
+- Le **moineau** est le **modèle officiel** (frames découpées de sa planche, embarquées
+  `EMBED_MOINEAU`). Modèle **frame-based** : chaque état est un jeu d'images dessinées
+  (les pièces corps/tête/ailes/queue/œil/bec/pattes y sont déjà animées et alignées par
+  construction — pas de rig à os, on garde la qualité « peinte »).
+- **Moteur générique réutilisable** (zéro modif pour les 54 autres) :
+  1. `registerBirdAnim('<id>', EMBED_<ID>)` → charge les frames dans `BIRD_ANIM['<id>']`.
+  2. `anim:'<id>'` sur le skin.
+  `birdAnimState()` choisit l'état, `birdAnimFrame()` rend la frame. État stocké **par skin**
+  (`skin._anim`) → aucun mélange entre oiseaux.
+- États : `idle` · `vol` · `montee`/`descente` (selon `bird.v`) · `blink` aléatoire au repos
+  · `victoire`/`défaite` au game over · `spawn` (apparition au début de partie) · `eclosion`.
+- **Surcouche procédurale** dans `drawBird()` (branche `isAnim`) : flottement du corps,
+  squash & stretch léger sur l'impulsion, micro-balancement, ombre portée, plumes discrètes
+  au battement (menu). **Aucune** distorsion parasite ni fantôme : oiseau **net et 100% opaque**.
+- Repli `drawBird()` sprite/vecteur inchangé pour les oiseaux non encore riggés (zéro régression).
 
 ## Skill 6 — Revue visuelle avant livraison
 *Adapté de « ui-designer » : checklist de design review.*

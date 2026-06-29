@@ -29,7 +29,7 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
 #vignette{position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(120% 90% at 50% 42%,rgba(0,0,0,0) 55%,rgba(0,0,0,.42));}
 /* rayons de soleil */
-.ray{position:absolute;top:-40px;width:120px;height:380px;pointer-events:none;mix-blend-mode:screen;opacity:.5;
+.ray{position:absolute;top:-40px;width:120px;height:380px;pointer-events:none;mix-blend-mode:screen;opacity:.62;
   background:linear-gradient(180deg,rgba(255,247,205,.55),rgba(255,247,205,0));filter:blur(2px);
   animation:rayPulse 7s ease-in-out infinite;}
 .ray.a{left:30px;transform:rotate(14deg);} .ray.b{right:36px;transform:rotate(-12deg);animation-delay:-3s;}
@@ -86,11 +86,11 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
   border:2.5px solid var(--g3);border-radius:18px;
   background:radial-gradient(130% 92% at 50% -8%,rgba(44,92,60,.97),rgba(8,36,16,.98) 60%),linear-gradient(180deg,rgba(13,46,24,.98),rgba(5,24,10,.99));
   box-shadow:0 16px 34px rgba(0,0,0,.6),0 3px 0 rgba(255,248,210,.18),inset 0 0 0 1px rgba(255,248,210,.4),inset 0 2px 4px rgba(255,255,255,.2),inset 0 -16px 22px rgba(0,0,0,.55),0 0 22px rgba(255,200,110,.1);}
-.league .rays{position:absolute;left:50%;top:-44px;width:104px;height:104px;transform:translateX(-50%);border-radius:50%;pointer-events:none;
+.league .rays{position:absolute;left:50%;top:-58px;width:132px;height:132px;transform:translateX(-50%);border-radius:50%;pointer-events:none;
   background:repeating-conic-gradient(rgba(255,231,150,0) 0 9deg,rgba(255,231,150,.16) 9deg 11deg);
   -webkit-mask:radial-gradient(closest-side,transparent 40%,#000 52%,transparent 80%);mask:radial-gradient(closest-side,transparent 40%,#000 52%,transparent 80%);animation:spin 18s linear infinite;}
 @keyframes spin{to{transform:translateX(-50%) rotate(360deg)}}
-.blason{position:absolute;left:50%;top:-40px;width:76px;height:76px;transform:translateX(-50%);object-fit:contain;
+.blason{position:absolute;left:50%;top:-50px;width:98px;height:98px;transform:translateX(-50%);object-fit:contain;
   filter:drop-shadow(0 5px 8px rgba(0,0,0,.7)) drop-shadow(0 0 10px rgba(255,226,150,.55));animation:blasonPulse 2.8s ease-in-out infinite;}
 @keyframes blasonPulse{0%,100%{filter:drop-shadow(0 5px 8px rgba(0,0,0,.7)) drop-shadow(0 0 6px rgba(255,226,150,.4))}50%{filter:drop-shadow(0 5px 9px rgba(0,0,0,.7)) drop-shadow(0 0 13px rgba(255,234,162,.85))}}
 .lgnum{font-weight:900;font-size:11.5px;letter-spacing:1.5px;color:var(--g2);text-shadow:0 1px 2px #000;}
@@ -127,9 +127,9 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
 
 /* ---------- OISEAU CENTRAL ---------- */
 .heroWrap{position:absolute;left:50%;top:312px;transform:translateX(-50%);width:184px;height:184px;pointer-events:none;}
-.heroShadow{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:120px;height:26px;border-radius:50%;
+.heroShadow{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:146px;height:30px;border-radius:50%;
   background:radial-gradient(closest-side,rgba(6,10,18,.4),rgba(6,10,18,0));animation:shadowBreathe 3.4s ease-in-out infinite;}
-.hero{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:170px;height:170px;
+.hero{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);width:212px;height:212px;
   filter:drop-shadow(0 6px 8px rgba(8,20,40,.35));animation:heroFloat 3.4s ease-in-out infinite;will-change:transform;}
 @keyframes heroFloat{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-9px)}}
 @keyframes shadowBreathe{0%,100%{transform:translateX(-50%) scale(1);opacity:.4}50%{transform:translateX(-50%) scale(.82);opacity:.26}}
@@ -141,7 +141,7 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
   background:linear-gradient(180deg,#fff8da,#ffdd72 34%,#f5c049 54%,#dba02b 78%,#c98c20);
   box-shadow:0 8px 0 #875a12,0 18px 30px rgba(2,6,14,.6),0 0 36px rgba(255,206,92,.4),inset 0 2px 1px rgba(255,255,255,.9),inset 0 -10px 13px rgba(140,90,20,.45);
   animation:flyIn .4s cubic-bezier(.2,1.3,.4,1) both,flyPulse 2.1s ease-in-out .5s infinite;transition:transform .1s,filter .12s;}
-.fly span{font-weight:900;font-size:34px;letter-spacing:2.5px;color:#5a3a08;text-shadow:0 1px 0 rgba(255,255,255,.55),0 2px 3px rgba(120,70,10,.5);}
+.fly span{font-weight:900;font-size:40px;letter-spacing:3px;color:#5a3a08;text-shadow:0 1px 0 rgba(255,255,255,.6),0 2px 4px rgba(120,70,10,.55);}
 .fly .wing{width:30px;height:20px;} .fly .wing.flip{transform:scaleX(-1);}
 .fly::after{content:'';position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);animation:sheen 2.8s linear infinite;}
 .fly:hover{filter:brightness(1.06) saturate(1.05);}
@@ -185,22 +185,42 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
 
 /* ---------- ORNEMENTS (fidélité maquette) ---------- */
 /* anneau doré derrière l'emblème de ligue */
-.emblemRing{position:absolute;left:50%;top:-46px;width:90px;height:90px;transform:translateX(-50%);border-radius:50%;z-index:0;pointer-events:none;
+.emblemRing{position:absolute;left:50%;top:-56px;width:116px;height:116px;transform:translateX(-50%);border-radius:50%;z-index:0;pointer-events:none;
   background:conic-gradient(#f4d06a,#caa24a,#fff0b8,#a9731a,#f4d06a,#caa24a,#fff0b8,#a9731a,#f4d06a);
   box-shadow:0 3px 10px rgba(0,0,0,.5),0 0 16px rgba(255,210,110,.45),inset 0 0 0 3px rgba(120,78,18,.7),inset 0 0 0 5px rgba(255,235,170,.4);}
 /* repositionnement VOLER + online (proportions maquette) */
-.fly{top:444px;width:262px;height:74px;}
+.fly{top:438px;width:296px;height:88px;border-radius:44px;}
 .online{top:528px;}
 /* lauriers dorés de part et d'autre du VOLER */
-.laurel{position:absolute;top:446px;width:58px;height:80px;z-index:6;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));
+.laurel{position:absolute;top:436px;width:74px;height:102px;z-index:6;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));
   animation:flyIn .4s cubic-bezier(.2,1.3,.4,1) .05s both;}
-.laurel.l{left:52px;} .laurel.r{right:52px;transform:scaleX(-1);}
+.laurel.l{left:36px;} .laurel.r{right:36px;transform:scaleX(-1);}
 /* nid doré sous l'oiseau */
-.nestBase{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);width:148px;height:50px;border-radius:50%;z-index:0;
-  background:radial-gradient(closest-side,#d59a36,#7a5216 64%,#3a2608);
-  border:2px solid #8a5a14;
-  box-shadow:0 8px 16px rgba(0,0,0,.55),inset 0 3px 7px rgba(255,232,160,.45),inset 0 -7px 11px rgba(0,0,0,.5);}
-.nestBase::before{content:'';position:absolute;inset:6px 10px;border-radius:50%;border:2px dashed rgba(58,38,8,.55);}
+.nestBase{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);width:182px;height:66px;border-radius:50%;z-index:0;
+  background:radial-gradient(closest-side,#e0a83f,#9a6a1e 50%,#5a3c10 78%,#2e1d06);
+  border:3px solid #6e4a12;
+  box-shadow:0 12px 22px rgba(0,0,0,.6),0 3px 0 rgba(255,228,150,.25),inset 0 4px 9px rgba(255,236,170,.5),inset 0 -10px 16px rgba(0,0,0,.6),inset 0 0 0 2px rgba(58,38,8,.5);}
+.nestBase::before{content:'';position:absolute;inset:7px 12px;border-radius:50%;border:2.5px dashed rgba(46,29,6,.6);box-shadow:inset 0 2px 5px rgba(0,0,0,.5);}
+.nestBase::after{content:'';position:absolute;left:8%;right:8%;top:14%;height:30%;border-radius:50%;background:linear-gradient(rgba(255,236,170,.35),rgba(255,236,170,0));}
+
+/* ---------- VIE DU DÉCOR (feuilles, oiseaux lointains, lumière) ---------- */
+.bloom{position:absolute;top:-70px;left:50%;transform:translateX(-50%);width:320px;height:260px;pointer-events:none;mix-blend-mode:screen;
+  background:radial-gradient(closest-side,rgba(255,247,200,.28),rgba(255,247,200,0));animation:rayPulse 8s ease-in-out infinite;}
+.leaf{position:absolute;top:-22px;width:13px;height:9px;border-radius:0 70% 0 70%;pointer-events:none;opacity:.82;
+  box-shadow:inset 0 0 3px rgba(0,0,0,.25);will-change:transform;animation:leafFall linear infinite;}
+.leaf.l1{left:16%;animation-duration:9s;background:linear-gradient(135deg,#9ecb5a,#5e8f2e)}
+.leaf.l2{left:33%;animation-duration:12s;animation-delay:-3s;background:linear-gradient(135deg,#d7c24a,#9a7d22)}
+.leaf.l3{left:58%;animation-duration:8s;animation-delay:-5s;background:linear-gradient(135deg,#c98f3a,#7c5418)}
+.leaf.l4{left:74%;animation-duration:13s;animation-delay:-2s;background:linear-gradient(135deg,#9ecb5a,#4e7e26)}
+.leaf.l5{left:88%;animation-duration:10.5s;animation-delay:-7s;background:linear-gradient(135deg,#e0b248,#8a6a1a)}
+.leaf.l6{left:45%;animation-duration:15s;animation-delay:-9s;background:linear-gradient(135deg,#8fbf52,#5a8a2a)}
+@keyframes leafFall{0%{transform:translate(0,0) rotate(0);opacity:0}8%{opacity:.85}50%{transform:translate(18px,330px) rotate(280deg)}100%{transform:translate(-12px,680px) rotate(560deg);opacity:.15}}
+.farbird{position:absolute;width:15px;height:9px;pointer-events:none;opacity:.5;will-change:transform;animation:farFly linear infinite;}
+.farbird svg{width:100%;height:100%;animation:farFlap .5s ease-in-out infinite;}
+.farbird.f1{top:96px;animation-duration:24s} .farbird.f2{top:120px;animation-duration:32s;animation-delay:-8s;opacity:.38}
+.farbird.f3{top:84px;animation-duration:28s;animation-delay:-15s;opacity:.42}
+@keyframes farFly{from{transform:translateX(-30px)}to{transform:translateX(430px)}}
+@keyframes farFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.5)}}
 </style>
 </head>
 <body>
@@ -209,6 +229,11 @@ body{background:#04140a;display:flex;align-items:center;justify-content:center;o
   <div class="ray a"></div><div class="ray b"></div>
   <div class="cloud c1"></div><div class="cloud c2"></div>
   <div class="air"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="bloom"></div>
+  <div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div>
+  <div class="farbird f1"><svg viewBox="0 0 20 10"><path d="M1 8 Q6 1 10 6 Q14 1 19 8" fill="none" stroke="rgba(30,45,30,.85)" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+  <div class="farbird f2"><svg viewBox="0 0 20 10"><path d="M1 8 Q6 1 10 6 Q14 1 19 8" fill="none" stroke="rgba(30,45,30,.85)" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+  <div class="farbird f3"><svg viewBox="0 0 20 10"><path d="M1 8 Q6 1 10 6 Q14 1 19 8" fill="none" stroke="rgba(30,45,30,.85)" stroke-width="1.6" stroke-linecap="round"/></svg></div>
 
   <!-- BARRE HAUT -->
   <div class="top">

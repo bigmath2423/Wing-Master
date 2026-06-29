@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wing Master — Accueil V2</title>
+<style>
+/* ============================================================================
+   WING MASTER — NOUVEL ACCUEIL V2 (page indépendante, design Supercell moderne)
+   Repère fixe 400x640 mis à l'échelle. Assets réels : fond, blason, moineau, icônes.
+   Tokens de design + profondeur + verre + or + glow + animations 60fps (transform/opacity).
+   ============================================================================ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{background:#070d16;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  -webkit-user-select:none;user-select:none;touch-action:none;}
+#stage{position:relative;width:400px;height:640px;transform-origin:center;overflow:hidden;border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);color:#eef4fb;
+  --g1:#fff1bd;--g2:#f6cf63;--g3:#d99a2e;--g4:#8a5a14;--ink:#081626;
+  --pnl1:#23456a;--pnl2:#112a46;--pnl3:#081626;--acc:#8fe6a0;}
+
+/* ---------- FOND vivant (photo + voiles + lumière) ---------- */
+#bg{position:absolute;inset:-3%;background:url(assets/worlds/debut.jpg) center/cover;
+  animation:bgDrift 26s ease-in-out infinite alternate;will-change:transform;}
+@keyframes bgDrift{from{transform:scale(1.06) translate(-1.2%,-0.6%)}to{transform:scale(1.1) translate(1.2%,0.6%)}}
+#bg-veil-top{position:absolute;left:0;right:0;top:0;height:160px;background:linear-gradient(180deg,rgba(6,14,26,.55),rgba(6,14,26,0));}
+#bg-veil-bot{position:absolute;left:0;right:0;bottom:0;height:200px;background:linear-gradient(0deg,rgba(6,14,26,.6),rgba(6,14,26,0));}
+#vignette{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 42%,rgba(0,0,0,0) 55%,rgba(0,0,0,.42));}
+/* rayons de soleil */
+.ray{position:absolute;top:-40px;width:120px;height:380px;pointer-events:none;mix-blend-mode:screen;opacity:.5;
+  background:linear-gradient(180deg,rgba(255,247,205,.55),rgba(255,247,205,0));filter:blur(2px);
+  animation:rayPulse 7s ease-in-out infinite;}
+.ray.a{left:30px;transform:rotate(14deg);} .ray.b{right:36px;transform:rotate(-12deg);animation-delay:-3s;}
+@keyframes rayPulse{0%,100%{opacity:.32}50%{opacity:.6}}
+/* nuages lents */
+.cloud{position:absolute;height:34px;width:120px;border-radius:50%;background:rgba(255,255,255,.5);filter:blur(7px);opacity:.5;
+  animation:cloudMove linear infinite;}
+.cloud.c1{top:70px;animation-duration:60s;} .cloud.c2{top:110px;width:90px;animation-duration:80s;animation-delay:-20s;opacity:.4;}
+@keyframes cloudMove{from{transform:translateX(-140px)}to{transform:translateX(440px)}}
+/* particules de lumière */
+.air{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.air i{position:absolute;bottom:-12px;width:4px;height:4px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,246,200,.95),rgba(255,246,200,0) 70%);will-change:transform,opacity;
+  animation:airUp linear infinite;}
+.air i:nth-child(1){left:14%;animation-duration:11s} .air i:nth-child(2){left:30%;width:3px;animation-duration:14s;animation-delay:-4s}
+.air i:nth-child(3){left:52%;animation-duration:9s;animation-delay:-6s} .air i:nth-child(4){left:69%;width:5px;animation-duration:13s;animation-delay:-2s}
+.air i:nth-child(5){left:84%;animation-duration:12s;animation-delay:-8s} .air i:nth-child(6){left:44%;width:6px;animation-duration:16s;animation-delay:-10s}
+@keyframes airUp{0%{transform:translateY(0) scale(.5);opacity:0}12%{opacity:.85}90%{opacity:.5}100%{transform:translateY(-680px) scale(1);opacity:0}}
+
+/* ---------- BARRE HAUT ---------- */
+.top{position:absolute;left:0;top:0;width:400px;height:60px;display:flex;align-items:center;gap:7px;padding:0 9px;
+  background:linear-gradient(180deg,rgba(33,68,104,.96),rgba(11,28,52,.97) 64%,rgba(7,18,36,.98));
+  box-shadow:0 4px 16px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.16);
+  backdrop-filter:blur(7px) saturate(1.2);-webkit-backdrop-filter:blur(7px) saturate(1.2);}
+.top::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--g2),var(--g1),var(--g2),transparent);opacity:.9;}
+.avatar{position:relative;width:44px;height:44px;border-radius:50%;flex:0 0 auto;
+  background:radial-gradient(circle at 40% 34%,#27577f,#0a1f3c);border:2.5px solid var(--g2);
+  box-shadow:0 0 0 1.5px var(--ink),0 3px 8px rgba(0,0,0,.55),0 0 12px rgba(255,206,110,.28),inset 0 2px 4px rgba(255,255,255,.25),inset 0 -4px 6px rgba(0,0,0,.45);}
+.avatar svg{position:absolute;left:50%;top:52%;width:38px;height:38px;transform:translate(-50%,-50%);clip-path:circle(46% at 50% 50%);}
+.lvl{position:absolute;right:-4px;bottom:-4px;min-width:18px;height:18px;line-height:16px;border-radius:9px;text-align:center;
+  background:linear-gradient(#fff0a8,#e0a52c);color:#3a2a08;font-weight:900;font-size:10px;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);}
+.idblk{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.pname{font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis;}
+.xp{width:84px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+.xp i{display:block;height:100%;width:54%;background:linear-gradient(#bdf5c9,#46c06b);box-shadow:0 0 6px rgba(90,230,130,.5);}
+.curr{display:flex;gap:5px;margin-left:auto;}
+.chip{display:flex;align-items:center;gap:4px;height:28px;padding:0 11px 0 8px;border-radius:14px;font-weight:900;font-size:11.5px;
+  background:linear-gradient(180deg,#1a3a5e,#0a1c34 58%,#06101e);border:1.5px solid rgba(255,214,128,.6);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 -3px 5px rgba(0,0,0,.5),0 2px 5px rgba(0,0,0,.5);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);transition:transform .1s,filter .1s;}
+.chip svg{width:18px;height:18px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}
+.chip .plus{display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;margin-left:1px;
+  background:linear-gradient(#5fe089,#2faa57);color:#06351c;font-weight:900;font-size:12px;line-height:1;border:1px solid rgba(255,255,255,.5);}
+.menu{display:flex;flex-direction:column;justify-content:center;gap:3px;width:24px;height:30px;align-items:center;flex:0 0 auto;}
+.menu span{width:17px;height:2.4px;border-radius:2px;background:#cfe0f0;}
+
+/* ---------- PANNEAU LIGUE ---------- */
+.league{position:absolute;left:50%;top:70px;transform:translateX(-50%);width:196px;padding:28px 12px 14px;text-align:center;
+  border:2.5px solid var(--g3);border-radius:18px;
+  background:radial-gradient(130% 92% at 50% -8%,rgba(54,84,124,.97),rgba(13,26,44,.98) 60%),linear-gradient(180deg,rgba(20,38,62,.98),rgba(7,15,28,.99));
+  box-shadow:0 16px 34px rgba(0,0,0,.6),0 3px 0 rgba(255,248,210,.18),inset 0 0 0 1px rgba(255,248,210,.4),inset 0 2px 4px rgba(255,255,255,.2),inset 0 -16px 22px rgba(0,0,0,.55),0 0 22px rgba(255,200,110,.1);}
+.league .rays{position:absolute;left:50%;top:-44px;width:104px;height:104px;transform:translateX(-50%);border-radius:50%;pointer-events:none;
+  background:repeating-conic-gradient(rgba(255,231,150,0) 0 9deg,rgba(255,231,150,.16) 9deg 11deg);
+  -webkit-mask:radial-gradient(closest-side,transparent 40%,#000 52%,transparent 80%);mask:radial-gradient(closest-side,transparent 40%,#000 52%,transparent 80%);animation:spin 18s linear infinite;}
+@keyframes spin{to{transform:translateX(-50%) rotate(360deg)}}
+.blason{position:absolute;left:50%;top:-40px;width:76px;height:76px;transform:translateX(-50%);object-fit:contain;
+  filter:drop-shadow(0 5px 8px rgba(0,0,0,.7)) drop-shadow(0 0 10px rgba(255,226,150,.55));animation:blasonPulse 2.8s ease-in-out infinite;}
+@keyframes blasonPulse{0%,100%{filter:drop-shadow(0 5px 8px rgba(0,0,0,.7)) drop-shadow(0 0 6px rgba(255,226,150,.4))}50%{filter:drop-shadow(0 5px 9px rgba(0,0,0,.7)) drop-shadow(0 0 13px rgba(255,234,162,.85))}}
+.lgnum{font-weight:900;font-size:11.5px;letter-spacing:1.5px;color:var(--g2);text-shadow:0 1px 2px #000;}
+.lgname{font-weight:900;font-size:19px;line-height:1.05;margin:2px 0 6px;text-shadow:0 2px 4px #000,0 0 14px rgba(255,232,160,.22);}
+.lgtr{display:flex;align-items:center;justify-content:center;gap:6px;font-weight:900;font-size:14px;color:var(--g1);}
+.lgtr svg{width:16px;height:16px;}
+.lgbar{height:10px;border-radius:6px;background:rgba(0,0,0,.5);margin-top:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.07);}
+.lgbar i{display:block;height:100%;width:42%;background:linear-gradient(#fff0a8,#ffc83a,#e7a417);box-shadow:0 0 8px rgba(255,200,80,.5);}
+
+/* ---------- TUILES LATÉRALES ---------- */
+.rail{position:absolute;top:182px;display:flex;flex-direction:column;gap:13px;}
+.rail.left{left:10px;} .rail.right{right:10px;}
+.tile{position:relative;width:96px;height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:2px solid var(--g3);border-radius:18px;overflow:hidden;cursor:pointer;
+  background:linear-gradient(180deg,#2c4360,#192c43 50%,#0b1524);
+  box-shadow:0 9px 18px rgba(2,6,14,.62),0 2px 4px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,248,210,.4),inset 0 2px 0 rgba(255,255,255,.24),inset 0 -13px 17px rgba(0,0,0,.36);
+  transition:transform .13s cubic-bezier(.34,1.55,.5,1),filter .12s,box-shadow .13s;}
+.tile::after{content:'';position:absolute;left:0;top:0;right:0;height:46%;border-radius:16px 16px 40% 40%;background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,0));pointer-events:none;}
+.tile:hover{transform:translateY(-3px);filter:brightness(1.07) saturate(1.05);box-shadow:0 13px 24px rgba(2,6,14,.66),0 0 18px rgba(255,200,110,.32),inset 0 0 0 1px rgba(255,248,210,.42),inset 0 2px 0 rgba(255,255,255,.26);}
+.tile:active{transform:translateY(1px) scale(.955);}
+.tic{width:48px;height:48px;padding:6px;border-radius:50%;z-index:1;
+  background:radial-gradient(circle at 50% 28%,#456690,#1b2e48 60%,#0c1626);border:2px solid rgba(255,220,150,.8);
+  box-shadow:inset 0 3px 5px rgba(255,255,255,.3),inset 0 -7px 9px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.55),0 0 9px rgba(255,210,120,.22);transition:transform .13s cubic-bezier(.34,1.55,.5,1);}
+.tile:hover .tic{transform:scale(1.07);}
+.tlb{font-weight:900;font-size:9.5px;letter-spacing:.4px;text-align:center;line-height:1;z-index:1;text-shadow:0 1px 2px #000;}
+.tlb small{display:block;font-size:7.5px;color:var(--g2);margin-top:1.5px;}
+.tile.pass{background:linear-gradient(180deg,#9a5cf2,#6f43c8 52%,#371d6a);border-color:#caa2ff;}
+.tile.pass .tlb{color:#ffe9a6;} .tile.pass .tlb small{color:#e8d8ff;}
+.tbadge{position:absolute;right:5px;top:5px;min-width:18px;height:18px;line-height:15px;border-radius:9px;text-align:center;z-index:2;
+  background:linear-gradient(#ff7b7b,#e01f47);color:#fff;font-weight:900;font-size:10px;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);
+  animation:badge 1.8s ease-in-out infinite;}
+@keyframes badge{0%,100%{transform:scale(1)}50%{transform:scale(1.13)}}
+
+/* ---------- OISEAU CENTRAL ---------- */
+.heroWrap{position:absolute;left:50%;top:330px;transform:translateX(-50%);width:200px;height:200px;pointer-events:none;}
+.heroShadow{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:120px;height:26px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(6,10,18,.4),rgba(6,10,18,0));animation:shadowBreathe 3.4s ease-in-out infinite;}
+.hero{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:170px;height:170px;
+  filter:drop-shadow(0 6px 8px rgba(8,20,40,.35));animation:heroFloat 3.4s ease-in-out infinite;will-change:transform;}
+@keyframes heroFloat{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-9px)}}
+@keyframes shadowBreathe{0%,100%{transform:translateX(-50%) scale(1);opacity:.4}50%{transform:translateX(-50%) scale(.82);opacity:.26}}
+
+/* ---------- BOUTON VOLER ---------- */
+.fly{position:absolute;left:50%;top:476px;transform:translateX(-50%);width:256px;height:70px;
+  display:flex;align-items:center;justify-content:center;gap:10px;overflow:hidden;cursor:pointer;
+  border:3px solid #b8841f;border-radius:36px;
+  background:linear-gradient(180deg,#fff8da,#ffdd72 34%,#f5c049 54%,#dba02b 78%,#c98c20);
+  box-shadow:0 8px 0 #875a12,0 18px 30px rgba(2,6,14,.6),0 0 36px rgba(255,206,92,.4),inset 0 2px 1px rgba(255,255,255,.9),inset 0 -10px 13px rgba(140,90,20,.45);
+  animation:flyIn .4s cubic-bezier(.2,1.3,.4,1) both,flyPulse 2.1s ease-in-out .5s infinite;transition:transform .1s,filter .12s;}
+.fly span{font-weight:900;font-size:34px;letter-spacing:2.5px;color:#5a3a08;text-shadow:0 1px 0 rgba(255,255,255,.55),0 2px 3px rgba(120,70,10,.5);}
+.fly .wing{width:30px;height:20px;} .fly .wing.flip{transform:scaleX(-1);}
+.fly::after{content:'';position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);animation:sheen 2.8s linear infinite;}
+.fly:hover{filter:brightness(1.06) saturate(1.05);}
+.fly:active{transform:translate(-50%,5px);box-shadow:0 3px 0 #875a12,0 8px 16px rgba(2,6,14,.5),0 0 26px rgba(255,200,80,.3),inset 0 2px 1px rgba(255,255,255,.9),inset 0 -7px 9px rgba(140,90,20,.45);}
+@keyframes sheen{0%{left:-60%}55%{left:120%}100%{left:120%}}
+@keyframes flyPulse{0%,100%{box-shadow:0 8px 0 #875a12,0 18px 30px rgba(2,6,14,.6),0 0 32px rgba(255,200,80,.34),inset 0 2px 1px rgba(255,255,255,.9),inset 0 -10px 13px rgba(140,90,20,.45)}50%{box-shadow:0 8px 0 #875a12,0 20px 38px rgba(2,6,14,.6),0 0 56px rgba(255,216,110,.62),inset 0 2px 1px rgba(255,255,255,.9),inset 0 -10px 13px rgba(140,90,20,.45)}}
+@keyframes flyIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+.online{position:absolute;left:50%;top:556px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:24px;padding:0 16px;border-radius:12px;
+  background:linear-gradient(#13243c,#0a1626);border:1px solid rgba(255,210,120,.35);font-weight:900;font-size:11px;color:#cdd8e6;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+.online .dot{width:8px;height:8px;border-radius:50%;background:#3fd778;box-shadow:0 0 6px #3fd778;}
+
+/* ---------- NAV BAS ---------- */
+.nav{position:absolute;left:0;bottom:0;width:400px;height:64px;display:flex;
+  background:linear-gradient(180deg,rgba(26,52,84,.97),rgba(9,22,40,.98) 55%,rgba(6,14,26,.99));
+  box-shadow:0 -6px 18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter:blur(8px) saturate(1.2);-webkit-backdrop-filter:blur(8px) saturate(1.2);}
+.nav::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--g2),transparent);opacity:.85;}
+.navb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;color:#9fb0c2;cursor:pointer;
+  transition:color .12s,transform .12s cubic-bezier(.34,1.5,.5,1);}
+.navb svg{width:23px;height:23px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));transition:transform .12s,filter .12s;}
+.navb span{font-weight:900;font-size:8.5px;letter-spacing:.3px;text-shadow:0 1px 1px rgba(0,0,0,.55);}
+.navb:hover{color:#cfe0f0;transform:translateY(-2px);}
+.navb:active{transform:scale(.92);}
+.navb.active{color:var(--acc);}
+.navb.active svg{transform:translateY(-1px) scale(1.12);filter:drop-shadow(0 0 6px var(--acc));}
+.navb.active span{color:#ffe7a6;}
+.navb.active::before{content:'';position:absolute;left:50%;top:7px;width:52px;height:48px;transform:translateX(-50%);border-radius:14px;
+  background:radial-gradient(60% 60% at 50% 35%,rgba(255,255,255,.16),rgba(255,255,255,0));border:1.5px solid var(--acc);box-shadow:0 0 12px rgba(255,210,120,.35);}
+
+/* entrées */
+.top{animation:inDown .3s ease both;} .league{animation:inScale .34s ease both;}
+.rail.left{animation:inLeft .34s ease .04s both;} .rail.right{animation:inRight .34s ease .04s both;}
+.nav{animation:inUp .32s ease both;} .online{animation:inFade .5s ease .15s both;}
+@keyframes inDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes inUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes inLeft{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes inRight{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes inScale{from{opacity:0;transform:translateX(-50%) scale(.9)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes inFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div><div id="bg-veil-top"></div><div id="bg-veil-bot"></div>
+  <div class="ray a"></div><div class="ray b"></div>
+  <div class="cloud c1"></div><div class="cloud c2"></div>
+  <div class="air"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <!-- BARRE HAUT -->
+  <div class="top">
+    <div class="avatar" data-act="profil">
+      <svg viewBox="0 0 40 40"><ellipse cx="19" cy="24" rx="11" ry="9" fill="#3aa0e8"/><circle cx="25" cy="16" r="7.5" fill="#4aa9f0"/><path d="M13 22q-9-2-11 4 6 1 11-1z" fill="#2f8fd6"/><path d="M32 14l7 1-7 2z" fill="#ff9a3c"/><circle cx="26" cy="15" r="2.4" fill="#fff"/><circle cx="26.6" cy="15.2" r="1.2" fill="#11202f"/></svg>
+      <span class="lvl">25</span>
+    </div>
+    <div class="idblk">
+      <div class="pname">WingMaster</div>
+      <div class="xp"><i></i></div>
+    </div>
+    <div class="curr">
+      <div class="chip" data-act="shop"><svg viewBox="0 0 24 24"><defs><radialGradient id="gc" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#fff3b0"/><stop offset="55%" stop-color="#f4cf63"/><stop offset="100%" stop-color="#d39a2c"/></radialGradient></defs><circle cx="12" cy="12" r="9.5" fill="url(#gc)" stroke="#a9731a" stroke-width="1.4"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#c98f2c" stroke-width="1.5"/></svg><span>12 450</span><span class="plus">+</span></div>
+      <div class="chip" data-act="shop"><svg viewBox="0 0 24 24"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6f5ff"/><stop offset="50%" stop-color="#5fdcef"/><stop offset="100%" stop-color="#27a3ba"/></linearGradient></defs><path d="M12 3l7 6-7 12-7-12z" fill="url(#gg)" stroke="#1d7e90" stroke-width="1.1" stroke-linejoin="round"/></svg><span>1 260</span><span class="plus">+</span></div>
+      <div class="chip"><svg viewBox="0 0 24 24"><defs><linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="60%" stop-color="#f4cd63"/><stop offset="100%" stop-color="#cf9024"/></linearGradient></defs><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="url(#gt)" stroke="#a9731a" stroke-width="1.1"/><path d="M11 11h2v4h-2zM8 16h8v2.3H8z" fill="#e0a52c"/></svg><span>516</span></div>
+    </div>
+    <div class="menu" data-act="shop"><span></span><span></span><span></span></div>
+  </div>
+
+  <!-- LIGUE -->
+  <div class="league" data-act="ligues">
+    <div class="rays"></div>
+    <img class="blason" src="assets/leagues/nid.png" alt="">
+    <div class="lgnum">LIGUE 1</div>
+    <div class="lgname">NID VERDOYANT</div>
+    <div class="lgtr"><svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="#ffd23f" stroke="#c9962c" stroke-width="1.4"/><path d="M11 11h2v4h-2z M8 16h8v2H8z" fill="#e0a52c"/></svg><span>516 / 500</span></div>
+    <div class="lgbar"><i></i></div>
+  </div>
+
+  <!-- RAIL GAUCHE -->
+  <div class="rail left">
+    <div class="tile" data-act="quests"><svg class="tic" viewBox="0 0 32 36"><rect x="5" y="4" width="22" height="29" rx="3" fill="#fff6df" stroke="#b89a5c" stroke-width="1.6"/><rect x="12" y="1" width="8" height="5" rx="2" fill="#caa24a"/><path d="M9 13l3 3 5-6 M9 21l3 3 5-6" fill="none" stroke="#39a85a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tlb">MISSIONS</div></div>
+    <div class="tile" data-act="gift"><span class="tbadge">1</span><svg class="tic" viewBox="0 0 34 34"><rect x="5" y="14" width="24" height="16" rx="2" fill="#e23b3b"/><rect x="5" y="11" width="24" height="6" rx="2" fill="#ffd23f"/><rect x="15" y="11" width="4" height="19" fill="#b82f2f"/><path d="M17 11c-5-7-11 0-1 0 M17 11c5-7 11 0 1 0" fill="#ffd23f"/></svg><div class="tlb">CADEAU<small>GRATUIT</small></div></div>
+    <div class="tile pass" data-act="pass"><svg class="tic" viewBox="0 0 36 24"><path d="M4 19V6l7 7 7-11 7 11 7-7v13z" fill="#ffd23f" stroke="#a9731a" stroke-width="1.2"/><circle cx="18" cy="11" r="2" fill="#ff5d6c"/></svg><div class="tlb">PASS<small>WING MASTER</small></div></div>
+  </div>
+
+  <!-- RAIL DROITE -->
+  <div class="rail right">
+    <div class="tile" data-act="nids"><svg class="tic" viewBox="0 0 34 34"><ellipse cx="17" cy="15" rx="8" ry="11" fill="#ffd24a" stroke="#b9791a" stroke-width="1.4"/><ellipse cx="14" cy="10" rx="2" ry="3.4" fill="#fff" opacity=".7"/><path d="M7 27q10 5 20 0" fill="none" stroke="#8a5e2a" stroke-width="2.6" stroke-linecap="round"/></svg><div class="tlb">ŒUF<small>GRATUIT</small></div></div>
+    <div class="tile" data-act="rank"><svg class="tic" viewBox="0 0 34 34"><path d="M9 6h16v4a8 8 0 0 1-16 0z" fill="#f4cf63" stroke="#c9962c" stroke-width="1.4"/><path d="M15 18h4v5h-4z M11 23h12v3H11z" fill="#e0a52c"/></svg><div class="tlb">CLASSEMENT</div></div>
+    <div class="tile" data-act="events"><svg class="tic" viewBox="0 0 34 34"><path d="M17 3l4 9 10 .8-7.6 6.6 2.4 9.6L17 23l-8.8 5 2.4-9.6L3 12.8 13 12z" fill="#ffd23f" stroke="#a9731a" stroke-width="1.3"/></svg><div class="tlb">ÉVÉNEMENTS</div></div>
+    <div class="tile" data-act="wheel"><svg class="tic" viewBox="0 0 34 34"><circle cx="17" cy="18" r="11" fill="#fff"/><path d="M17 18 L17 7 A11 11 0 0 1 26.5 12.5 Z" fill="#ff5a6e"/><path d="M17 18 L26.5 12.5 A11 11 0 0 1 26.5 23.5 Z" fill="#ffd23f"/><path d="M17 18 L26.5 23.5 A11 11 0 0 1 17 29 Z" fill="#4ad98a"/><path d="M17 18 L17 29 A11 11 0 0 1 7.5 23.5 Z" fill="#4aa3ff"/><path d="M17 18 L7.5 23.5 A11 11 0 0 1 7.5 12.5 Z" fill="#b06bff"/><path d="M17 18 L7.5 12.5 A11 11 0 0 1 17 7 Z" fill="#ff9a3c"/><circle cx="17" cy="18" r="3" fill="#fff"/></svg><div class="tlb">ROUE</div></div>
+  </div>
+
+  <!-- OISEAU -->
+  <div class="heroWrap"><div class="heroShadow"></div><img class="hero" id="hero" alt=""></div>
+
+  <!-- VOLER -->
+  <div class="fly" data-act="fly">
+    <svg class="wing" viewBox="0 0 28 18"><path d="M26 9q-9-7-18-6 7 1 12 6-7-1-12 1 7 0 11 3-6 0-10 2 9 1 17-6z" fill="#5a3a08"/></svg>
+    <span>VOLER</span>
+    <svg class="wing flip" viewBox="0 0 28 18"><path d="M26 9q-9-7-18-6 7 1 12 6-7-1-12 1 7 0 11 3-6 0-10 2 9 1 17-6z" fill="#5a3a08"/></svg>
+  </div>
+  <div class="online"><span class="dot"></span><span>4 JOUEURS EN LIGNE</span></div>
+
+  <!-- NAV -->
+  <div class="nav">
+    <div class="navb active" data-nav="accueil"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8h-3v8H6v-8z" fill="currentColor"/></svg><span>ACCUEIL</span></div>
+    <div class="navb" data-nav="nids"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="10" rx="5" ry="7" fill="currentColor"/><path d="M4 18q8 4 16 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>NIDS</span></div>
+    <div class="navb" data-nav="oiseaux"><svg viewBox="0 0 24 24"><ellipse cx="11" cy="13" rx="7" ry="5.5" fill="currentColor"/><circle cx="16" cy="9" r="4.4" fill="currentColor"/><path d="M19 8l5 1-5 1.5z" fill="#ff9a3c"/><circle cx="16.5" cy="8.5" r="1.3" fill="#0b1a2a"/></svg><span>OISEAUX</span></div>
+    <div class="navb" data-nav="ligues"><svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="currentColor"/><path d="M11 11h2v4h-2z M8 16h8v2H8z" fill="currentColor"/></svg><span>LIGUES</span></div>
+    <div class="navb" data-nav="boutique"><svg viewBox="0 0 24 24"><path d="M4 9h16v11H4z" fill="currentColor"/><path d="M4 9l1.5-4h13L20 9z" fill="#e0524a"/></svg><span>BOUTIQUE</span></div>
+  </div>
+</div>
+
+<script>
+// --- mise à l'échelle du repère 400x640 ---
+function fit(){ const s=Math.min(innerWidth/400, innerHeight/640); document.getElementById('stage').style.transform='scale('+s+')'; }
+addEventListener('resize',fit); fit();
+
+// --- OISEAU ANIMÉ : vrai moineau (frames idle + clignement aléatoire) ---
+const DIR='assets/birds_anim/moineau/';
+const idle=[1,2,3,4,5,6].map(n=>DIR+'g_idle_'+n+'.png');
+const blink=[1,2,3].map(n=>DIR+'g_blink_'+n+'.png');
+const imgs=[...idle,...blink].map(s=>{const i=new Image();i.src=s;return i;});
+const hero=document.getElementById('hero');
+let f=0, blinkT=0, blinkNext=80+Math.random()*120, blinkPlay=-1;
+function tick(){
+  let src;
+  if(blinkPlay<0 && blinkT++>=blinkNext){ blinkPlay=0; }
+  if(blinkPlay>=0){
+    const i=Math.floor(blinkPlay/4); blinkPlay++;
+    if(i>=blink.length){ blinkPlay=-1; blinkT=0; blinkNext=80+Math.random()*140; src=idle[0]; }
+    else src=blink[Math.min(i,blink.length-1)];
+  } else { src=idle[Math.floor(f/9)%idle.length]; }
+  if(hero.src!==location.origin+'/'+src && hero.getAttribute('src')!==src) hero.setAttribute('src',src);
+  f++; requestAnimationFrame(tick);
+}
+hero.setAttribute('src',idle[0]); requestAnimationFrame(tick);
+
+// --- feedback boutons (aperçu) : log de l'action prévue pour l'intégration ---
+document.querySelectorAll('[data-act],[data-nav]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const a=el.getAttribute('data-act')||('nav:'+el.getAttribute('data-nav'));
+    if(el.dataset.nav){ document.querySelectorAll('.navb').forEach(n=>n.classList.remove('active')); el.classList.add('active'); }
+    console.log('action ->',a);
+  });
+});
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@
    ============================================================================ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
-body{background:#070d16;display:flex;align-items:center;justify-content:center;overflow:hidden;
+body{background:#04140a;display:flex;align-items:center;justify-content:center;overflow:hidden;
   font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
   -webkit-user-select:none;user-select:none;touch-action:none;}
 #stage{position:relative;width:400px;height:640px;transform-origin:center;overflow:hidden;border-radius:22px;
@@ -51,13 +51,13 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
 
 /* ---------- BARRE HAUT ---------- */
 .top{position:absolute;left:0;top:0;width:400px;height:60px;display:flex;align-items:center;gap:7px;padding:0 9px;
-  background:linear-gradient(180deg,rgba(33,68,104,.96),rgba(11,28,52,.97) 64%,rgba(7,18,36,.98));
+  background:linear-gradient(180deg,rgba(26,74,46,.96),rgba(8,40,20,.97) 64%,rgba(5,26,12,.98));
   box-shadow:0 4px 16px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.16);
   backdrop-filter:blur(7px) saturate(1.2);-webkit-backdrop-filter:blur(7px) saturate(1.2);}
 .top::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;
   background:linear-gradient(90deg,transparent,var(--g2),var(--g1),var(--g2),transparent);opacity:.9;}
 .avatar{position:relative;width:44px;height:44px;border-radius:50%;flex:0 0 auto;
-  background:radial-gradient(circle at 40% 34%,#27577f,#0a1f3c);border:2.5px solid var(--g2);
+  background:radial-gradient(circle at 40% 34%,#1f5e44,#06241a);border:2.5px solid var(--g2);
   box-shadow:0 0 0 1.5px var(--ink),0 3px 8px rgba(0,0,0,.55),0 0 12px rgba(255,206,110,.28),inset 0 2px 4px rgba(255,255,255,.25),inset 0 -4px 6px rgba(0,0,0,.45);}
 .avatar svg{position:absolute;left:50%;top:52%;width:38px;height:38px;transform:translate(-50%,-50%);clip-path:circle(46% at 50% 50%);}
 .lvl{position:absolute;right:-4px;bottom:-4px;min-width:18px;height:18px;line-height:16px;border-radius:9px;text-align:center;
@@ -66,21 +66,25 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
 .pname{font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis;}
 .xp{width:84px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
 .xp i{display:block;height:100%;width:54%;background:linear-gradient(#bdf5c9,#46c06b);box-shadow:0 0 6px rgba(90,230,130,.5);}
-.curr{display:flex;gap:5px;margin-left:auto;}
-.chip{display:flex;align-items:center;gap:4px;height:28px;padding:0 11px 0 8px;border-radius:14px;font-weight:900;font-size:11.5px;
-  background:linear-gradient(180deg,#1a3a5e,#0a1c34 58%,#06101e);border:1.5px solid rgba(255,214,128,.6);
+.curr{display:flex;gap:4px;margin-left:auto;}
+.chip{display:flex;align-items:center;gap:2px;height:25px;padding:0 6px;border-radius:13px;font-weight:900;font-size:10px;
+  background:linear-gradient(180deg,#17492c,#08260f 58%,#041306);border:1.5px solid rgba(255,214,128,.6);
   box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 -3px 5px rgba(0,0,0,.5),0 2px 5px rgba(0,0,0,.5);
   backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);transition:transform .1s,filter .1s;}
-.chip svg{width:18px;height:18px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}
+.chip svg{width:15px;height:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}
+.chip .plus{width:13px;height:13px;font-size:11px;}
 .chip .plus{display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;margin-left:1px;
   background:linear-gradient(#5fe089,#2faa57);color:#06351c;font-weight:900;font-size:12px;line-height:1;border:1px solid rgba(255,255,255,.5);}
-.menu{display:flex;flex-direction:column;justify-content:center;gap:3px;width:24px;height:30px;align-items:center;flex:0 0 auto;}
-.menu span{width:17px;height:2.4px;border-radius:2px;background:#cfe0f0;}
+.gear{width:32px;height:32px;flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:radial-gradient(circle at 40% 34%,#1f5e44,#06241a);border:2px solid var(--g2);
+  box-shadow:0 2px 5px rgba(0,0,0,.5),inset 0 1px 2px rgba(255,255,255,.2),0 0 8px rgba(255,206,110,.18);transition:transform .2s;}
+.gear svg{width:20px;height:20px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
+.gear:hover{transform:rotate(40deg);} .gear:active{transform:scale(.92);}
 
 /* ---------- PANNEAU LIGUE ---------- */
 .league{position:absolute;left:50%;top:70px;transform:translateX(-50%);width:196px;padding:28px 12px 14px;text-align:center;
   border:2.5px solid var(--g3);border-radius:18px;
-  background:radial-gradient(130% 92% at 50% -8%,rgba(54,84,124,.97),rgba(13,26,44,.98) 60%),linear-gradient(180deg,rgba(20,38,62,.98),rgba(7,15,28,.99));
+  background:radial-gradient(130% 92% at 50% -8%,rgba(44,92,60,.97),rgba(8,36,16,.98) 60%),linear-gradient(180deg,rgba(13,46,24,.98),rgba(5,24,10,.99));
   box-shadow:0 16px 34px rgba(0,0,0,.6),0 3px 0 rgba(255,248,210,.18),inset 0 0 0 1px rgba(255,248,210,.4),inset 0 2px 4px rgba(255,255,255,.2),inset 0 -16px 22px rgba(0,0,0,.55),0 0 22px rgba(255,200,110,.1);}
 .league .rays{position:absolute;left:50%;top:-44px;width:104px;height:104px;transform:translateX(-50%);border-radius:50%;pointer-events:none;
   background:repeating-conic-gradient(rgba(255,231,150,0) 0 9deg,rgba(255,231,150,.16) 9deg 11deg);
@@ -94,21 +98,22 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
 .lgtr{display:flex;align-items:center;justify-content:center;gap:6px;font-weight:900;font-size:14px;color:var(--g1);}
 .lgtr svg{width:16px;height:16px;}
 .lgbar{height:10px;border-radius:6px;background:rgba(0,0,0,.5);margin-top:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.07);}
-.lgbar i{display:block;height:100%;width:42%;background:linear-gradient(#fff0a8,#ffc83a,#e7a417);box-shadow:0 0 8px rgba(255,200,80,.5);}
+.lgbar i{display:block;height:100%;width:51%;background:linear-gradient(#fff0a8,#ffc83a,#e7a417);box-shadow:0 0 8px rgba(255,200,80,.5);}
+.lgsub{margin-top:6px;font-weight:800;font-size:8.5px;color:rgba(233,247,200,.78);text-shadow:0 1px 2px #000;}
 
 /* ---------- TUILES LATÉRALES ---------- */
 .rail{position:absolute;top:182px;display:flex;flex-direction:column;gap:13px;}
 .rail.left{left:10px;} .rail.right{right:10px;}
 .tile{position:relative;width:96px;height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   border:2px solid var(--g3);border-radius:18px;overflow:hidden;cursor:pointer;
-  background:linear-gradient(180deg,#2c4360,#192c43 50%,#0b1524);
+  background:linear-gradient(180deg,#1f5230,#123a1e 50%,#061a0a);
   box-shadow:0 9px 18px rgba(2,6,14,.62),0 2px 4px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,248,210,.4),inset 0 2px 0 rgba(255,255,255,.24),inset 0 -13px 17px rgba(0,0,0,.36);
   transition:transform .13s cubic-bezier(.34,1.55,.5,1),filter .12s,box-shadow .13s;}
 .tile::after{content:'';position:absolute;left:0;top:0;right:0;height:46%;border-radius:16px 16px 40% 40%;background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,0));pointer-events:none;}
 .tile:hover{transform:translateY(-3px);filter:brightness(1.07) saturate(1.05);box-shadow:0 13px 24px rgba(2,6,14,.66),0 0 18px rgba(255,200,110,.32),inset 0 0 0 1px rgba(255,248,210,.42),inset 0 2px 0 rgba(255,255,255,.26);}
 .tile:active{transform:translateY(1px) scale(.955);}
 .tic{width:48px;height:48px;padding:6px;border-radius:50%;z-index:1;
-  background:radial-gradient(circle at 50% 28%,#456690,#1b2e48 60%,#0c1626);border:2px solid rgba(255,220,150,.8);
+  background:radial-gradient(circle at 50% 28%,#3c7150,#163e24 60%,#08180c);border:2px solid rgba(255,220,150,.8);
   box-shadow:inset 0 3px 5px rgba(255,255,255,.3),inset 0 -7px 9px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.55),0 0 9px rgba(255,210,120,.22);transition:transform .13s cubic-bezier(.34,1.55,.5,1);}
 .tile:hover .tic{transform:scale(1.07);}
 .tlb{font-weight:900;font-size:9.5px;letter-spacing:.4px;text-align:center;line-height:1;z-index:1;text-shadow:0 1px 2px #000;}
@@ -121,7 +126,7 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
 @keyframes badge{0%,100%{transform:scale(1)}50%{transform:scale(1.13)}}
 
 /* ---------- OISEAU CENTRAL ---------- */
-.heroWrap{position:absolute;left:50%;top:330px;transform:translateX(-50%);width:200px;height:200px;pointer-events:none;}
+.heroWrap{position:absolute;left:50%;top:312px;transform:translateX(-50%);width:184px;height:184px;pointer-events:none;}
 .heroShadow{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:120px;height:26px;border-radius:50%;
   background:radial-gradient(closest-side,rgba(6,10,18,.4),rgba(6,10,18,0));animation:shadowBreathe 3.4s ease-in-out infinite;}
 .hero{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:170px;height:170px;
@@ -150,7 +155,7 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
 
 /* ---------- NAV BAS ---------- */
 .nav{position:absolute;left:0;bottom:0;width:400px;height:64px;display:flex;
-  background:linear-gradient(180deg,rgba(26,52,84,.97),rgba(9,22,40,.98) 55%,rgba(6,14,26,.99));
+  background:linear-gradient(180deg,rgba(20,60,34,.97),rgba(7,32,15,.98) 55%,rgba(4,20,9,.99));
   box-shadow:0 -6px 18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.1);
   backdrop-filter:blur(8px) saturate(1.2);-webkit-backdrop-filter:blur(8px) saturate(1.2);}
 .nav::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--g2),transparent);opacity:.85;}
@@ -199,9 +204,10 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
     <div class="curr">
       <div class="chip" data-act="shop"><svg viewBox="0 0 24 24"><defs><radialGradient id="gc" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#fff3b0"/><stop offset="55%" stop-color="#f4cf63"/><stop offset="100%" stop-color="#d39a2c"/></radialGradient></defs><circle cx="12" cy="12" r="9.5" fill="url(#gc)" stroke="#a9731a" stroke-width="1.4"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#c98f2c" stroke-width="1.5"/></svg><span>12 450</span><span class="plus">+</span></div>
       <div class="chip" data-act="shop"><svg viewBox="0 0 24 24"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6f5ff"/><stop offset="50%" stop-color="#5fdcef"/><stop offset="100%" stop-color="#27a3ba"/></linearGradient></defs><path d="M12 3l7 6-7 12-7-12z" fill="url(#gg)" stroke="#1d7e90" stroke-width="1.1" stroke-linejoin="round"/></svg><span>1 260</span><span class="plus">+</span></div>
-      <div class="chip"><svg viewBox="0 0 24 24"><defs><linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="60%" stop-color="#f4cd63"/><stop offset="100%" stop-color="#cf9024"/></linearGradient></defs><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="url(#gt)" stroke="#a9731a" stroke-width="1.1"/><path d="M11 11h2v4h-2zM8 16h8v2.3H8z" fill="#e0a52c"/></svg><span>516</span></div>
+      <div class="chip"><svg viewBox="0 0 24 24"><defs><linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="60%" stop-color="#f4cd63"/><stop offset="100%" stop-color="#cf9024"/></linearGradient></defs><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="url(#gt)" stroke="#a9731a" stroke-width="1.1"/><path d="M11 11h2v4h-2zM8 16h8v2.3H8z" fill="#e0a52c"/></svg><span>506</span></div>
+      <div class="chip"><svg viewBox="0 0 24 24"><defs><linearGradient id="gpl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eaf4ff"/><stop offset="100%" stop-color="#8fc0e6"/></linearGradient></defs><path d="M17 4c-7 1-11 7-11 13l2-1 1 3 2-5 5-9z" fill="url(#gpl)" stroke="#5f93bd" stroke-width="1.1" stroke-linejoin="round"/></svg><span>1 234</span></div>
     </div>
-    <div class="menu" data-act="shop"><span></span><span></span><span></span></div>
+    <button class="gear" data-act="shop" aria-label="Réglages"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm9 3.5l-2.1 1.6.5 2.6-2.4 1-1.6 2.1H13l-1 .1-1-.1H8.6L7 19.7l-2.4-1 .5-2.6L3 12l2.1-1.6L4.6 7.8l2.4-1L8.6 4.7H13l1-.1 1 .1h2.4l1.6 2.1 2.4 1-.5 2.6z" fill="#dfe9c8" stroke="#0a1f12" stroke-width="1" stroke-linejoin="round"/></svg></button>
   </div>
 
   <!-- LIGUE -->
@@ -210,13 +216,14 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
     <img class="blason" src="assets/leagues/nid.png" alt="">
     <div class="lgnum">LIGUE 1</div>
     <div class="lgname">NID VERDOYANT</div>
-    <div class="lgtr"><svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="#ffd23f" stroke="#c9962c" stroke-width="1.4"/><path d="M11 11h2v4h-2z M8 16h8v2H8z" fill="#e0a52c"/></svg><span>516 / 500</span></div>
+    <div class="lgtr"><svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0z" fill="#ffd23f" stroke="#c9962c" stroke-width="1.4"/><path d="M11 11h2v4h-2z M8 16h8v2H8z" fill="#e0a52c"/></svg><span>506 / 1000</span></div>
     <div class="lgbar"><i></i></div>
+    <div class="lgsub">Encore 494 trophées pour Ligue 2</div>
   </div>
 
   <!-- RAIL GAUCHE -->
   <div class="rail left">
-    <div class="tile" data-act="quests"><svg class="tic" viewBox="0 0 32 36"><rect x="5" y="4" width="22" height="29" rx="3" fill="#fff6df" stroke="#b89a5c" stroke-width="1.6"/><rect x="12" y="1" width="8" height="5" rx="2" fill="#caa24a"/><path d="M9 13l3 3 5-6 M9 21l3 3 5-6" fill="none" stroke="#39a85a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tlb">MISSIONS</div></div>
+    <div class="tile" data-act="quests"><svg class="tic" viewBox="0 0 32 36"><rect x="5" y="4" width="22" height="29" rx="3" fill="#fff6df" stroke="#b89a5c" stroke-width="1.6"/><rect x="12" y="1" width="8" height="5" rx="2" fill="#caa24a"/><path d="M9 13l3 3 5-6 M9 21l3 3 5-6" fill="none" stroke="#39a85a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tlb">MISSIONS<small>Récompenses</small></div></div>
     <div class="tile" data-act="gift"><span class="tbadge">1</span><svg class="tic" viewBox="0 0 34 34"><rect x="5" y="14" width="24" height="16" rx="2" fill="#e23b3b"/><rect x="5" y="11" width="24" height="6" rx="2" fill="#ffd23f"/><rect x="15" y="11" width="4" height="19" fill="#b82f2f"/><path d="M17 11c-5-7-11 0-1 0 M17 11c5-7 11 0 1 0" fill="#ffd23f"/></svg><div class="tlb">CADEAU<small>GRATUIT</small></div></div>
     <div class="tile pass" data-act="pass"><svg class="tic" viewBox="0 0 36 24"><path d="M4 19V6l7 7 7-11 7 11 7-7v13z" fill="#ffd23f" stroke="#a9731a" stroke-width="1.2"/><circle cx="18" cy="11" r="2" fill="#ff5d6c"/></svg><div class="tlb">PASS<small>WING MASTER</small></div></div>
   </div>
@@ -224,9 +231,9 @@ body{background:#070d16;display:flex;align-items:center;justify-content:center;o
   <!-- RAIL DROITE -->
   <div class="rail right">
     <div class="tile" data-act="nids"><svg class="tic" viewBox="0 0 34 34"><ellipse cx="17" cy="15" rx="8" ry="11" fill="#ffd24a" stroke="#b9791a" stroke-width="1.4"/><ellipse cx="14" cy="10" rx="2" ry="3.4" fill="#fff" opacity=".7"/><path d="M7 27q10 5 20 0" fill="none" stroke="#8a5e2a" stroke-width="2.6" stroke-linecap="round"/></svg><div class="tlb">ŒUF<small>GRATUIT</small></div></div>
-    <div class="tile" data-act="rank"><svg class="tic" viewBox="0 0 34 34"><path d="M9 6h16v4a8 8 0 0 1-16 0z" fill="#f4cf63" stroke="#c9962c" stroke-width="1.4"/><path d="M15 18h4v5h-4z M11 23h12v3H11z" fill="#e0a52c"/></svg><div class="tlb">CLASSEMENT</div></div>
-    <div class="tile" data-act="events"><svg class="tic" viewBox="0 0 34 34"><path d="M17 3l4 9 10 .8-7.6 6.6 2.4 9.6L17 23l-8.8 5 2.4-9.6L3 12.8 13 12z" fill="#ffd23f" stroke="#a9731a" stroke-width="1.3"/></svg><div class="tlb">ÉVÉNEMENTS</div></div>
-    <div class="tile" data-act="wheel"><svg class="tic" viewBox="0 0 34 34"><circle cx="17" cy="18" r="11" fill="#fff"/><path d="M17 18 L17 7 A11 11 0 0 1 26.5 12.5 Z" fill="#ff5a6e"/><path d="M17 18 L26.5 12.5 A11 11 0 0 1 26.5 23.5 Z" fill="#ffd23f"/><path d="M17 18 L26.5 23.5 A11 11 0 0 1 17 29 Z" fill="#4ad98a"/><path d="M17 18 L17 29 A11 11 0 0 1 7.5 23.5 Z" fill="#4aa3ff"/><path d="M17 18 L7.5 23.5 A11 11 0 0 1 7.5 12.5 Z" fill="#b06bff"/><path d="M17 18 L7.5 12.5 A11 11 0 0 1 17 7 Z" fill="#ff9a3c"/><circle cx="17" cy="18" r="3" fill="#fff"/></svg><div class="tlb">ROUE</div></div>
+    <div class="tile" data-act="rank"><svg class="tic" viewBox="0 0 34 34"><path d="M9 6h16v4a8 8 0 0 1-16 0z" fill="#f4cf63" stroke="#c9962c" stroke-width="1.4"/><path d="M15 18h4v5h-4z M11 23h12v3H11z" fill="#e0a52c"/></svg><div class="tlb">CLASSEMENT<small>Meilleurs !</small></div></div>
+    <div class="tile" data-act="events"><svg class="tic" viewBox="0 0 34 34"><path d="M17 3l4 9 10 .8-7.6 6.6 2.4 9.6L17 23l-8.8 5 2.4-9.6L3 12.8 13 12z" fill="#ffd23f" stroke="#a9731a" stroke-width="1.3"/></svg><div class="tlb">ÉVÉNEMENTS<small>Actifs !</small></div></div>
+    <div class="tile" data-act="wheel"><svg class="tic" viewBox="0 0 34 34"><circle cx="17" cy="18" r="11" fill="#fff"/><path d="M17 18 L17 7 A11 11 0 0 1 26.5 12.5 Z" fill="#ff5a6e"/><path d="M17 18 L26.5 12.5 A11 11 0 0 1 26.5 23.5 Z" fill="#ffd23f"/><path d="M17 18 L26.5 23.5 A11 11 0 0 1 17 29 Z" fill="#4ad98a"/><path d="M17 18 L17 29 A11 11 0 0 1 7.5 23.5 Z" fill="#4aa3ff"/><path d="M17 18 L7.5 23.5 A11 11 0 0 1 7.5 12.5 Z" fill="#b06bff"/><path d="M17 18 L7.5 12.5 A11 11 0 0 1 17 7 Z" fill="#ff9a3c"/><circle cx="17" cy="18" r="3" fill="#fff"/></svg><div class="tlb">ROUE<small>Tournez !</small></div></div>
   </div>
 
   <!-- OISEAU -->

@@ -1,0 +1,6 @@
+# Dépendances du bot MT5 AI Trading
+# Installer avec : pip install -r requirements.txt
+
+MetaTrader5>=5.0.45   # API officielle MetaTrader 5 (Windows uniquement)
+pandas>=2.0.0         # Manipulation des données OHLC
+numpy>=1.24.0         # Calculs numériques (indicateurs)

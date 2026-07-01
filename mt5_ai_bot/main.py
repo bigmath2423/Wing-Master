@@ -35,6 +35,7 @@ from agents import (
 )
 from utils.display import print_signal, print_opinions
 from utils.journal import log_signal
+from utils.sessions import is_trading_time
 
 
 def fetch_market(client: MT5Client) -> dict:
@@ -89,6 +90,15 @@ def run_once(client: MT5Client) -> None:
     risk = RiskAgent(config)
     decision = DecisionAgent(config, risk)
     signal = decision.decide(opinions, market, client)
+
+    # Filtre de sessions : hors Londres/New York -> pas de nouveau trade
+    allowed, active = is_trading_time(config)
+    if not allowed and signal.decision in ("BUY", "SELL"):
+        signal.reasons.insert(
+            0, "Hors session active (Londres/New York) -> signal ignoré.")
+        signal.decision = "NO TRADE"
+    elif active:
+        signal.reasons.append(f"Session(s) active(s) : {', '.join(active)}.")
 
     # Affichage
     print_opinions(opinions)

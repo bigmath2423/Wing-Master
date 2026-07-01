@@ -158,6 +158,18 @@ LOOP_INTERVAL_MINUTES = 15
 MIN_CONFIDENCE = 55
 
 # ---------------------------------------------------------------------------
+# FILTRE DE SESSIONS (heures de trading)
+# ---------------------------------------------------------------------------
+# L'or est le plus actif pendant Londres et New York. Si activé, le bot
+# n'émet un BUY/SELL que pendant ces plages ; sinon il force NO TRADE.
+# Heures en UTC (24h). Adapte selon ton fuseau.
+SESSION_FILTER_ENABLED = False
+TRADING_SESSIONS = {
+    "Londres":  (7, 16),    # 07:00 - 16:00 UTC
+    "New York": (12, 21),   # 12:00 - 21:00 UTC
+}
+
+# ---------------------------------------------------------------------------
 # EXÉCUTION
 # ---------------------------------------------------------------------------
 # IMPORTANT : par défaut le bot N'EXÉCUTE PAS de trade.

@@ -31,6 +31,7 @@ mt5_ai_bot/
 ├── config.py              # Tous les réglages (risque, symbole, timeframes…)
 ├── main.py                # Point d'entrée : python main.py
 ├── backtest.py            # Backtest walk-forward : python backtest.py
+├── dashboard.py           # Tableau de bord : python dashboard.py
 ├── requirements.txt
 ├── core/
 │   ├── mt5_client.py      # Connexion MT5 + données (+ mode simulation)
@@ -48,7 +49,8 @@ mt5_ai_bot/
 │   └── execution_agent.py
 └── utils/
     ├── display.py         # Affichage du signal
-    └── journal.py         # Journal CSV des signaux
+    ├── journal.py         # Journal CSV des signaux
+    └── sessions.py        # Filtre de sessions (Londres/New York)
 ```
 
 ## 🚀 Installation
@@ -202,6 +204,30 @@ python backtest.py
 Sortie : nombre de trades, taux de réussite, résultat total en **R** (multiples
 du risque), facteur de profit. Sur données MT5 réelles → estimation historique ;
 en mode simulation → validation de la mécanique uniquement.
+
+## 🕐 Filtre de sessions (Londres / New York)
+
+L'or est le plus actif pendant Londres et New York. Pour ne trader que sur ces
+plages (et forcer NO TRADE le reste du temps), dans `config.py` :
+
+```python
+SESSION_FILTER_ENABLED = True
+TRADING_SESSIONS = {
+    "Londres":  (7, 16),    # heures UTC
+    "New York": (12, 21),
+}
+```
+
+## 📈 Tableau de bord
+
+Résume l'activité du bot à partir du journal CSV :
+
+```bash
+python dashboard.py
+```
+
+Affiche : nombre d'analyses, répartition BUY/SELL/NO TRADE (avec barres),
+confiance moyenne et les derniers signaux.
 
 ## 🔒 Passer en exécution automatique (démo)
 

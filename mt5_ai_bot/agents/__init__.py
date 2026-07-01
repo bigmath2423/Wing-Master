@@ -2,6 +2,7 @@ from .technical_agent import TechnicalAgent
 from .ict_smc_agent import ICTSMCAgent
 from .macro_agent import MacroAgent
 from .quant_agent import QuantAgent
+from .sentiment_agent import SentimentAgent
 from .risk_agent import RiskAgent
 from .decision_agent import DecisionAgent
 from .execution_agent import ExecutionAgent
@@ -11,6 +12,7 @@ __all__ = [
     "ICTSMCAgent",
     "MacroAgent",
     "QuantAgent",
+    "SentimentAgent",
     "RiskAgent",
     "DecisionAgent",
     "ExecutionAgent",

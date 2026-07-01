@@ -115,6 +115,31 @@ QUANT_BB_STD = 2.0             # nombre d'écarts-types des bandes
 QUANT_SHARPE_PERIOD = 20       # fenêtre du ratio de Sharpe glissant
 
 # ---------------------------------------------------------------------------
+# SENTIMENT (news / actualité) — impacte l'OR à court terme
+# ---------------------------------------------------------------------------
+# Colle ici les titres d'actualité récents (FR ou EN). L'agent de sentiment
+# les note avec un dictionnaire de mots-clés propres à l'or.
+# Laisse la liste vide pour ignorer ce facteur.
+NEWS_HEADLINES = [
+    # "Fed signals rate cuts as inflation cools",
+    # "Safe-haven demand rises amid Middle East tensions",
+    # "Strong US jobs report boosts the dollar",
+]
+
+# Biais manuel optionnel si tu ne veux pas coller de titres.
+# [bullish | bearish | neutral]  (bullish = haussier or)
+NEWS_MANUAL_BIAS = "neutral"
+
+# ---------------------------------------------------------------------------
+# BOUCLE AUTOMATIQUE
+# ---------------------------------------------------------------------------
+# Si LOOP_ENABLED=True, le bot relance l'analyse en continu toutes les
+# LOOP_INTERVAL_MINUTES minutes (Ctrl+C pour arrêter).
+# Si False, il fait une seule analyse puis s'arrête.
+LOOP_ENABLED = False
+LOOP_INTERVAL_MINUTES = 15
+
+# ---------------------------------------------------------------------------
 # DÉCISION
 # ---------------------------------------------------------------------------
 # Confiance minimale (0-100) requise pour émettre un signal BUY/SELL.

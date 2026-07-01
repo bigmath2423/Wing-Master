@@ -17,6 +17,7 @@ et de [aiomql](https://github.com/Ichinga-Samuel/aiomql) (intégration MetaTrade
 | **ICTSMCAgent** | FVG, Order Block, Liquidity Sweep, BOS / CHOCH (Smart Money Concepts) |
 | **MacroAgent** | Contexte macro de l'or : Fed, dollar/DXY, taux réels, inflation, risque, géopolitique |
 | **QuantAgent** | Signaux statistiques : momentum (ROC), mean-reversion (z-score), Bollinger, ratio de Sharpe |
+| **SentimentAgent** | Sentiment des news : score les titres d'actualité (mots-clés haussiers/baissiers pour l'or) |
 | **RiskAgent** | Calcule lot, stop loss, take profit — risque max **1%** du capital |
 | **DecisionAgent** | Agrège les opinions → **BUY / SELL / NO TRADE** + niveau de confiance |
 | **ExecutionAgent** | Envoie l'ordre à MT5 (démo uniquement, désactivé par défaut) |
@@ -39,6 +40,7 @@ mt5_ai_bot/
 │   ├── ict_smc_agent.py
 │   ├── macro_agent.py
 │   ├── quant_agent.py
+│   ├── sentiment_agent.py
 │   ├── risk_agent.py
 │   ├── decision_agent.py
 │   └── execution_agent.py
@@ -139,6 +141,35 @@ timeframe d'entrée. Il combine 4 signaux :
 
 Réglages dans `config.py` : `QUANT_MOMENTUM_PERIOD`, `QUANT_ZSCORE_PERIOD`,
 `QUANT_ZSCORE_THRESHOLD`, `QUANT_BB_PERIOD`, `QUANT_BB_STD`, `QUANT_SHARPE_PERIOD`.
+
+## 📰 Agent Sentiment (news / actualité)
+
+`SentimentAgent` note l'actualité récente pour l'or. Colle les titres dans
+`config.py` :
+
+```python
+NEWS_HEADLINES = [
+    "Fed signals rate cuts as inflation cools",
+    "Safe-haven demand rises amid Middle East tensions",
+    "Strong US jobs report boosts the dollar",
+]
+```
+
+Chaque titre est scanné avec un dictionnaire de mots-clés (haussiers pour l'or :
+*rate cut, safe haven, war, inflation…* ; baissiers : *rate hike, strong dollar,
+risk-on…*). Sans titres, tu peux fixer `NEWS_MANUAL_BIAS = "bullish"|"bearish"`.
+
+## 🔁 Boucle automatique
+
+Pour que le bot ré-analyse en continu (au lieu d'une seule fois), dans `config.py` :
+
+```python
+LOOP_ENABLED = True
+LOOP_INTERVAL_MINUTES = 15   # analyse toutes les 15 minutes
+```
+
+Puis `python main.py`. Arrête avec **Ctrl+C**. (Toujours aucun ordre envoyé tant
+que `AUTO_TRADE = False`.)
 
 ## 🔒 Passer en exécution automatique (démo)
 

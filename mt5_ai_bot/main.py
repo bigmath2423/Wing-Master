@@ -18,6 +18,8 @@ Le bot :
 from __future__ import annotations
 
 import sys
+import time
+from datetime import datetime
 
 import config
 from core.mt5_client import MT5Client
@@ -26,6 +28,7 @@ from agents import (
     ICTSMCAgent,
     MacroAgent,
     QuantAgent,
+    SentimentAgent,
     RiskAgent,
     DecisionAgent,
     ExecutionAgent,
@@ -54,11 +57,13 @@ def run_once(client: MT5Client) -> None:
     ict = ICTSMCAgent(config)
     macro = MacroAgent(config)
     quant = QuantAgent(config)
+    sentiment = SentimentAgent(config)
     opinions = [
         technical.analyze(market),
         ict.analyze(market),
         macro.analyze(market),
         quant.analyze(market),
+        sentiment.analyze(market),
     ]
 
     # Décision (utilise l'agent de risque pour les niveaux)
@@ -76,6 +81,18 @@ def run_once(client: MT5Client) -> None:
     print(f"[Exécution] {result['reason']}")
 
 
+def run_loop(client: MT5Client) -> None:
+    """Relance l'analyse en continu toutes les LOOP_INTERVAL_MINUTES minutes."""
+    interval = max(1, int(config.LOOP_INTERVAL_MINUTES)) * 60
+    print(f"[main] Mode boucle : analyse toutes les "
+          f"{config.LOOP_INTERVAL_MINUTES} min. (Ctrl+C pour arrêter)")
+    while True:
+        run_once(client)
+        nxt = datetime.now().timestamp() + interval
+        print(f"[main] Prochaine analyse vers {datetime.fromtimestamp(nxt):%H:%M:%S}.\n")
+        time.sleep(interval)
+
+
 def main() -> int:
     print("=== MT5 AI Trading Bot (XAUUSD) ===")
     client = MT5Client(config)
@@ -84,7 +101,12 @@ def main() -> int:
         return 1
 
     try:
-        run_once(client)
+        if config.LOOP_ENABLED:
+            run_loop(client)
+        else:
+            run_once(client)
+    except KeyboardInterrupt:
+        print("\n[main] Arrêt demandé par l'utilisateur.")
     finally:
         client.shutdown()
     return 0

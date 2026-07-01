@@ -15,6 +15,7 @@ et de [aiomql](https://github.com/Ichinga-Samuel/aiomql) (intégration MetaTrade
 |-------|------|
 | **TechnicalAgent** | Tendance (EMA 50/200), RSI, support/résistance, multi-timeframe |
 | **ICTSMCAgent** | FVG, Order Block, Liquidity Sweep, BOS / CHOCH (Smart Money Concepts) |
+| **MacroAgent** | Contexte macro de l'or : Fed, dollar/DXY, taux réels, inflation, risque, géopolitique |
 | **RiskAgent** | Calcule lot, stop loss, take profit — risque max **1%** du capital |
 | **DecisionAgent** | Agrège les opinions → **BUY / SELL / NO TRADE** + niveau de confiance |
 | **ExecutionAgent** | Envoie l'ordre à MT5 (démo uniquement, désactivé par défaut) |
@@ -35,6 +36,7 @@ mt5_ai_bot/
 │   ├── base.py            # AgentOpinion + BaseAgent
 │   ├── technical_agent.py
 │   ├── ict_smc_agent.py
+│   ├── macro_agent.py
 │   ├── risk_agent.py
 │   ├── decision_agent.py
 │   └── execution_agent.py
@@ -99,6 +101,27 @@ MT5_LOGIN = 12345678
 MT5_PASSWORD = "ton_mot_de_passe"
 MT5_SERVER = "MetaQuotes-Demo"
 ```
+
+## 🌍 Agent Macro (contexte fondamental de l'or)
+
+L'or réagit surtout à la macro. L'agent `MacroAgent` lit un contexte que **tu
+renseignes** dans `config.py` (`MACRO`) selon l'actualité économique :
+
+```python
+MACRO = {
+    "fed_stance":     "dovish",    # hawkish | dovish | neutral
+    "usd_trend":      "weak",      # strong | weak | neutral
+    "real_yields":    "falling",   # rising | falling | neutral
+    "inflation":      "high",      # high | low | neutral
+    "risk_sentiment": "risk_off",  # risk_off | risk_on | neutral
+    "geopolitics":    "high",      # high | low | neutral
+}
+```
+
+Règle générale pour l'or : **dollar faible + Fed dovish + taux réels en baisse +
+inflation + aversion au risque + tensions = haussier**. L'inverse est baissier.
+Laisse `"neutral"` pour ignorer un facteur. Mets ces valeurs à jour avant chaque
+grande annonce (décision Fed, CPI, NFP...).
 
 ## 🔒 Passer en exécution automatique (démo)
 

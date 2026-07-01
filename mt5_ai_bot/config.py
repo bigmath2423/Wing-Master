@@ -63,6 +63,48 @@ RSI_OVERSOLD = 30
 SWING_LOOKBACK = 20
 
 # ---------------------------------------------------------------------------
+# CONTEXTE MACRO (fondamental) — impacte fortement l'OR (XAUUSD)
+# ---------------------------------------------------------------------------
+# L'agent macro lit ces réglages pour donner un biais de fond.
+# Mets à jour ces valeurs selon l'actualité économique (Fed, CPI, DXY...).
+# Valeurs acceptées indiquées entre crochets. "neutral" = pas d'impact.
+MACRO = {
+    # Politique monétaire de la Fed  [hawkish | dovish | neutral]
+    # hawkish (hausse des taux) -> baissier or | dovish -> haussier or
+    "fed_stance": "neutral",
+
+    # Tendance du dollar US / DXY    [strong | weak | neutral]
+    # dollar fort -> baissier or | dollar faible -> haussier or
+    "usd_trend": "neutral",
+
+    # Tendance des taux réels 10 ans [rising | falling | neutral]
+    # taux réels en hausse -> baissier or | en baisse -> haussier or
+    "real_yields": "neutral",
+
+    # Inflation (CPI)                [high | low | neutral]
+    # inflation élevée -> haussier or (valeur refuge) | faible -> baissier
+    "inflation": "neutral",
+
+    # Sentiment de risque du marché  [risk_off | risk_on | neutral]
+    # risk_off (peur) -> haussier or | risk_on (appétit) -> baissier
+    "risk_sentiment": "neutral",
+
+    # Tension géopolitique           [high | low | neutral]
+    # tension élevée -> haussier or (valeur refuge)
+    "geopolitics": "neutral",
+}
+
+# Poids relatif de chaque facteur macro (plus = plus influent sur l'or)
+MACRO_WEIGHTS = {
+    "fed_stance": 1.0,
+    "usd_trend": 1.0,
+    "real_yields": 1.0,
+    "inflation": 0.7,
+    "risk_sentiment": 0.7,
+    "geopolitics": 0.5,
+}
+
+# ---------------------------------------------------------------------------
 # DÉCISION
 # ---------------------------------------------------------------------------
 # Confiance minimale (0-100) requise pour émettre un signal BUY/SELL.

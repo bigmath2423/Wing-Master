@@ -38,7 +38,7 @@ class DecisionAgent:
     name = "Décision"
 
     # Poids de chaque agent dans le consensus
-    AGENT_WEIGHTS = {"Technique": 0.5, "ICT/SMC": 0.5}
+    AGENT_WEIGHTS = {"Technique": 0.40, "ICT/SMC": 0.35, "Macro": 0.25}
 
     def __init__(self, config, risk_agent):
         self.config = config

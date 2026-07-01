@@ -30,10 +30,12 @@ Le flux : `MT5 → données H1/M15/M5 → agents d'analyse → décision → (ex
 mt5_ai_bot/
 ├── config.py              # Tous les réglages (risque, symbole, timeframes…)
 ├── main.py                # Point d'entrée : python main.py
+├── backtest.py            # Backtest walk-forward : python backtest.py
 ├── requirements.txt
 ├── core/
 │   ├── mt5_client.py      # Connexion MT5 + données (+ mode simulation)
-│   └── indicators.py      # EMA, RSI, ATR, swings, S/R
+│   ├── indicators.py      # EMA, RSI, ATR, ROC, z-score, Bollinger, Sharpe…
+│   └── news_feed.py       # Récupération RSS des titres d'actualité
 ├── agents/
 │   ├── base.py            # AgentOpinion + BaseAgent
 │   ├── technical_agent.py
@@ -45,7 +47,8 @@ mt5_ai_bot/
 │   ├── decision_agent.py
 │   └── execution_agent.py
 └── utils/
-    └── display.py         # Affichage du signal
+    ├── display.py         # Affichage du signal
+    └── journal.py         # Journal CSV des signaux
 ```
 
 ## 🚀 Installation
@@ -170,6 +173,35 @@ LOOP_INTERVAL_MINUTES = 15   # analyse toutes les 15 minutes
 
 Puis `python main.py`. Arrête avec **Ctrl+C**. (Toujours aucun ordre envoyé tant
 que `AUTO_TRADE = False`.)
+
+## 🗒️ Journal des signaux (CSV)
+
+Chaque analyse est enregistrée dans `logs/signals.csv` (date, décision,
+confiance, entrée, SL, TP, lot, raison). Utile pour suivre la performance.
+Réglable dans `config.py` : `JOURNAL_ENABLED`, `JOURNAL_PATH`.
+
+## 📡 News automatiques (RSS)
+
+Pour récupérer les titres d'actualité automatiquement (au lieu de les coller) :
+
+```python
+NEWS_FETCH_RSS = True   # config.py
+```
+
+Le bot lit des flux RSS gratuits (or / macro) et les passe à l'agent sentiment.
+Sans réseau, ce facteur est simplement ignoré (aucun crash).
+
+## 🔬 Backtest
+
+Teste la stratégie sur l'historique (walk-forward, sans triche) :
+
+```bash
+python backtest.py
+```
+
+Sortie : nombre de trades, taux de réussite, résultat total en **R** (multiples
+du risque), facteur de profit. Sur données MT5 réelles → estimation historique ;
+en mode simulation → validation de la mécanique uniquement.
 
 ## 🔒 Passer en exécution automatique (démo)
 

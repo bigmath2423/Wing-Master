@@ -130,6 +130,18 @@ NEWS_HEADLINES = [
 # [bullish | bearish | neutral]  (bullish = haussier or)
 NEWS_MANUAL_BIAS = "neutral"
 
+# Récupération automatique des titres via flux RSS gratuits.
+# Si True, le bot va chercher les news en ligne et les ajoute à NEWS_HEADLINES.
+# (Nécessite une connexion internet ; sinon ce facteur est simplement ignoré.)
+NEWS_FETCH_RSS = False
+
+# ---------------------------------------------------------------------------
+# JOURNAL DES SIGNAUX
+# ---------------------------------------------------------------------------
+# Enregistre chaque signal dans un CSV pour suivre la performance.
+JOURNAL_ENABLED = True
+JOURNAL_PATH = "logs/signals.csv"
+
 # ---------------------------------------------------------------------------
 # BOUCLE AUTOMATIQUE
 # ---------------------------------------------------------------------------

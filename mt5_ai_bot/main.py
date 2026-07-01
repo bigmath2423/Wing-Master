@@ -34,6 +34,7 @@ from agents import (
     ExecutionAgent,
 )
 from utils.display import print_signal, print_opinions
+from utils.journal import log_signal
 
 
 def fetch_market(client: MT5Client) -> dict:
@@ -48,8 +49,26 @@ def fetch_market(client: MT5Client) -> dict:
     return market
 
 
+def maybe_fetch_news() -> None:
+    """Complète config.NEWS_HEADLINES avec les titres RSS si activé."""
+    if not getattr(config, "NEWS_FETCH_RSS", False):
+        return
+    try:
+        from core.news_feed import fetch_headlines
+        fetched = fetch_headlines()
+        if fetched:
+            existing = list(config.NEWS_HEADLINES)
+            config.NEWS_HEADLINES = existing + [h for h in fetched if h not in existing]
+            print(f"[news] {len(fetched)} titres récupérés via RSS.")
+        else:
+            print("[news] Aucun titre RSS récupéré (hors-ligne ?).")
+    except Exception as exc:  # pragma: no cover
+        print(f"[news] Récupération RSS impossible : {exc}")
+
+
 def run_once(client: MT5Client) -> None:
     """Exécute un cycle complet d'analyse et affiche le signal."""
+    maybe_fetch_news()
     market = fetch_market(client)
 
     # Agents d'analyse
@@ -74,6 +93,13 @@ def run_once(client: MT5Client) -> None:
     # Affichage
     print_opinions(opinions)
     print_signal(signal, config.SYMBOL)
+
+    # Journal des signaux (CSV)
+    if getattr(config, "JOURNAL_ENABLED", False):
+        try:
+            log_signal(signal, config.SYMBOL, config.JOURNAL_PATH)
+        except Exception as exc:  # pragma: no cover
+            print(f"[journal] Écriture impossible : {exc}")
 
     # Exécution (désactivée par défaut)
     executor = ExecutionAgent(config, client)

@@ -40,6 +40,42 @@ def atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.ewm(alpha=1 / period, adjust=False).mean()
 
 
+def roc(series: pd.Series, period: int = 10) -> pd.Series:
+    """Rate of Change (momentum) en pourcentage sur `period` bougies."""
+    return series.pct_change(periods=period) * 100
+
+
+def zscore(series: pd.Series, period: int = 20) -> pd.Series:
+    """Z-score glissant : écart à la moyenne mobile en nombre d'écarts-types.
+    Sert à mesurer la sur-extension du prix (mean reversion)."""
+    mean = series.rolling(period).mean()
+    std = series.rolling(period).std(ddof=0)
+    return (series - mean) / std.replace(0, np.nan)
+
+
+def bollinger(series: pd.Series, period: int = 20, num_std: float = 2.0):
+    """Bandes de Bollinger. Retourne (moyenne, bande_haute, bande_basse, largeur%).
+    La largeur (bandwidth) indique le régime de volatilité."""
+    mean = series.rolling(period).mean()
+    std = series.rolling(period).std(ddof=0)
+    upper = mean + num_std * std
+    lower = mean - num_std * std
+    bandwidth = (upper - lower) / mean.replace(0, np.nan) * 100
+    return mean, upper, lower, bandwidth
+
+
+def sharpe(series: pd.Series, period: int = 20) -> float:
+    """Ratio de Sharpe (non annualisé) des rendements sur `period` bougies.
+    Positif = tendance haussière régulière, négatif = baissière régulière."""
+    returns = series.pct_change().dropna().tail(period)
+    if len(returns) < 2:
+        return 0.0
+    std = returns.std(ddof=0)
+    if std == 0 or np.isnan(std):
+        return 0.0
+    return float(returns.mean() / std)
+
+
 def swing_points(df: pd.DataFrame, lookback: int = 5):
     """Détecte les swing highs / swing lows (points pivots).
 

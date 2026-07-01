@@ -25,6 +25,7 @@ from agents import (
     TechnicalAgent,
     ICTSMCAgent,
     MacroAgent,
+    QuantAgent,
     RiskAgent,
     DecisionAgent,
     ExecutionAgent,
@@ -52,10 +53,12 @@ def run_once(client: MT5Client) -> None:
     technical = TechnicalAgent(config)
     ict = ICTSMCAgent(config)
     macro = MacroAgent(config)
+    quant = QuantAgent(config)
     opinions = [
         technical.analyze(market),
         ict.analyze(market),
         macro.analyze(market),
+        quant.analyze(market),
     ]
 
     # Décision (utilise l'agent de risque pour les niveaux)

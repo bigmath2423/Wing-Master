@@ -105,6 +105,16 @@ MACRO_WEIGHTS = {
 }
 
 # ---------------------------------------------------------------------------
+# TRADING QUANTITATIF (statistique)
+# ---------------------------------------------------------------------------
+QUANT_MOMENTUM_PERIOD = 10     # bougies pour le calcul du momentum (ROC)
+QUANT_ZSCORE_PERIOD = 20       # fenêtre du z-score (mean reversion)
+QUANT_ZSCORE_THRESHOLD = 2.0   # |z| au-delà = prix sur-étendu (retour probable)
+QUANT_BB_PERIOD = 20           # période des bandes de Bollinger
+QUANT_BB_STD = 2.0             # nombre d'écarts-types des bandes
+QUANT_SHARPE_PERIOD = 20       # fenêtre du ratio de Sharpe glissant
+
+# ---------------------------------------------------------------------------
 # DÉCISION
 # ---------------------------------------------------------------------------
 # Confiance minimale (0-100) requise pour émettre un signal BUY/SELL.

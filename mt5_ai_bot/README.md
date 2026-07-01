@@ -16,6 +16,7 @@ et de [aiomql](https://github.com/Ichinga-Samuel/aiomql) (intégration MetaTrade
 | **TechnicalAgent** | Tendance (EMA 50/200), RSI, support/résistance, multi-timeframe |
 | **ICTSMCAgent** | FVG, Order Block, Liquidity Sweep, BOS / CHOCH (Smart Money Concepts) |
 | **MacroAgent** | Contexte macro de l'or : Fed, dollar/DXY, taux réels, inflation, risque, géopolitique |
+| **QuantAgent** | Signaux statistiques : momentum (ROC), mean-reversion (z-score), Bollinger, ratio de Sharpe |
 | **RiskAgent** | Calcule lot, stop loss, take profit — risque max **1%** du capital |
 | **DecisionAgent** | Agrège les opinions → **BUY / SELL / NO TRADE** + niveau de confiance |
 | **ExecutionAgent** | Envoie l'ordre à MT5 (démo uniquement, désactivé par défaut) |
@@ -37,6 +38,7 @@ mt5_ai_bot/
 │   ├── technical_agent.py
 │   ├── ict_smc_agent.py
 │   ├── macro_agent.py
+│   ├── quant_agent.py
 │   ├── risk_agent.py
 │   ├── decision_agent.py
 │   └── execution_agent.py
@@ -122,6 +124,21 @@ Règle générale pour l'or : **dollar faible + Fed dovish + taux réels en bais
 inflation + aversion au risque + tensions = haussier**. L'inverse est baissier.
 Laisse `"neutral"` pour ignorer un facteur. Mets ces valeurs à jour avant chaque
 grande annonce (décision Fed, CPI, NFP...).
+
+## 📊 Agent Quant (trading quantitatif)
+
+`QuantAgent` ajoute une couche **statistique/systématique**, calculée sur le
+timeframe d'entrée. Il combine 4 signaux :
+
+| Signal | Mesure | Lecture |
+|--------|--------|---------|
+| **Momentum (ROC)** | variation % sur N bougies | positif → haussier, négatif → baissier |
+| **Mean reversion (Z-score)** | écart à la moyenne en σ | `\|z\| > 2` → prix sur-étendu, retour attendu |
+| **Volatilité (Bollinger)** | position dans les bandes | hors bandes → sur-achat/sur-vente |
+| **Ratio de Sharpe** | régularité des rendements | positif → tendance propre haussière |
+
+Réglages dans `config.py` : `QUANT_MOMENTUM_PERIOD`, `QUANT_ZSCORE_PERIOD`,
+`QUANT_ZSCORE_THRESHOLD`, `QUANT_BB_PERIOD`, `QUANT_BB_STD`, `QUANT_SHARPE_PERIOD`.
 
 ## 🔒 Passer en exécution automatique (démo)
 

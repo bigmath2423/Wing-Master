@@ -1,7 +1,7 @@
 # CONTEXT.md — reprise dev Wing Master (état au commit `4eb7d70`)
 
 ## Repo / branche
-- Branche de travail : `claude/new-session-6pqp8x` (base : ex-`claude/wing-master-visual-style-dvbuz0`).
+- Branche de travail : `claude/new-session-ypz3kj` (fusion de `claude/new-session-6pqp8x` + `main`).
 - Fichier unique : `index.html` (~27,7 Mo, autonome, tout en base64). Zéro dépendance externe.
 - Assets sources : uploadés par l'utilisateur sur `main` (`accueil-N-*.webp`, `fond-N-*.webp`, `tuyau-N-*-haut/bas.webp`).
 - Sauvegardes locales : `backup/` (gitignoré).
@@ -23,9 +23,11 @@
   CLASSEMENT(308,266,92×95) ÉVÉNEMENTS(306,364,94×92) ROUE(310,458,90×74)
   PANNEAU(118,75,167×255) VOLER(104,518,192×68) NAV(0,585,h55).
 - Valeurs réelles par-dessus zones cuites : `.hb-bkval` (trophées), `.hb-bkonl` (en ligne),
-  `.hb-bkbar` (barre progression réelle, ligues 2-8), `.hb-bkbadge` (badge cadeau conditionnel).
+  `.hb-bkbar` (barre progression réelle, ligues 2-9), `.hb-bkbadge` (badge cadeau conditionnel).
   Positions/couleurs PAR THÈME (CSS `#home.baked[data-bkth=...]`, échantillonnées sur chaque image).
-- Ligue 9 : PAS d'image accueil → UI vectorielle classique. **TODO : intégrer `accueil-9` quand fourni.**
+- Ligue 9 (fuji) : FAIT — image PNG source nettoyée (badge inpainté+miroir de coin, hibou retiré :
+  haie de cerisiers par patchs propres, cuvette tressée, liseré bas du panneau reconstruit
+  par étirement d'échantillon fin — JAMAIS de tuilage de bandes larges, ça répète le décor).
 
 ### Oiseau équipé vivant dans le nid
 - `NEST[ligue]={cx,cy,scale,rimCy,rimRx,rimRy}` (mesures par fond, coords jeu).
@@ -60,7 +62,7 @@
 2. Playwright (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) :
    9 ligues (menus baked + parties), clics par coordonnées, valeurs via localStorage
    (`TestReel/7/4321/87/123/55`), zéro erreur console, fps.
-3. Commit français détaillé + push `-u origin claude/new-session-6pqp8x` + SendUserFile index.html.
+3. Commit français détaillé + push `-u origin claude/new-session-ypz3kj` + SendUserFile index.html.
 - Scripts prêts (scratchpad session précédente) : `all_menus.js`, `all_games2.js`, `bird_test.js`,
   `realvalues.js`, `screens.js`, `baked_test.js`, `pipes_test.js`, `probe9.js`.
 
@@ -71,6 +73,6 @@
 → `4eb7d70` patch rebord courbe + sprite net.
 
 ## TODO
-- [ ] `accueil-9` (fuji/samourai) dès que l'image existe : pipeline nid-vide + NEST[8] + offsets thème.
+- [x] `accueil-9` (fuji) : intégré (EMBED_HOMES.fuji, NEST[8]={cx:206,cy:460,scale:2.10,rimCy:433,rimRx:86,rimRy:16}, CSS fuji : bkval top271 #000f16, bkonl top317 h19 #01111a, bkbar top294 #011017).
 - [ ] Badge visible seulement si cadeau dispo : OK (synchro `#h-bg`) — revérifier après tout changement de la logique cadeau.
 - [ ] Si pixelisation signalée sur mobile réel : vérifier `devicePixelRatio` >2 (cap frames ×2.2).

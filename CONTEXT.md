@@ -31,12 +31,19 @@
 
 ### Oiseau équipé vivant dans le nid
 - `NEST[ligue]={cx,cy,scale,rimCy,rimRx,rimRy}` (mesures par fond, coords jeu).
-- Ordre : fond → oiseau (cache) → **patch rebord avant** (ellipse arc bas = crête, source=dest depuis cache DPR, zéro resample) → occlusion courbe.
-- Sprite : `nestBirdCache()` prescalé taille affichage×DPR ; rendu via zone brouillon du canvas
-  (`ctx` est **const**, pas de swap) recouverte par le fond même frame ; refresh ~5×/s (clignement).
-  Peaux à frames : cap ×2.2 (natif 256px). Blit arrondi (hors bob).
+- Ordre par frame : fond (`drawHomeBg`, blit de `_hbgCv`) → oiseau dessiné **DIRECT** par
+  `drawBird(..., {homeLite:true, nest:true})` (nest = SANS glow/FxBack ni ombre portée) →
+  **calque rebord** `_rimLayer(cur)` blitté 1:1 pixels device.
+- `_rimLayer` : offscreen taille canvas, clip elliptique de la crête (NEST) puis copie de
+  `_hbgCv` (le FOND SOURCE). Construit 1 fois par (ligue, thème, DPR). **AUCUNE lecture du
+  canvas principal nulle part** (l'ex-`nestBirdCache` + zone brouillon a été SUPPRIMÉ).
 - Idle : bob ±2px/2.4s, respiration scaleY ±0.015, squash 0.94/120ms toutes les 3-6s, rot ±1.5°, pivot bas-centre.
-- `drawBird` unités : x −35..+20 (centre visuel −7.5), y −21..+17. Boîte cache 68×46 u, origine (40,26).
+- `drawBird` unités : x −35..+20 (centre visuel −7.5), y −21..+17 ; équivalence ancien blit :
+  translate(cx,cy)·scale(s) puis translate(7.5,−17) en unités oiseau.
+- Les 8 accueils 1-8 ont été RE-NETTOYÉS (la « colonne floue » vue à l'écran était de la
+  bouillie d'inpainting CUITE dans EMBED_HOMES, pas un bug de rendu) : fond re-synthétisé
+  par patchs 2D depuis des rectangles PROPRES de la source (jamais de rangées tuilées),
+  cuvette retissée, houppette/serres retirées (script `repair_homes2.py`, scratchpad).
 
 ### Tuyaux (PipeSkins, script ① inline)
 - `SKINS[skin].top/bottom = {r,c,b64}` ; `LEAGUE_SKINS=['foret','glace','ocean','usine','chateau','temple','deco','cristal','fuji']`.

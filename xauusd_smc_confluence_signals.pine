@@ -19,6 +19,17 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //        - analyse de structure multi-timeframe (H1 contexte / M15 structure /
 //          M5 execution) via request.security sur barres CLOTUREES -> zero repaint
 //        - panneau dedie : Tendance H1 / Structure M15 / Signal M5 / structure chart
+// v6 : MODULE 2 - LIQUIDITY ENGINE :
+//        - zones de liquidite : Equal Highs / Equal Lows (pivots quasi-egaux,
+//          tolerance en fraction d'ATR), Previous Day High/Low, Previous Week
+//          High/Low (uniquement sur periodes cloturees -> zero repaint)
+//        - sweeps de ces zones : meche au-dela + cloture de retour, label avec
+//          la source (EQH/EQL/PDH/PDL/PWH/PWL), le sens (haussier/baissier)
+//          et la mention (rejet) si la bougie cloture dans la moitie opposee
+//        - regle "sweep -> BOS/CHoCH" : un BOS/CHoCH precede d'un sweep recent
+//          est marque d'un losange ; option +1 point de confluence (defaut ON,
+//          le score max passe alors a 5) et option filtre STRICT (defaut OFF :
+//          aucun signal sans cassure adossee a un sweep)
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -57,7 +68,7 @@ oscLookback = input.int(15, "Oscillator signal validity (bars)", minval=2, group
 
 grpSig = "Signal Engine"
 structLookback = input.int(30, "Structure break validity (bars)", minval=5, group=grpSig)
-minConfluence = input.int(3, "Minimum confluence score (max 4)", minval=1, maxval=4, group=grpSig)
+minConfluence = input.int(3, "Minimum confluence score (max 4)", minval=1, maxval=5, group=grpSig)
 signalCooldown = input.int(10, "Minimum bars between signals (same direction)", minval=0, group=grpSig)
 
 grpRisk = "Risk Management"
@@ -80,6 +91,18 @@ msTfStructure = input.timeframe("15", "Structure timeframe (M15)", group=grpMS)
 msTfExec = input.timeframe("5", "Execution timeframe (M5)", group=grpMS)
 msShowPanel = input.bool(true, "Show multi-timeframe panel", group=grpMS)
 msPanelPos = input.string("bottom_right", "Panel position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpMS)
+
+grpLE = "Module 2 - Liquidity Engine"
+leShowZones = input.bool(true, "Show EQH / EQL liquidity zones", group=grpLE)
+leEqTolAtr = input.float(0.15, "Equal highs/lows tolerance (ATR x)", minval=0.01, step=0.05, group=grpLE)
+leMaxZones = input.int(6, "Max EQH / EQL zones kept (per side)", minval=1, maxval=20, group=grpLE)
+leShowDaily = input.bool(true, "Show previous day high / low (PDH / PDL)", group=grpLE)
+leShowWeekly = input.bool(true, "Show previous week high / low (PWH / PWL)", group=grpLE)
+leShowSweeps = input.bool(true, "Mark liquidity sweeps + type", group=grpLE)
+leMaxSweepLabels = input.int(20, "Max sweep labels kept", minval=2, maxval=100, group=grpLE)
+leSweepWindow = input.int(15, "Sweep -> BOS/CHoCH max delay (bars)", minval=1, group=grpLE)
+leUseBonus = input.bool(true, "Sweep before BOS/CHoCH = +1 confluence point", group=grpLE)
+leRequireSweep = input.bool(false, "STRICT filter: signals only after sweep-backed break", group=grpLE)
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -433,14 +456,202 @@ if liqSweepHigh
         label.delete(sweepHighLabel)
     sweepHighLabel := label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(color.fuchsia,70), textcolor=color.fuchsia, size=size.tiny)
 
+// ================= MODULE 2 : LIQUIDITY ENGINE =================
+// Zones de liquidite (EQH/EQL + PDH/PDL/PWH/PWL) et sweeps de ces zones.
+// Detection sur pivots confirmes et conditions de cloture uniquement -> zero
+// repaint. Les toggles d'affichage ne desactivent JAMAIS la detection (meme
+// philosophie que le fix v4 sur les Order Blocks).
+leAtr = ta.atr(atrLen)
+
+// ---- Previous Day / Week High-Low (periodes cloturees uniquement) ----
+[lePdh, lePdl] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[lePwh, lePwl] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+plot(leShowDaily ? lePdh : na, "PDH", color=color.new(color.orange, 30), style=plot.style_stepline)
+plot(leShowDaily ? lePdl : na, "PDL", color=color.new(color.orange, 30), style=plot.style_stepline)
+plot(leShowWeekly ? lePwh : na, "PWH", color=color.new(color.blue, 20), linewidth=2, style=plot.style_stepline)
+plot(leShowWeekly ? lePwl : na, "PWL", color=color.new(color.blue, 20), linewidth=2, style=plot.style_stepline)
+
+f_leLevelLabel(label old, float lvl, string txt, color col) =>
+    label.delete(old)
+    label.new(bar_index + 2, lvl, txt, style=label.style_label_left, color=color.new(color.white, 100), textcolor=col, size=size.tiny)
+
+var label lePdhLbl = na
+var label lePdlLbl = na
+var label lePwhLbl = na
+var label lePwlLbl = na
+if barstate.islast
+    if leShowDaily
+        lePdhLbl := f_leLevelLabel(lePdhLbl, lePdh, "PDH", color.orange)
+        lePdlLbl := f_leLevelLabel(lePdlLbl, lePdl, "PDL", color.orange)
+    if leShowWeekly
+        lePwhLbl := f_leLevelLabel(lePwhLbl, lePwh, "PWH", color.blue)
+        lePwlLbl := f_leLevelLabel(lePwlLbl, lePwl, "PWL", color.blue)
+
+// ---- Marquage des sweeps (source + sens + rejet) ----
+var array<label> leSweepLabels = array.new<label>()
+bool leBullSweep = false
+bool leBearSweep = false
+
+f_leMarkSweep(bool bull, string src) =>
+    if leShowSweeps
+        strongReject = bull ? close > (high + low) / 2 : close < (high + low) / 2
+        txt = "SWEEP " + src + (bull ? " ↑" : " ↓") + (strongReject ? " (rejet)" : "")
+        lb = label.new(bar_index, bull ? low : high, txt, style=bull ? label.style_label_up : label.style_label_down, color=color.new(bull ? color.aqua : color.fuchsia, 70), textcolor=bull ? color.aqua : color.fuchsia, size=size.tiny)
+        array.push(leSweepLabels, lb)
+        if array.size(leSweepLabels) > leMaxSweepLabels
+            label.delete(array.shift(leSweepLabels))
+
+// ---- Sweeps des niveaux journaliers / hebdomadaires (1 fois par periode) ----
+var bool lePdhSwept = false
+var bool lePdlSwept = false
+var bool lePwhSwept = false
+var bool lePwlSwept = false
+if lePdh != lePdh[1] or lePdl != lePdl[1]
+    lePdhSwept := false
+    lePdlSwept := false
+if lePwh != lePwh[1] or lePwl != lePwl[1]
+    lePwhSwept := false
+    lePwlSwept := false
+
+if not lePdhSwept and not na(lePdh) and high > lePdh and close < lePdh
+    lePdhSwept := true
+    leBearSweep := true
+    f_leMarkSweep(false, "PDH")
+if not lePdlSwept and not na(lePdl) and low < lePdl and close > lePdl
+    lePdlSwept := true
+    leBullSweep := true
+    f_leMarkSweep(true, "PDL")
+if not lePwhSwept and not na(lePwh) and high > lePwh and close < lePwh
+    lePwhSwept := true
+    leBearSweep := true
+    f_leMarkSweep(false, "PWH")
+if not lePwlSwept and not na(lePwl) and low < lePwl and close > lePwl
+    lePwlSwept := true
+    leBullSweep := true
+    f_leMarkSweep(true, "PWL")
+
+// ---- Equal Highs / Equal Lows (2 pivots quasi-egaux = poche de liquidite) ----
+var float leLastPh = na
+var int   leLastPhBar = na
+var float leLastPl = na
+var int   leLastPlBar = na
+
+var array<float> leEqhLvls  = array.new<float>()
+var array<line>  leEqhLines = array.new<line>()
+var array<float> leEqlLvls  = array.new<float>()
+var array<line>  leEqlLines = array.new<line>()
+var array<line>  leDeadLines = array.new<line>()
+
+f_leCapDead(line ln) =>
+    array.push(leDeadLines, ln)
+    if array.size(leDeadLines) > leMaxZones * 2
+        line.delete(array.shift(leDeadLines))
+
+if not na(ph)
+    if not na(leLastPh) and math.abs(ph - leLastPh) <= leAtr * leEqTolAtr
+        eqhLvl = math.max(ph, leLastPh)
+        line eqhLn = leShowZones ? line.new(leLastPhBar, eqhLvl, bar_index - swingLen, eqhLvl, color=color.new(color.fuchsia, 30), style=line.style_dotted, width=2, extend=extend.right) : line(na)
+        array.push(leEqhLvls, eqhLvl)
+        array.push(leEqhLines, eqhLn)
+        if array.size(leEqhLvls) > leMaxZones
+            array.remove(leEqhLvls, 0)
+            line.delete(array.shift(leEqhLines))
+    leLastPh := ph
+    leLastPhBar := bar_index - swingLen
+
+if not na(pl)
+    if not na(leLastPl) and math.abs(pl - leLastPl) <= leAtr * leEqTolAtr
+        eqlLvl = math.min(pl, leLastPl)
+        line eqlLn = leShowZones ? line.new(leLastPlBar, eqlLvl, bar_index - swingLen, eqlLvl, color=color.new(color.aqua, 30), style=line.style_dotted, width=2, extend=extend.right) : line(na)
+        array.push(leEqlLvls, eqlLvl)
+        array.push(leEqlLines, eqlLn)
+        if array.size(leEqlLvls) > leMaxZones
+            array.remove(leEqlLvls, 0)
+            line.delete(array.shift(leEqlLines))
+    leLastPl := pl
+    leLastPlBar := bar_index - swingLen
+
+// Sweep / consommation des zones EQH-EQL : la zone est retiree des que le prix
+// depasse le niveau ; c'est un sweep si la cloture revient sous/au-dessus.
+if array.size(leEqhLvls) > 0
+    for i = array.size(leEqhLvls) - 1 to 0
+        float lvl = array.get(leEqhLvls, i)
+        if high > lvl
+            line ln = array.get(leEqhLines, i)
+            if not na(ln)
+                line.set_x2(ln, bar_index)
+                line.set_extend(ln, extend.none)
+                f_leCapDead(ln)
+            if close < lvl
+                leBearSweep := true
+                f_leMarkSweep(false, "EQH")
+            array.remove(leEqhLvls, i)
+            array.remove(leEqhLines, i)
+
+if array.size(leEqlLvls) > 0
+    for i = array.size(leEqlLvls) - 1 to 0
+        float lvl = array.get(leEqlLvls, i)
+        if low < lvl
+            line ln = array.get(leEqlLines, i)
+            if not na(ln)
+                line.set_x2(ln, bar_index)
+                line.set_extend(ln, extend.none)
+                f_leCapDead(ln)
+            if close > lvl
+                leBullSweep := true
+                f_leMarkSweep(true, "EQL")
+            array.remove(leEqlLvls, i)
+            array.remove(leEqlLines, i)
+
+// ---- Regle "sweep -> BOS/CHoCH" ----
+// Combine les sweeps du module (EQH/EQL/PDH/PDL/PWH/PWL) avec les sweeps de
+// swing deja existants (liqSweepLow/High). Une cassure de structure precedee
+// d'un sweep recent = cassure "adossee a la liquidite" (losange sur le chart).
+leBullSweepAny = leBullSweep or liqSweepLow
+leBearSweepAny = leBearSweep or liqSweepHigh
+
+var int barsSinceLeBullSweep = 9999
+var int barsSinceLeBearSweep = 9999
+barsSinceLeBullSweep += 1
+barsSinceLeBearSweep += 1
+if leBullSweepAny
+    barsSinceLeBullSweep := 0
+if leBearSweepAny
+    barsSinceLeBearSweep := 0
+
+leBullSweepBacked = (bullBOS or bullCHoCH) and barsSinceLeBullSweep <= leSweepWindow
+leBearSweepBacked = (bearBOS or bearCHoCH) and barsSinceLeBearSweep <= leSweepWindow
+
+var int barsSinceBullSweepBreak = 9999
+var int barsSinceBearSweepBreak = 9999
+barsSinceBullSweepBreak += 1
+barsSinceBearSweepBreak += 1
+if leBullSweepBacked
+    barsSinceBullSweepBreak := 0
+if leBearSweepBacked
+    barsSinceBearSweepBreak := 0
+
+leBullBonusActive = barsSinceBullSweepBreak <= structLookback
+leBearBonusActive = barsSinceBearSweepBreak <= structLookback
+
+// Filtre strict optionnel (defaut OFF -> aucun changement de comportement)
+leBullOK = not leRequireSweep or leBullBonusActive
+leBearOK = not leRequireSweep or leBearBonusActive
+
+plotshape(leBullSweepBacked, title="Sweep→BOS/CHoCH bull", style=shape.diamond, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny)
+plotshape(leBearSweepBacked, title="Sweep→BOS/CHoCH bear", style=shape.diamond, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny)
+
 // ================= CONFLUENCE SIGNAL ENGINE =================
 bullZoneTouch = (bullFvgActive and low <= bullFvgTop and high >= bullFvgBot) or (bullObActive and low <= bullObTop and high >= bullObBot)
 bearZoneTouch = (bearFvgActive and high >= bearFvgBot and low <= bearFvgTop) or (bearObActive and high >= bearObBot and low <= bearObTop)
 
-bullScore = (barsSinceBullBreak <= structLookback ? 1 : 0) + (bullZoneTouch ? 1 : 0) + (barsSinceLiqSweepLow <= liqLookback ? 1 : 0) + (useOscFilter and oscBullSignal ? 1 : 0)
-bearScore = (barsSinceBearBreak <= structLookback ? 1 : 0) + (bearZoneTouch ? 1 : 0) + (barsSinceLiqSweepHigh <= liqLookback ? 1 : 0) + (useOscFilter and oscBearSignal ? 1 : 0)
+// Module 2 : +1 point de confluence quand la cassure de structure a ete
+// precedee d'un sweep de liquidite (desactivable -> retour au score sur 4)
+bullScore = (barsSinceBullBreak <= structLookback ? 1 : 0) + (bullZoneTouch ? 1 : 0) + (barsSinceLiqSweepLow <= liqLookback ? 1 : 0) + (useOscFilter and oscBullSignal ? 1 : 0) + (leUseBonus and leBullBonusActive ? 1 : 0)
+bearScore = (barsSinceBearBreak <= structLookback ? 1 : 0) + (bearZoneTouch ? 1 : 0) + (barsSinceLiqSweepHigh <= liqLookback ? 1 : 0) + (useOscFilter and oscBearSignal ? 1 : 0) + (leUseBonus and leBearBonusActive ? 1 : 0)
 
-maxPossibleScore = useOscFilter ? 4 : 3
+maxPossibleScore = (useOscFilter ? 4 : 3) + (leUseBonus ? 1 : 0)
 effectiveMinConfluence = math.min(minConfluence, maxPossibleScore)
 
 var int barsSinceLastBuy = 9999
@@ -456,8 +667,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
-sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
+buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
+sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
 
 if buySignal
     bullSignalFired := true
@@ -507,7 +718,7 @@ if sellSignal
 // seule disponible.
 
 // ================= DASHBOARD =================
-var table infoTable = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+var table infoTable = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
 if barstate.islast
     table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
     table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
@@ -523,3 +734,6 @@ if barstate.islast
     table.cell(infoTable, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray)
     table.cell(infoTable, 0, 6, "HTF Bias", text_color=color.white)
     table.cell(infoTable, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red)
+    leSweepStateTxt = leBullBonusActive and leBearBonusActive ? "bull+bear" : leBullBonusActive ? "bull" : leBearBonusActive ? "bear" : "—"
+    table.cell(infoTable, 0, 7, "Sweep→BOS", text_color=color.white)
+    table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray)

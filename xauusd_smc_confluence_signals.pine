@@ -30,6 +30,15 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          est marque d'un losange ; option +1 point de confluence (defaut ON,
 //          le score max passe alors a 5) et option filtre STRICT (defaut OFF :
 //          aucun signal sans cassure adossee a un sweep)
+// v7 : MODULE 3 - SMART MONEY CONCEPTS :
+//        - Breaker Blocks : un Order Block invalide devient une zone breaker
+//          inversee (OB haussier casse -> breaker baissier et vice-versa)
+//        - Imbalances : bougies de displacement (corps >= ATR x seuil)
+//        - Premium / Discount : range = dernier swing high / swing low,
+//          equilibre a 50%, zones affichees + filtre optionnel (defaut OFF :
+//          BUY seulement en discount / SELL seulement en premium)
+//        - Setup A+ : sweep de liquidite -> BOS/CHoCH -> retour dans OB/FVG,
+//          marque "A+" sur le signal (les OB et FVG existants sont inchanges)
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -103,6 +112,14 @@ leMaxSweepLabels = input.int(20, "Max sweep labels kept", minval=2, maxval=100, 
 leSweepWindow = input.int(15, "Sweep -> BOS/CHoCH max delay (bars)", minval=1, group=grpLE)
 leUseBonus = input.bool(true, "Sweep before BOS/CHoCH = +1 confluence point", group=grpLE)
 leRequireSweep = input.bool(false, "STRICT filter: signals only after sweep-backed break", group=grpLE)
+
+grpSMC = "Module 3 - Smart Money Concepts"
+smcShowBreakers = input.bool(true, "Show Breaker Blocks", group=grpSMC)
+smcShowImb = input.bool(true, "Mark imbalance candles (displacement)", group=grpSMC)
+smcImbMult = input.float(1.5, "Imbalance body size (ATR x)", minval=0.5, step=0.1, group=grpSMC)
+smcShowPD = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
+smcUsePdFilter = input.bool(false, "Filter: BUY only in discount / SELL only in premium", group=grpSMC)
+smcShowAPlus = input.bool(true, "Mark A+ setups (sweep -> BOS/CHoCH -> OB/FVG)", group=grpSMC)
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -642,6 +659,90 @@ leBearOK = not leRequireSweep or leBearBonusActive
 plotshape(leBullSweepBacked, title="Sweep→BOS/CHoCH bull", style=shape.diamond, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny)
 plotshape(leBearSweepBacked, title="Sweep→BOS/CHoCH bear", style=shape.diamond, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny)
 
+// ================= MODULE 3 : SMART MONEY CONCEPTS =================
+// Les OB et FVG existants sont conserves tels quels (ce sont deja les zones
+// institutionnelles du moteur). Ce module ajoute : Breaker Blocks, bougies
+// d'imbalance, Premium/Discount et le marquage des setups A+.
+// Toutes les detections se font sur cloture de barre -> aucun repaint.
+
+// ---- Breaker Blocks : un OB invalide s'inverse ----
+// OB haussier casse a la baisse -> breaker BAISSIER (resistance au retest)
+// OB baissier casse a la hausse -> breaker HAUSSIER (support au retest)
+var float smcBullBrkTop = na
+var float smcBullBrkBot = na
+var bool  smcBullBrkActive = false
+var box   smcBullBrkBox = na
+
+var float smcBearBrkTop = na
+var float smcBearBrkBot = na
+var bool  smcBearBrkActive = false
+var box   smcBearBrkBox = na
+
+if bearObActive[1] and not bearObActive and close > bearObTop
+    smcBullBrkTop := bearObTop
+    smcBullBrkBot := bearObBot
+    smcBullBrkActive := true
+    box.delete(smcBullBrkBox)
+    smcBullBrkBox := na
+    if smcShowBreakers
+        smcBullBrkBox := box.new(bar_index, smcBullBrkTop, bar_index + 1, smcBullBrkBot, border_color=color.new(color.teal, 20), bgcolor=color.new(color.teal, 85), extend=extend.right, text="BREAKER ↑", text_color=color.new(color.teal, 30), text_size=size.tiny, text_halign=text.align_right)
+
+if bullObActive[1] and not bullObActive and close < bullObBot
+    smcBearBrkTop := bullObTop
+    smcBearBrkBot := bullObBot
+    smcBearBrkActive := true
+    box.delete(smcBearBrkBox)
+    smcBearBrkBox := na
+    if smcShowBreakers
+        smcBearBrkBox := box.new(bar_index, smcBearBrkTop, bar_index + 1, smcBearBrkBot, border_color=color.new(color.maroon, 20), bgcolor=color.new(color.maroon, 85), extend=extend.right, text="BREAKER ↓", text_color=color.new(color.maroon, 30), text_size=size.tiny, text_halign=text.align_right)
+
+if smcBullBrkActive and close < smcBullBrkBot
+    smcBullBrkActive := false
+    box.delete(smcBullBrkBox)
+    smcBullBrkBox := na
+
+if smcBearBrkActive and close > smcBearBrkTop
+    smcBearBrkActive := false
+    box.delete(smcBearBrkBox)
+    smcBearBrkBox := na
+
+// ---- Imbalances (bougies de displacement, corps >= ATR x seuil) ----
+smcBullImb = close > open and (close - open) >= leAtr * smcImbMult
+smcBearImb = close < open and (open - close) >= leAtr * smcImbMult
+plotshape(smcShowImb and smcBullImb, title="Imbalance bull", style=shape.square, location=location.belowbar, color=color.new(color.teal, 40), size=size.tiny)
+plotshape(smcShowImb and smcBearImb, title="Imbalance bear", style=shape.square, location=location.abovebar, color=color.new(color.maroon, 40), size=size.tiny)
+
+// ---- Premium / Discount ----
+// Range = dernier swing high / dernier swing low confirmes (pivots existants).
+// Equilibre a 50% : au-dessus = premium (zone de vente), en dessous = discount
+// (zone d'achat). Affichage redessine uniquement sur la derniere barre.
+smcRangeTop = math.max(swingHighVal, swingLowVal)
+smcRangeBot = math.min(swingHighVal, swingLowVal)
+smcEq = (smcRangeTop + smcRangeBot) / 2
+smcPdReady = not na(smcEq)
+smcInPremium = smcPdReady and close > smcEq
+smcInDiscount = smcPdReady and close < smcEq
+
+// Filtre optionnel (defaut OFF -> aucun changement de comportement)
+smcBullPdOK = not smcUsePdFilter or smcInDiscount
+smcBearPdOK = not smcUsePdFilter or smcInPremium
+
+var box   smcPremBox = na
+var box   smcDiscBox = na
+var line  smcEqLine = na
+var label smcEqLbl = na
+if barstate.islast
+    box.delete(smcPremBox)
+    box.delete(smcDiscBox)
+    line.delete(smcEqLine)
+    label.delete(smcEqLbl)
+    if smcShowPD and smcPdReady
+        int smcLeftBar = math.min(swingHighBar, swingLowBar)
+        smcPremBox := box.new(smcLeftBar, smcRangeTop, bar_index + 5, smcEq, border_color=color.new(color.red, 75), bgcolor=color.new(color.red, 93), text="PREMIUM", text_color=color.new(color.red, 40), text_size=size.tiny, text_halign=text.align_right)
+        smcDiscBox := box.new(smcLeftBar, smcEq, bar_index + 5, smcRangeBot, border_color=color.new(color.green, 75), bgcolor=color.new(color.green, 93), text="DISCOUNT", text_color=color.new(color.green, 40), text_size=size.tiny, text_halign=text.align_right)
+        smcEqLine := line.new(smcLeftBar, smcEq, bar_index + 5, smcEq, color=color.new(color.gray, 30), style=line.style_dashed)
+        smcEqLbl := label.new(bar_index + 5, smcEq, "EQ 50%", style=label.style_label_left, color=color.new(color.white, 100), textcolor=color.gray, size=size.tiny)
+
 // ================= CONFLUENCE SIGNAL ENGINE =================
 bullZoneTouch = (bullFvgActive and low <= bullFvgTop and high >= bullFvgBot) or (bullObActive and low <= bullObTop and high >= bullObBot)
 bearZoneTouch = (bearFvgActive and high >= bearFvgBot and low <= bearFvgTop) or (bearObActive and high >= bearObBot and low <= bearObTop)
@@ -667,8 +768,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
-sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
+buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and smcBullPdOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
+sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and smcBearPdOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
 
 if buySignal
     bullSignalFired := true
@@ -680,6 +781,12 @@ if sellSignal
 // ================= SIGNAL PLOTTING =================
 plotshape(buySignal, title="BUY", location=location.belowbar, style=shape.triangleup, size=size.small, color=color.lime, text="BUY", textcolor=color.white)
 plotshape(sellSignal, title="SELL", location=location.abovebar, style=shape.triangledown, size=size.small, color=color.red, text="SELL", textcolor=color.white)
+
+// Module 3 : setup A+ = sweep de liquidite -> BOS/CHoCH -> retour dans OB/FVG.
+// bullZoneTouch est deja exige par le signal ; on marque "A+" quand la cassure
+// etait en plus adossee a un sweep (module 2). Purement visuel.
+plotshape(smcShowAPlus and buySignal and leBullBonusActive, title="A+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.aqua, 20), text="A+", textcolor=color.black)
+plotshape(smcShowAPlus and sellSignal and leBearBonusActive, title="A+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.fuchsia, 20), text="A+", textcolor=color.white)
 
 // ================= RISK MANAGEMENT LABELS =================
 atrVal = ta.atr(atrLen)
@@ -718,7 +825,7 @@ if sellSignal
 // seule disponible.
 
 // ================= DASHBOARD =================
-var table infoTable = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+var table infoTable = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
 if barstate.islast
     table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
     table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
@@ -737,3 +844,5 @@ if barstate.islast
     leSweepStateTxt = leBullBonusActive and leBearBonusActive ? "bull+bear" : leBullBonusActive ? "bull" : leBearBonusActive ? "bear" : "—"
     table.cell(infoTable, 0, 7, "Sweep→BOS", text_color=color.white)
     table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray)
+    table.cell(infoTable, 0, 8, "P/D zone", text_color=color.white)
+    table.cell(infoTable, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray)

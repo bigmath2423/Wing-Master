@@ -39,6 +39,21 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          BUY seulement en discount / SELL seulement en premium)
 //        - Setup A+ : sweep de liquidite -> BOS/CHoCH -> retour dans OB/FVG,
 //          marque "A+" sur le signal (les OB et FVG existants sont inchanges)
+// v8 : MODULE 4 - WYCKOFF :
+//        - detection de range : aucune cassure de structure pendant N barres
+//          -> range borne par les derniers swings confirmes (boite grise)
+//        - classification de phase : tendance precedente baissiere ->
+//          "Accumulation ?", haussiere -> "Distribution ?", puis confirmation
+//          par les figures : Spring / SOS -> Accumulation (ou Reaccumulation
+//          si la tendance precedente etait haussiere), Upthrust / SOW ->
+//          Distribution (ou Redistribution si tendance precedente baissiere)
+//        - sortie de range : cloture au-dela des bornes ou BOS/CHoCH ->
+//          phase "Markup" / "Markdown"
+//        - filtre de contexte (defaut ON) : bloque uniquement les signaux
+//          CONTRAIRES a la phase (ex : pas de SELL en accumulation) ; hors
+//          range, aucun blocage
+//        - setup fort "WY+" : phase + figure + sweep->BOS/CHoCH alignes
+//          (ex : Accumulation + Spring + Sweep + CHoCH = achat fort)
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -120,6 +135,16 @@ smcImbMult = input.float(1.5, "Imbalance body size (ATR x)", minval=0.5, step=0.
 smcShowPD = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
 smcUsePdFilter = input.bool(false, "Filter: BUY only in discount / SELL only in premium", group=grpSMC)
 smcShowAPlus = input.bool(true, "Mark A+ setups (sweep -> BOS/CHoCH -> OB/FVG)", group=grpSMC)
+
+grpWY = "Module 4 - Wyckoff"
+wyMinQuiet = input.int(20, "Bars without structure break to define a range", minval=5, group=grpWY)
+wyShowRange = input.bool(true, "Show Wyckoff range box + phase", group=grpWY)
+wyShowFigures = input.bool(true, "Mark Spring / Upthrust / SOS / SOW", group=grpWY)
+wyMaxFigLabels = input.int(20, "Max figure labels kept", minval=2, maxval=100, group=grpWY)
+wyImpMult = input.float(1.0, "SOS/SOW displacement body (ATR x)", minval=0.1, step=0.1, group=grpWY)
+wyFigWindow = input.int(20, "Figure validity for strong setup (bars)", minval=2, group=grpWY)
+wyUseFilter = input.bool(true, "Use Wyckoff phase as context filter (block contrary signals)", group=grpWY)
+wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -743,6 +768,127 @@ if barstate.islast
         smcEqLine := line.new(smcLeftBar, smcEq, bar_index + 5, smcEq, color=color.new(color.gray, 30), style=line.style_dashed)
         smcEqLbl := label.new(bar_index + 5, smcEq, "EQ 50%", style=label.style_label_left, color=color.new(color.white, 100), textcolor=color.gray, size=size.tiny)
 
+// ================= MODULE 4 : WYCKOFF =================
+// Identification des phases des gros acteurs. Un range = periode sans cassure
+// de structure (reutilise barsSinceBullBreak/barsSinceBearBreak du moteur
+// existant), borne par les derniers swings confirmes. Toutes les detections
+// se font sur cloture de barre -> aucun repaint.
+var bool   wyRanging = false
+var float  wyRangeTop = na
+var float  wyRangeBot = na
+var string wyPriorTrend = "neutral"
+var string wyPhase = "—"
+var string wyLastRangePhase = "—"
+var box    wyBox = na
+var array<box> wyOldBoxes = array.new<box>()
+var array<label> wyFigLabels = array.new<label>()
+
+var int wyBarsSinceResolve = 9999
+var int wyBarsSinceSpring = 9999
+var int wyBarsSinceUpthrust = 9999
+var int wyBarsSinceSOS = 9999
+var int wyBarsSinceSOW = 9999
+wyBarsSinceResolve += 1
+wyBarsSinceSpring += 1
+wyBarsSinceUpthrust += 1
+wyBarsSinceSOS += 1
+wyBarsSinceSOW += 1
+
+// ta.* hors des blocs conditionnels (coherence v6)
+wyMid = (wyRangeTop + wyRangeBot) / 2
+wyCrossUpMid = ta.crossover(close, wyMid)
+wyCrossDnMid = ta.crossunder(close, wyMid)
+
+f_wyMark(bool bull, string txt) =>
+    if wyShowFigures
+        lb = label.new(bar_index, bull ? low : high, txt, style=bull ? label.style_label_up : label.style_label_down, color=color.new(bull ? color.green : color.red, 60), textcolor=bull ? color.lime : color.orange, size=size.tiny)
+        array.push(wyFigLabels, lb)
+        if array.size(wyFigLabels) > wyMaxFigLabels
+            label.delete(array.shift(wyFigLabels))
+
+// ---- Entree en range ----
+if not wyRanging and barsSinceBullBreak >= wyMinQuiet and barsSinceBearBreak >= wyMinQuiet and wyBarsSinceResolve >= wyMinQuiet and not na(swingHighVal) and not na(swingLowVal) and swingHighVal > swingLowVal and close <= swingHighVal and close >= swingLowVal
+    wyRanging := true
+    wyRangeTop := swingHighVal
+    wyRangeBot := swingLowVal
+    wyPriorTrend := structTrend
+    wyPhase := structTrend == "bearish" ? "Accumulation ?" : structTrend == "bullish" ? "Distribution ?" : "Range"
+    if wyShowRange
+        wyBox := box.new(bar_index - wyMinQuiet, wyRangeTop, bar_index, wyRangeBot, border_color=color.new(color.gray, 40), bgcolor=color.new(color.gray, 92), text=wyPhase, text_color=color.new(color.silver, 20), text_size=size.tiny)
+
+// ---- Figures Wyckoff (uniquement dans un range) ----
+wyBody = math.abs(close - open)
+wyDisp = wyBody >= leAtr * wyImpMult
+bool wySpring = false
+bool wyUpthrust = false
+bool wySOS = false
+bool wySOW = false
+
+if wyRanging
+    // Spring : meche sous le bas du range + cloture de retour au-dessus
+    wySpring := low < wyRangeBot and close > wyRangeBot
+    // Upthrust : meche au-dessus du haut du range + cloture de retour dessous
+    wyUpthrust := high > wyRangeTop and close < wyRangeTop
+    // SOS : bougie haussiere en displacement franchissant le milieu ou le haut
+    wySOS := close > open and wyDisp and (wyCrossUpMid or close > wyRangeTop)
+    // SOW : bougie baissiere en displacement franchissant le milieu ou le bas
+    wySOW := close < open and wyDisp and (wyCrossDnMid or close < wyRangeBot)
+
+    if wySpring
+        wyBarsSinceSpring := 0
+        f_wyMark(true, "SPRING")
+    if wyUpthrust
+        wyBarsSinceUpthrust := 0
+        f_wyMark(false, "UPTHRUST")
+    if wySOS
+        wyBarsSinceSOS := 0
+        f_wyMark(true, "SOS")
+    if wySOW
+        wyBarsSinceSOW := 0
+        f_wyMark(false, "SOW")
+
+    // Les figures confirment / reclassent la phase
+    if wySpring or wySOS
+        wyPhase := wyPriorTrend == "bullish" ? "Reaccumulation" : "Accumulation"
+    if wyUpthrust or wySOW
+        wyPhase := wyPriorTrend == "bearish" ? "Redistribution" : "Distribution"
+
+    if not na(wyBox)
+        box.set_right(wyBox, bar_index)
+        box.set_text(wyBox, wyPhase)
+
+// ---- Resolution du range ----
+wyResolvedUp = wyRanging and (close > wyRangeTop or bullBOS or bullCHoCH)
+wyResolvedDown = wyRanging and (close < wyRangeBot or bearBOS or bearCHoCH)
+
+if wyResolvedUp or wyResolvedDown
+    wyLastRangePhase := wyPhase
+    wyPhase := wyResolvedUp ? "Markup" : "Markdown"
+    wyRanging := false
+    wyRangeTop := na
+    wyRangeBot := na
+    wyBarsSinceResolve := 0
+    if not na(wyBox)
+        array.push(wyOldBoxes, wyBox)
+        if array.size(wyOldBoxes) > 4
+            box.delete(array.shift(wyOldBoxes))
+        wyBox := na
+
+// ---- Contexte + filtre ----
+wyBullCtx = wyPhase == "Accumulation" or wyPhase == "Accumulation ?" or wyPhase == "Reaccumulation"
+wyBearCtx = wyPhase == "Distribution" or wyPhase == "Distribution ?" or wyPhase == "Redistribution"
+
+// Le filtre ne bloque que les signaux CONTRAIRES a la phase en cours ;
+// hors range (Markup/Markdown/—), aucun blocage.
+wyBuyOK = not wyUseFilter or not wyBearCtx
+wySellOK = not wyUseFilter or not wyBullCtx
+
+// Contexte etendu pour les setups forts : la resolution du range (CHoCH/BOS)
+// fait passer la phase en Markup/Markdown au moment meme ou le signal peut se
+// declencher -> on garde le contexte de l'ancien range quelques barres.
+wyBullSetupCtx = wyBullCtx or (wyPhase == "Markup" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Accumulation" or wyLastRangePhase == "Accumulation ?" or wyLastRangePhase == "Reaccumulation"))
+wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Distribution" or wyLastRangePhase == "Distribution ?" or wyLastRangePhase == "Redistribution"))
+
 // ================= CONFLUENCE SIGNAL ENGINE =================
 bullZoneTouch = (bullFvgActive and low <= bullFvgTop and high >= bullFvgBot) or (bullObActive and low <= bullObTop and high >= bullObBot)
 bearZoneTouch = (bearFvgActive and high >= bearFvgBot and low <= bearFvgTop) or (bearObActive and high >= bearObBot and low <= bearObTop)
@@ -768,8 +914,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and smcBullPdOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
-sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and smcBearPdOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
+buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and smcBullPdOK and wyBuyOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
+sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and smcBearPdOK and wySellOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
 
 if buySignal
     bullSignalFired := true
@@ -787,6 +933,13 @@ plotshape(sellSignal, title="SELL", location=location.abovebar, style=shape.tria
 // etait en plus adossee a un sweep (module 2). Purement visuel.
 plotshape(smcShowAPlus and buySignal and leBullBonusActive, title="A+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.aqua, 20), text="A+", textcolor=color.black)
 plotshape(smcShowAPlus and sellSignal and leBearBonusActive, title="A+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.fuchsia, 20), text="A+", textcolor=color.white)
+
+// Module 4 : setup Wyckoff fort = phase favorable + figure recente + cassure
+// adossee a un sweep (ex : Accumulation + Spring + Sweep + CHoCH = achat fort)
+wyStrongBuy = buySignal and wyBullSetupCtx and wyBarsSinceSpring <= wyFigWindow and leBullBonusActive
+wyStrongSell = sellSignal and wyBearSetupCtx and wyBarsSinceUpthrust <= wyFigWindow and leBearBonusActive
+plotshape(wyShowStrong and wyStrongBuy, title="WY+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.lime, 10), text="WY+", textcolor=color.black)
+plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 10), text="WY+", textcolor=color.black)
 
 // ================= RISK MANAGEMENT LABELS =================
 atrVal = ta.atr(atrLen)
@@ -825,7 +978,7 @@ if sellSignal
 // seule disponible.
 
 // ================= DASHBOARD =================
-var table infoTable = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+var table infoTable = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
 if barstate.islast
     table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
     table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
@@ -846,3 +999,6 @@ if barstate.islast
     table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray)
     table.cell(infoTable, 0, 8, "P/D zone", text_color=color.white)
     table.cell(infoTable, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray)
+    wyPhaseColor = wyBullCtx or wyPhase == "Markup" ? color.lime : wyBearCtx or wyPhase == "Markdown" ? color.red : color.gray
+    table.cell(infoTable, 0, 9, "Wyckoff", text_color=color.white)
+    table.cell(infoTable, 1, 9, wyPhase, text_color=wyPhaseColor)

@@ -198,7 +198,7 @@ pfNyKz = input.session("0830-1100", "New York kill zone (America/New_York)", gro
 grpDE = "Module 6 - Moteur de Decision (score /100)"
 deSweepWindow = input.int(20, "Sweep validity for decision (bars)", minval=1, group=grpDE, tooltip="Regle eliminatoire 1 : aucun signal si aucun sweep de liquidite (EQH/EQL/PDH/PDL/PWH/PWL/swing) dans les N dernieres barres.")
 deScoreMin = input.int(80, "Display threshold (signal shown, no alert)", minval=1, maxval=100, group=grpDE)
-deScoreAPlus = input.int(90, "A+ threshold (signal + TradingView alert)", minval=1, maxval=100, group=grpDE)
+deScoreAPlus = input.int(85, "A+ / alert threshold (signal + TradingView alert)", minval=1, maxval=100, group=grpDE, tooltip="Score minimum (sur 100) a partir duquel un signal declenche une alerte TradingView. Defaut 85 -> alertes pour tout score de 85 a 100. Ne modifie pas le calcul du score.")
 deShowReasons = input.bool(true, "Show detailed reasons on signal label", group=grpDE)
 deMaxSignalLabels = input.int(12, "Max signal labels kept", minval=1, maxval=50, group=grpDE)
 
@@ -1002,7 +1002,7 @@ pfSessionOK = pfSessMode == "Off" ? true : pfSessMode == "London + New York" ? (
 // Bareme fixe (total 100) :
 //   Liquidite 20 | BOS/CHoCH 20 | OB/FVG 15 | Wyckoff 15 | Tendance HTF 10 |
 //   Volume 5 | VWAP 5 | ATR+Session 10
-// Niveaux : >= seuil A+ (90) -> signal A+ affiche + alerte TradingView
+// Niveaux : >= seuil A+ (85) -> signal A+ affiche + alerte TradingView
 //           >= seuil affichage (80) -> signal affiche, PAS d'alerte
 //           en dessous -> aucun signal
 // Un composant dont la donnee est indisponible (volume absent, VWAP na,
@@ -1176,7 +1176,7 @@ if sellSignal
 // ================= ALERTS =================
 // Pour creer l'alerte TradingView : Creer une alerte sur ce graphique ->
 // condition = cet indicateur -> "Tout appel de fonction alert()". Seuls les
-// signaux A+ (score >= 90 par defaut) declenchent une alerte, avec le sens,
+// signaux A+ (score >= 85 par defaut) declenchent une alerte, avec le sens,
 // le score /100, le niveau de confiance, le detail des raisons et les
 // niveaux Entree / SL / TP dans le message.
 // alertcondition() retire volontairement : la coexistence avec alert() faisait

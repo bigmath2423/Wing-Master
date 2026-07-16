@@ -1,0 +1,525 @@
+//@version=6
+indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ============================================================
+// XAU/USD - SMART MONEY CONCEPTS CONFLUENCE SIGNAL ENGINE
+// BOS / CHoCH + Fair Value Gaps + Order Blocks + Liquidity Sweeps + Momentum Oscillator
+// v3 : fix accumulation d'objets graphiques (v1/v2 laissaient tous les anciens
+//      boxes/labels s'empiler a l'infini -> chart illisible). Chaque zone/label
+//      ne garde maintenant que sa version la plus recente.
+// v4 : Order Block se cree maintenant aussi sur CHoCH (pas seulement BOS) ->
+//      un retournement de structure peut de nouveau generer un signal.
+//      Le toggle "Show Order Block zones" ne controle plus QUE l'affichage
+//      (avant, le decocher desactivait aussi le scoring et les entrees, contrairement au FVG).
+//      bullSignalFired/bearSignalFired se reinitialisent aussi sur CHoCH.
+// v5 : migration Pine Script v6 (aucune logique de signal modifiee) +
+//      MODULE 1 - MARKET STRUCTURE INSTITUTIONNELLE :
+//        - labels HH / HL / LH / LL sur les swings confirmes
+//        - historique optionnel des BOS / CHoCH (avant : seul le dernier restait)
+//        - analyse de structure multi-timeframe (H1 contexte / M15 structure /
+//          M5 execution) via request.security sur barres CLOTUREES -> zero repaint
+//        - panneau dedie : Tendance H1 / Structure M15 / Signal M5 / structure chart
+// A tester en demo / backtest avant tout usage en reel.
+// ============================================================
+
+// ================= INPUTS =================
+grpStruct = "Structure"
+swingLen = input.int(10, "Swing detection length", minval=2, group=grpStruct)
+
+grpFVG = "Fair Value Gaps"
+showFVG = input.bool(true, "Show FVG zones", group=grpFVG)
+
+grpOB = "Order Blocks"
+showOB = input.bool(true, "Show Order Block zones", group=grpOB)
+
+grpLiq = "Liquidity"
+showLiq = input.bool(true, "Mark liquidity sweeps", group=grpLiq)
+liqLookback = input.int(20, "Liquidity sweep validity (bars)", minval=5, group=grpLiq)
+
+grpTrend = "Trend Filter"
+useTrendFilter = input.bool(true, "Require EMA trend alignment", group=grpTrend)
+emaLen = input.int(200, "EMA length", group=grpTrend)
+
+grpHTF = "Multi-Timeframe Filter"
+useHtfFilter = input.bool(true, "Require higher-timeframe bias alignment", group=grpHTF)
+htfTimeframe = input.timeframe("60", "Higher timeframe", group=grpHTF)
+htfEmaLen = input.int(50, "HTF EMA length", minval=2, group=grpHTF)
+
+grpOsc = "Momentum Oscillator"
+useOscFilter = input.bool(true, "Use oscillator as confluence factor", group=grpOsc)
+oscType = input.string("RSI", "Oscillator type", options=["RSI", "Stochastic"], group=grpOsc)
+oscLen = input.int(14, "Oscillator length", minval=2, group=grpOsc)
+oscSmoothK = input.int(3, "Stochastic %K smoothing", minval=1, group=grpOsc)
+oscSmoothD = input.int(3, "Stochastic %D smoothing", minval=1, group=grpOsc)
+oscOversold = input.int(30, "Oversold level (Stoch default: 20)", minval=1, maxval=49, group=grpOsc)
+oscOverbought = input.int(70, "Overbought level (Stoch default: 80)", minval=51, maxval=99, group=grpOsc)
+oscLookback = input.int(15, "Oscillator signal validity (bars)", minval=2, group=grpOsc)
+
+grpSig = "Signal Engine"
+structLookback = input.int(30, "Structure break validity (bars)", minval=5, group=grpSig)
+minConfluence = input.int(3, "Minimum confluence score (max 4)", minval=1, maxval=4, group=grpSig)
+signalCooldown = input.int(10, "Minimum bars between signals (same direction)", minval=0, group=grpSig)
+
+grpRisk = "Risk Management"
+atrLen = input.int(14, "ATR length", group=grpRisk)
+slAtrMult = input.float(1.2, "Stop-loss = ATR x", minval=0.1, group=grpRisk)
+rrRatio = input.float(2.0, "Reward:Risk ratio", minval=0.5, group=grpRisk)
+showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
+
+grpAlert = "Notifications"
+sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpAlert)
+
+grpMS = "Module 1 - Market Structure"
+msShowSwingLabels = input.bool(true, "Show HH / HL / LH / LL labels", group=grpMS)
+msMaxSwingLabels = input.int(30, "Max swing labels kept", minval=4, maxval=100, group=grpMS)
+msKeepBreakHistory = input.bool(true, "Keep BOS / CHoCH history on chart", group=grpMS)
+msMaxBreakMarks = input.int(15, "Max historical BOS / CHoCH kept", minval=1, maxval=100, group=grpMS)
+msMtfSwingLen = input.int(10, "MTF swing length", minval=2, group=grpMS)
+msTfContext = input.timeframe("60", "Context timeframe (H1)", group=grpMS)
+msTfStructure = input.timeframe("15", "Structure timeframe (M15)", group=grpMS)
+msTfExec = input.timeframe("5", "Execution timeframe (M5)", group=grpMS)
+msShowPanel = input.bool(true, "Show multi-timeframe panel", group=grpMS)
+msPanelPos = input.string("bottom_right", "Panel position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpMS)
+
+// ================= TREND FILTER =================
+emaTrend = ta.ema(close, emaLen)
+trendBullOK = not useTrendFilter or close > emaTrend
+trendBearOK = not useTrendFilter or close < emaTrend
+plot(useTrendFilter ? emaTrend : na, "EMA Trend", color=color.new(color.gray, 40))
+
+// ================= MULTI-TIMEFRAME FILTER =================
+htfClose = request.security(syminfo.tickerid, htfTimeframe, close[1], lookahead=barmerge.lookahead_off)
+htfEma = request.security(syminfo.tickerid, htfTimeframe, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfBullOK = not useHtfFilter or htfClose > htfEma
+htfBearOK = not useHtfFilter or htfClose < htfEma
+htfTrendLabel = htfClose > htfEma ? "bullish" : "bearish"
+plot(useHtfFilter ? htfEma : na, "HTF EMA Trend", color=color.new(color.purple, 30), linewidth=2)
+
+// ================= MOMENTUM OSCILLATOR =================
+rsiVal = ta.rsi(close, oscLen)
+rawK = ta.stoch(close, high, low, oscLen)
+stochK = ta.sma(rawK, oscSmoothK)
+stochD = ta.sma(stochK, oscSmoothD)
+
+oscVal = oscType == "RSI" ? rsiVal : stochK
+
+var int barsSinceOversold = 9999
+var int barsSinceOverbought = 9999
+barsSinceOversold += 1
+barsSinceOverbought += 1
+
+if oscVal <= oscOversold
+    barsSinceOversold := 0
+if oscVal >= oscOverbought
+    barsSinceOverbought := 0
+
+oscBullSignal = barsSinceOversold <= oscLookback
+oscBearSignal = barsSinceOverbought <= oscLookback
+
+// ================= SWING DETECTION =================
+float ph = ta.pivothigh(high, swingLen, swingLen)
+float pl = ta.pivotlow(low, swingLen, swingLen)
+
+var float swingHighVal = na
+var int   swingHighBar = na
+var float swingLowVal  = na
+var int   swingLowBar  = na
+
+if not na(ph)
+    swingHighVal := ph
+    swingHighBar := bar_index - swingLen
+
+if not na(pl)
+    swingLowVal := pl
+    swingLowBar := bar_index - swingLen
+
+// ================= MODULE 1 : HELPERS HISTORIQUE BOS / CHoCH =================
+// Archive un objet au lieu de le supprimer quand l'historique est active.
+// Comportement identique a avant quand msKeepBreakHistory = false.
+var array<line>  msBreakLineHist  = array.new<line>()
+var array<label> msBreakLabelHist = array.new<label>()
+
+f_msArchiveLine(line ln) =>
+    if msKeepBreakHistory
+        array.push(msBreakLineHist, ln)
+        if array.size(msBreakLineHist) > msMaxBreakMarks
+            line.delete(array.shift(msBreakLineHist))
+    else
+        line.delete(ln)
+
+f_msArchiveLabel(label lb) =>
+    if msKeepBreakHistory
+        array.push(msBreakLabelHist, lb)
+        if array.size(msBreakLabelHist) > msMaxBreakMarks
+            label.delete(array.shift(msBreakLabelHist))
+    else
+        label.delete(lb)
+
+// ================= MARKET STRUCTURE: BOS / CHoCH =================
+var string structTrend = "neutral"
+var line  bullBreakLine = na
+var label bullBreakLabel = na
+var line  bearBreakLine = na
+var label bearBreakLabel = na
+
+bullBOS = false
+bearBOS = false
+bullCHoCH = false
+bearCHoCH = false
+
+// Pine v6 : les ta.* sont sorties des conditions `and` (evaluation paresseuse
+// en v6 -> une ta.* dans un operande conditionnel ne s'executerait pas a chaque
+// barre). Resultat strictement identique a la version v5.
+crossUpSwingHigh = ta.crossover(close, swingHighVal)
+crossDnSwingLow = ta.crossunder(close, swingLowVal)
+
+if not na(swingHighVal) and crossUpSwingHigh
+    if structTrend == "bearish"
+        bullCHoCH := true
+    else
+        bullBOS := true
+    structTrend := "bullish"
+    if not na(bullBreakLine)
+        f_msArchiveLine(bullBreakLine)
+    if not na(bullBreakLabel)
+        f_msArchiveLabel(bullBreakLabel)
+    bullBreakLine := line.new(swingHighBar, swingHighVal, bar_index, swingHighVal, color=bullCHoCH ? color.new(color.yellow,0) : color.new(color.lime,0), width=1, style=bullCHoCH ? line.style_dashed : line.style_solid)
+    bullBreakLabel := label.new(bar_index, swingHighVal, bullCHoCH ? "CHoCH" : "BOS", style=label.style_label_down, color=color.new(color.white,100), textcolor=bullCHoCH ? color.yellow : color.lime, size=size.tiny)
+
+if not na(swingLowVal) and crossDnSwingLow
+    if structTrend == "bullish"
+        bearCHoCH := true
+    else
+        bearBOS := true
+    structTrend := "bearish"
+    if not na(bearBreakLine)
+        f_msArchiveLine(bearBreakLine)
+    if not na(bearBreakLabel)
+        f_msArchiveLabel(bearBreakLabel)
+    bearBreakLine := line.new(swingLowBar, swingLowVal, bar_index, swingLowVal, color=bearCHoCH ? color.new(color.orange,0) : color.new(color.red,0), width=1, style=bearCHoCH ? line.style_dashed : line.style_solid)
+    bearBreakLabel := label.new(bar_index, swingLowVal, bearCHoCH ? "CHoCH" : "BOS", style=label.style_label_up, color=color.new(color.white,100), textcolor=bearCHoCH ? color.orange : color.red, size=size.tiny)
+
+var int barsSinceBullBreak = 9999
+var int barsSinceBearBreak = 9999
+barsSinceBullBreak += 1
+barsSinceBearBreak += 1
+if bullBOS or bullCHoCH
+    barsSinceBullBreak := 0
+if bearBOS or bearCHoCH
+    barsSinceBearBreak := 0
+
+bgcolor(structTrend == "bullish" ? color.new(color.green, 95) : structTrend == "bearish" ? color.new(color.red, 95) : na, title="Trend background")
+
+// ================= MODULE 1 : SWINGS HH / HL / LH / LL =================
+// Les pivots ph/pl sont confirmes swingLen barres apres leur formation ->
+// le label est pose une seule fois, sur une barre passee : aucun repaint.
+var float msPrevSwingHigh = na
+var float msPrevSwingLow = na
+var string msHighTag = "-"
+var string msLowTag = "-"
+var array<label> msSwingLabels = array.new<label>()
+
+f_msPushSwingLabel(label lb) =>
+    array.push(msSwingLabels, lb)
+    if array.size(msSwingLabels) > msMaxSwingLabels
+        label.delete(array.shift(msSwingLabels))
+
+if not na(ph)
+    msHighTag := na(msPrevSwingHigh) ? "H" : ph > msPrevSwingHigh ? "HH" : "LH"
+    if msShowSwingLabels
+        colHigh = msHighTag == "HH" ? color.lime : msHighTag == "LH" ? color.red : color.gray
+        f_msPushSwingLabel(label.new(bar_index - swingLen, ph, msHighTag, style=label.style_label_down, color=color.new(color.white, 100), textcolor=colHigh, size=size.small))
+    msPrevSwingHigh := ph
+
+if not na(pl)
+    msLowTag := na(msPrevSwingLow) ? "L" : pl > msPrevSwingLow ? "HL" : "LL"
+    if msShowSwingLabels
+        colLow = msLowTag == "HL" ? color.lime : msLowTag == "LL" ? color.red : color.gray
+        f_msPushSwingLabel(label.new(bar_index - swingLen, pl, msLowTag, style=label.style_label_up, color=color.new(color.white, 100), textcolor=colLow, size=size.small))
+    msPrevSwingLow := pl
+
+// Tendance deduite de la sequence des swings (independante de structTrend,
+// qui reste la reference du moteur de signaux)
+msSwingTrend = msHighTag == "HH" and msLowTag == "HL" ? "bullish" : msHighTag == "LH" and msLowTag == "LL" ? "bearish" : "mixed"
+
+// ================= MODULE 1 : STRUCTURE MULTI-TIMEFRAME =================
+// Meme moteur pivots + cassures que le graphique, execute dans le contexte de
+// chaque timeframe via request.security. La fonction retourne les valeurs de
+// la barre HTF PRECEDENTE ([1]) avec lookahead_off -> uniquement des barres
+// cloturees, aucun repaint.
+f_msStructure() =>
+    float pH = ta.pivothigh(high, msMtfSwingLen, msMtfSwingLen)
+    float pL = ta.pivotlow(low, msMtfSwingLen, msMtfSwingLen)
+    var float sh = na
+    var float sl = na
+    var int trend = 0     // 1 = bullish, -1 = bearish, 0 = neutral
+    var int lastEvent = 0 // 1 = BOS up, 2 = CHoCH up, -1 = BOS down, -2 = CHoCH down
+    if not na(pH)
+        sh := pH
+    if not na(pL)
+        sl := pL
+    crossUp = ta.crossover(close, sh)
+    crossDn = ta.crossunder(close, sl)
+    if not na(sh) and crossUp
+        lastEvent := trend == -1 ? 2 : 1
+        trend := 1
+    if not na(sl) and crossDn
+        lastEvent := trend == 1 ? -2 : -1
+        trend := -1
+    [trend[1], lastEvent[1]]
+
+[msCtxTrend, msCtxEvent] = request.security(syminfo.tickerid, msTfContext, f_msStructure(), lookahead=barmerge.lookahead_off)
+[msStructTrendMtf, msStructEvent] = request.security(syminfo.tickerid, msTfStructure, f_msStructure(), lookahead=barmerge.lookahead_off)
+[msExecTrend, msExecEvent] = request.security(syminfo.tickerid, msTfExec, f_msStructure(), lookahead=barmerge.lookahead_off)
+
+f_msTrendTxt(int t) =>
+    t == 1 ? "Bullish" : t == -1 ? "Bearish" : "Neutral"
+
+f_msEventTxt(int e) =>
+    e == 1 ? "BOS ↑" : e == 2 ? "CHoCH ↑" : e == -1 ? "BOS ↓" : e == -2 ? "CHoCH ↓" : "—"
+
+f_msTrendColor(int t) =>
+    t == 1 ? color.lime : t == -1 ? color.red : color.gray
+
+// Previent l'utilisateur si le TF du module est INFERIEUR au TF du graphique
+// (request.security vers un TF plus bas ne renvoie que la derniere valeur intrabar)
+f_msTfWarn(string tf) =>
+    timeframe.in_seconds(tf) < timeframe.in_seconds(timeframe.period) ? " ⚠" : ""
+
+// ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
+msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
+var table msPanel = table.new(msPanelPosition, 2, 6, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 50))
+
+if barstate.islast and msShowPanel
+    table.cell(msPanel, 0, 0, "MARKET STRUCTURE", text_color=color.white, bgcolor=color.new(color.blue, 60))
+    table.cell(msPanel, 1, 0, "MTF", text_color=color.white, bgcolor=color.new(color.blue, 60))
+    table.cell(msPanel, 0, 1, "Tendance " + msTfContext + f_msTfWarn(msTfContext), text_color=color.white)
+    table.cell(msPanel, 1, 1, f_msTrendTxt(msCtxTrend), text_color=f_msTrendColor(msCtxTrend))
+    table.cell(msPanel, 0, 2, "Structure " + msTfStructure + f_msTfWarn(msTfStructure), text_color=color.white)
+    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf) + " · " + f_msEventTxt(msStructEvent), text_color=f_msTrendColor(msStructTrendMtf))
+    table.cell(msPanel, 0, 3, "Signal " + msTfExec + f_msTfWarn(msTfExec), text_color=color.white)
+    table.cell(msPanel, 1, 3, f_msEventTxt(msExecEvent), text_color=f_msTrendColor(msExecTrend))
+    table.cell(msPanel, 0, 4, "Structure chart", text_color=color.white)
+    table.cell(msPanel, 1, 4, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray)
+    table.cell(msPanel, 0, 5, "Swings chart", text_color=color.white)
+    table.cell(msPanel, 1, 5, msHighTag + " / " + msLowTag + " (" + msSwingTrend + ")", text_color=msSwingTrend == "bullish" ? color.lime : msSwingTrend == "bearish" ? color.red : color.gray)
+
+// ================= FAIR VALUE GAPS =================
+var float bullFvgTop = na
+var float bullFvgBot = na
+var bool  bullFvgActive = false
+var box   bullFvgBox = na
+
+var float bearFvgTop = na
+var float bearFvgBot = na
+var bool  bearFvgActive = false
+var box   bearFvgBox = na
+
+bullFVG = low > high[2]
+bearFVG = high < low[2]
+
+if bullFVG
+    bullFvgTop := low
+    bullFvgBot := high[2]
+    bullFvgActive := true
+    if not na(bullFvgBox)
+        box.delete(bullFvgBox)
+        bullFvgBox := na
+    if showFVG
+        bullFvgBox := box.new(bar_index[2], bullFvgTop, bar_index, bullFvgBot, border_color=color.new(color.teal,40), bgcolor=color.new(color.teal,88), extend=extend.right)
+
+if bearFVG
+    bearFvgTop := low[2]
+    bearFvgBot := high
+    bearFvgActive := true
+    if not na(bearFvgBox)
+        box.delete(bearFvgBox)
+        bearFvgBox := na
+    if showFVG
+        bearFvgBox := box.new(bar_index[2], bearFvgTop, bar_index, bearFvgBot, border_color=color.new(color.red,40), bgcolor=color.new(color.red,88), extend=extend.right)
+
+if bullFvgActive and close < bullFvgBot
+    bullFvgActive := false
+    if not na(bullFvgBox)
+        box.delete(bullFvgBox)
+        bullFvgBox := na
+
+if bearFvgActive and close > bearFvgTop
+    bearFvgActive := false
+    if not na(bearFvgBox)
+        box.delete(bearFvgBox)
+        bearFvgBox := na
+
+// ================= ORDER BLOCKS =================
+var float bullObTop = na
+var float bullObBot = na
+var bool  bullObActive = false
+var box   bullObBox = na
+
+var float bearObTop = na
+var float bearObBot = na
+var bool  bearObActive = false
+var box   bearObBox = na
+
+if bullBOS or bullCHoCH
+    int idxOB = na
+    for i = 1 to swingLen
+        if close[i] < open[i]
+            idxOB := i
+            break
+    if not na(idxOB)
+        bullObTop := high[idxOB]
+        bullObBot := low[idxOB]
+        bullObActive := true
+        if not na(bullObBox)
+            box.delete(bullObBox)
+            bullObBox := na
+        if showOB
+            bullObBox := box.new(bar_index[idxOB], bullObTop, bar_index, bullObBot, border_color=color.new(color.blue,40), bgcolor=color.new(color.blue,88), extend=extend.right)
+
+if bearBOS or bearCHoCH
+    int idxOB2 = na
+    for i = 1 to swingLen
+        if close[i] > open[i]
+            idxOB2 := i
+            break
+    if not na(idxOB2)
+        bearObTop := high[idxOB2]
+        bearObBot := low[idxOB2]
+        bearObActive := true
+        if not na(bearObBox)
+            box.delete(bearObBox)
+            bearObBox := na
+        if showOB
+            bearObBox := box.new(bar_index[idxOB2], bearObTop, bar_index, bearObBot, border_color=color.new(color.purple,40), bgcolor=color.new(color.purple,88), extend=extend.right)
+
+if bullObActive and close < bullObBot
+    bullObActive := false
+    if not na(bullObBox)
+        box.delete(bullObBox)
+        bullObBox := na
+
+if bearObActive and close > bearObTop
+    bearObActive := false
+    if not na(bearObBox)
+        box.delete(bearObBox)
+        bearObBox := na
+
+// ================= LIQUIDITY SWEEPS =================
+var int barsSinceLiqSweepLow = 9999
+var int barsSinceLiqSweepHigh = 9999
+barsSinceLiqSweepLow += 1
+barsSinceLiqSweepHigh += 1
+
+var float sweptLowLevel = na
+var float sweptHighLevel = na
+var label sweepLowLabel = na
+var label sweepHighLabel = na
+
+liqSweepLow = showLiq and not na(swingLowVal) and low < swingLowVal and close > swingLowVal and (na(sweptLowLevel) or swingLowVal != sweptLowLevel)
+liqSweepHigh = showLiq and not na(swingHighVal) and high > swingHighVal and close < swingHighVal and (na(sweptHighLevel) or swingHighVal != sweptHighLevel)
+
+if liqSweepLow
+    barsSinceLiqSweepLow := 0
+    sweptLowLevel := swingLowVal
+    if not na(sweepLowLabel)
+        label.delete(sweepLowLabel)
+    sweepLowLabel := label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(color.aqua,70), textcolor=color.aqua, size=size.tiny)
+
+if liqSweepHigh
+    barsSinceLiqSweepHigh := 0
+    sweptHighLevel := swingHighVal
+    if not na(sweepHighLabel)
+        label.delete(sweepHighLabel)
+    sweepHighLabel := label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(color.fuchsia,70), textcolor=color.fuchsia, size=size.tiny)
+
+// ================= CONFLUENCE SIGNAL ENGINE =================
+bullZoneTouch = (bullFvgActive and low <= bullFvgTop and high >= bullFvgBot) or (bullObActive and low <= bullObTop and high >= bullObBot)
+bearZoneTouch = (bearFvgActive and high >= bearFvgBot and low <= bearFvgTop) or (bearObActive and high >= bearObBot and low <= bearObTop)
+
+bullScore = (barsSinceBullBreak <= structLookback ? 1 : 0) + (bullZoneTouch ? 1 : 0) + (barsSinceLiqSweepLow <= liqLookback ? 1 : 0) + (useOscFilter and oscBullSignal ? 1 : 0)
+bearScore = (barsSinceBearBreak <= structLookback ? 1 : 0) + (bearZoneTouch ? 1 : 0) + (barsSinceLiqSweepHigh <= liqLookback ? 1 : 0) + (useOscFilter and oscBearSignal ? 1 : 0)
+
+maxPossibleScore = useOscFilter ? 4 : 3
+effectiveMinConfluence = math.min(minConfluence, maxPossibleScore)
+
+var int barsSinceLastBuy = 9999
+var int barsSinceLastSell = 9999
+barsSinceLastBuy += 1
+barsSinceLastSell += 1
+
+var bool bullSignalFired = false
+var bool bearSignalFired = false
+
+if bullFVG or bullBOS or bullCHoCH
+    bullSignalFired := false
+if bearFVG or bearBOS or bearCHoCH
+    bearSignalFired := false
+
+buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
+sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
+
+if buySignal
+    bullSignalFired := true
+    barsSinceLastBuy := 0
+if sellSignal
+    bearSignalFired := true
+    barsSinceLastSell := 0
+
+// ================= SIGNAL PLOTTING =================
+plotshape(buySignal, title="BUY", location=location.belowbar, style=shape.triangleup, size=size.small, color=color.lime, text="BUY", textcolor=color.white)
+plotshape(sellSignal, title="SELL", location=location.abovebar, style=shape.triangledown, size=size.small, color=color.red, text="SELL", textcolor=color.white)
+
+// ================= RISK MANAGEMENT LABELS =================
+atrVal = ta.atr(atrLen)
+
+var label bullRiskLabel = na
+var label bearRiskLabel = na
+
+if buySignal
+    slLevel = low - atrVal * slAtrMult
+    riskDist = close - slLevel
+    tpLevel = close + riskDist * rrRatio
+    confPctBuy = math.round((bullScore / maxPossibleScore) * 100)
+    if showRiskLabels
+        if not na(bullRiskLabel)
+            label.delete(bullRiskLabel)
+        bullRiskLabel := label.new(bar_index, low - atrVal * 2, "SL " + str.tostring(slLevel, "#.##") + "\nTP " + str.tostring(tpLevel, "#.##"), style=label.style_label_up, color=color.new(color.lime,85), textcolor=color.lime, size=size.tiny)
+    if sendNotifications
+        alert("XAUUSD BUY | Confluence " + str.tostring(confPctBuy) + "% (" + str.tostring(bullScore) + "/" + str.tostring(maxPossibleScore) + ") | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(slLevel, "#.##") + " | TP " + str.tostring(tpLevel, "#.##"), alert.freq_once_per_bar_close)
+
+if sellSignal
+    slLevel2 = high + atrVal * slAtrMult
+    riskDist2 = slLevel2 - close
+    tpLevel2 = close - riskDist2 * rrRatio
+    confPctSell = math.round((bearScore / maxPossibleScore) * 100)
+    if showRiskLabels
+        if not na(bearRiskLabel)
+            label.delete(bearRiskLabel)
+        bearRiskLabel := label.new(bar_index, high + atrVal * 2, "SL " + str.tostring(slLevel2, "#.##") + "\nTP " + str.tostring(tpLevel2, "#.##"), style=label.style_label_down, color=color.new(color.red,85), textcolor=color.red, size=size.tiny)
+    if sendNotifications
+        alert("XAUUSD SELL | Confluence " + str.tostring(confPctSell) + "% (" + str.tostring(bearScore) + "/" + str.tostring(maxPossibleScore) + ") | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(slLevel2, "#.##") + " | TP " + str.tostring(tpLevel2, "#.##"), alert.freq_once_per_bar_close)
+
+// ================= ALERTS =================
+// alertcondition() retire volontairement : la coexistence avec alert() faisait
+// que TradingView n'affichait jamais clairement "Tout appel de fonction alert()"
+// dans le dialogue Creer une alerte. Avec alert() seul, cette option devient la
+// seule disponible.
+
+// ================= DASHBOARD =================
+var table infoTable = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
+    table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
+    table.cell(infoTable, 0, 1, "Bull score", text_color=color.white)
+    table.cell(infoTable, 1, 1, str.tostring(bullScore) + "/" + str.tostring(maxPossibleScore), text_color=color.lime)
+    table.cell(infoTable, 0, 2, "Bear score", text_color=color.white)
+    table.cell(infoTable, 1, 2, str.tostring(bearScore) + "/" + str.tostring(maxPossibleScore), text_color=color.red)
+    table.cell(infoTable, 0, 3, "Min required", text_color=color.white)
+    table.cell(infoTable, 1, 3, str.tostring(effectiveMinConfluence), text_color=color.orange)
+    table.cell(infoTable, 0, 4, "ATR", text_color=color.white)
+    table.cell(infoTable, 1, 4, str.tostring(atrVal, "#.##"), text_color=color.white)
+    table.cell(infoTable, 0, 5, oscType, text_color=color.white)
+    table.cell(infoTable, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray)
+    table.cell(infoTable, 0, 6, "HTF Bias", text_color=color.white)
+    table.cell(infoTable, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red)

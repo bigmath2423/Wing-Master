@@ -54,6 +54,19 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          range, aucun blocage
 //        - setup fort "WY+" : phase + figure + sweep->BOS/CHoCH alignes
 //          (ex : Accumulation + Spring + Sweep + CHoCH = achat fort)
+// v9 : MODULE 5 - FILTRES PRO :
+//        - Volume : ratio volume/SMA memorise sur chaque BOS/CHoCH ; une
+//          cassure sous le seuil est etiquetee "FAKE?" et (filtre ON par
+//          defaut) les signaux issus de cette cassure sont bloques
+//        - VWAP session : trace + biais dans le dashboard ; filtre optionnel
+//          (OFF par defaut) BUY au-dessus / SELL en dessous uniquement
+//        - ATR : filtre de volatilite (ON par defaut) qui ne bloque que les
+//          marches trop calmes (ATR < moyenne x seuil)
+//        - Sessions : Londres / New York / Kill Zones surlignees ; filtre
+//          optionnel (OFF par defaut) : signaux uniquement en session ou
+//          uniquement en kill zone
+//        Chaque filtre laisse passer si la donnee est indisponible (volume
+//        absent, VWAP na...) pour ne jamais supprimer de bonnes opportunites.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -145,6 +158,24 @@ wyImpMult = input.float(1.0, "SOS/SOW displacement body (ATR x)", minval=0.1, st
 wyFigWindow = input.int(20, "Figure validity for strong setup (bars)", minval=2, group=grpWY)
 wyUseFilter = input.bool(true, "Use Wyckoff phase as context filter (block contrary signals)", group=grpWY)
 wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
+
+grpPF = "Module 5 - Filtres Pro"
+pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpPF)
+pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
+pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
+pfShowFake = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
+pfMaxFakeLabels = input.int(15, "Max fake-breakout labels kept", minval=2, maxval=100, group=grpPF)
+pfShowVwap = input.bool(true, "Show session VWAP", group=grpPF)
+pfUseVwapFilter = input.bool(false, "VWAP filter: BUY above / SELL below only", group=grpPF)
+pfUseAtrFilter = input.bool(true, "ATR: block signals when volatility too low", group=grpPF)
+pfAtrLen = input.int(50, "ATR average length", minval=2, group=grpPF)
+pfAtrMinMult = input.float(0.7, "Min ATR vs its average (x)", minval=0.1, step=0.05, group=grpPF)
+pfShowSessions = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
+pfSessMode = input.string("Off", "Session filter for signals", options=["Off", "London + New York", "Kill zones only"], group=grpPF)
+pfLdnSess = input.session("0800-1700", "London session (Europe/London)", group=grpPF)
+pfNySess = input.session("0800-1700", "New York session (America/New_York)", group=grpPF)
+pfLdnKz = input.session("0700-1000", "London kill zone (Europe/London)", group=grpPF)
+pfNyKz = input.session("0830-1100", "New York kill zone (America/New_York)", group=grpPF)
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -889,6 +920,66 @@ wySellOK = not wyUseFilter or not wyBullCtx
 wyBullSetupCtx = wyBullCtx or (wyPhase == "Markup" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Accumulation" or wyLastRangePhase == "Accumulation ?" or wyLastRangePhase == "Reaccumulation"))
 wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Distribution" or wyLastRangePhase == "Distribution ?" or wyLastRangePhase == "Redistribution"))
 
+// ================= MODULE 5 : FILTRES PRO =================
+// Volume / VWAP / ATR / Sessions. Chaque filtre est independant, desactivable,
+// et laisse passer le signal si sa donnee est indisponible (na) : on ameliore
+// la qualite sans jamais bloquer par manque de donnees.
+
+// ---- 1. VOLUME : confirmation des cassures / faux breakouts ----
+pfVolSma = ta.sma(volume, pfVolLen)
+pfVolDataOK = not na(volume) and not na(pfVolSma) and pfVolSma > 0
+pfVolRatio = pfVolDataOK ? volume / pfVolSma : na
+
+// Le ratio de volume est memorise au moment de chaque cassure de structure :
+// c'est la cassure qu'on valide, pas la barre de retracement du signal.
+var float pfBullBreakVolRatio = na
+var float pfBearBreakVolRatio = na
+var array<label> pfFakeLabels = array.new<label>()
+
+f_pfFakeLabel(bool bull) =>
+    if pfShowFake
+        lb = label.new(bar_index, bull ? low : high, "FAKE?", style=bull ? label.style_label_up : label.style_label_down, color=color.new(color.yellow, 70), textcolor=color.yellow, size=size.tiny)
+        array.push(pfFakeLabels, lb)
+        if array.size(pfFakeLabels) > pfMaxFakeLabels
+            label.delete(array.shift(pfFakeLabels))
+
+if bullBOS or bullCHoCH
+    pfBullBreakVolRatio := pfVolRatio
+    if pfVolDataOK and pfVolRatio < pfVolFakeMult
+        f_pfFakeLabel(true)
+if bearBOS or bearCHoCH
+    pfBearBreakVolRatio := pfVolRatio
+    if pfVolDataOK and pfVolRatio < pfVolFakeMult
+        f_pfFakeLabel(false)
+
+pfBullVolOK = not pfUseVolFilter or na(pfBullBreakVolRatio) or pfBullBreakVolRatio >= pfVolFakeMult
+pfBearVolOK = not pfUseVolFilter or na(pfBearBreakVolRatio) or pfBearBreakVolRatio >= pfVolFakeMult
+
+// ---- 2. VWAP : position du prix + biais ----
+pfVwap = ta.vwap(hlc3)
+plot(pfShowVwap ? pfVwap : na, "VWAP", color=color.new(color.yellow, 20), linewidth=2)
+pfVwapBull = not na(pfVwap) and close > pfVwap
+pfVwapBear = not na(pfVwap) and close < pfVwap
+pfVwapBullOK = not pfUseVwapFilter or na(pfVwap) or pfVwapBull
+pfVwapBearOK = not pfUseVwapFilter or na(pfVwap) or pfVwapBear
+
+// ---- 3. ATR : filtre de volatilite (eviter les marches trop calmes) ----
+pfAtrSma = ta.sma(leAtr, pfAtrLen)
+pfVolatLow = not na(pfAtrSma) and leAtr < pfAtrSma * pfAtrMinMult
+pfAtrOK = not pfUseAtrFilter or na(pfAtrSma) or not pfVolatLow
+
+// ---- 4. SESSIONS : Londres / New York / Kill Zones ----
+pfInLdn = not na(time(timeframe.period, pfLdnSess, "Europe/London"))
+pfInNy = not na(time(timeframe.period, pfNySess, "America/New_York"))
+pfInLdnKz = not na(time(timeframe.period, pfLdnKz, "Europe/London"))
+pfInNyKz = not na(time(timeframe.period, pfNyKz, "America/New_York"))
+pfInKz = pfInLdnKz or pfInNyKz
+
+pfSessColor = pfInKz ? color.new(color.purple, 82) : pfInLdn ? color.new(color.blue, 93) : pfInNy ? color.new(color.orange, 93) : na
+bgcolor(pfShowSessions ? pfSessColor : na, title="Sessions / Kill zones")
+
+pfSessionOK = pfSessMode == "Off" ? true : pfSessMode == "London + New York" ? (pfInLdn or pfInNy) : pfInKz
+
 // ================= CONFLUENCE SIGNAL ENGINE =================
 bullZoneTouch = (bullFvgActive and low <= bullFvgTop and high >= bullFvgBot) or (bullObActive and low <= bullObTop and high >= bullObBot)
 bearZoneTouch = (bearFvgActive and high >= bearFvgBot and low <= bearFvgTop) or (bearObActive and high >= bearObBot and low <= bearObTop)
@@ -914,8 +1005,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and smcBullPdOK and wyBuyOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
-sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and smcBearPdOK and wySellOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
+buySignal = bullScore >= effectiveMinConfluence and trendBullOK and htfBullOK and leBullOK and smcBullPdOK and wyBuyOK and pfBullVolOK and pfVwapBullOK and pfAtrOK and pfSessionOK and not bullSignalFired and bullZoneTouch and barsSinceLastBuy > signalCooldown
+sellSignal = bearScore >= effectiveMinConfluence and trendBearOK and htfBearOK and leBearOK and smcBearPdOK and wySellOK and pfBearVolOK and pfVwapBearOK and pfAtrOK and pfSessionOK and not bearSignalFired and bearZoneTouch and barsSinceLastSell > signalCooldown
 
 if buySignal
     bullSignalFired := true
@@ -978,7 +1069,7 @@ if sellSignal
 // seule disponible.
 
 // ================= DASHBOARD =================
-var table infoTable = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+var table infoTable = table.new(position.top_right, 2, 14, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
 if barstate.islast
     table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
     table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
@@ -1002,3 +1093,12 @@ if barstate.islast
     wyPhaseColor = wyBullCtx or wyPhase == "Markup" ? color.lime : wyBearCtx or wyPhase == "Markdown" ? color.red : color.gray
     table.cell(infoTable, 0, 9, "Wyckoff", text_color=color.white)
     table.cell(infoTable, 1, 9, wyPhase, text_color=wyPhaseColor)
+    table.cell(infoTable, 0, 10, "Volume", text_color=color.white)
+    table.cell(infoTable, 1, 10, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.lime : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.red : color.gray)
+    table.cell(infoTable, 0, 11, "VWAP", text_color=color.white)
+    table.cell(infoTable, 1, 11, pfVwapBull ? "above" : pfVwapBear ? "below" : "n/a", text_color=pfVwapBull ? color.lime : pfVwapBear ? color.red : color.gray)
+    table.cell(infoTable, 0, 12, "Volatility", text_color=color.white)
+    table.cell(infoTable, 1, 12, pfVolatLow ? "low" : "OK", text_color=pfVolatLow ? color.red : color.lime)
+    pfSessTxt = pfInKz ? "Kill zone" : pfInLdn and pfInNy ? "LDN+NY" : pfInLdn ? "London" : pfInNy ? "New York" : "off-session"
+    table.cell(infoTable, 0, 13, "Session", text_color=color.white)
+    table.cell(infoTable, 1, 13, pfSessTxt, text_color=pfInKz ? color.fuchsia : pfInLdn or pfInNy ? color.lime : color.gray)

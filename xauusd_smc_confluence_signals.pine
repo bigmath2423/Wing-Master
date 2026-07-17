@@ -133,15 +133,19 @@ rrRatio = input.float(2.0, "Fallback R:R (utilise seulement si aucune structure 
 showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
 
 grpTP = "Module 8 - TP Engine (cibles dynamiques)"
-tpMode = input.string("Dynamique", "Mode TP", options=["Dynamique", "Conservateur", "Agressif"], group=grpTP, tooltip="Dynamique : equilibre (defaut). Conservateur : cibles plus proches (securise les gains tot). Agressif : vise la liquidite lointaine. Aucun TP fixe en points : tout est calcule sur la structure (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, Order Blocks, FVG).")
+tpMode = input.string("Equilibre", "Mode TP", options=["Conservateur", "Equilibre", "Agressif"], group=grpTP, tooltip="Cibles ancrees sur l'ATR (donc adaptees a l'unite de temps et a la volatilite) PUIS calees sur la structure la plus proche (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, OB, FVG). Conservateur : TP plus proches. Equilibre : defaut. Agressif : TP plus eloignes. Aucun TP fixe en points ; les objectifs restent realistes pour du M5/M15.")
 tpPipSize = input.float(0.1, "Taille d'un pip (XAUUSD : 0.1)", minval=0.0001, step=0.01, group=grpTP, tooltip="Sert uniquement a convertir la distance des TP en pips. 0.1 = 1 pip vaut 0.10 $ sur l'or (convention courante). Ne modifie pas le calcul des cibles.")
 tpShowTable = input.bool(true, "Afficher le panneau Trade Management (TP / RR / progression)", group=grpTP)
-tpTablePos = input.string("middle_right", "Position du panneau TP", options=["top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right"], group=grpTP)
 tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
 
 grpFIB = "Module 9 - Fibonacci interne (arriere-plan, invisible)"
 fibUse = input.bool(true, "Activer le bonus Fibonacci (score uniquement, AUCUN dessin)", group=grpFIB, tooltip="Moteur Fibonacci purement interne : detecte le dernier swing, calcule 0.5 / 0.618 / 0.705 / 0.786 / 1.0 et ajoute des points au score UNIQUEMENT en confluence avec BOS/CHoCH, sweep, OB, FVG, Premium/Discount ou tendance HTF. Ne trace rien sur le graphique et ne declenche jamais un trade a lui seul. Bonus plafonne a 10 points.")
 fibTol = input.float(0.03, "Tolerance de zone Fibonacci (fraction du swing)", minval=0.005, maxval=0.15, step=0.005, group=grpFIB, tooltip="Largeur de la zone autour de chaque niveau. 0.03 = 3 % de l'amplitude du swing.")
+
+grpUI = "Interface / Panneaux"
+uiScorePos = input.string("top_right", "Position Trend/Score + TP Engine", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Le panneau Trend/Score et le TP Engine se placent dans ce coin, empiles (TP juste en dessous). Le Market Structure garde sa propre position (Module 1).")
+uiMode = input.string("Auto (resolution)", "Taille des panneaux", options=["Compact", "Detaille", "Auto (resolution)"], group=grpUI, tooltip="Compact = texte reduit (gene le moins les bougies). Detaille = texte agrandi (plus lisible). Auto = s'adapte automatiquement a l'espace / la resolution disponible.")
+uiTransp = input.int(75, "Transparence des panneaux (%)", minval=50, maxval=95, step=5, group=grpUI, tooltip="70-80 % recommande : laisse voir les bougies derriere les panneaux.")
 
 grpAlert = "Notifications"
 sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpAlert)
@@ -411,23 +415,36 @@ f_msTrendColor(int t) =>
 f_msTfWarn(string tf) =>
     timeframe.in_seconds(tf) < timeframe.in_seconds(timeframe.period) ? " ⚠" : ""
 
+// ================= INTERFACE : HELPERS PANNEAUX =================
+// Positions et style communs a tous les panneaux. Les tables sont ancrees dans
+// les coins (Pine ne permet pas un placement au pixel pres) et rendues semi-
+// transparentes pour laisser voir les bougies. Trend/Score et TP Engine sont
+// crees ICI, dans cet ordre, pour que TradingView les empile correctement au
+// meme coin (Trend/Score au-dessus, TP Engine juste en dessous).
+f_uiPos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
+uiTxtSize = uiMode == "Compact" ? size.tiny : uiMode == "Detaille" ? size.normal : size.auto
+uiCellBg = color.new(color.black, uiTransp)
+uiScorePosition = f_uiPos(uiScorePos)
+var table infoTable = table.new(uiScorePosition, 2, 15, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
+var table tpTable = table.new(uiScorePosition, 5, 7, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
+
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
 msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
-var table msPanel = table.new(msPanelPosition, 2, 6, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 50))
+var table msPanel = table.new(msPanelPosition, 2, 6, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
 
 if barstate.islast and msShowPanel
-    table.cell(msPanel, 0, 0, "MARKET STRUCTURE", text_color=color.white, bgcolor=color.new(color.blue, 60))
-    table.cell(msPanel, 1, 0, "MTF", text_color=color.white, bgcolor=color.new(color.blue, 60))
-    table.cell(msPanel, 0, 1, "Tendance " + msTfContext + f_msTfWarn(msTfContext), text_color=color.white)
-    table.cell(msPanel, 1, 1, f_msTrendTxt(msCtxTrend), text_color=f_msTrendColor(msCtxTrend))
-    table.cell(msPanel, 0, 2, "Structure " + msTfStructure + f_msTfWarn(msTfStructure), text_color=color.white)
-    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf) + " · " + f_msEventTxt(msStructEvent), text_color=f_msTrendColor(msStructTrendMtf))
-    table.cell(msPanel, 0, 3, "Signal " + msTfExec + f_msTfWarn(msTfExec), text_color=color.white)
-    table.cell(msPanel, 1, 3, f_msEventTxt(msExecEvent), text_color=f_msTrendColor(msExecTrend))
-    table.cell(msPanel, 0, 4, "Structure chart", text_color=color.white)
-    table.cell(msPanel, 1, 4, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray)
-    table.cell(msPanel, 0, 5, "Swings chart", text_color=color.white)
-    table.cell(msPanel, 1, 5, msHighTag + " / " + msLowTag + " (" + msSwingTrend + ")", text_color=msSwingTrend == "bullish" ? color.lime : msSwingTrend == "bearish" ? color.red : color.gray)
+    table.cell(msPanel, 0, 0, "MARKET STRUCTURE", text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=uiTxtSize)
+    table.cell(msPanel, 1, 0, "MTF", text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 1, "Tendance " + msTfContext + f_msTfWarn(msTfContext), text_color=color.white, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 1, f_msTrendTxt(msCtxTrend), text_color=f_msTrendColor(msCtxTrend), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 2, "Structure " + msTfStructure + f_msTfWarn(msTfStructure), text_color=color.white, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf) + " · " + f_msEventTxt(msStructEvent), text_color=f_msTrendColor(msStructTrendMtf), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 3, "Signal " + msTfExec + f_msTfWarn(msTfExec), text_color=color.white, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 3, f_msEventTxt(msExecEvent), text_color=f_msTrendColor(msExecTrend), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 4, "Structure chart", text_color=color.white, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 4, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 5, "Swings chart", text_color=color.white, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 5, msHighTag + " / " + msLowTag + " (" + msSwingTrend + ")", text_color=msSwingTrend == "bullish" ? color.lime : msSwingTrend == "bearish" ? color.red : color.gray, text_size=uiTxtSize)
 
 // ================= FAIR VALUE GAPS =================
 var float bullFvgTop = na
@@ -1276,17 +1293,44 @@ plotshape(wyShowStrong and wyStrongBuy, title="WY+ BUY", location=location.below
 plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 10), text="WY+", textcolor=color.black)
 
 // ================= MODULE 8 : TP ENGINE (cibles dynamiques structurelles) =================
-// Aucun TP fixe en points. Pour chaque signal, on rassemble les niveaux
-// STRUCTURELS du bon cote (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, Order
-// Blocks, FVG, bornes de range) et on en deduit TP1 / TP2 / TP Final selon leur
-// distance a l'entree. Le mode (Dynamique / Conservateur / Agressif) ne fait que
-// choisir a quelle "profondeur" de structure viser. Un repli base sur le risque
-// (donc lui-meme dynamique, jamais un nombre de points fige) garantit 3 cibles
-// quand la structure est trop pauvre d'un cote.
+// Aucun TP fixe en points. Chaque cible est une ancre en multiple d'ATR (donc
+// adaptee a l'unite de temps M5/M15 et a la volatilite), calee sur le niveau
+// STRUCTUREL le plus proche du bon cote (liquidite EQH/EQL, PDH/PDL, PWH/PWL,
+// swings, Order Blocks, FVG, bornes de range). Le mode (Conservateur / Equilibre
+// / Agressif) echelonne la distance des ancres. Resultat : des objectifs
+// realistes pour l'horizon de trading, valides par la structure et l'ATR.
 atrVal = ta.atr(atrLen)
 
-// raw = niveaux structurels du bon cote ; retourne [tp1, tp2, tpFinal] en PRIX.
-f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode) =>
+// Cherche la distance structurelle la plus proche d'une ancre, dans une fenetre
+// [anchor*lo, anchor*hi]. Si aucune structure ne tombe dans la fenetre, retourne
+// l'ancre elle-meme (basee sur l'ATR -> jamais un nombre de points fige).
+f_tpSnap(array<float> d, float anchor, float lo, float hi) =>
+    best = anchor
+    bestDiff = -1.0
+    if array.size(d) > 0
+        for i = 0 to array.size(d) - 1
+            v = array.get(d, i)
+            if v >= anchor * lo and v <= anchor * hi
+                diff = math.abs(v - anchor)
+                if bestDiff < 0 or diff < bestDiff
+                    bestDiff := diff
+                    best := v
+    best
+
+// raw = niveaux structurels du bon cote ; atr adapte les cibles a l'unite de
+// temps et a la volatilite. Retourne [tp1, tp2, tpFinal] en PRIX. Chaque cible
+// est une ancre ATR (echelonnee par le mode) CALEE sur la structure la plus
+// proche -> objectifs realistes pour du M5/M15 et valides par la structure.
+f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode, float atr) =>
+    // Ancres de distance en multiples d'ATR selon le mode
+    m1 = mode == "Conservateur" ? 1.0 : mode == "Agressif" ? 2.0 : 1.5
+    m2 = mode == "Conservateur" ? 1.8 : mode == "Agressif" ? 4.0 : 3.0
+    m3 = mode == "Conservateur" ? 3.0 : mode == "Agressif" ? 7.0 : 5.0
+    unit = na(atr) or atr <= 0 ? risk : atr
+    a1 = unit * m1
+    a2 = unit * m2
+    a3 = unit * m3
+    // Distances structurelles disponibles (du bon cote, au-dela de 0.3 R)
     d = array.new<float>()
     if array.size(raw) > 0
         for i = 0 to array.size(raw) - 1
@@ -1294,42 +1338,14 @@ f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode) =
             dist = isBuy ? lvl - entry : entry - lvl
             if dist > risk * 0.3
                 array.push(d, dist)
-    array.sort(d, order.ascending)
-    // Dedup des cibles quasi-identiques (< 0.2 R d'ecart)
-    ded = array.new<float>()
-    prev = -1.0
-    if array.size(d) > 0
-        for i = 0 to array.size(d) - 1
-            v = array.get(d, i)
-            if prev < 0 or v - prev > risk * 0.2
-                array.push(ded, v)
-                prev := v
-    // Repli dynamique (multiple du risque) uniquement pour garantir 3 cibles
-    base = math.max(rrRatio, 1.0)
-    fb = array.new<float>()
-    array.push(fb, risk * base)
-    array.push(fb, risk * base * 2)
-    array.push(fb, risk * base * 3.5)
-    for i = 0 to array.size(fb) - 1
-        if array.size(ded) < 3
-            cand = array.get(fb, i)
-            last = array.size(ded) > 0 ? array.get(ded, array.size(ded) - 1) : 0.0
-            if cand > last + risk * 0.2
-                array.push(ded, cand)
-    while array.size(ded) < 3
-        last = array.size(ded) > 0 ? array.get(ded, array.size(ded) - 1) : risk
-        array.push(ded, last + risk * base)
-    n = array.size(ded)
-    // Profondeur visee selon le mode
-    f1 = mode == "Agressif" ? 0.20 : 0.0
-    f2 = mode == "Conservateur" ? 0.25 : mode == "Agressif" ? 0.60 : 0.40
-    f3 = mode == "Conservateur" ? 0.55 : 1.0
-    i1 = int(math.min(n - 1, math.round(f1 * (n - 1))))
-    i2 = int(math.min(n - 1, math.max(i1 + 1, math.round(f2 * (n - 1)))))
-    i3 = int(math.min(n - 1, math.max(i2 + 1, math.round(f3 * (n - 1)))))
-    t1 = array.get(ded, i1)
-    t2 = array.get(ded, i2)
-    t3 = array.get(ded, i3)
+    // Chaque cible : ancre ATR calee sur la structure la plus proche dans sa fenetre
+    t1 = f_tpSnap(d, a1, 0.6, 1.6)
+    t2 = f_tpSnap(d, a2, 0.6, 1.6)
+    t3 = f_tpSnap(d, a3, 0.6, 1.8)
+    // Ordre strict + ecart minimal (0.5 R) pour garder un bon R:R et 3 cibles distinctes
+    t1 := math.max(t1, risk * 0.8)
+    t2 := math.max(t2, t1 + risk * 0.5)
+    t3 := math.max(t3, t2 + risk * 0.5)
     [isBuy ? entry + t1 : entry - t1, isBuy ? entry + t2 : entry - t2, isBuy ? entry + t3 : entry - t3]
 
 f_tpLine(line old, float y, color col, string style) =>
@@ -1379,7 +1395,7 @@ if buySignal
             lv = array.get(leEqhLvls, i)
             if lv > entry
                 array.push(rawUp, lv)
-    [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode)
+    [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode, atrVal)
     tmEntry := entry
     tmSL := slLevel
     tmT1 := t1
@@ -1422,7 +1438,7 @@ if sellSignal
             lv = array.get(leEqlLvls, i)
             if lv < entry
                 array.push(rawDn, lv)
-    [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode)
+    [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode, atrVal)
     tmEntry := entry
     tmSL := slLevel2
     tmT1 := t1
@@ -1448,9 +1464,7 @@ if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))
     tmActive := false
 
 // ---- Panneau Trade Management : prix / pips / R:R / progression ----
-tpTablePosition = tpTablePos == "top_left" ? position.top_left : tpTablePos == "top_right" ? position.top_right : tpTablePos == "middle_left" ? position.middle_left : tpTablePos == "middle_right" ? position.middle_right : tpTablePos == "bottom_left" ? position.bottom_left : position.bottom_right
-var table tpTable = table.new(tpTablePosition, 5, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 60))
-
+// (tpTable est declaree en tete avec infoTable pour l'empilement au bon coin.)
 f_progPct(float target) =>
     na(tmEntry) or na(target) or target == tmEntry ? na : math.min(100.0, math.max(0.0, (close - tmEntry) / (target - tmEntry) * 100))
 
@@ -1458,37 +1472,37 @@ f_progPct(float target) =>
 // global : Pine n'autorise pas les fonctions a l'interieur d'un bloc if.
 f_tpRow(int row, string name, float target, float risk) =>
     prog = f_progPct(target)
-    table.cell(tpTable, 0, row, name, text_color=color.white)
-    table.cell(tpTable, 1, row, na(target) ? "—" : f_px(target), text_color=color.lime)
-    table.cell(tpTable, 2, row, na(target) or na(tmEntry) ? "—" : f_pips(target - tmEntry), text_color=color.aqua)
-    table.cell(tpTable, 3, row, na(target) or na(tmEntry) or na(risk) ? "—" : f_rr(target - tmEntry, risk), text_color=color.yellow)
-    table.cell(tpTable, 4, row, na(prog) ? "—" : str.tostring(prog, "#") + "%", text_color=prog >= 100 ? color.lime : prog >= 50 ? color.yellow : color.gray)
+    table.cell(tpTable, 0, row, name, text_color=color.white, text_size=uiTxtSize)
+    table.cell(tpTable, 1, row, na(target) ? "—" : f_px(target), text_color=color.lime, text_size=uiTxtSize)
+    table.cell(tpTable, 2, row, na(target) or na(tmEntry) ? "—" : f_pips(target - tmEntry), text_color=color.aqua, text_size=uiTxtSize)
+    table.cell(tpTable, 3, row, na(target) or na(tmEntry) or na(risk) ? "—" : f_rr(target - tmEntry, risk), text_color=color.yellow, text_size=uiTxtSize)
+    table.cell(tpTable, 4, row, na(prog) ? "—" : str.tostring(prog, "#") + "%", text_color=prog >= 100 ? color.lime : prog >= 50 ? color.yellow : color.gray, text_size=uiTxtSize)
 
 if barstate.islast and tpShowTable
     tmRisk = tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry
     dirTxt = na(tmEntry) ? "—" : tmIsBuy ? "BUY" : "SELL"
     dirCol = na(tmEntry) ? color.gray : tmIsBuy ? color.lime : color.red
     stateTxt = na(tmEntry) ? "aucun signal" : tmActive ? "en cours" : "clos (SL)"
-    table.cell(tpTable, 0, 0, "TP ENGINE", text_color=color.white, bgcolor=color.new(color.blue, 55))
-    table.cell(tpTable, 1, 0, dirTxt, text_color=dirCol, bgcolor=color.new(color.blue, 55))
-    table.cell(tpTable, 2, 0, tpMode, text_color=color.white, bgcolor=color.new(color.blue, 55))
-    table.cell(tpTable, 3, 0, stateTxt, text_color=tmActive ? color.lime : color.gray, bgcolor=color.new(color.blue, 55))
-    table.cell(tpTable, 4, 0, "", bgcolor=color.new(color.blue, 55))
-    table.cell(tpTable, 0, 1, "Niveau", text_color=color.silver)
-    table.cell(tpTable, 1, 1, "Prix", text_color=color.silver)
-    table.cell(tpTable, 2, 1, "Pips", text_color=color.silver)
-    table.cell(tpTable, 3, 1, "R:R", text_color=color.silver)
-    table.cell(tpTable, 4, 1, "Prog.", text_color=color.silver)
-    table.cell(tpTable, 0, 2, "Entry", text_color=color.white)
-    table.cell(tpTable, 1, 2, na(tmEntry) ? "—" : f_px(tmEntry), text_color=color.gray)
-    table.cell(tpTable, 2, 2, "—", text_color=color.gray)
-    table.cell(tpTable, 3, 2, "—", text_color=color.gray)
-    table.cell(tpTable, 4, 2, "—", text_color=color.gray)
-    table.cell(tpTable, 0, 3, "SL", text_color=color.white)
-    table.cell(tpTable, 1, 3, na(tmSL) ? "—" : f_px(tmSL), text_color=color.red)
-    table.cell(tpTable, 2, 3, na(tmEntry) ? "—" : f_pips(tmRisk), text_color=color.red)
-    table.cell(tpTable, 3, 3, na(tmEntry) ? "—" : "-1.00", text_color=color.red)
-    table.cell(tpTable, 4, 3, "—", text_color=color.gray)
+    table.cell(tpTable, 0, 0, "TP ENGINE", text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 1, 0, dirTxt, text_color=dirCol, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 2, 0, tpMode, text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 3, 0, stateTxt, text_color=tmActive ? color.lime : color.gray, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 4, 0, "", bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 0, 1, "Niveau", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(tpTable, 1, 1, "Prix", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(tpTable, 2, 1, "Pips", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(tpTable, 3, 1, "R:R", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(tpTable, 4, 1, "Prog.", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(tpTable, 0, 2, "Entry", text_color=color.white, text_size=uiTxtSize)
+    table.cell(tpTable, 1, 2, na(tmEntry) ? "—" : f_px(tmEntry), text_color=color.gray, text_size=uiTxtSize)
+    table.cell(tpTable, 2, 2, "—", text_color=color.gray, text_size=uiTxtSize)
+    table.cell(tpTable, 3, 2, "—", text_color=color.gray, text_size=uiTxtSize)
+    table.cell(tpTable, 4, 2, "—", text_color=color.gray, text_size=uiTxtSize)
+    table.cell(tpTable, 0, 3, "SL", text_color=color.white, text_size=uiTxtSize)
+    table.cell(tpTable, 1, 3, na(tmSL) ? "—" : f_px(tmSL), text_color=color.red, text_size=uiTxtSize)
+    table.cell(tpTable, 2, 3, na(tmEntry) ? "—" : f_pips(tmRisk), text_color=color.red, text_size=uiTxtSize)
+    table.cell(tpTable, 3, 3, na(tmEntry) ? "—" : "-1.00", text_color=color.red, text_size=uiTxtSize)
+    table.cell(tpTable, 4, 3, "—", text_color=color.gray, text_size=uiTxtSize)
     f_tpRow(4, "TP1", tmT1, tmRisk)
     f_tpRow(5, "TP2", tmT2, tmRisk)
     f_tpRow(6, "TP Final", tmT3, tmRisk)
@@ -1505,44 +1519,44 @@ if barstate.islast and tpShowTable
 // dans le dialogue Creer une alerte. Avec alert() seul, cette option devient la
 // seule disponible.
 
-// ================= DASHBOARD =================
-var table infoTable = table.new(position.top_right, 2, 15, bgcolor=color.new(color.black,20), border_width=1, border_color=color.new(color.gray,50))
+// ================= DASHBOARD (Trend / Score) =================
+// (infoTable est declaree en tete avec tpTable pour l'empilement au bon coin.)
 if barstate.islast
-    table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60))
-    table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60))
+    table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60), text_size=uiTxtSize)
+    table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60), text_size=uiTxtSize)
     // v10 : scores du moteur de decision. "✗ sweep/struct" = une regle
     // eliminatoire bloque ce cote quel que soit le score.
     deBullBlockTxt = deBullHardOK ? "" : deBullSweepRecent ? " ✗struct" : deBullStructRecent ? " ✗sweep" : " ✗sweep+struct"
     deBearBlockTxt = deBearHardOK ? "" : deBearSweepRecent ? " ✗struct" : deBearStructRecent ? " ✗sweep" : " ✗sweep+struct"
-    table.cell(infoTable, 0, 1, "Score BUY", text_color=color.white)
-    table.cell(infoTable, 1, 1, str.tostring(deBullScore) + "/100" + deBullBlockTxt, text_color=deBullHardOK and deBullScore >= deAPlusLevel ? color.lime : deBullHardOK and deBullScore >= deScoreMin ? color.yellow : color.gray)
-    table.cell(infoTable, 0, 2, "Score SELL", text_color=color.white)
-    table.cell(infoTable, 1, 2, str.tostring(deBearScore) + "/100" + deBearBlockTxt, text_color=deBearHardOK and deBearScore >= deAPlusLevel ? color.red : deBearHardOK and deBearScore >= deScoreMin ? color.orange : color.gray)
-    table.cell(infoTable, 0, 3, "Seuils", text_color=color.white)
-    table.cell(infoTable, 1, 3, "affichage " + str.tostring(deScoreMin) + " · A+ " + str.tostring(deAPlusLevel), text_color=color.orange)
-    table.cell(infoTable, 0, 4, "ATR", text_color=color.white)
-    table.cell(infoTable, 1, 4, str.tostring(atrVal, "#.##"), text_color=color.white)
-    table.cell(infoTable, 0, 5, oscType, text_color=color.white)
-    table.cell(infoTable, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray)
-    table.cell(infoTable, 0, 6, "HTF Bias", text_color=color.white)
-    table.cell(infoTable, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red)
+    table.cell(infoTable, 0, 1, "Score BUY", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 1, str.tostring(deBullScore) + "/100" + deBullBlockTxt, text_color=deBullHardOK and deBullScore >= deAPlusLevel ? color.lime : deBullHardOK and deBullScore >= deScoreMin ? color.yellow : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 2, "Score SELL", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 2, str.tostring(deBearScore) + "/100" + deBearBlockTxt, text_color=deBearHardOK and deBearScore >= deAPlusLevel ? color.red : deBearHardOK and deBearScore >= deScoreMin ? color.orange : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 3, "Seuils", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 3, "affichage " + str.tostring(deScoreMin) + " · A+ " + str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 4, "ATR", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 4, str.tostring(atrVal, "#.##"), text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 5, oscType, text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 6, "HTF Bias", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red, text_size=uiTxtSize)
     leSweepStateTxt = leBullBonusActive and leBearBonusActive ? "bull+bear" : leBullBonusActive ? "bull" : leBearBonusActive ? "bear" : "—"
-    table.cell(infoTable, 0, 7, "Sweep→BOS", text_color=color.white)
-    table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray)
-    table.cell(infoTable, 0, 8, "P/D zone", text_color=color.white)
-    table.cell(infoTable, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray)
+    table.cell(infoTable, 0, 7, "Sweep→BOS", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 8, "P/D zone", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray, text_size=uiTxtSize)
     wyPhaseColor = wyBullCtx or wyPhase == "Markup" ? color.lime : wyBearCtx or wyPhase == "Markdown" ? color.red : color.gray
-    table.cell(infoTable, 0, 9, "Wyckoff", text_color=color.white)
-    table.cell(infoTable, 1, 9, wyPhase, text_color=wyPhaseColor)
-    table.cell(infoTable, 0, 10, "Volume", text_color=color.white)
-    table.cell(infoTable, 1, 10, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.lime : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.red : color.gray)
-    table.cell(infoTable, 0, 11, "VWAP", text_color=color.white)
-    table.cell(infoTable, 1, 11, pfVwapBull ? "above" : pfVwapBear ? "below" : "n/a", text_color=pfVwapBull ? color.lime : pfVwapBear ? color.red : color.gray)
-    table.cell(infoTable, 0, 12, "Volatility", text_color=color.white)
-    table.cell(infoTable, 1, 12, pfVolatLow ? "low" : "OK", text_color=pfVolatLow ? color.red : color.lime)
+    table.cell(infoTable, 0, 9, "Wyckoff", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 9, wyPhase, text_color=wyPhaseColor, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 10, "Volume", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 10, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.lime : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 11, "VWAP", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 11, pfVwapBull ? "above" : pfVwapBear ? "below" : "n/a", text_color=pfVwapBull ? color.lime : pfVwapBear ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(infoTable, 0, 12, "Volatility", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 12, pfVolatLow ? "low" : "OK", text_color=pfVolatLow ? color.red : color.lime, text_size=uiTxtSize)
     pfSessTxt = pfInKz ? "Kill zone" : pfInLdn and pfInNy ? "LDN+NY" : pfInLdn ? "London" : pfInNy ? "New York" : "off-session"
-    table.cell(infoTable, 0, 13, "Session", text_color=color.white)
-    table.cell(infoTable, 1, 13, pfSessTxt, text_color=pfInKz ? color.fuchsia : pfInLdn or pfInNy ? color.lime : color.gray)
+    table.cell(infoTable, 0, 13, "Session", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 13, pfSessTxt, text_color=pfInKz ? color.fuchsia : pfInLdn or pfInNy ? color.lime : color.gray, text_size=uiTxtSize)
     pzTxt = pzBullDrawable and pzBullFactors >= pzBearFactors ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable and pzBearFactors > pzBullFactors ? "SELL " + str.tostring(pzBearFactors) + "/6" : pzBullDrawable ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable ? "SELL " + str.tostring(pzBearFactors) + "/6" : "—"
-    table.cell(infoTable, 0, 14, "Potential zone", text_color=color.white)
-    table.cell(infoTable, 1, 14, pzTxt, text_color=pzBullDrawable and not pzBearDrawable ? color.lime : pzBearDrawable and not pzBullDrawable ? color.red : pzBullDrawable or pzBearDrawable ? color.yellow : color.gray)
+    table.cell(infoTable, 0, 14, "Potential zone", text_color=color.white, text_size=uiTxtSize)
+    table.cell(infoTable, 1, 14, pzTxt, text_color=pzBullDrawable and not pzBearDrawable ? color.lime : pzBearDrawable and not pzBullDrawable ? color.red : pzBullDrawable or pzBearDrawable ? color.yellow : color.gray, text_size=uiTxtSize)

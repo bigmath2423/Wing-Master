@@ -129,8 +129,15 @@ signalCooldown = input.int(10, "Minimum bars between signals (same direction)", 
 grpRisk = "Risk Management"
 atrLen = input.int(14, "ATR length", group=grpRisk)
 slAtrMult = input.float(1.2, "Stop-loss = ATR x", minval=0.1, group=grpRisk)
-rrRatio = input.float(2.0, "Reward:Risk ratio", minval=0.5, group=grpRisk)
+rrRatio = input.float(2.0, "Fallback R:R (utilise seulement si aucune structure cible)", minval=0.5, group=grpRisk, tooltip="Les TP sont calcules sur la structure du marche. Ce ratio ne sert QUE de repli si aucun niveau structurel n'existe du bon cote.")
 showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
+
+grpTP = "Module 8 - TP Engine (cibles dynamiques)"
+tpMode = input.string("Dynamique", "Mode TP", options=["Dynamique", "Conservateur", "Agressif"], group=grpTP, tooltip="Dynamique : equilibre (defaut). Conservateur : cibles plus proches (securise les gains tot). Agressif : vise la liquidite lointaine. Aucun TP fixe en points : tout est calcule sur la structure (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, Order Blocks, FVG).")
+tpPipSize = input.float(0.1, "Taille d'un pip (XAUUSD : 0.1)", minval=0.0001, step=0.01, group=grpTP, tooltip="Sert uniquement a convertir la distance des TP en pips. 0.1 = 1 pip vaut 0.10 $ sur l'or (convention courante). Ne modifie pas le calcul des cibles.")
+tpShowTable = input.bool(true, "Afficher le panneau Trade Management (TP / RR / progression)", group=grpTP)
+tpTablePos = input.string("middle_right", "Position du panneau TP", options=["top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right"], group=grpTP)
+tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
 
 grpAlert = "Notifications"
 sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpAlert)
@@ -1225,42 +1232,231 @@ wyStrongSell = sellSignal and wyBearSetupCtx and wyBarsSinceUpthrust <= wyFigWin
 plotshape(wyShowStrong and wyStrongBuy, title="WY+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.lime, 10), text="WY+", textcolor=color.black)
 plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 10), text="WY+", textcolor=color.black)
 
-// ================= RISK MANAGEMENT LABELS =================
+// ================= MODULE 8 : TP ENGINE (cibles dynamiques structurelles) =================
+// Aucun TP fixe en points. Pour chaque signal, on rassemble les niveaux
+// STRUCTURELS du bon cote (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, Order
+// Blocks, FVG, bornes de range) et on en deduit TP1 / TP2 / TP Final selon leur
+// distance a l'entree. Le mode (Dynamique / Conservateur / Agressif) ne fait que
+// choisir a quelle "profondeur" de structure viser. Un repli base sur le risque
+// (donc lui-meme dynamique, jamais un nombre de points fige) garantit 3 cibles
+// quand la structure est trop pauvre d'un cote.
 atrVal = ta.atr(atrLen)
+
+// raw = niveaux structurels du bon cote ; retourne [tp1, tp2, tpFinal] en PRIX.
+f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode) =>
+    d = array.new<float>()
+    if array.size(raw) > 0
+        for i = 0 to array.size(raw) - 1
+            lvl = array.get(raw, i)
+            dist = isBuy ? lvl - entry : entry - lvl
+            if dist > risk * 0.3
+                array.push(d, dist)
+    array.sort(d, order.ascending)
+    // Dedup des cibles quasi-identiques (< 0.2 R d'ecart)
+    ded = array.new<float>()
+    prev = -1.0
+    if array.size(d) > 0
+        for i = 0 to array.size(d) - 1
+            v = array.get(d, i)
+            if prev < 0 or v - prev > risk * 0.2
+                array.push(ded, v)
+                prev := v
+    // Repli dynamique (multiple du risque) uniquement pour garantir 3 cibles
+    base = math.max(rrRatio, 1.0)
+    fb = array.new<float>()
+    array.push(fb, risk * base)
+    array.push(fb, risk * base * 2)
+    array.push(fb, risk * base * 3.5)
+    for i = 0 to array.size(fb) - 1
+        if array.size(ded) < 3
+            cand = array.get(fb, i)
+            last = array.size(ded) > 0 ? array.get(ded, array.size(ded) - 1) : 0.0
+            if cand > last + risk * 0.2
+                array.push(ded, cand)
+    while array.size(ded) < 3
+        last = array.size(ded) > 0 ? array.get(ded, array.size(ded) - 1) : risk
+        array.push(ded, last + risk * base)
+    n = array.size(ded)
+    // Profondeur visee selon le mode
+    f1 = mode == "Agressif" ? 0.20 : 0.0
+    f2 = mode == "Conservateur" ? 0.25 : mode == "Agressif" ? 0.60 : 0.40
+    f3 = mode == "Conservateur" ? 0.55 : 1.0
+    i1 = int(math.min(n - 1, math.round(f1 * (n - 1))))
+    i2 = int(math.min(n - 1, math.max(i1 + 1, math.round(f2 * (n - 1)))))
+    i3 = int(math.min(n - 1, math.max(i2 + 1, math.round(f3 * (n - 1)))))
+    t1 = array.get(ded, i1)
+    t2 = array.get(ded, i2)
+    t3 = array.get(ded, i3)
+    [isBuy ? entry + t1 : entry - t1, isBuy ? entry + t2 : entry - t2, isBuy ? entry + t3 : entry - t3]
+
+f_tpLine(line old, float y, color col, string style) =>
+    line.delete(old)
+    tpShowLines and not na(y) ? line.new(bar_index - 1, y, bar_index + 30, y, color=col, style=style, width=1, extend=extend.right) : line(na)
+
+// ---- Suivi de la position en cours (pour la progression) ----
+var float tmEntry = na
+var float tmSL    = na
+var float tmT1    = na
+var float tmT2    = na
+var float tmT3    = na
+var bool  tmIsBuy = false
+var bool  tmActive = false
 
 var label bullRiskLabel = na
 var label bearRiskLabel = na
+var line  lnEntry = na
+var line  lnSL = na
+var line  lnT1 = na
+var line  lnT2 = na
+var line  lnT3 = na
+
+f_px(float x) => str.tostring(x, "#.##")
+f_pips(float dist) => str.tostring(math.abs(dist) / tpPipSize, "#")
+f_rr(float dist, float risk) => str.tostring(math.abs(dist) / risk, "#.##")
 
 if buySignal
+    entry = close
     slLevel = low - atrVal * slAtrMult
-    riskDist = close - slLevel
-    tpLevel = close + riskDist * rrRatio
+    riskDist = math.max(entry - slLevel, syminfo.mintick)
+    rawUp = array.new<float>()
+    if not na(swingHighVal) and swingHighVal > entry
+        array.push(rawUp, swingHighVal)
+    if not na(lePdh) and lePdh > entry
+        array.push(rawUp, lePdh)
+    if not na(lePwh) and lePwh > entry
+        array.push(rawUp, lePwh)
+    if bearObActive and not na(bearObBot) and bearObBot > entry
+        array.push(rawUp, bearObBot)
+    if bearFvgActive and not na(bearFvgBot) and bearFvgBot > entry
+        array.push(rawUp, bearFvgBot)
+    if not na(smcRangeTop) and smcRangeTop > entry
+        array.push(rawUp, smcRangeTop)
+    if array.size(leEqhLvls) > 0
+        for i = 0 to array.size(leEqhLvls) - 1
+            lv = array.get(leEqhLvls, i)
+            if lv > entry
+                array.push(rawUp, lv)
+    [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode)
+    tmEntry := entry
+    tmSL := slLevel
+    tmT1 := t1
+    tmT2 := t2
+    tmT3 := t3
+    tmIsBuy := true
+    tmActive := true
     if showRiskLabels
         if not na(bullRiskLabel)
             label.delete(bullRiskLabel)
-        bullRiskLabel := label.new(bar_index, low - atrVal * 2, "SL " + str.tostring(slLevel, "#.##") + "\nTP " + str.tostring(tpLevel, "#.##"), style=label.style_label_up, color=color.new(color.lime,85), textcolor=color.lime, size=size.tiny)
-    // v10 : alerte UNIQUEMENT pour les signaux A+ (score >= seuil A+) ;
-    // les signaux 80-89 sont affiches sur le graphique sans alerte.
+        txt = "BUY  Entry " + f_px(entry) + "\nSL " + f_px(slLevel) + "  (" + f_pips(riskDist) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(t1 - entry) + "p  " + f_rr(t1 - entry, riskDist) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(t2 - entry) + "p  " + f_rr(t2 - entry, riskDist) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(t3 - entry) + "p  " + f_rr(t3 - entry, riskDist) + "R"
+        bullRiskLabel := label.new(bar_index, low - atrVal * 2, txt, style=label.style_label_up, color=color.new(color.lime, 85), textcolor=color.lime, size=size.tiny)
+    lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
+    lnSL := f_tpLine(lnSL, slLevel, color.new(color.red, 0), line.style_solid)
+    lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
+    lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
+    lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deBuyAPlus
-        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", ") + " | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(slLevel, "#.##") + " | TP " + str.tostring(tpLevel, "#.##"), alert.freq_once_per_bar_close)
+        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode, alert.freq_once_per_bar_close)
 
 if sellSignal
+    entry = close
     slLevel2 = high + atrVal * slAtrMult
-    riskDist2 = slLevel2 - close
-    tpLevel2 = close - riskDist2 * rrRatio
+    riskDist2 = math.max(slLevel2 - entry, syminfo.mintick)
+    rawDn = array.new<float>()
+    if not na(swingLowVal) and swingLowVal < entry
+        array.push(rawDn, swingLowVal)
+    if not na(lePdl) and lePdl < entry
+        array.push(rawDn, lePdl)
+    if not na(lePwl) and lePwl < entry
+        array.push(rawDn, lePwl)
+    if bullObActive and not na(bullObTop) and bullObTop < entry
+        array.push(rawDn, bullObTop)
+    if bullFvgActive and not na(bullFvgTop) and bullFvgTop < entry
+        array.push(rawDn, bullFvgTop)
+    if not na(smcRangeBot) and smcRangeBot < entry
+        array.push(rawDn, smcRangeBot)
+    if array.size(leEqlLvls) > 0
+        for i = 0 to array.size(leEqlLvls) - 1
+            lv = array.get(leEqlLvls, i)
+            if lv < entry
+                array.push(rawDn, lv)
+    [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode)
+    tmEntry := entry
+    tmSL := slLevel2
+    tmT1 := t1
+    tmT2 := t2
+    tmT3 := t3
+    tmIsBuy := false
+    tmActive := true
     if showRiskLabels
         if not na(bearRiskLabel)
             label.delete(bearRiskLabel)
-        bearRiskLabel := label.new(bar_index, high + atrVal * 2, "SL " + str.tostring(slLevel2, "#.##") + "\nTP " + str.tostring(tpLevel2, "#.##"), style=label.style_label_down, color=color.new(color.red,85), textcolor=color.red, size=size.tiny)
+        txt = "SELL  Entry " + f_px(entry) + "\nSL " + f_px(slLevel2) + "  (" + f_pips(riskDist2) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(entry - t1) + "p  " + f_rr(entry - t1, riskDist2) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(entry - t2) + "p  " + f_rr(entry - t2, riskDist2) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(entry - t3) + "p  " + f_rr(entry - t3, riskDist2) + "R"
+        bearRiskLabel := label.new(bar_index, high + atrVal * 2, txt, style=label.style_label_down, color=color.new(color.red, 85), textcolor=color.red, size=size.tiny)
+    lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
+    lnSL := f_tpLine(lnSL, slLevel2, color.new(color.red, 0), line.style_solid)
+    lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
+    lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
+    lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deSellAPlus
-        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", ") + " | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(slLevel2, "#.##") + " | TP " + str.tostring(tpLevel2, "#.##"), alert.freq_once_per_bar_close)
+        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode, alert.freq_once_per_bar_close)
+
+// ---- Invalidation du suivi si le Stop Loss est touche ----
+if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))
+    tmActive := false
+
+// ---- Panneau Trade Management : prix / pips / R:R / progression ----
+tpTablePosition = tpTablePos == "top_left" ? position.top_left : tpTablePos == "top_right" ? position.top_right : tpTablePos == "middle_left" ? position.middle_left : tpTablePos == "middle_right" ? position.middle_right : tpTablePos == "bottom_left" ? position.bottom_left : position.bottom_right
+var table tpTable = table.new(tpTablePosition, 5, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 60))
+
+f_progPct(float target) =>
+    na(tmEntry) or na(target) or target == tmEntry ? na : math.min(100.0, math.max(0.0, (close - tmEntry) / (target - tmEntry) * 100))
+
+// Ecrit une ligne de TP (prix / pips / R:R / progression). Definie au scope
+// global : Pine n'autorise pas les fonctions a l'interieur d'un bloc if.
+f_tpRow(int row, string name, float target, float risk) =>
+    prog = f_progPct(target)
+    table.cell(tpTable, 0, row, name, text_color=color.white)
+    table.cell(tpTable, 1, row, na(target) ? "—" : f_px(target), text_color=color.lime)
+    table.cell(tpTable, 2, row, na(target) or na(tmEntry) ? "—" : f_pips(target - tmEntry), text_color=color.aqua)
+    table.cell(tpTable, 3, row, na(target) or na(tmEntry) or na(risk) ? "—" : f_rr(target - tmEntry, risk), text_color=color.yellow)
+    table.cell(tpTable, 4, row, na(prog) ? "—" : str.tostring(prog, "#") + "%", text_color=prog >= 100 ? color.lime : prog >= 50 ? color.yellow : color.gray)
+
+if barstate.islast and tpShowTable
+    tmRisk = tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry
+    dirTxt = na(tmEntry) ? "—" : tmIsBuy ? "BUY" : "SELL"
+    dirCol = na(tmEntry) ? color.gray : tmIsBuy ? color.lime : color.red
+    stateTxt = na(tmEntry) ? "aucun signal" : tmActive ? "en cours" : "clos (SL)"
+    table.cell(tpTable, 0, 0, "TP ENGINE", text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(tpTable, 1, 0, dirTxt, text_color=dirCol, bgcolor=color.new(color.blue, 55))
+    table.cell(tpTable, 2, 0, tpMode, text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(tpTable, 3, 0, stateTxt, text_color=tmActive ? color.lime : color.gray, bgcolor=color.new(color.blue, 55))
+    table.cell(tpTable, 4, 0, "", bgcolor=color.new(color.blue, 55))
+    table.cell(tpTable, 0, 1, "Niveau", text_color=color.silver)
+    table.cell(tpTable, 1, 1, "Prix", text_color=color.silver)
+    table.cell(tpTable, 2, 1, "Pips", text_color=color.silver)
+    table.cell(tpTable, 3, 1, "R:R", text_color=color.silver)
+    table.cell(tpTable, 4, 1, "Prog.", text_color=color.silver)
+    table.cell(tpTable, 0, 2, "Entry", text_color=color.white)
+    table.cell(tpTable, 1, 2, na(tmEntry) ? "—" : f_px(tmEntry), text_color=color.gray)
+    table.cell(tpTable, 2, 2, "—", text_color=color.gray)
+    table.cell(tpTable, 3, 2, "—", text_color=color.gray)
+    table.cell(tpTable, 4, 2, "—", text_color=color.gray)
+    table.cell(tpTable, 0, 3, "SL", text_color=color.white)
+    table.cell(tpTable, 1, 3, na(tmSL) ? "—" : f_px(tmSL), text_color=color.red)
+    table.cell(tpTable, 2, 3, na(tmEntry) ? "—" : f_pips(tmRisk), text_color=color.red)
+    table.cell(tpTable, 3, 3, na(tmEntry) ? "—" : "-1.00", text_color=color.red)
+    table.cell(tpTable, 4, 3, "—", text_color=color.gray)
+    f_tpRow(4, "TP1", tmT1, tmRisk)
+    f_tpRow(5, "TP2", tmT2, tmRisk)
+    f_tpRow(6, "TP Final", tmT3, tmRisk)
+
 
 // ================= ALERTS =================
 // Pour creer l'alerte TradingView : Creer une alerte sur ce graphique ->
 // condition = cet indicateur -> "Tout appel de fonction alert()". Seuls les
 // signaux A+ (score >= 85 par defaut) declenchent une alerte, avec le sens,
-// le score /100, le niveau de confiance, le detail des raisons et les
-// niveaux Entree / SL / TP dans le message.
+// le score /100, le niveau de confiance et les niveaux dynamiques
+// Entree / SL / TP1 / TP2 / TP Final (avec leur R:R) dans le message.
 // alertcondition() retire volontairement : la coexistence avec alert() faisait
 // que TradingView n'affichait jamais clairement "Tout appel de fonction alert()"
 // dans le dialogue Creer une alerte. Avec alert() seul, cette option devient la

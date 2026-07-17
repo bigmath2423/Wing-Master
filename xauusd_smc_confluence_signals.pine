@@ -139,6 +139,10 @@ tpShowTable = input.bool(true, "Afficher le panneau Trade Management (TP / RR / 
 tpTablePos = input.string("middle_right", "Position du panneau TP", options=["top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right"], group=grpTP)
 tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
 
+grpFIB = "Module 9 - Fibonacci interne (arriere-plan, invisible)"
+fibUse = input.bool(true, "Activer le bonus Fibonacci (score uniquement, AUCUN dessin)", group=grpFIB, tooltip="Moteur Fibonacci purement interne : detecte le dernier swing, calcule 0.5 / 0.618 / 0.705 / 0.786 / 1.0 et ajoute des points au score UNIQUEMENT en confluence avec BOS/CHoCH, sweep, OB, FVG, Premium/Discount ou tendance HTF. Ne trace rien sur le graphique et ne declenche jamais un trade a lui seul. Bonus plafonne a 10 points.")
+fibTol = input.float(0.03, "Tolerance de zone Fibonacci (fraction du swing)", minval=0.005, maxval=0.15, step=0.005, group=grpFIB, tooltip="Largeur de la zone autour de chaque niveau. 0.03 = 3 % de l'amplitude du swing.")
+
 grpAlert = "Notifications"
 sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpAlert)
 
@@ -1072,9 +1076,48 @@ deAtrPts = na(pfAtrSma) ? 3 : not pfVolatLow ? 5 : 0
 deSessPts = pfInKz ? 5 : pfInLdn or pfInNy ? 3 : 0
 deCtxPts = deAtrPts + deSessPts
 
+// ================= MODULE 9 : FIBONACCI INTERNE (INVISIBLE) =================
+// Detecte le dernier swing important (dernier pivot haut / bas confirmes) et
+// calcule les retracements 0.5 / 0.618 / 0.705 / 0.786 / 1.0 EN INTERNE. N'affiche
+// RIEN (aucune ligne / boite / label). Ajoute des points au score (max 10)
+// UNIQUEMENT quand le prix reagit dans une zone Fibonacci ET qu'au moins une
+// confluence est presente (BOS/CHoCH, sweep, OB, FVG, Premium/Discount, HTF).
+// Ne peut donc jamais declencher un trade a lui seul. Quand fibUse = false, la
+// contribution est nulle -> comportement strictement identique a avant.
+fibHi = swingHighVal
+fibLo = swingLowVal
+fibRng = not na(fibHi) and not na(fibLo) ? fibHi - fibLo : na
+fibReady = fibUse and not na(fibRng) and fibRng > 0
+
+// Points selon la zone atteinte par le repli (ratio de retracement r).
+f_fibZonePts(float r) =>
+    pts = 0
+    if math.abs(r - 0.705) <= fibTol
+        pts := 7
+    else if math.abs(r - 0.618) <= fibTol
+        pts := 5
+    else if math.abs(r - 0.786) <= fibTol
+        pts := 5
+    else if math.abs(r - 0.50) <= fibTol
+        pts := 3
+    math.min(10, pts)
+
+// BUY : repli dans la jambe haussiere ; r = (haut - meche basse) / amplitude
+fibBullR = fibReady ? (fibHi - low) / fibRng : na
+bullFibConfluence = deBullStructRecent or deBullSweepRecent or bullObActive or bullFvgActive or smcInDiscount or htfClose > htfEma or msCtxTrend == 1
+deBullFibPts = fibReady and bullFibConfluence ? f_fibZonePts(fibBullR) : 0
+
+// SELL : repli dans la jambe baissiere ; r = (meche haute - bas) / amplitude
+fibBearR = fibReady ? (high - fibLo) / fibRng : na
+bearFibConfluence = deBearStructRecent or deBearSweepRecent or bearObActive or bearFvgActive or smcInPremium or htfClose < htfEma or msCtxTrend == -1
+deBearFibPts = fibReady and bearFibConfluence ? f_fibZonePts(fibBearR) : 0
+
 // ---- SCORE TOTAL /100 ----
-deBullScore = deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts
-deBearScore = deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts
+// + bonus Fibonacci interne (max 10), total plafonne a 100 pour garder le /100
+// et les seuils inchanges. Fibonacci n'est PAS liste dans les raisons/dashboard
+// (module volontairement invisible pour l'utilisateur).
+deBullScore = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts)
+deBearScore = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts)
 
 // ---- REGLES ELIMINATOIRES + NIVEAUX ----
 // Le seuil A+ ne peut pas etre sous le seuil d'affichage.

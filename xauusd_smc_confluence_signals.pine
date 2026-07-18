@@ -133,7 +133,7 @@ rrRatio = input.float(2.0, "Fallback R:R (utilise seulement si aucune structure 
 showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
 
 grpTP = "Module 8 - TP Engine (cibles dynamiques)"
-tpMode = input.string("Equilibre", "Mode TP", options=["Conservateur", "Equilibre", "Agressif"], group=grpTP, tooltip="Cibles ancrees sur l'ATR (donc adaptees a l'unite de temps et a la volatilite) PUIS calees sur la structure la plus proche (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, OB, FVG). Conservateur : TP plus proches. Equilibre : defaut. Agressif : TP plus eloignes. Aucun TP fixe en points ; les objectifs restent realistes pour du M5/M15.")
+tpMode = input.string("Equilibre", "Mode TP", options=["Conservateur", "Equilibre", "Agressif"], group=grpTP, tooltip="Moteur 100 % adaptatif : les cibles sont des multiples d'ATR (l'ATR grandit avec le timeframe) calees sur la structure la plus proche (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, OB, FVG). Il reconnait le timeframe courant et produit des objectifs realistes sur TOUTES les unites de temps (M1 -> W1) sans reglage. Conservateur : TP plus proches. Equilibre : defaut. Agressif : TP plus eloignes. Aucune valeur en points codee en dur.")
 tpPipSize = input.float(0.1, "Taille d'un pip (XAUUSD : 0.1)", minval=0.0001, step=0.01, group=grpTP, tooltip="Sert uniquement a convertir la distance des TP en pips. 0.1 = 1 pip vaut 0.10 $ sur l'or (convention courante). Ne modifie pas le calcul des cibles.")
 tpShowTable = input.bool(true, "Afficher le panneau Trade Management (TP / RR / progression)", group=grpTP)
 tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
@@ -422,6 +422,8 @@ f_msTfWarn(string tf) =>
 // crees ICI, dans cet ordre, pour que TradingView les empile correctement au
 // meme coin (Trend/Score au-dessus, TP Engine juste en dessous).
 f_uiPos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
+// Reconnaissance automatique du timeframe courant (affichage), toutes UT confondues.
+f_tfLabel() => timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : timeframe.isintraday ? (timeframe.multiplier >= 60 ? "H" + str.tostring(int(timeframe.multiplier / 60)) : "M" + str.tostring(timeframe.multiplier)) : timeframe.isdaily ? "D1" : timeframe.isweekly ? "W1" : "MN"
 uiTxtSize = uiMode == "Compact" ? size.tiny : uiMode == "Detaille" ? size.normal : size.auto
 uiCellBg = color.new(color.black, uiTransp)
 uiScorePosition = f_uiPos(uiScorePos)
@@ -1294,7 +1296,7 @@ plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abo
 
 // ================= MODULE 8 : TP ENGINE (cibles dynamiques structurelles) =================
 // Aucun TP fixe en points. Chaque cible est une ancre en multiple d'ATR (donc
-// adaptee a l'unite de temps M5/M15 et a la volatilite), calee sur le niveau
+// adaptee au timeframe courant et a la volatilite), calee sur le niveau
 // STRUCTUREL le plus proche du bon cote (liquidite EQH/EQL, PDH/PDL, PWH/PWL,
 // swings, Order Blocks, FVG, bornes de range). Le mode (Conservateur / Equilibre
 // / Agressif) echelonne la distance des ancres. Resultat : des objectifs
@@ -1320,7 +1322,8 @@ f_tpSnap(array<float> d, float anchor, float lo, float hi) =>
 // raw = niveaux structurels du bon cote ; atr adapte les cibles a l'unite de
 // temps et a la volatilite. Retourne [tp1, tp2, tpFinal] en PRIX. Chaque cible
 // est une ancre ATR (echelonnee par le mode) CALEE sur la structure la plus
-// proche -> objectifs realistes pour du M5/M15 et valides par la structure.
+// proche -> objectifs realistes sur TOUTES les unites de temps (M1 -> W1),
+// sans aucune valeur codee en dur, et valides par la structure.
 f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode, float atr) =>
     // Ancres de distance en multiples d'ATR selon le mode
     m1 = mode == "Conservateur" ? 1.0 : mode == "Agressif" ? 2.0 : 1.5
@@ -1487,7 +1490,7 @@ if barstate.islast and tpShowTable
     table.cell(tpTable, 1, 0, dirTxt, text_color=dirCol, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
     table.cell(tpTable, 2, 0, tpMode, text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
     table.cell(tpTable, 3, 0, stateTxt, text_color=tmActive ? color.lime : color.gray, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 4, 0, "", bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(tpTable, 4, 0, f_tfLabel(), text_color=color.aqua, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
     table.cell(tpTable, 0, 1, "Niveau", text_color=color.silver, text_size=uiTxtSize)
     table.cell(tpTable, 1, 1, "Prix", text_color=color.silver, text_size=uiTxtSize)
     table.cell(tpTable, 2, 1, "Pips", text_color=color.silver, text_size=uiTxtSize)

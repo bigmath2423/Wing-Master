@@ -135,7 +135,6 @@ showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
 grpTP = "Module 8 - TP Engine (cibles dynamiques)"
 tpMode = input.string("Equilibre", "Mode TP", options=["Conservateur", "Equilibre", "Agressif"], group=grpTP, tooltip="Moteur 100 % adaptatif : les cibles sont des multiples d'ATR (l'ATR grandit avec le timeframe) calees sur la structure la plus proche (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, OB, FVG). Il reconnait le timeframe courant et produit des objectifs realistes sur TOUTES les unites de temps (M1 -> W1) sans reglage. Conservateur : TP plus proches. Equilibre : defaut. Agressif : TP plus eloignes. Aucune valeur en points codee en dur.")
 tpPipSize = input.float(0.1, "Taille d'un pip (XAUUSD : 0.1)", minval=0.0001, step=0.01, group=grpTP, tooltip="Sert uniquement a convertir la distance des TP en pips. 0.1 = 1 pip vaut 0.10 $ sur l'or (convention courante). Ne modifie pas le calcul des cibles.")
-tpShowTable = input.bool(true, "Afficher le panneau Trade Management (TP / RR / progression)", group=grpTP)
 tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
 
 grpFIB = "Module 9 - Fibonacci interne (arriere-plan, invisible)"
@@ -143,9 +142,12 @@ fibUse = input.bool(true, "Activer le bonus Fibonacci (score uniquement, AUCUN d
 fibTol = input.float(0.03, "Tolerance de zone Fibonacci (fraction du swing)", minval=0.005, maxval=0.15, step=0.005, group=grpFIB, tooltip="Largeur de la zone autour de chaque niveau. 0.03 = 3 % de l'amplitude du swing.")
 
 grpUI = "Interface / Panneaux"
-uiScorePos = input.string("top_right", "Position Trend/Score + TP Engine", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Le panneau Trend/Score et le TP Engine se placent dans ce coin, empiles (TP juste en dessous). Le Market Structure garde sa propre position (Module 1).")
-uiMode = input.string("Auto (resolution)", "Taille des panneaux", options=["Compact", "Detaille", "Auto (resolution)"], group=grpUI, tooltip="Compact = texte reduit (gene le moins les bougies). Detaille = texte agrandi (plus lisible). Auto = s'adapte automatiquement a l'espace / la resolution disponible.")
-uiTransp = input.int(75, "Transparence des panneaux (%)", minval=50, maxval=95, step=5, group=grpUI, tooltip="70-80 % recommande : laisse voir les bougies derriere les panneaux.")
+uiDevice = input.string("Desktop", "Mode d'affichage", options=["Desktop", "Mobile", "Auto"], group=grpUI, tooltip="Desktop : panneau principal + details (si actives) + Market Structure, tailles confortables. Mobile : UN seul panneau compact (BUY/SELL, score, confiance, Entry/SL/TP), police reduite, le reste masque. Auto : disposition Desktop avec texte auto-dimensionne (size.auto) - Pine ne peut PAS lire la taille reelle de l'ecran, Auto se rapproche donc de Desktop en adaptant la police a l'espace.")
+uiPos = input.string("top_right", "Position des panneaux", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin ou s'ancre le panneau principal (et les details, empiles en dessous). Le Market Structure garde sa propre position (Module 1).")
+uiSize = input.string("Normal", "Taille", options=["Compact", "Normal", "Large"], group=grpUI, tooltip="Compact = police tiny. Normal = police normale. Large = grande police (grands ecrans). Ignore en mode Mobile (force Compact) et en Auto (size.auto).")
+uiTransp = input.int(75, "Transparence des panneaux (%)", minval=0, maxval=100, step=5, group=grpUI, tooltip="0 = opaque, 100 = totalement transparent. 70-80 % recommande pour voir les bougies derriere.")
+uiDetailed = input.bool(false, "Mode detaille (afficher Wyckoff, Volume, ATR, VWAP, BOS, Liquidite...)", group=grpUI, tooltip="OFF : seul le panneau principal essentiel est affiche. ON : ajoute le panneau de details et le Market Structure. Ignore (masque) en mode Mobile.")
+uiShowMain = input.bool(true, "Afficher le panneau principal", group=grpUI)
 
 grpAlert = "Notifications"
 sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpAlert)
@@ -415,26 +417,36 @@ f_msTrendColor(int t) =>
 f_msTfWarn(string tf) =>
     timeframe.in_seconds(tf) < timeframe.in_seconds(timeframe.period) ? " ⚠" : ""
 
-// ================= INTERFACE : HELPERS PANNEAUX =================
-// Positions et style communs a tous les panneaux. Les tables sont ancrees dans
-// les coins (Pine ne permet pas un placement au pixel pres) et rendues semi-
-// transparentes pour laisser voir les bougies. Trend/Score et TP Engine sont
-// crees ICI, dans cet ordre, pour que TradingView les empile correctement au
-// meme coin (Trend/Score au-dessus, TP Engine juste en dessous).
+// ================= INTERFACE : HELPERS PANNEAUX (RESPONSIVE) =================
+// Interface responsive Desktop / Mobile / Auto. Aucune logique de trading n'est
+// touchee : uniquement l'affichage. Les tables sont ancrees dans les coins (Pine
+// ne permet pas un placement au pixel pres) et semi-transparentes pour laisser
+// voir les bougies. Ordre de creation : panneau principal PUIS details, pour
+// qu'ils s'empilent proprement au meme coin (principal au-dessus).
 f_uiPos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
 // Reconnaissance automatique du timeframe courant (affichage), toutes UT confondues.
 f_tfLabel() => timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : timeframe.isintraday ? (timeframe.multiplier >= 60 ? "H" + str.tostring(int(timeframe.multiplier / 60)) : "M" + str.tostring(timeframe.multiplier)) : timeframe.isdaily ? "D1" : timeframe.isweekly ? "W1" : "MN"
-uiTxtSize = uiMode == "Compact" ? size.tiny : uiMode == "Detaille" ? size.normal : size.auto
+// Note de confiance en lettre a partir du score (affichage uniquement).
+// Utilise les inputs de seuil (deScoreAPlus/deScoreMin) car deAPlusLevel n'est
+// calcule que plus loin ; une fonction ne peut pas referencer un identifiant
+// declare apres elle.
+f_grade(int sc) => sc >= math.max(deScoreAPlus, deScoreMin) ? "A+" : sc >= deScoreMin ? "A" : sc >= 70 ? "B" : sc >= 60 ? "C" : "D"
+
+uiIsMobile = uiDevice == "Mobile"
+uiShowDetail = uiDetailed and not uiIsMobile
+// Taille de police : Mobile force le plus petit, Auto = adaptatif, sinon le choix.
+uiTxtSize = uiIsMobile ? size.tiny : uiDevice == "Auto" ? size.auto : uiSize == "Compact" ? size.tiny : uiSize == "Large" ? size.large : size.normal
 uiCellBg = color.new(color.black, uiTransp)
-uiScorePosition = f_uiPos(uiScorePos)
-var table infoTable = table.new(uiScorePosition, 2, 15, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
-var table tpTable = table.new(uiScorePosition, 5, 7, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
+uiPosition = f_uiPos(uiPos)
+// Panneau principal (essentiels + TP integres) puis panneau de details.
+var table mainPanel = table.new(uiPosition, 2, 10, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
+var table detailPanel = table.new(uiPosition, 2, 15, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
 msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
 var table msPanel = table.new(msPanelPosition, 2, 6, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
 
-if barstate.islast and msShowPanel
+if barstate.islast and msShowPanel and uiShowDetail
     table.cell(msPanel, 0, 0, "MARKET STRUCTURE", text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=uiTxtSize)
     table.cell(msPanel, 1, 0, "MTF", text_color=color.white, bgcolor=color.new(color.blue, 60), text_size=uiTxtSize)
     table.cell(msPanel, 0, 1, "Tendance " + msTfContext + f_msTfWarn(msTfContext), text_color=color.white, text_size=uiTxtSize)
@@ -1466,49 +1478,78 @@ if sellSignal
 if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))
     tmActive := false
 
-// ---- Panneau Trade Management : prix / pips / R:R / progression ----
-// (tpTable est declaree en tete avec infoTable pour l'empilement au bon coin.)
-f_progPct(float target) =>
-    na(tmEntry) or na(target) or target == tmEntry ? na : math.min(100.0, math.max(0.0, (close - tmEntry) / (target - tmEntry) * 100))
+// ================= PANNEAU PRINCIPAL (essentiels + TP integres) =================
+// Un seul panneau pour l'essentiel : sens, score, confiance, tendance et niveaux
+// Entry / SL / TP1 / TP2 / TP Final. Le TP Engine est integre ici (plus de table
+// separee qui se chevauche). Affiche en Desktop comme en Mobile.
+if barstate.islast and uiShowMain
+    hasSig = not na(tmEntry)
+    mainIsBuy = hasSig ? tmIsBuy : deBullScore >= deBearScore
+    mainScore = mainIsBuy ? deBullScore : deBearScore
+    tmRisk = hasSig ? (tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry) : na
+    dirTxt = not hasSig ? "⏳ ATTENTE" : tmIsBuy ? "🟢 BUY" : "🔴 SELL"
+    dirCol = not hasSig ? color.gray : tmIsBuy ? color.lime : color.red
+    stateSuffix = hasSig and not tmActive ? " (SL)" : ""
+    scoreCol = mainScore >= deAPlusLevel ? color.lime : mainScore >= deScoreMin ? color.yellow : color.gray
+    table.cell(mainPanel, 0, 0, "SIGNAL " + f_tfLabel(), text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 0, dirTxt + stateSuffix, text_color=dirCol, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 1, "Score", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 1, str.tostring(mainScore) + "/100", text_color=scoreCol, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 2, "Confiance", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 2, f_grade(mainScore), text_color=scoreCol, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 3, "Trend", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 3, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 4, "Entry", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 4, hasSig ? f_px(tmEntry) : "—", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 5, "Stop Loss", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 5, hasSig ? f_px(tmSL) : "—", text_color=color.red, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 6, "TP1", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 6, hasSig ? f_px(tmT1) + "  " + f_rr(tmT1 - tmEntry, tmRisk) + "R" : "—", text_color=color.lime, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 7, "TP2", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 7, hasSig ? f_px(tmT2) + "  " + f_rr(tmT2 - tmEntry, tmRisk) + "R" : "—", text_color=color.lime, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 8, "TP Final", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 8, hasSig ? f_px(tmT3) + "  " + f_rr(tmT3 - tmEntry, tmRisk) + "R" : "—", text_color=color.aqua, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 9, "Mode TP", text_color=color.white, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 9, tpMode, text_color=color.silver, text_size=uiTxtSize)
 
-// Ecrit une ligne de TP (prix / pips / R:R / progression). Definie au scope
-// global : Pine n'autorise pas les fonctions a l'interieur d'un bloc if.
-f_tpRow(int row, string name, float target, float risk) =>
-    prog = f_progPct(target)
-    table.cell(tpTable, 0, row, name, text_color=color.white, text_size=uiTxtSize)
-    table.cell(tpTable, 1, row, na(target) ? "—" : f_px(target), text_color=color.lime, text_size=uiTxtSize)
-    table.cell(tpTable, 2, row, na(target) or na(tmEntry) ? "—" : f_pips(target - tmEntry), text_color=color.aqua, text_size=uiTxtSize)
-    table.cell(tpTable, 3, row, na(target) or na(tmEntry) or na(risk) ? "—" : f_rr(target - tmEntry, risk), text_color=color.yellow, text_size=uiTxtSize)
-    table.cell(tpTable, 4, row, na(prog) ? "—" : str.tostring(prog, "#") + "%", text_color=prog >= 100 ? color.lime : prog >= 50 ? color.yellow : color.gray, text_size=uiTxtSize)
-
-if barstate.islast and tpShowTable
-    tmRisk = tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry
-    dirTxt = na(tmEntry) ? "—" : tmIsBuy ? "BUY" : "SELL"
-    dirCol = na(tmEntry) ? color.gray : tmIsBuy ? color.lime : color.red
-    stateTxt = na(tmEntry) ? "aucun signal" : tmActive ? "en cours" : "clos (SL)"
-    table.cell(tpTable, 0, 0, "TP ENGINE", text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 1, 0, dirTxt, text_color=dirCol, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 2, 0, tpMode, text_color=color.white, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 3, 0, stateTxt, text_color=tmActive ? color.lime : color.gray, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 4, 0, f_tfLabel(), text_color=color.aqua, bgcolor=color.new(color.blue, 55), text_size=uiTxtSize)
-    table.cell(tpTable, 0, 1, "Niveau", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(tpTable, 1, 1, "Prix", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(tpTable, 2, 1, "Pips", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(tpTable, 3, 1, "R:R", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(tpTable, 4, 1, "Prog.", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(tpTable, 0, 2, "Entry", text_color=color.white, text_size=uiTxtSize)
-    table.cell(tpTable, 1, 2, na(tmEntry) ? "—" : f_px(tmEntry), text_color=color.gray, text_size=uiTxtSize)
-    table.cell(tpTable, 2, 2, "—", text_color=color.gray, text_size=uiTxtSize)
-    table.cell(tpTable, 3, 2, "—", text_color=color.gray, text_size=uiTxtSize)
-    table.cell(tpTable, 4, 2, "—", text_color=color.gray, text_size=uiTxtSize)
-    table.cell(tpTable, 0, 3, "SL", text_color=color.white, text_size=uiTxtSize)
-    table.cell(tpTable, 1, 3, na(tmSL) ? "—" : f_px(tmSL), text_color=color.red, text_size=uiTxtSize)
-    table.cell(tpTable, 2, 3, na(tmEntry) ? "—" : f_pips(tmRisk), text_color=color.red, text_size=uiTxtSize)
-    table.cell(tpTable, 3, 3, na(tmEntry) ? "—" : "-1.00", text_color=color.red, text_size=uiTxtSize)
-    table.cell(tpTable, 4, 3, "—", text_color=color.gray, text_size=uiTxtSize)
-    f_tpRow(4, "TP1", tmT1, tmRisk)
-    f_tpRow(5, "TP2", tmT2, tmRisk)
-    f_tpRow(6, "TP Final", tmT3, tmRisk)
+// ================= PANNEAU DETAILS (mode detaille, Desktop seulement) =================
+if barstate.islast and uiShowDetail
+    deBullBlockTxt = deBullHardOK ? "" : deBullSweepRecent ? " ✗struct" : deBullStructRecent ? " ✗sweep" : " ✗sweep+struct"
+    deBearBlockTxt = deBearHardOK ? "" : deBearSweepRecent ? " ✗struct" : deBearStructRecent ? " ✗sweep" : " ✗sweep+struct"
+    leSweepStateTxt = leBullBonusActive and leBearBonusActive ? "bull+bear" : leBullBonusActive ? "bull" : leBearBonusActive ? "bear" : "—"
+    wyPhaseColor = wyBullCtx or wyPhase == "Markup" ? color.lime : wyBearCtx or wyPhase == "Markdown" ? color.red : color.gray
+    pfSessTxt = pfInKz ? "Kill zone" : pfInLdn and pfInNy ? "LDN+NY" : pfInLdn ? "London" : pfInNy ? "New York" : "off-session"
+    pzTxt = pzBullDrawable and pzBullFactors >= pzBearFactors ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable and pzBearFactors > pzBullFactors ? "SELL " + str.tostring(pzBearFactors) + "/6" : pzBullDrawable ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable ? "SELL " + str.tostring(pzBearFactors) + "/6" : "—"
+    table.cell(detailPanel, 0, 0, "DETAILS", text_color=color.white, bgcolor=color.new(color.gray, 55), text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=color.new(color.gray, 55), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 1, "Score BUY", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 1, str.tostring(deBullScore) + "/100" + deBullBlockTxt, text_color=deBullHardOK and deBullScore >= deAPlusLevel ? color.lime : deBullHardOK and deBullScore >= deScoreMin ? color.yellow : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 2, "Score SELL", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 2, str.tostring(deBearScore) + "/100" + deBearBlockTxt, text_color=deBearHardOK and deBearScore >= deAPlusLevel ? color.red : deBearHardOK and deBearScore >= deScoreMin ? color.orange : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 3, "Seuils", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 3, "aff " + str.tostring(deScoreMin) + " · A+ " + str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 4, "ATR", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 4, str.tostring(atrVal, "#.##"), text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 5, oscType, text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 6, "HTF Bias", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 7, "Sweep→BOS", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 8, "P/D zone", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 9, "Wyckoff", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 9, wyPhase, text_color=wyPhaseColor, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 10, "Volume", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 10, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.lime : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 11, "VWAP", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 11, pfVwapBull ? "above" : pfVwapBear ? "below" : "n/a", text_color=pfVwapBull ? color.lime : pfVwapBear ? color.red : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 12, "Volatility", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 12, pfVolatLow ? "low" : "OK", text_color=pfVolatLow ? color.red : color.lime, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 13, "Session", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 13, pfSessTxt, text_color=pfInKz ? color.fuchsia : pfInLdn or pfInNy ? color.lime : color.gray, text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 14, "Potential", text_color=color.white, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 14, pzTxt, text_color=pzBullDrawable and not pzBearDrawable ? color.lime : pzBearDrawable and not pzBullDrawable ? color.red : pzBullDrawable or pzBearDrawable ? color.yellow : color.gray, text_size=uiTxtSize)
 
 
 // ================= ALERTS =================
@@ -1522,44 +1563,7 @@ if barstate.islast and tpShowTable
 // dans le dialogue Creer une alerte. Avec alert() seul, cette option devient la
 // seule disponible.
 
-// ================= DASHBOARD (Trend / Score) =================
-// (infoTable est declaree en tete avec tpTable pour l'empilement au bon coin.)
-if barstate.islast
-    table.cell(infoTable, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(color.gray,60), text_size=uiTxtSize)
-    table.cell(infoTable, 1, 0, structTrend, text_color=structTrend == "bullish" ? color.lime : structTrend == "bearish" ? color.red : color.gray, bgcolor=color.new(color.gray,60), text_size=uiTxtSize)
-    // v10 : scores du moteur de decision. "✗ sweep/struct" = une regle
-    // eliminatoire bloque ce cote quel que soit le score.
-    deBullBlockTxt = deBullHardOK ? "" : deBullSweepRecent ? " ✗struct" : deBullStructRecent ? " ✗sweep" : " ✗sweep+struct"
-    deBearBlockTxt = deBearHardOK ? "" : deBearSweepRecent ? " ✗struct" : deBearStructRecent ? " ✗sweep" : " ✗sweep+struct"
-    table.cell(infoTable, 0, 1, "Score BUY", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 1, str.tostring(deBullScore) + "/100" + deBullBlockTxt, text_color=deBullHardOK and deBullScore >= deAPlusLevel ? color.lime : deBullHardOK and deBullScore >= deScoreMin ? color.yellow : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 2, "Score SELL", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 2, str.tostring(deBearScore) + "/100" + deBearBlockTxt, text_color=deBearHardOK and deBearScore >= deAPlusLevel ? color.red : deBearHardOK and deBearScore >= deScoreMin ? color.orange : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 3, "Seuils", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 3, "affichage " + str.tostring(deScoreMin) + " · A+ " + str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 4, "ATR", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 4, str.tostring(atrVal, "#.##"), text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 5, oscType, text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 5, str.tostring(oscVal, "#.#"), text_color=oscVal <= oscOversold ? color.lime : oscVal >= oscOverbought ? color.red : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 6, "HTF Bias", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 6, htfTrendLabel, text_color=htfClose > htfEma ? color.lime : color.red, text_size=uiTxtSize)
-    leSweepStateTxt = leBullBonusActive and leBearBonusActive ? "bull+bear" : leBullBonusActive ? "bull" : leBearBonusActive ? "bear" : "—"
-    table.cell(infoTable, 0, 7, "Sweep→BOS", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 7, leSweepStateTxt, text_color=leBullBonusActive and not leBearBonusActive ? color.lime : leBearBonusActive and not leBullBonusActive ? color.red : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 8, "P/D zone", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 8, smcInPremium ? "premium" : smcInDiscount ? "discount" : "—", text_color=smcInPremium ? color.red : smcInDiscount ? color.lime : color.gray, text_size=uiTxtSize)
-    wyPhaseColor = wyBullCtx or wyPhase == "Markup" ? color.lime : wyBearCtx or wyPhase == "Markdown" ? color.red : color.gray
-    table.cell(infoTable, 0, 9, "Wyckoff", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 9, wyPhase, text_color=wyPhaseColor, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 10, "Volume", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 10, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.lime : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.red : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 11, "VWAP", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 11, pfVwapBull ? "above" : pfVwapBear ? "below" : "n/a", text_color=pfVwapBull ? color.lime : pfVwapBear ? color.red : color.gray, text_size=uiTxtSize)
-    table.cell(infoTable, 0, 12, "Volatility", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 12, pfVolatLow ? "low" : "OK", text_color=pfVolatLow ? color.red : color.lime, text_size=uiTxtSize)
-    pfSessTxt = pfInKz ? "Kill zone" : pfInLdn and pfInNy ? "LDN+NY" : pfInLdn ? "London" : pfInNy ? "New York" : "off-session"
-    table.cell(infoTable, 0, 13, "Session", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 13, pfSessTxt, text_color=pfInKz ? color.fuchsia : pfInLdn or pfInNy ? color.lime : color.gray, text_size=uiTxtSize)
-    pzTxt = pzBullDrawable and pzBullFactors >= pzBearFactors ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable and pzBearFactors > pzBullFactors ? "SELL " + str.tostring(pzBearFactors) + "/6" : pzBullDrawable ? "BUY " + str.tostring(pzBullFactors) + "/6" : pzBearDrawable ? "SELL " + str.tostring(pzBearFactors) + "/6" : "—"
-    table.cell(infoTable, 0, 14, "Potential zone", text_color=color.white, text_size=uiTxtSize)
-    table.cell(infoTable, 1, 14, pzTxt, text_color=pzBullDrawable and not pzBearDrawable ? color.lime : pzBearDrawable and not pzBullDrawable ? color.red : pzBullDrawable or pzBearDrawable ? color.yellow : color.gray, text_size=uiTxtSize)
+// ================= DASHBOARD =================
+// L'ancien tableau unique (infoTable) et la table TP (tpTable) sont remplaces par
+// le PANNEAU PRINCIPAL (essentiels + TP integres) et le PANNEAU DETAILS, definis
+// plus haut. Interface responsive : voir la section "HELPERS PANNEAUX".

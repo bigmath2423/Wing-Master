@@ -472,29 +472,9 @@ var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, bor
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
 msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
 var table msPanel = table.new(msPanelPosition, 2, 9, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
-
-// Panneau Market Structure epure (mode Expert) : HTF, Structure, Trend, BOS,
-// CHoCH, Premium/Discount, Wyckoff, Volume. AFFICHAGE uniquement.
-if barstate.islast and msShowPanel and uiShowDetail
-    msWyCol = wyBullCtx or wyPhase == "Markup" ? color.rgb(46, 204, 113) : wyBearCtx or wyPhase == "Markdown" ? color.rgb(231, 76, 60) : color.gray
-    table.cell(msPanel, 0, 0, "📊 MARKET STRUCTURE", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 1, "HTF", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 1, htfTrendLabel, text_color=htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), text_size=uiTxtSize)
-    table.cell(msPanel, 0, 2, "Structure", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf), text_color=f_msTrendColor(msStructTrendMtf), text_size=uiTxtSize)
-    table.cell(msPanel, 0, 3, "Trend", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 3, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 4, "BOS", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 4, msLastBOS, text_color=msLastBOS == "haussier" ? color.rgb(46, 204, 113) : msLastBOS == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 5, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 5, msLastCHoCH, text_color=msLastCHoCH == "haussier" ? color.rgb(46, 204, 113) : msLastCHoCH == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 6, "Premium/Discount", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 6, smcInPremium ? "Premium" : smcInDiscount ? "Discount" : "—", text_color=smcInPremium ? color.rgb(231, 76, 60) : smcInDiscount ? color.rgb(46, 204, 113) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 7, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 7, wyPhase, text_color=msWyCol, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 8, "Volume", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 8, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.rgb(46, 204, 113) : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
+// NB : le remplissage du panneau Market Structure est place tout en bas du script
+// (section "PANNEAU MARKET STRUCTURE"), car il lit des variables (Wyckoff, SMC,
+// Volume, HTF) calculees plus loin. La table est juste declaree ici.
 
 // ================= FAIR VALUE GAPS =================
 var float bullFvgTop = na
@@ -1650,6 +1630,30 @@ if barstate.islast and uiShowDetail
     table.cell(detailPanel, 1, 9, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
     table.cell(detailPanel, 0, 10, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
     table.cell(detailPanel, 1, 10, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
+
+// ================= PANNEAU MARKET STRUCTURE (mode Expert) =================
+// Place ici (fin du script) car il lit des variables calculees plus haut :
+// HTF, Structure, Trend, BOS, CHoCH, Premium/Discount, Wyckoff, Volume.
+if barstate.islast and msShowPanel and uiShowDetail
+    msWyCol = wyBullCtx or wyPhase == "Markup" ? color.rgb(46, 204, 113) : wyBearCtx or wyPhase == "Markdown" ? color.rgb(231, 76, 60) : color.gray
+    table.cell(msPanel, 0, 0, "📊 MARKET STRUCTURE", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=uiHeadBg, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 1, "HTF", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 1, htfTrendLabel, text_color=htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 2, "Structure", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf), text_color=f_msTrendColor(msStructTrendMtf), text_size=uiTxtSize)
+    table.cell(msPanel, 0, 3, "Trend", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 3, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 4, "BOS", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 4, msLastBOS, text_color=msLastBOS == "haussier" ? color.rgb(46, 204, 113) : msLastBOS == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 5, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 5, msLastCHoCH, text_color=msLastCHoCH == "haussier" ? color.rgb(46, 204, 113) : msLastCHoCH == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 6, "Premium/Discount", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 6, smcInPremium ? "Premium" : smcInDiscount ? "Discount" : "—", text_color=smcInPremium ? color.rgb(231, 76, 60) : smcInDiscount ? color.rgb(46, 204, 113) : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 7, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 7, wyPhase, text_color=msWyCol, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 8, "Volume", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 8, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.rgb(46, 204, 113) : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
 
 
 // ================= ALERTS =================

@@ -203,4 +203,4 @@ ne préjugent pas des performances futures.
 
 ---
 
-*XAUUSD SMC Confluence Signals — © Wing Master. Tous droits réservés.*
+*XAUUSD SMC Confluence Signals — © XAUUSD SMC Confluence Signals. Tous droits réservés.*

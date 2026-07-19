@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  @page :first { margin: 0; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1c2530; font-size: 10.5pt; line-height: 1.5; margin: 0;
+  }
+  h1, h2, h3 { color: #0e2a3a; line-height: 1.2; }
+  h2 {
+    font-size: 15pt; margin: 22px 0 8px; padding-bottom: 5px;
+    border-bottom: 2px solid #16a34a;
+  }
+  h2 .num {
+    display: inline-block; background: #0e2a3a; color: #fff; font-size: 11pt;
+    width: 26px; height: 26px; line-height: 26px; text-align: center;
+    border-radius: 6px; margin-right: 8px;
+  }
+  h3 { font-size: 12pt; margin: 14px 0 4px; color: #16603a; }
+  p { margin: 6px 0; }
+  ul { margin: 6px 0 6px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  code {
+    background: #eef2f5; padding: 1px 5px; border-radius: 4px;
+    font-family: "SF Mono", Consolas, monospace; font-size: 9.5pt; color: #0e2a3a;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }
+  th { background: #0e2a3a; color: #fff; text-align: left; padding: 7px 10px; font-weight: 600; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e3e9ee; }
+  tr:nth-child(even) td { background: #f6f9fb; }
+  .note {
+    background: #f0f9f2; border-left: 4px solid #16a34a; padding: 8px 12px;
+    margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9.8pt;
+  }
+  .warn {
+    background: #fff6ed; border-left: 4px solid #ea7a1c; padding: 8px 12px;
+    margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 9.8pt;
+  }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 20px; color: #fff; font-size: 9pt; font-weight: 600; }
+  .b-ap { background: #0f9d58; } .b-a { background: #2ecc71; } .b-b { background: #f1c40f; color:#3a2f00;}
+  .b-c { background: #e67e22; } .b-x { background: #e74c3c; }
+  .section { page-break-inside: avoid; }
+
+  /* Cover */
+  .cover {
+    height: 297mm; width: 210mm; background: linear-gradient(150deg, #0a1f2c 0%, #10394e 55%, #0a1f2c 100%);
+    color: #eaf2f6; padding: 40mm 24mm; page-break-after: always; position: relative;
+  }
+  .brand { font-size: 13pt; letter-spacing: 3px; text-transform: uppercase; color: #d4af37; font-weight: 700; }
+  .cover-logo { font-size: 46pt; margin: 4mm 0; }
+  .cover h1 { color: #fff; font-size: 30pt; margin: 60mm 0 4mm; line-height: 1.15; }
+  .cover .sub { font-size: 15pt; color: #7fd1a8; font-weight: 600; }
+  .cover .desc { font-size: 11pt; color: #9fb4c2; margin-top: 6mm; max-width: 130mm; }
+  .cover .foot { position: absolute; bottom: 30mm; left: 24mm; right: 24mm; font-size: 10pt; color: #8aa0b0; border-top: 1px solid #2a4a5e; padding-top: 5mm; }
+  .pill { display:inline-block; background:#16a34a; color:#fff; padding:2px 10px; border-radius:20px; font-size:9.5pt; font-weight:600; }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER ===================== -->
+<div class="cover">
+  <div class="brand">Wing Master</div>
+  <div class="cover-logo">🎯</div>
+  <h1>XAUUSD SMC<br>Confluence Signals</h1>
+  <div class="sub">Guide d'utilisation</div>
+  <div class="desc">Moteur de décision institutionnel basé sur les Smart Money Concepts —
+    score de confluence sur 100, objectifs dynamiques et suivi de trade automatisé.</div>
+  <div style="margin-top:8mm"><span class="pill">TradingView · Pine Script v6</span></div>
+  <div class="foot">
+    Document destiné à l'utilisateur final · Version 1.0<br>
+    © Wing Master — Tous droits réservés
+  </div>
+</div>
+
+<!-- ===================== CONTENT ===================== -->
+
+<div class="section">
+<h2><span class="num">1</span>Présentation</h2>
+<p>Cet indicateur n'envoie <strong>jamais</strong> un signal sur la base d'un seul critère.
+Il calcule un <strong>score de confluence sur 100</strong> à partir de 8 familles de critères
+institutionnels, applique des <strong>règles éliminatoires</strong>, puis n'affiche un signal
+que si la qualité est suffisante.</p>
+<p>Conçu pour l'<strong>or (XAU/USD)</strong>, il fonctionne sur toutes les paires et
+<strong>toutes les unités de temps (M1 → W1)</strong> : les objectifs et le stop s'adaptent
+automatiquement à la volatilité (ATR) du timeframe choisi.</p>
+<p><strong>À chaque signal :</strong> Sens (BUY/SELL), Score /100 et note, probabilité estimée,
+Entrée, Stop Loss et 3 objectifs dynamiques (TP1, TP2, TP Final), suivi du trade en temps réel,
+et la liste des confirmations validées ou manquantes.</p>
+</div>
+
+<div class="section">
+<h2><span class="num">2</span>Installation</h2>
+<ul>
+  <li>Ouvre <strong>TradingView</strong> sur un graphique <strong>XAUUSD</strong>.</li>
+  <li>Menu <strong>Pine Editor</strong> (bas de l'écran).</li>
+  <li>Colle l'intégralité du code de l'indicateur.</li>
+  <li>Clique sur <strong>« Ajouter au graphique »</strong>.</li>
+  <li>Unité de temps recommandée : <strong>M5</strong> ou <strong>M15</strong>.</li>
+</ul>
+<div class="note">Après chaque mise à jour du code, <strong>supprime</strong> l'ancienne version
+du graphique puis re-ajoute-la, pour repartir sur des réglages propres.</div>
+</div>
+
+<div class="section">
+<h2><span class="num">3</span>Le moteur de décision (score /100)</h2>
+<p>Chaque signal potentiel est noté sur 100 selon ce barème :</p>
+<table>
+  <tr><th>Critère</th><th>Points</th></tr>
+  <tr><td>Liquidité (sweep + cassure adossée à la liquidité)</td><td>20</td></tr>
+  <tr><td>Structure de marché (BOS / CHoCH)</td><td>20</td></tr>
+  <tr><td>Order Block / Fair Value Gap</td><td>15</td></tr>
+  <tr><td>Wyckoff (phase + figure)</td><td>15</td></tr>
+  <tr><td>Tendance HTF (timeframe supérieur)</td><td>10</td></tr>
+  <tr><td>Volume</td><td>5</td></tr>
+  <tr><td>VWAP</td><td>5</td></tr>
+  <tr><td>ATR + Session</td><td>10</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>100</strong></td></tr>
+</table>
+
+<h3>Règles éliminatoires</h3>
+<ul>
+  <li><strong>Pas de sweep de liquidité récent → aucun signal.</strong></li>
+  <li><strong>Pas de confirmation structurelle (BOS/CHoCH) récente → aucun signal.</strong></li>
+</ul>
+
+<h3>Niveaux de décision</h3>
+<table>
+  <tr><th>Score</th><th>Résultat</th></tr>
+  <tr><td><strong>≥ 85</strong></td><td>Signal <strong>validé + alerte</strong> TradingView</td></tr>
+  <tr><td>80 – 84</td><td>Signal affiché, <strong>sans alerte</strong></td></tr>
+  <tr><td>&lt; 80</td><td>Aucun signal</td></tr>
+</table>
+
+<h3>Notes et couleurs</h3>
+<table>
+  <tr><th>Score</th><th>Couleur</th><th>Note</th></tr>
+  <tr><td>90 – 100</td><td><span class="badge b-ap">Vert foncé</span></td><td>A+</td></tr>
+  <tr><td>85 – 89</td><td><span class="badge b-a">Vert</span></td><td>A</td></tr>
+  <tr><td>80 – 84</td><td><span class="badge b-b">Jaune</span></td><td>B</td></tr>
+  <tr><td>70 – 79</td><td><span class="badge b-c">Orange</span></td><td>C</td></tr>
+  <tr><td>&lt; 70</td><td><span class="badge b-x">Rouge</span></td><td>Aucun signal</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2><span class="num">4</span>Le panneau à l'écran</h2>
+<p>L'indicateur affiche un panneau unique <strong>🎯 TRADE SIGNAL</strong>, en deux modes :</p>
+<h3>Mode Simple (par défaut)</h3>
+<p>L'essentiel : Sens, Score, Probabilité, HTF, Entry, SL, TP1, TP2, TP Final, État du trade.</p>
+<h3>Mode Expert</h3>
+<p>Tout en plus : Statut, Confiance, Trend, RSI, Mode TP, Score minimum requis, écart de points,
+et la <strong>checklist complète</strong> (✔ / ✘) : Sweep · BOS · CHoCH · Order Block ·
+Fair Value Gap · VWAP · Wyckoff · Fibonacci · Discount/Premium · Volume.</p>
+<div class="note"><strong>Changer de mode :</strong> ⚙️ Réglages → <em>Interface / Panneaux</em> →
+<strong>« Mode d'interface »</strong> → Simple ou Expert.</div>
+<h3>Réglages d'affichage</h3>
+<ul>
+  <li><strong>Mode d'affichage</strong> : Desktop / Mobile / Auto.</li>
+  <li><strong>Position</strong> : haut/bas × gauche/droite/milieu.</li>
+  <li><strong>Taille</strong> : Compact / Normal / Large.</li>
+  <li><strong>Transparence</strong> : 0 à 100 % (75 % conseillé).</li>
+</ul>
+</div>
+
+<div class="section">
+<h2><span class="num">5</span>Lire un signal</h2>
+<ul>
+  <li><strong>Sens</strong> — 🟢 BUY ou 🔴 SELL.</li>
+  <li><strong>Score</strong> — ex. <code>🟢 92/100 • A+</code>.</li>
+  <li><strong>Probabilité</strong> — indicateur de confiance dérivé du score.</li>
+  <li><strong>Entry / Stop Loss</strong> — niveaux calculés automatiquement.</li>
+  <li><strong>TP1 / TP2 / TP Final</strong> — objectifs dynamiques avec leur ratio Risque/Rendement.</li>
+</ul>
+<h3>Suivi automatique du trade — ligne « 📊 État »</h3>
+<ul>
+  <li><strong>🟢 SL actif · en cours</strong> — trade en cours.</li>
+  <li><strong>✅ TP1 atteint · SL au Break Even</strong> — déplace ton stop à l'entrée.</li>
+  <li><strong>✅ TP2 atteint</strong>.</li>
+  <li><strong>🎯 Trade terminé</strong> — TP Final atteint.</li>
+  <li><strong>❌ Stop Loss touché</strong>.</li>
+</ul>
+<p>Les TP atteints deviennent <strong>verts</strong> automatiquement.</p>
+</div>
+
+<div class="section">
+<h2><span class="num">6</span>Le moteur de Take Profit</h2>
+<p>Les objectifs ne sont <strong>jamais</strong> des valeurs fixes en points. Ils sont :</p>
+<ul>
+  <li><strong>Ancrés sur l'ATR</strong> → adaptés au timeframe et à la volatilité.</li>
+  <li><strong>Calés sur la structure la plus proche</strong> (liquidité EQH/EQL, PDH/PDL, PWH/PWL, swings, Order Blocks, FVG).</li>
+</ul>
+<table>
+  <tr><th>Mode TP</th><th>Comportement</th></tr>
+  <tr><td>Conservateur</td><td>Objectifs plus proches</td></tr>
+  <tr><td>Équilibré (défaut)</td><td>Équilibre risque / distance</td></tr>
+  <tr><td>Agressif</td><td>Vise la liquidité plus lointaine</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2><span class="num">7</span>Créer l'alerte TradingView</h2>
+<ul>
+  <li>Icône <strong>⏰ Alerte</strong> (ou <code>Alt+A</code>).</li>
+  <li><strong>Condition</strong> → sélectionne l'indicateur.</li>
+  <li>Choisis <strong>« Tout appel de fonction alert() »</strong>.</li>
+  <li>Fréquence : <strong>Une fois par barre à la clôture</strong>.</li>
+  <li>Choisis la notification (pop-up, app mobile, e-mail, webhook) → <strong>Créer</strong>.</li>
+</ul>
+<div class="note">Seuls les signaux <strong>≥ 85 (A+ / A)</strong> déclenchent une alerte. Le message contient
+le sens, le score, la confiance et les niveaux Entry / SL / TP1 / TP2 / TP Final avec leur R:R.</div>
+</div>
+
+<div class="section">
+<h2><span class="num">8</span>Réglages recommandés</h2>
+<table>
+  <tr><th>Réglage</th><th>Conseil</th></tr>
+  <tr><td>Timeframe</td><td>M5 ou M15 pour l'exécution, contexte H1</td></tr>
+  <tr><td>Filtre de session</td><td>London + New York (évite la session asiatique)</td></tr>
+  <tr><td>Seuil d'alerte</td><td>85 (montez à 90 pour être plus strict)</td></tr>
+  <tr><td>Mode TP</td><td>Équilibré</td></tr>
+  <tr><td>Filtre ATR</td><td>Activé (évite les marchés trop calmes)</td></tr>
+</table>
+<h3>Horaires des sessions (heure de Paris)</h3>
+<ul>
+  <li>Londres : 09:00 – 18:00</li>
+  <li>New York : 14:00 – 23:00</li>
+  <li>Kill zones : 08:00–11:00 et 14:30–17:00</li>
+</ul>
+</div>
+
+<div class="section">
+<h2><span class="num">9</span>Pourquoi il n'y a pas de signal ?</h2>
+<p>En mode Expert, la checklist montre en direct ce qui manque : un critère <strong>✔ vert</strong>
+est validé, un critère <strong>✘ rouge</strong> manque. La ligne <strong>« Écart »</strong> indique
+combien de points il manque pour atteindre le seuil.</p>
+<p>Exemple : un score de 68 avec <code>✘ Sweep</code>, <code>✘ Discount</code>, <code>✘ Fibonacci</code>
+signifie que le setup se construit mais qu'il manque ces confirmations pour être validé.</p>
+</div>
+
+<div class="section">
+<h2><span class="num">10</span>Gestion du risque</h2>
+<ul>
+  <li>Risque <strong>fixe</strong> par trade recommandé (ex. 1 % du capital), quelle que soit la « qualité » ressentie du setup.</li>
+  <li>Taille de position = (Capital × % risque) ÷ (distance au Stop Loss).</li>
+  <li>À <strong>tester en démo / backtest</strong> avant tout usage en réel.</li>
+</ul>
+</div>
+
+<div class="section">
+<h2><span class="num">11</span>Avertissement</h2>
+<div class="warn">
+Cet indicateur est un <strong>outil d'aide à la décision</strong>. Il ne constitue <strong>pas</strong>
+un conseil en investissement ni une garantie de résultat. La « probabilité estimée » est un simple
+indicateur de confiance dérivé du score, et non une probabilité réelle de gain. Le trading sur marchés
+à effet de levier comporte un <strong>risque de perte en capital</strong> pouvant dépasser le dépôt initial.
+L'utilisateur reste seul responsable de ses décisions et de sa gestion du risque. Les performances passées
+ne préjugent pas des performances futures.
+</div>
+<p style="text-align:center; color:#8aa0b0; margin-top:16px; font-size:9.5pt;">
+XAUUSD SMC Confluence Signals — © Wing Master. Tous droits réservés.</p>
+</div>
+
+</body>
+</html>

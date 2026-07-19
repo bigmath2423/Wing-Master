@@ -1,0 +1,363 @@
+<title>XAUUSD SMC Confluence Signals — Wing Master</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0a1420; --bg2:#0e1c2a; --bg3:#13273a; --line:#1d3346;
+    --gold:#e6be57; --gold-deep:#c99b3a; --gold-soft:#f0d489;
+    --green:#34d17f; --red:#e5614c; --yellow:#e9c24a; --orange:#e08a3c;
+    --text:#e9f0f6; --muted:#93a7b8; --muted2:#5f7688;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(900px 500px at 82% -8%, rgba(230,190,87,.10), transparent 60%),
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+    background-size:auto, 46px 46px, 46px 46px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  a{color:inherit; text-decoration:none}
+  .mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--gold)}
+
+  /* Nav */
+  nav{position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(10,20,32,.72); border-bottom:1px solid var(--line)}
+  .nav{display:flex; align-items:center; justify-content:space-between; height:64px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.02em}
+  .brand .mark{width:26px;height:26px;border-radius:7px;
+    background:linear-gradient(135deg,var(--gold),var(--gold-deep));
+    display:grid;place-items:center;color:#22160a;font-size:15px}
+  .brand small{color:var(--muted); font-weight:600; font-size:12px; font-family:var(--mono); letter-spacing:.05em}
+  .btn{display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:14px;
+    padding:11px 18px; border-radius:10px; border:1px solid transparent; cursor:pointer; transition:.15s}
+  .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-deep)); color:#231708}
+  .btn-gold:hover{filter:brightness(1.07); transform:translateY(-1px)}
+  .btn-ghost{border-color:var(--line); color:var(--text)}
+  .btn-ghost:hover{border-color:var(--gold); color:var(--gold-soft)}
+  nav .btn{padding:9px 15px}
+
+  /* Hero */
+  header{padding:76px 0 40px}
+  .hero{display:grid; grid-template-columns:1.05fr .95fr; gap:52px; align-items:center}
+  h1{font-size:clamp(34px,5vw,56px); line-height:1.04; letter-spacing:-.02em; font-weight:800; text-wrap:balance}
+  h1 .g{color:var(--gold)}
+  .lede{color:var(--muted); font-size:clamp(16px,1.6vw,19px); margin:22px 0 30px; max-width:52ch}
+  .cta-row{display:flex; gap:14px; flex-wrap:wrap; align-items:center}
+  .tags{display:flex; gap:10px; flex-wrap:wrap; margin-top:26px}
+  .tag{font-family:var(--mono); font-size:12px; color:var(--muted); border:1px solid var(--line);
+    padding:5px 11px; border-radius:20px}
+  .tag b{color:var(--gold-soft); font-weight:600}
+
+  /* Product panel replica */
+  .panel{background:linear-gradient(180deg,var(--bg2),#0b1826); border:1px solid var(--line);
+    border-radius:16px; overflow:hidden; box-shadow:0 30px 70px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(230,190,87,.05)}
+  .panel-head{display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; background:linear-gradient(90deg,rgba(20,32,55,.9),rgba(14,28,42,.9));
+    border-bottom:1px solid var(--line)}
+  .panel-head .t{display:flex; align-items:center; gap:9px; font-weight:700; font-size:14px}
+  .panel-head .tf{font-family:var(--mono); color:#63d1e0; font-size:13px}
+  .prow{display:grid; grid-template-columns:1fr 1.35fr; gap:0; padding:8px 16px; border-bottom:1px solid rgba(29,51,70,.5); font-size:13.5px}
+  .prow:last-child{border-bottom:0}
+  .prow .k{color:var(--muted)}
+  .prow .v{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums}
+  .chip{display:inline-block; padding:2px 10px; border-radius:7px; font-weight:700}
+  .v-buy{color:var(--green); font-weight:700; font-family:var(--sans)}
+  .score-chip{background:rgba(52,209,127,.14); color:var(--green); border:1px solid rgba(52,209,127,.3)}
+  .v-red{color:var(--red)} .v-gold{color:var(--gold)} .v-green{color:var(--green)} .v-white{color:#fff}
+  .ok{color:var(--green)} .bad{color:var(--red)}
+  .divider-row{padding:9px 16px; background:rgba(20,32,55,.55); border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;
+    font-size:12px; font-weight:700; letter-spacing:.03em}
+  .divider-row .side{font-family:var(--mono); color:var(--green)}
+
+  /* Sections */
+  section{padding:64px 0; border-top:1px solid rgba(29,51,70,.55)}
+  .sec-head{max-width:60ch; margin-bottom:34px}
+  h2{font-size:clamp(26px,3.3vw,36px); letter-spacing:-.015em; line-height:1.1; text-wrap:balance; margin-top:10px}
+  .sec-head p{color:var(--muted); margin-top:12px; font-size:17px}
+
+  /* Score breakdown */
+  .score-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 38px}
+  .bar{display:grid; grid-template-columns:190px 1fr 40px; align-items:center; gap:14px}
+  .bar .lab{font-size:14px; color:var(--text)}
+  .bar .track{height:9px; background:var(--bg3); border-radius:6px; overflow:hidden}
+  .bar .fill{height:100%; background:linear-gradient(90deg,var(--gold-deep),var(--gold)); border-radius:6px;
+    transform-origin:left; transform:scaleX(var(--s,0)); transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+  .bar .pts{font-family:var(--mono); color:var(--gold-soft); text-align:right; font-size:14px}
+  .rules{display:flex; gap:16px; flex-wrap:wrap; margin-top:34px}
+  .rule{flex:1 1 260px; background:var(--bg2); border:1px solid var(--line); border-left:3px solid var(--red);
+    border-radius:12px; padding:16px 18px}
+  .rule b{display:block; margin-bottom:4px}
+  .rule span{color:var(--muted); font-size:14px}
+
+  /* Feature cards */
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  .card{background:var(--bg2); border:1px solid var(--line); border-radius:14px; padding:22px; transition:.18s}
+  .card:hover{border-color:rgba(230,190,87,.4); transform:translateY(-3px)}
+  .card .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:19px;
+    background:rgba(230,190,87,.10); border:1px solid rgba(230,190,87,.22); margin-bottom:14px}
+  .card h3{font-size:17px; margin-bottom:7px; letter-spacing:-.01em}
+  .card p{color:var(--muted); font-size:14.5px}
+
+  /* Levels table */
+  .levels{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:6px}
+  .lvl{background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center}
+  .lvl .rng{font-family:var(--mono); font-size:14px; color:var(--muted)}
+  .lvl .note{font-size:24px; font-weight:800; margin:8px 0 2px}
+  .lvl .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+
+  /* Modes */
+  .modes{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  .mode{background:var(--bg2); border:1px solid var(--line); border-radius:14px; padding:24px}
+  .mode.expert{border-color:rgba(230,190,87,.35)}
+  .mode h3{font-size:19px; display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .mode ul{list-style:none; display:flex; flex-direction:column; gap:9px}
+  .mode li{font-size:14.5px; color:var(--muted); display:flex; gap:10px}
+  .mode li::before{content:"›"; color:var(--gold); font-weight:800}
+
+  /* Pricing */
+  .price-wrap{display:grid; grid-template-columns:1.1fr .9fr; gap:30px; align-items:center}
+  .price-card{background:linear-gradient(180deg,var(--bg2),#0b1826); border:1px solid rgba(230,190,87,.35);
+    border-radius:18px; padding:30px; box-shadow:0 30px 70px -34px rgba(0,0,0,.8)}
+  .price-card .amt{font-family:var(--mono); font-size:52px; font-weight:700; letter-spacing:-.02em}
+  .price-card .amt small{font-size:19px; color:var(--muted)}
+  .price-card ul{list-style:none; margin:18px 0 24px; display:flex; flex-direction:column; gap:10px}
+  .price-card li{display:flex; gap:10px; font-size:14.5px}
+  .price-card li .c{color:var(--green); font-weight:800}
+  .price-note{color:var(--muted2); font-size:12.5px; font-family:var(--mono)}
+
+  /* FAQ */
+  .faq{display:grid; grid-template-columns:1fr 1fr; gap:14px 40px}
+  .qa h4{font-size:15.5px; margin-bottom:5px}
+  .qa p{color:var(--muted); font-size:14px}
+
+  /* Footer / disclaimer */
+  footer{border-top:1px solid var(--line); padding:40px 0 60px; margin-top:20px}
+  .disclaimer{background:rgba(224,138,60,.06); border:1px solid rgba(224,138,60,.25); border-radius:12px;
+    padding:16px 18px; color:#c8b89f; font-size:12.5px; line-height:1.55}
+  .foot-row{display:flex; justify-content:space-between; align-items:center; margin-top:26px; color:var(--muted2); font-size:13px; flex-wrap:wrap; gap:12px}
+
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .6s ease, transform .6s ease}
+  .reveal.in{opacity:1; transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.bar .fill{transition:none}}
+
+  @media (max-width:860px){
+    .hero,.price-wrap{grid-template-columns:1fr; gap:34px}
+    .grid3{grid-template-columns:1fr 1fr}
+    .score-grid,.modes,.faq{grid-template-columns:1fr}
+    .levels{grid-template-columns:repeat(2,1fr)}
+    nav .hide{display:none}
+  }
+  @media (max-width:520px){ .grid3,.levels{grid-template-columns:1fr} .bar{grid-template-columns:120px 1fr 34px} }
+</style>
+
+<nav><div class="wrap nav">
+  <div class="brand"><span class="mark">🎯</span> Wing&nbsp;Master <small class="hide">/ XAUUSD SMC</small></div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <a class="btn btn-ghost hide" href="#how">Comment ça marche</a>
+    <a class="btn btn-gold" href="#pricing">Obtenir l'indicateur</a>
+  </div>
+</div></nav>
+
+<header><div class="wrap hero">
+  <div>
+    <div class="eyebrow">TradingView · Pine Script v6</div>
+    <h1 style="margin-top:16px">La confluence <span class="g">institutionnelle</span>, notée sur 100.</h1>
+    <p class="lede">Un moteur de décision Smart Money Concepts pour l'or. Aucun signal sur un seul
+      indicateur : liquidité, structure, Order Blocks, Wyckoff, HTF et volume sont pondérés en un
+      score unique — avec entrée, stop et trois objectifs qui s'adaptent seuls à la volatilité.</p>
+    <div class="cta-row">
+      <a class="btn btn-gold" href="#pricing">Obtenir l'indicateur</a>
+      <a class="btn btn-ghost" href="#how">Voir le moteur de score</a>
+    </div>
+    <div class="tags">
+      <span class="tag">Toutes UT <b>M1 → W1</b></span>
+      <span class="tag">TP dynamiques <b>ATR + structure</b></span>
+      <span class="tag">Alertes <b>A+ / A</b></span>
+    </div>
+  </div>
+
+  <!-- Product panel replica -->
+  <div class="panel reveal">
+    <div class="panel-head">
+      <div class="t"><span>🎯</span> TRADE SIGNAL</div>
+      <div class="tf">M15</div>
+    </div>
+    <div class="prow"><span class="k">Sens</span><span class="v v-buy">🟢 BUY</span></div>
+    <div class="prow"><span class="k">Score</span><span class="v"><span class="chip score-chip">🟢 92/100 • A+</span></span></div>
+    <div class="prow"><span class="k">Probabilité</span><span class="v v-green">92 %</span></div>
+    <div class="prow"><span class="k">HTF 60</span><span class="v v-green">Bullish</span></div>
+    <div class="prow"><span class="k">Entry</span><span class="v v-white">4015.37</span></div>
+    <div class="prow"><span class="k">Stop Loss</span><span class="v v-red">3999.24</span></div>
+    <div class="prow"><span class="k">TP1</span><span class="v v-green">4028.27 · 1.5R ✅</span></div>
+    <div class="prow"><span class="k">TP2</span><span class="v">4039.93 · 3.0R ⏳</span></div>
+    <div class="prow"><span class="k">TP Final</span><span class="v">4081.50 · 5.0R ⏳</span></div>
+    <div class="divider-row"><span>✅ CONFIRMATIONS</span><span class="side">BUY</span></div>
+    <div class="prow"><span class="k">Sweep</span><span class="v ok">✔</span></div>
+    <div class="prow"><span class="k">BOS · CHoCH</span><span class="v ok">✔ ✔</span></div>
+    <div class="prow"><span class="k">Order Block · FVG</span><span class="v ok">✔ ✔</span></div>
+    <div class="prow"><span class="k">VWAP · Wyckoff · Fibo</span><span class="v ok">✔ ✔ ✔</span></div>
+  </div>
+</div></header>
+
+<!-- HOW / SCORE -->
+<section id="how"><div class="wrap">
+  <div class="sec-head reveal">
+    <div class="eyebrow">Le moteur de décision</div>
+    <h2>Huit familles de critères. Un seul score sur 100.</h2>
+    <p>Chaque setup potentiel est noté. Deux règles éliminatoires écartent d'office tout ce qui
+      n'est pas adossé à la liquidité et à une cassure de structure.</p>
+  </div>
+
+  <div class="score-grid reveal">
+    <div class="bar"><span class="lab">Liquidité</span><span class="track"><span class="fill" style="--s:1"></span></span><span class="pts">20</span></div>
+    <div class="bar"><span class="lab">Structure · BOS/CHoCH</span><span class="track"><span class="fill" style="--s:1"></span></span><span class="pts">20</span></div>
+    <div class="bar"><span class="lab">Order Block / FVG</span><span class="track"><span class="fill" style="--s:.75"></span></span><span class="pts">15</span></div>
+    <div class="bar"><span class="lab">Wyckoff</span><span class="track"><span class="fill" style="--s:.75"></span></span><span class="pts">15</span></div>
+    <div class="bar"><span class="lab">Tendance HTF</span><span class="track"><span class="fill" style="--s:.5"></span></span><span class="pts">10</span></div>
+    <div class="bar"><span class="lab">ATR + Session</span><span class="track"><span class="fill" style="--s:.5"></span></span><span class="pts">10</span></div>
+    <div class="bar"><span class="lab">Volume</span><span class="track"><span class="fill" style="--s:.25"></span></span><span class="pts">5</span></div>
+    <div class="bar"><span class="lab">VWAP</span><span class="track"><span class="fill" style="--s:.25"></span></span><span class="pts">5</span></div>
+  </div>
+
+  <div class="rules">
+    <div class="rule reveal"><b>Pas de sweep → pas de signal</b><span>Une opportunité doit être précédée d'une prise de liquidité récente.</span></div>
+    <div class="rule reveal"><b>Pas de BOS/CHoCH → pas de signal</b><span>Une confirmation structurelle récente est obligatoire.</span></div>
+    <div class="rule reveal" style="border-left-color:var(--gold)"><b>≥ 85 → alerte</b><span>Seuls les signaux A+ et A déclenchent une alerte TradingView.</span></div>
+  </div>
+</div></section>
+
+<!-- LEVELS -->
+<section><div class="wrap">
+  <div class="sec-head reveal">
+    <div class="eyebrow">Lecture immédiate</div>
+    <h2>La couleur dit tout, d'un coup d'œil.</h2>
+  </div>
+  <div class="levels reveal">
+    <div class="lvl"><div class="rng">90–100</div><div class="note" style="color:#0f9d58"><span class="dot" style="background:#0f9d58"></span>A+</div></div>
+    <div class="lvl"><div class="rng">85–89</div><div class="note" style="color:var(--green)"><span class="dot" style="background:var(--green)"></span>A</div></div>
+    <div class="lvl"><div class="rng">80–84</div><div class="note" style="color:var(--yellow)"><span class="dot" style="background:var(--yellow)"></span>B</div></div>
+    <div class="lvl"><div class="rng">70–79</div><div class="note" style="color:var(--orange)"><span class="dot" style="background:var(--orange)"></span>C</div></div>
+    <div class="lvl"><div class="rng">&lt; 70</div><div class="note" style="color:var(--red)"><span class="dot" style="background:var(--red)"></span>—</div></div>
+  </div>
+</div></section>
+
+<!-- FEATURES -->
+<section><div class="wrap">
+  <div class="sec-head reveal">
+    <div class="eyebrow">Ce qu'il y a sous le capot</div>
+    <h2>Un système complet, pas un simple oscillateur.</h2>
+  </div>
+  <div class="grid3">
+    <div class="card reveal"><div class="ic">🎯</div><h3>Objectifs dynamiques</h3><p>TP1, TP2 et TP Final ancrés sur l'ATR puis calés sur la liquidité et la structure la plus proche. Jamais de valeur fixe en points.</p></div>
+    <div class="card reveal"><div class="ic">📊</div><h3>Suivi de trade</h3><p>TP atteints en vert, passage automatique du stop au Break Even, clôture et stop touché signalés en direct.</p></div>
+    <div class="card reveal"><div class="ic">✅</div><h3>Checklist transparente</h3><p>Dix confirmations en clair — vous voyez exactement pourquoi un trade est valide, ou ce qu'il lui manque.</p></div>
+    <div class="card reveal"><div class="ic">🕰️</div><h3>Toutes les unités de temps</h3><p>Du M1 au Weekly : l'ATR fait grandir les objectifs avec le timeframe, sans le moindre réglage.</p></div>
+    <div class="card reveal"><div class="ic">🔔</div><h3>Alertes prêtes</h3><p>Une alerte « A+ / A » avec sens, score, confiance et niveaux Entry / SL / TP directement dans la notification.</p></div>
+    <div class="card reveal"><div class="ic">📐</div><h3>Fibonacci interne</h3><p>Un moteur Fibonacci travaille en arrière-plan pour affiner la sélection — sans surcharger le graphique.</p></div>
+  </div>
+</div></section>
+
+<!-- MODES -->
+<section><div class="wrap">
+  <div class="sec-head reveal">
+    <div class="eyebrow">Interface responsive</div>
+    <h2>Deux modes. Le vôtre en un clic.</h2>
+    <p>Compact sur mobile, complet sur ordinateur. Position, taille et transparence réglables ;
+      les panneaux ne masquent pas les bougies.</p>
+  </div>
+  <div class="modes">
+    <div class="mode reveal">
+      <h3>🟢 Simple</h3>
+      <ul>
+        <li>Sens BUY / SELL</li><li>Score et probabilité</li><li>Entry &amp; Stop Loss</li>
+        <li>TP1 · TP2 · TP Final</li><li>État du trade en direct</li>
+      </ul>
+    </div>
+    <div class="mode expert reveal">
+      <h3>🟡 Expert</h3>
+      <ul>
+        <li>Tout le mode Simple, plus…</li><li>Statut · Confiance · Trend · RSI · HTF</li>
+        <li>Score minimum requis &amp; écart de points</li>
+        <li>Checklist : Sweep, BOS, CHoCH, OB, FVG, VWAP, Wyckoff, Fibonacci, Discount, Volume</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- PRICING -->
+<section id="pricing"><div class="wrap">
+  <div class="sec-head reveal">
+    <div class="eyebrow">Accès</div>
+    <h2>Un outil, à vie.</h2>
+  </div>
+  <div class="price-wrap">
+    <div class="price-card reveal">
+      <div class="eyebrow" style="color:var(--gold-soft)">Licence à vie</div>
+      <div class="amt" style="margin-top:10px">149&nbsp;€ <small>· paiement unique</small></div>
+      <ul>
+        <li><span class="c">✔</span> Indicateur complet (Pine v6) + mises à jour</li>
+        <li><span class="c">✔</span> Guide d'utilisation PDF</li>
+        <li><span class="c">✔</span> Moteur de score, TP dynamiques &amp; alertes</li>
+        <li><span class="c">✔</span> Interface Simple / Expert responsive</li>
+      </ul>
+      <a class="btn btn-gold" href="#" style="width:100%;justify-content:center">Obtenir l'indicateur</a>
+      <p class="price-note" style="margin-top:14px">Prix indicatif — à personnaliser avant publication.</p>
+    </div>
+    <div class="reveal">
+      <p style="color:var(--muted); font-size:16px">Livré prêt à l'emploi : copiez le script dans TradingView,
+        ajoutez-le à votre graphique XAUUSD en M5 / M15, créez l'alerte et vous êtes opérationnel.</p>
+      <div class="tags" style="margin-top:20px">
+        <span class="tag"><b>Pine Script v6</b></span>
+        <span class="tag"><b>XAUUSD</b> &amp; toutes paires</span>
+        <span class="tag">Guide <b>PDF inclus</b></span>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- FAQ -->
+<section><div class="wrap">
+  <div class="sec-head reveal"><div class="eyebrow">Questions fréquentes</div><h2>Avant de commencer.</h2></div>
+  <div class="faq">
+    <div class="qa reveal"><h4>Sur quelles paires fonctionne-t-il ?</h4><p>Optimisé pour l'or (XAU/USD), il fonctionne sur toutes les paires et toutes les unités de temps.</p></div>
+    <div class="qa reveal"><h4>Repeint-il les signaux ?</h4><p>Non. Les détections se font à la clôture de bougie et sur des pivots confirmés.</p></div>
+    <div class="qa reveal"><h4>Faut-il régler beaucoup de choses ?</h4><p>Non. Les valeurs par défaut conviennent ; seuls le mode d'interface et le filtre de session méritent un coup d'œil.</p></div>
+    <div class="qa reveal"><h4>Est-ce un robot de trading ?</h4><p>Non. C'est un outil d'aide à la décision : il propose, vous décidez et gérez votre risque.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="disclaimer reveal">
+    <strong>Avertissement.</strong> Cet indicateur est un outil d'aide à la décision. Il ne constitue pas un
+    conseil en investissement ni une garantie de résultat. La « probabilité estimée » est un indicateur de
+    confiance dérivé du score, non une probabilité réelle de gain. Le trading sur marchés à effet de levier
+    comporte un risque de perte en capital pouvant dépasser le dépôt initial. Les performances passées ne
+    préjugent pas des performances futures. L'utilisateur reste seul responsable de ses décisions.
+  </div>
+  <div class="foot-row">
+    <div class="brand"><span class="mark">🎯</span> Wing&nbsp;Master</div>
+    <div>© <span class="mono">2026</span> Wing Master — XAUUSD SMC Confluence Signals. Tous droits réservés.</div>
+  </div>
+</div></footer>
+
+<script>
+  (function(){
+    var els=[].slice.call(document.querySelectorAll('.reveal'));
+    if(!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion:reduce)').matches){
+      els.forEach(function(e){e.classList.add('in')}); return;
+    }
+    var io=new IntersectionObserver(function(en){
+      en.forEach(function(x){ if(x.isIntersecting){ x.target.classList.add('in'); io.unobserve(x.target);} });
+    },{threshold:.14});
+    els.forEach(function(e){io.observe(e)});
+  })();
+</script>

@@ -474,7 +474,7 @@ uiHeadBg = color.new(color.rgb(20, 30, 55), math.max(0, uiTransp - 25))
 uiPosition = f_uiPos(uiPos)
 uiDetailPosition = f_uiPos(uiDetailPos)
 // Panneau principal (toujours visible) + Confirmations, chacun dans SON coin.
-var table mainPanel = table.new(uiPosition, 2, 16, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
+var table mainPanel = table.new(uiPosition, 2, 30, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
 var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
@@ -1560,6 +1560,22 @@ if barstate.islast and uiShowMain
     table.cell(mainPanel, 1, 1, dirTxt, text_color=dirCol, text_size=uiTxtSize)
     table.cell(mainPanel, 0, 2, "Score", text_color=color.silver, text_size=uiTxtSize)
     table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 80), text_size=uiTxtSize)
+    htfTxt = htfClose > htfEma ? "Bullish" : "Bearish"
+    htfCol = htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+    rsiTxt = str.tostring(rsiVal, "#.#") + (rsiVal <= oscOversold ? " (survente)" : rsiVal >= oscOverbought ? " (surachat)" : "")
+    rsiCol = rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : color.silver
+    // Confirmations (lecture de booleens deja calcules, cote en tete)
+    ckSweepOk = mainIsBuy ? deBullSweepRecent : deBearSweepRecent
+    ckBosOk = mainIsBuy ? deBullStructRecent : deBearStructRecent
+    ckChochOk = mainIsBuy ? structTrend == "bullish" : structTrend == "bearish"
+    ckObOk = mainIsBuy ? bullObActive : bearObActive
+    ckFvgOk = mainIsBuy ? bullFvgActive : bearFvgActive
+    ckVwapOk = mainIsBuy ? pfVwapBull : pfVwapBear
+    ckWyOk = mainIsBuy ? wyBullSetupCtx : wyBearSetupCtx
+    ckFibOk = mainIsBuy ? deBullFibPts > 0 : deBearFibPts > 0
+    ckHtfOk = mainIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
+    ckPdOk = mainIsBuy ? smcInDiscount : smcInPremium
+    ckVolOk = mainIsBuy ? pfBullVolOK : pfBearVolOK
     if uiExpert
         table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
@@ -1569,103 +1585,72 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 5, f_conf(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
         table.cell(mainPanel, 0, 6, "Trend", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 6, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 7, "Entry", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 7, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 8, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 8, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 9, "TP1", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 9, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 10, "TP2", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 10, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 11, "TP Final", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 11, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 12, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 12, gestTxt, text_color=gestCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 13, "Mode TP", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 13, tpMode, text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 14, "Min requis", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 14, str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 15, "Ecart", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 15, manqueVal <= 0 ? "valide (+" + str.tostring(-manqueVal) + " pts)" : "il manque " + str.tostring(manqueVal) + " pts", text_color=manqueVal <= 0 ? color.rgb(46, 204, 113) : color.orange, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 7, "HTF " + htfTimeframe, text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 7, htfTxt, text_color=htfCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 8, "RSI", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 8, rsiTxt, text_color=rsiCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 9, "Entry", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 9, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 10, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 10, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 11, "TP1", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 11, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 12, "TP2", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 12, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 13, "TP Final", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 13, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 14, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 14, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 15, "Mode TP", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 15, tpMode, text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 16, "Min requis", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 16, str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 17, "Ecart", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 17, manqueVal <= 0 ? "valide (+" + str.tostring(-manqueVal) + " pts)" : "il manque " + str.tostring(manqueVal) + " pts", text_color=manqueVal <= 0 ? color.rgb(46, 204, 113) : color.orange, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 18, "✅ CONFIRMATIONS", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 18, mainIsBuy ? "BUY" : "SELL", text_color=mainIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=uiHeadBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 19, "Sweep", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 19, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 20, "BOS", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 20, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 21, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 21, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 22, "Order Block", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 22, f_ok(ckObOk), text_color=f_okCol(ckObOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 23, "Fair Value Gap", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 23, f_ok(ckFvgOk), text_color=f_okCol(ckFvgOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 24, "VWAP", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 24, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 25, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 25, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 26, "Fibonacci", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 26, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 27, mainIsBuy ? "Discount" : "Premium", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 27, f_ok(ckPdOk), text_color=f_okCol(ckPdOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 28, "Volume", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 28, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
     else
         table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 4, "Entry", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 4, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 5, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 5, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 6, "TP1", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 6, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 7, "TP2", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 7, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 8, "TP Final", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 8, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 9, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 9, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 4, "HTF " + htfTimeframe, text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 4, htfTxt, text_color=htfCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 5, "Entry", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 5, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 6, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 6, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 7, "TP1", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 7, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 8, "TP2", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 8, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 9, "TP Final", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 9, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 10, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 10, gestTxt, text_color=gestCol, text_size=uiTxtSize)
 
-// ================= PANNEAU CONFIRMATIONS (checklist, mode Expert) =================
-// AFFICHAGE uniquement : chaque ligne LIT un booleen deja calcule et montre s'il
-// est valide (✔) ou manquant (✘) pour la direction en tete. Rien n'est recalcule.
-if barstate.islast and uiShowDetail
-    ckIsBuy = deBullScore >= deBearScore
-    ckSweepOk = ckIsBuy ? deBullSweepRecent : deBearSweepRecent
-    ckBosOk = ckIsBuy ? deBullStructRecent : deBearStructRecent
-    ckChochOk = ckIsBuy ? structTrend == "bullish" : structTrend == "bearish"
-    ckObOk = ckIsBuy ? bullObActive : bearObActive
-    ckFvgOk = ckIsBuy ? bullFvgActive : bearFvgActive
-    ckVwapOk = ckIsBuy ? pfVwapBull : pfVwapBear
-    ckWyOk = ckIsBuy ? wyBullSetupCtx : wyBearSetupCtx
-    ckFibOk = ckIsBuy ? deBullFibPts > 0 : deBearFibPts > 0
-    ckHtfOk = ckIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
-    ckVolOk = ckIsBuy ? pfBullVolOK : pfBearVolOK
-    table.cell(detailPanel, 0, 0, "✅ CONFIRMATIONS", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 0, ckIsBuy ? "BUY" : "SELL", text_color=ckIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 1, "Sweep", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 1, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 2, "BOS", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 2, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 3, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 3, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 4, "Order Block", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 4, f_ok(ckObOk), text_color=f_okCol(ckObOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 5, "Fair Value Gap", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 5, f_ok(ckFvgOk), text_color=f_okCol(ckFvgOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 6, "VWAP", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 6, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 7, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 7, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 8, "Fibonacci", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 8, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 9, "HTF", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 9, f_ok(ckHtfOk), text_color=f_okCol(ckHtfOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 10, "Volume", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 10, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
-
-// ================= PANNEAU MARKET STRUCTURE (mode Expert) =================
-// Place ici (fin du script) car il lit des variables calculees plus haut :
-// HTF, Structure, Trend, BOS, CHoCH, Premium/Discount, Wyckoff, Volume.
-if barstate.islast and msShowPanel and uiShowDetail
-    msWyCol = wyBullCtx or wyPhase == "Markup" ? color.rgb(46, 204, 113) : wyBearCtx or wyPhase == "Markdown" ? color.rgb(231, 76, 60) : color.gray
-    table.cell(msPanel, 0, 0, "📊 MARKET STRUCTURE", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 1, "HTF", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 1, htfTrendLabel, text_color=htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), text_size=uiTxtSize)
-    table.cell(msPanel, 0, 2, "Structure", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 2, f_msTrendTxt(msStructTrendMtf), text_color=f_msTrendColor(msStructTrendMtf), text_size=uiTxtSize)
-    table.cell(msPanel, 0, 3, "Trend", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 3, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 4, "BOS", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 4, msLastBOS, text_color=msLastBOS == "haussier" ? color.rgb(46, 204, 113) : msLastBOS == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 5, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 5, msLastCHoCH, text_color=msLastCHoCH == "haussier" ? color.rgb(46, 204, 113) : msLastCHoCH == "baissier" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 6, "Premium/Discount", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 6, smcInPremium ? "Premium" : smcInDiscount ? "Discount" : "—", text_color=smcInPremium ? color.rgb(231, 76, 60) : smcInDiscount ? color.rgb(46, 204, 113) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 7, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 7, wyPhase, text_color=msWyCol, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 8, "Volume", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 8, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.rgb(46, 204, 113) : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-    table.cell(msPanel, 0, 9, "RSI", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(msPanel, 1, 9, str.tostring(rsiVal, "#.#") + (rsiVal <= oscOversold ? " (survente)" : rsiVal >= oscOverbought ? " (surachat)" : ""), text_color=rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : color.silver, text_size=uiTxtSize)
+// Les anciens panneaux Confirmations et Market Structure sont maintenant FUSIONNES
+// dans le panneau principal (section "PANNEAU PRINCIPAL", mode Expert) : tout est
+// affiche sur un seul tableau. Les tables detailPanel / msPanel ne sont plus
+// remplies (elles restent declarees mais invisibles).
 
 
 // ================= ALERTS =================

@@ -1487,7 +1487,7 @@ if barstate.islast and uiShowMain
     mainIsBuy = hasSig ? tmIsBuy : deBullScore >= deBearScore
     mainScore = mainIsBuy ? deBullScore : deBearScore
     tmRisk = hasSig ? (tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry) : na
-    dirTxt = not hasSig ? "⏳ ATTENTE" : tmIsBuy ? "🟢 BUY" : "🔴 SELL"
+    dirTxt = not hasSig ? "[ ATTENTE ]" : tmIsBuy ? "[ BUY ]" : "[ SELL ]"
     dirCol = not hasSig ? color.gray : tmIsBuy ? color.lime : color.red
     stateSuffix = hasSig and not tmActive ? " (SL)" : ""
     scoreCol = mainScore >= deAPlusLevel ? color.lime : mainScore >= deScoreMin ? color.yellow : color.gray

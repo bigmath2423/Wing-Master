@@ -81,5 +81,11 @@
 
 ## TODO
 - [x] `accueil-9` (fuji) : intégré (EMBED_HOMES.fuji, NEST[8]={cx:206,cy:460,scale:2.10,rimCy:433,rimRx:86,rimRy:16}, CSS fuji : bkval top271 #000f16, bkonl top317 h19 #01111a, bkbar top294 #011017).
-- [ ] Badge visible seulement si cadeau dispo : OK (synchro `#h-bg`) — revérifier après tout changement de la logique cadeau.
+- [x] Badge CADEAU : la tuile accueil récupère désormais VRAIMENT le cadeau (`claimFree()`,
+  même mécanique que l'offre GRATUIT de la Boutique ; avant c'était un stub `soon()`).
+  giftAvailable ≡ !shop.freeClaimed && now<shop.expires (localStorage `wm_shop`, +24h) ;
+  `checkShopReset()` appelé dans `updateHomeDOM` → le badge revient tout seul à l'échéance,
+  même sans reload. Toast menu : `drawMenuMsg(472)` dessiné dans la branche baked
+  (`renderMenuClean`) — sans ça, AUCUN `menuMsg`/`soon()` n'est visible sur l'accueil baked.
+  ŒUF (`h-be` ← `eggReadyCount()` live) OK ; ROUE : aucun badge.
 - [ ] Si pixelisation signalée sur mobile réel : vérifier `devicePixelRatio` >2 (cap frames ×2.2).

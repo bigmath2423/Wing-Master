@@ -443,6 +443,14 @@ f_tfLabel() => timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : 
 // AFFICHAGE uniquement (ne touche ni aux signaux ni aux scores).
 // Note en lettre : 90-100 A+, 85-89 A, 80-84 B, 70-79 C, <70 pas de signal.
 f_grade(int sc) => sc >= 90 ? "A+" : sc >= 85 ? "A" : sc >= 80 ? "B" : sc >= 70 ? "C" : "—"
+// Libelle complet de note (score < 70 -> "Aucun signal") et pastille couleur.
+f_gradeFull(int sc) => sc >= 90 ? "A+" : sc >= 85 ? "A" : sc >= 80 ? "B" : sc >= 70 ? "C" : "Aucun signal"
+f_gradeDot(int sc) => sc >= 85 ? "🟢" : sc >= 80 ? "🟡" : sc >= 70 ? "🟠" : "🔴"
+// Ligne de score "premium" : pastille + score + note. AFFICHAGE uniquement.
+f_scoreLine(int sc) => f_gradeDot(sc) + " " + str.tostring(sc) + "/100 • " + f_gradeFull(sc)
+// Probabilite estimee (indicateur de CONFIANCE derive du score, borne 4-96 %).
+// Ce n'est PAS une garantie de resultat et ne modifie aucun calcul.
+f_prob(int sc) => math.min(96, math.max(4, sc))
 // Palette moderne (flat UI), lisible d'un coup d'oeil : vert fonce (>=90),
 // vert (85-89), jaune (80-84), orange (70-79), rouge (<70).
 f_gradeCol(int sc) => sc >= 90 ? color.rgb(0, 150, 60) : sc >= 85 ? color.rgb(46, 204, 113) : sc >= 80 ? color.rgb(241, 196, 15) : sc >= 70 ? color.rgb(230, 126, 34) : color.rgb(231, 76, 60)
@@ -1542,7 +1550,7 @@ if barstate.islast and uiShowMain
     tp2Col = not hasSig ? color.gray : tmT2Hit ? color.rgb(46, 204, 113) : color.silver
     tp3Col = not hasSig ? color.gray : tmT3Hit ? color.rgb(46, 204, 113) : color.aqua
     // Gestion du trade (message de suivi)
-    gestTxt = not hasSig ? "—" : not tmActive ? "❌ Stop Loss touche" : tmT3Hit ? "🎯 TP Final · Trade termine" : tmT2Hit ? "✅ TP2 atteint" : tmT1Hit ? "✅ TP1 · SL au Break Even" : "⏳ Trade en cours"
+    gestTxt = not hasSig ? "aucun trade" : not tmActive ? "❌ Stop Loss touche" : tmT3Hit ? "🎯 Trade termine" : tmT2Hit ? "✅ TP2 atteint" : tmT1Hit ? "✅ TP1 · SL au Break Even" : "🟢 SL actif · en cours"
     gestCol = not hasSig ? color.gray : not tmActive ? color.rgb(231, 76, 60) : tmT1Hit or tmT2Hit or tmT3Hit ? color.rgb(46, 204, 113) : color.aqua
     manqueVal = deAPlusLevel - mainScore
     // -- En-tete premium (commun) --
@@ -1551,10 +1559,10 @@ if barstate.islast and uiShowMain
     table.cell(mainPanel, 0, 1, "Sens", text_color=color.silver, text_size=uiTxtSize)
     table.cell(mainPanel, 1, 1, dirTxt, text_color=dirCol, text_size=uiTxtSize)
     table.cell(mainPanel, 0, 2, "Score", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(mainPanel, 1, 2, str.tostring(mainScore) + "/100", text_color=color.white, bgcolor=color.new(gradeCol, 55), text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 80), text_size=uiTxtSize)
     if uiExpert
-        table.cell(mainPanel, 0, 3, "Note", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 3, f_grade(mainScore), text_color=gradeCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 4, "Statut", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 4, f_statut(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
         table.cell(mainPanel, 0, 5, "Confiance", text_color=color.silver, text_size=uiTxtSize)
@@ -1571,65 +1579,67 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 10, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 11, "TP Final", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 11, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 12, "Mode TP", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 12, tpMode, text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 13, "Gestion", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 13, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 12, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 12, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 13, "Mode TP", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 13, tpMode, text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 14, "Min requis", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 14, str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 15, "Ecart", text_color=color.silver, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 15, manqueVal <= 0 ? "valide (+" + str.tostring(-manqueVal) + " pts)" : "il manque " + str.tostring(manqueVal) + " pts", text_color=manqueVal <= 0 ? color.rgb(46, 204, 113) : color.orange, text_size=uiTxtSize)
     else
-        table.cell(mainPanel, 0, 3, "Entry", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 3, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 4, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 4, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 5, "TP1", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 5, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 6, "TP2", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 6, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 7, "TP Final", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 7, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 8, "Gestion", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 8, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 4, "Entry", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 4, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 5, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 5, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 6, "TP1", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 6, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 7, "TP2", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 7, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 8, "TP Final", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 8, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 9, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 9, gestTxt, text_color=gestCol, text_size=uiTxtSize)
 
 // ================= PANNEAU CONFIRMATIONS (checklist, mode Expert) =================
 // AFFICHAGE uniquement : chaque ligne LIT un booleen deja calcule et montre s'il
 // est valide (✔) ou manquant (✘) pour la direction en tete. Rien n'est recalcule.
 if barstate.islast and uiShowDetail
     ckIsBuy = deBullScore >= deBearScore
+    ckSweepOk = ckIsBuy ? deBullSweepRecent : deBearSweepRecent
     ckBosOk = ckIsBuy ? deBullStructRecent : deBearStructRecent
     ckChochOk = ckIsBuy ? structTrend == "bullish" : structTrend == "bearish"
-    ckHtfOk = ckIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
+    ckObOk = ckIsBuy ? bullObActive : bearObActive
+    ckFvgOk = ckIsBuy ? bullFvgActive : bearFvgActive
     ckVwapOk = ckIsBuy ? pfVwapBull : pfVwapBear
-    ckAtrOk = pfAtrOK
-    ckVolOk = ckIsBuy ? pfBullVolOK : pfBearVolOK
-    ckSweepOk = ckIsBuy ? deBullSweepRecent : deBearSweepRecent
-    ckPdOk = ckIsBuy ? smcInDiscount : smcInPremium
-    ckFibOk = ckIsBuy ? deBullFibPts > 0 : deBearFibPts > 0
     ckWyOk = ckIsBuy ? wyBullSetupCtx : wyBearSetupCtx
+    ckFibOk = ckIsBuy ? deBullFibPts > 0 : deBearFibPts > 0
+    ckHtfOk = ckIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
+    ckVolOk = ckIsBuy ? pfBullVolOK : pfBearVolOK
     table.cell(detailPanel, 0, 0, "✅ CONFIRMATIONS", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
     table.cell(detailPanel, 1, 0, ckIsBuy ? "BUY" : "SELL", text_color=ckIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 1, "BOS", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 1, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 2, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 2, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 3, "HTF", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 3, f_ok(ckHtfOk), text_color=f_okCol(ckHtfOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 4, "VWAP", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 4, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 5, "ATR", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 5, f_ok(ckAtrOk), text_color=f_okCol(ckAtrOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 6, "Volume", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 6, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 7, "Sweep", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 7, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 8, ckIsBuy ? "Discount" : "Premium", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 8, f_ok(ckPdOk), text_color=f_okCol(ckPdOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 9, "Fibonacci", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 9, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
-    table.cell(detailPanel, 0, 10, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(detailPanel, 1, 10, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 1, "Sweep", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 1, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 2, "BOS", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 2, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 3, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 3, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 4, "Order Block", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 4, f_ok(ckObOk), text_color=f_okCol(ckObOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 5, "Fair Value Gap", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 5, f_ok(ckFvgOk), text_color=f_okCol(ckFvgOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 6, "VWAP", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 6, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 7, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 7, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 8, "Fibonacci", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 8, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 9, "HTF", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 9, f_ok(ckHtfOk), text_color=f_okCol(ckHtfOk), text_size=uiTxtSize)
+    table.cell(detailPanel, 0, 10, "Volume", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(detailPanel, 1, 10, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
 
 // ================= PANNEAU MARKET STRUCTURE (mode Expert) =================
 // Place ici (fin du script) car il lit des variables calculees plus haut :

@@ -143,7 +143,8 @@ fibTol = input.float(0.03, "Tolerance de zone Fibonacci (fraction du swing)", mi
 
 grpUI = "Interface / Panneaux"
 uiDevice = input.string("Desktop", "Mode d'affichage", options=["Desktop", "Mobile", "Auto"], group=grpUI, tooltip="Desktop : panneau principal + details (si actives) + Market Structure, tailles confortables. Mobile : UN seul panneau compact (BUY/SELL, score, confiance, Entry/SL/TP), police reduite, le reste masque. Auto : disposition Desktop avec texte auto-dimensionne (size.auto) - Pine ne peut PAS lire la taille reelle de l'ecran, Auto se rapproche donc de Desktop en adaptant la police a l'espace.")
-uiPos = input.string("top_right", "Position des panneaux", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin ou s'ancre le panneau principal (et les details, empiles en dessous). Le Market Structure garde sa propre position (Module 1).")
+uiPos = input.string("top_right", "Position du panneau principal", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin ou s'ancre le panneau principal (toujours visible).")
+uiDetailPos = input.string("bottom_right", "Position du panneau de details", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin du panneau de details (mode detaille uniquement). Le mettre dans un coin DIFFERENT du panneau principal pour qu'ils ne se chevauchent jamais.")
 uiSize = input.string("Normal", "Taille", options=["Compact", "Normal", "Large"], group=grpUI, tooltip="Compact = police tiny. Normal = police normale. Large = grande police (grands ecrans). Ignore en mode Mobile (force Compact) et en Auto (size.auto).")
 uiTransp = input.int(75, "Transparence des panneaux (%)", minval=0, maxval=100, step=5, group=grpUI, tooltip="0 = opaque, 100 = totalement transparent. 70-80 % recommande pour voir les bougies derriere.")
 uiDetailed = input.bool(false, "Mode detaille (afficher Wyckoff, Volume, ATR, VWAP, BOS, Liquidite...)", group=grpUI, tooltip="OFF : seul le panneau principal essentiel est affiche. ON : ajoute le panneau de details et le Market Structure. Ignore (masque) en mode Mobile.")
@@ -438,9 +439,11 @@ uiShowDetail = uiDetailed and not uiIsMobile
 uiTxtSize = uiIsMobile ? size.tiny : uiDevice == "Auto" ? size.auto : uiSize == "Compact" ? size.tiny : uiSize == "Large" ? size.large : size.normal
 uiCellBg = color.new(color.black, uiTransp)
 uiPosition = f_uiPos(uiPos)
-// Panneau principal (essentiels + TP integres) puis panneau de details.
+uiDetailPosition = f_uiPos(uiDetailPos)
+// Panneau principal (toujours visible) et panneau de details, chacun dans SON
+// coin -> ils ne se chevauchent jamais et le principal reste toujours affiche.
 var table mainPanel = table.new(uiPosition, 2, 10, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 50))
-var table detailPanel = table.new(uiPosition, 2, 15, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
+var table detailPanel = table.new(uiDetailPosition, 2, 15, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
 msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right

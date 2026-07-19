@@ -479,7 +479,7 @@ var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, bor
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
 msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
-var table msPanel = table.new(msPanelPosition, 2, 9, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
+var table msPanel = table.new(msPanelPosition, 2, 10, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
 // NB : le remplissage du panneau Market Structure est place tout en bas du script
 // (section "PANNEAU MARKET STRUCTURE"), car il lit des variables (Wyckoff, SMC,
 // Volume, HTF) calculees plus loin. La table est juste declaree ici.
@@ -1664,6 +1664,8 @@ if barstate.islast and msShowPanel and uiShowDetail
     table.cell(msPanel, 1, 7, wyPhase, text_color=msWyCol, text_size=uiTxtSize)
     table.cell(msPanel, 0, 8, "Volume", text_color=color.silver, text_size=uiTxtSize)
     table.cell(msPanel, 1, 8, pfVolDataOK ? str.tostring(pfVolRatio, "#.##") + "x" : "n/a", text_color=pfVolDataOK and pfVolRatio >= 1 ? color.rgb(46, 204, 113) : pfVolDataOK and pfVolRatio < pfVolFakeMult ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
+    table.cell(msPanel, 0, 9, "RSI", text_color=color.silver, text_size=uiTxtSize)
+    table.cell(msPanel, 1, 9, str.tostring(rsiVal, "#.#") + (rsiVal <= oscOversold ? " (survente)" : rsiVal >= oscOverbought ? " (surachat)" : ""), text_color=rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : color.silver, text_size=uiTxtSize)
 
 
 // ================= ALERTS =================

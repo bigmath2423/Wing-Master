@@ -469,13 +469,21 @@ uiExpert = uiViewMode == "Expert" and not uiIsMobile
 uiShowDetail = uiExpert
 // Taille de police : Mobile force le plus petit, Auto = adaptatif, sinon le choix.
 uiTxtSize = uiIsMobile ? size.tiny : uiDevice == "Auto" ? size.auto : uiSize == "Compact" ? size.tiny : uiSize == "Large" ? size.large : size.normal
-uiCellBg = color.new(color.black, uiTransp)
-// Couleurs d'en-tete "premium" (bleu nuit) et de fond alterne.
-uiHeadBg = color.new(color.rgb(20, 30, 55), math.max(0, uiTransp - 25))
+// ---- PALETTE PREMIUM (style terminal pro : fond ardoise, accents discrets) ----
+// Fond principal ardoise tres sombre (pas noir pur -> plus doux, plus "logiciel").
+uiCellBg = color.new(color.rgb(13, 18, 26), uiTransp)
+// En-tete : bandeau bleu nuit profond.
+uiHeadBg = color.new(color.rgb(18, 27, 44), math.max(0, uiTransp - 30))
+// Bandeau de section (separateur discret, legerement plus clair que le fond).
+uiSecBg = color.new(color.rgb(26, 35, 50), math.max(0, uiTransp - 35))
+// Libelles discrets (gris bleute) / valeurs (blanc casse) / accent or sobre.
+uiLblCol = color.rgb(140, 156, 173)
+uiValCol = color.rgb(233, 238, 244)
+uiAccent = color.rgb(212, 175, 96)
 uiPosition = f_uiPos(uiPos)
 uiDetailPosition = f_uiPos(uiDetailPos)
 // Panneau principal (toujours visible) + Confirmations, chacun dans SON coin.
-var table mainPanel = table.new(uiPosition, 2, 30, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
+var table mainPanel = table.new(uiPosition, 2, 40, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
 var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
@@ -1307,7 +1315,7 @@ var label pzBearLbl = na
 
 // Zone potentielle haussiere
 if pzBullDrawable
-    pzBullCol = f_pzGradeCol(pzBullFactors)
+    pzBullCol = pzBullFactors >= 8 ? color.rgb(0, 170, 75) : pzBullFactors >= 6 ? color.rgb(46, 204, 113) : color.rgb(120, 190, 130)
     pzBullTxt = "BUY ZONE  " + f_pzGrade(pzBullFactors) + "  " + str.tostring(pzBullFactors) + "/10"
     if na(pzBullBox)
         pzBullBox := box.new(bar_index, pzBullTop, bar_index + 1, pzBullBot, border_color=pzBullCol, border_style=line.style_solid, bgcolor=color.new(pzBullCol, 88), extend=extend.right)
@@ -1330,7 +1338,7 @@ else
 
 // Zone potentielle baissiere
 if pzBearDrawable
-    pzBearCol = f_pzGradeCol(pzBearFactors)
+    pzBearCol = pzBearFactors >= 8 ? color.rgb(200, 30, 30) : pzBearFactors >= 6 ? color.rgb(231, 76, 60) : color.rgb(210, 130, 120)
     pzBearTxt = "SELL ZONE  " + f_pzGrade(pzBearFactors) + "  " + str.tostring(pzBearFactors) + "/10"
     if na(pzBearBox)
         pzBearBox := box.new(bar_index, pzBearTop, bar_index + 1, pzBearBot, border_color=pzBearCol, border_style=line.style_solid, bgcolor=color.new(pzBearCol, 88), extend=extend.right)
@@ -1591,17 +1599,19 @@ if barstate.islast and uiShowMain
     gestTxt = not hasSig ? "aucun trade" : not tmActive ? "❌ Stop Loss touche" : tmT3Hit ? "🎯 Trade termine" : tmT2Hit ? "✅ TP2 atteint" : tmT1Hit ? "✅ TP1 · SL au Break Even" : "🟢 SL actif · en cours"
     gestCol = not hasSig ? color.gray : not tmActive ? color.rgb(231, 76, 60) : tmT1Hit or tmT2Hit or tmT3Hit ? color.rgb(46, 204, 113) : color.aqua
     manqueVal = deAPlusLevel - mainScore
-    // -- En-tete premium (commun) --
-    table.cell(mainPanel, 0, 0, "🎯 TRADE SIGNAL", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(mainPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=uiHeadBg, text_size=uiTxtSize)
-    table.cell(mainPanel, 0, 1, "Sens", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(mainPanel, 1, 1, dirTxt, text_color=dirCol, text_size=uiTxtSize)
-    table.cell(mainPanel, 0, 2, "Score", text_color=color.silver, text_size=uiTxtSize)
-    table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 80), text_size=uiTxtSize)
     htfTxt = htfClose > htfEma ? "Bullish" : "Bearish"
     htfCol = htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
     rsiTxt = str.tostring(rsiVal, "#.#") + (rsiVal <= oscOversold ? " (survente)" : rsiVal >= oscOverbought ? " (surachat)" : "")
-    rsiCol = rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : color.silver
+    rsiCol = rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : uiValCol
+    // Contexte additionnel (valeurs) -- lecture de variables deja calculees
+    sessTxt = pfInKz ? "Kill Zone" : (pfInLdn and pfInNy) ? "Londres + NY" : pfInLdn ? "Londres" : pfInNy ? "New York" : "Hors session"
+    sessCol = pfInKz ? uiAccent : (pfInLdn or pfInNy) ? color.rgb(46, 204, 113) : color.gray
+    atrTxt = na(leAtr) ? "—" : f_px(leAtr) + "  (" + f_pips(leAtr) + "p)"
+    vwapValTxt = na(pfVwap) ? "—" : f_px(pfVwap) + (close > pfVwap ? "  ▲" : "  ▼")
+    vwapValCol = na(pfVwap) ? color.gray : close > pfVwap ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+    rrTxt = not hasSig ? "—" : f_rr(tmT1 - tmEntry, tmRisk) + " / " + f_rr(tmT2 - tmEntry, tmRisk) + " / " + f_rr(tmT3 - tmEntry, tmRisk)
+    pdValTxt = smcInDiscount ? "Discount" : smcInPremium ? "Premium" : "Equilibre"
+    pdValCol = smcInDiscount ? color.rgb(46, 204, 113) : smcInPremium ? color.rgb(231, 76, 60) : color.gray
     // Confirmations (lecture de booleens deja calcules, cote en tete)
     ckSweepOk = mainIsBuy ? deBullSweepRecent : deBearSweepRecent
     ckBosOk = mainIsBuy ? deBullStructRecent : deBearStructRecent
@@ -1614,76 +1624,105 @@ if barstate.islast and uiShowMain
     ckHtfOk = mainIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
     ckPdOk = mainIsBuy ? smcInDiscount : smcInPremium
     ckVolOk = mainIsBuy ? pfBullVolOK : pfBearVolOK
+    // -- En-tete premium (commun) --
+    table.cell(mainPanel, 0, 0, "🎯  TRADE SIGNAL", text_color=uiValCol, bgcolor=uiHeadBg, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 0, f_tfLabel(), text_color=uiAccent, bgcolor=uiHeadBg, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 1, "Sens", text_color=uiLblCol, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 1, dirTxt, text_color=dirCol, text_size=uiTxtSize)
+    table.cell(mainPanel, 0, 2, "Score", text_color=uiLblCol, text_size=uiTxtSize)
+    table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 82), text_size=uiTxtSize)
     if uiExpert
-        table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 4, "Statut", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 4, f_statut(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 5, "Confiance", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 5, f_conf(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 6, "Trend", text_color=color.silver, text_size=uiTxtSize)
+        // ---------- SIGNAL ----------
+        table.cell(mainPanel, 0, 3, "Confiance", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 3, f_conf(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 4, "Probabilite", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 4, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 5, "Statut", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 5, f_statut(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 6, "Trend", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 6, structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral", text_color=structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 7, "HTF " + htfTimeframe, text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 7, htfTxt, text_color=htfCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 8, "RSI", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 8, rsiTxt, text_color=rsiCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 9, "Entry", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 9, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 10, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 10, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 11, "TP1", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 11, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 12, "TP2", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 12, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 13, "TP Final", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 13, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 14, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
+        // ---------- NIVEAUX ----------
+        table.cell(mainPanel, 0, 7, "NIVEAUX", text_color=uiAccent, bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 7, "", bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 8, "Entry", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 8, hasSig ? f_px(tmEntry) : "—", text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 9, "Stop Loss", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 9, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 10, "TP1", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 10, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 11, "TP2", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 11, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 12, "TP Final", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 12, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 13, "Risk : Reward", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 13, rrTxt, text_color=color.aqua, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 14, "📊 Etat", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 14, gestTxt, text_color=gestCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 15, "Mode TP", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 15, tpMode, text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 16, "Min requis", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 16, str.tostring(deAPlusLevel), text_color=color.orange, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 17, "Ecart", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 17, manqueVal <= 0 ? "valide (+" + str.tostring(-manqueVal) + " pts)" : "il manque " + str.tostring(manqueVal) + " pts", text_color=manqueVal <= 0 ? color.rgb(46, 204, 113) : color.orange, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 18, "✅ CONFIRMATIONS", text_color=color.white, bgcolor=uiHeadBg, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 18, mainIsBuy ? "BUY" : "SELL", text_color=mainIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=uiHeadBg, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 19, "Sweep", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 19, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 20, "BOS", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 20, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 21, "CHoCH", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 21, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 22, "Order Block", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 22, f_ok(ckObOk), text_color=f_okCol(ckObOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 23, "Fair Value Gap", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 23, f_ok(ckFvgOk), text_color=f_okCol(ckFvgOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 24, "VWAP", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 24, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 25, "Wyckoff", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 25, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 26, "Fibonacci", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 26, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 27, mainIsBuy ? "Discount" : "Premium", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 27, f_ok(ckPdOk), text_color=f_okCol(ckPdOk), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 28, "Volume", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 28, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
+        // ---------- CONTEXTE ----------
+        table.cell(mainPanel, 0, 15, "CONTEXTE", text_color=uiAccent, bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 15, "", bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 16, "HTF Bias " + htfTimeframe, text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 16, htfTxt, text_color=htfCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 17, "VWAP", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 17, vwapValTxt, text_color=vwapValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 18, "ATR", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 18, atrTxt, text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 19, "Session", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 19, sessTxt, text_color=sessCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 20, "RSI", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 20, rsiTxt, text_color=rsiCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 21, "Premium / Discount", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 21, pdValTxt, text_color=pdValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 22, "Mode TP", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 22, tpMode, text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 23, "Min requis", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 23, str.tostring(deAPlusLevel), text_color=uiAccent, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 24, "Ecart", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 24, manqueVal <= 0 ? "valide (+" + str.tostring(-manqueVal) + " pts)" : "il manque " + str.tostring(manqueVal) + " pts", text_color=manqueVal <= 0 ? color.rgb(46, 204, 113) : uiAccent, text_size=uiTxtSize)
+        // ---------- CONFIRMATIONS ----------
+        table.cell(mainPanel, 0, 25, "✅ CONFIRMATIONS", text_color=uiValCol, bgcolor=uiHeadBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 25, mainIsBuy ? "BUY" : "SELL", text_color=mainIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=uiHeadBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 26, "Liquidite (Sweep)", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 26, f_ok(ckSweepOk), text_color=f_okCol(ckSweepOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 27, "BOS", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 27, f_ok(ckBosOk), text_color=f_okCol(ckBosOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 28, "CHoCH", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 28, f_ok(ckChochOk), text_color=f_okCol(ckChochOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 29, "Order Block", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 29, f_ok(ckObOk), text_color=f_okCol(ckObOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 30, "Fair Value Gap", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 30, f_ok(ckFvgOk), text_color=f_okCol(ckFvgOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 31, "Wyckoff", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 31, f_ok(ckWyOk), text_color=f_okCol(ckWyOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 32, "HTF", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 32, f_ok(ckHtfOk), text_color=f_okCol(ckHtfOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 33, "VWAP", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 33, f_ok(ckVwapOk), text_color=f_okCol(ckVwapOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 34, "Volume", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 34, f_ok(ckVolOk), text_color=f_okCol(ckVolOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 35, "Fibonacci", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 35, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 36, mainIsBuy ? "Discount" : "Premium", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 36, f_ok(ckPdOk), text_color=f_okCol(ckPdOk), text_size=uiTxtSize)
     else
-        table.cell(mainPanel, 0, 3, "Probabilite", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 3, "Probabilite", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 4, "HTF " + htfTimeframe, text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 4, "HTF Bias " + htfTimeframe, text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 4, htfTxt, text_color=htfCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 5, "Entry", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 5, hasSig ? f_px(tmEntry) : "—", text_color=color.white, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 6, "Stop Loss", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 5, "Entry", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 5, hasSig ? f_px(tmEntry) : "—", text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 6, "Stop Loss", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 6, hasSig ? f_px(tmSL) : "—", text_color=color.rgb(231, 76, 60), text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 7, "TP1", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 7, "TP1", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 7, tp1Txt, text_color=tp1Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 8, "TP2", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 8, "TP2", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 8, tp2Txt, text_color=tp2Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 9, "TP Final", text_color=color.silver, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 9, "TP Final", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 9, tp3Txt, text_color=tp3Col, text_size=uiTxtSize)
-        table.cell(mainPanel, 0, 10, "📊 Etat", text_color=color.silver, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 10, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 10, "Risk : Reward", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 10, rrTxt, text_color=color.aqua, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 11, "📊 Etat", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 11, gestTxt, text_color=gestCol, text_size=uiTxtSize)
 
 // Les anciens panneaux Confirmations et Market Structure sont maintenant FUSIONNES
 // dans le panneau principal (section "PANNEAU PRINCIPAL", mode Expert) : tout est
@@ -1754,6 +1793,7 @@ type PZone
     int   createTime
     bool  isBuy
     bool  active
+    bool  touched
     box   bx
     label lb
 
@@ -1766,11 +1806,15 @@ f_pzoGrade(int s) => s >= 94 ? "A+" : s >= 84 ? "A" : s >= 74 ? "B" : s >= 62 ? 
 f_pzoBuyCol(int s)  => s >= 94 ? color.rgb(0, 170, 75) : s >= 84 ? color.rgb(46, 204, 113) : s >= 74 ? color.rgb(120, 190, 130) : color.rgb(165, 205, 175)
 f_pzoSellCol(int s) => s >= 94 ? color.rgb(200, 30, 30) : s >= 84 ? color.rgb(231, 76, 60) : s >= 74 ? color.rgb(210, 130, 120) : color.rgb(220, 175, 170)
 f_pzoTransp(int s)  => int(math.max(62, 88 - (s - 60) * 0.55))   // score eleve -> plus opaque (plus visible)
+f_pzoQual(int s)    => s >= 94 ? "Institutional" : s >= 84 ? "Elevee" : s >= 74 ? "Moyenne" : "Basse"
+// Largeur de zone RESSERREE selon la confluence : plus il y a de facteurs (0..10),
+// plus la zone est etroite -> le veritable point d'entree institutionnel.
+f_pzoWidth(int factors) => leAtr * math.max(0.10, 0.55 - 0.045 * factors)
 
 f_pzoLabel(PZone z) =>
-    string emo = z.active ? "🟡 " : (z.isBuy ? "🟢 " : "🔴 ")
+    string emo = z.isBuy ? "🟢 " : "🔴 "
     string typ = z.isBuy ? "BUY LIMIT" : "SELL LIMIT"
-    emo + typ + "  " + f_pzoGrade(z.score) + "  " + str.tostring(z.score) + "/100" + (z.active ? "  · ACTIVE" : "")
+    emo + typ + "  " + f_pzoGrade(z.score) + "  " + str.tostring(z.score) + "/100" + (z.active ? "  • ACTIVE" : "")
 
 // Cree la boite + le label d'une zone (appele une seule fois a la creation)
 f_pzoAttach(PZone z) =>
@@ -1780,6 +1824,39 @@ f_pzoAttach(PZone z) =>
     z.lb := label.new(bar_index, z.isBuy ? z.top : z.bot, f_pzoLabel(z), style=z.isBuy ? label.style_label_down : label.style_label_up, color=color.new(col, 10), textcolor=color.white, size=size.tiny)
 
 f_pzoPos(string s) => s == "Haut gauche" ? position.top_left : s == "Haut droite" ? position.top_right : s == "Bas droite" ? position.bottom_right : s == "Bas gauche" ? position.bottom_left : position.middle_right
+
+// Remplit une colonne du tableau des zones (desktop = complet, mobile = compact).
+f_pzoFillCol(table t, int col, PZone z, bool mob) =>
+    color zc = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
+    int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
+    string etat = z.active ? "🟢 Active" : z.touched ? "Touchee" : "En attente"
+    color etatC = z.active ? color.rgb(46, 204, 113) : z.touched ? color.silver : color.gray
+    color slC = color.rgb(231, 76, 60)
+    color tpC = color.rgb(46, 204, 113)
+    string dist = f_pips(math.abs(close - z.entry)) + " p"
+    if mob
+        table.cell(t, col, 0, z.isBuy ? "🟢 BUY" : "🔴 SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+        table.cell(t, col, 1, str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 2, f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 3, f_px(z.entry), text_color=color.white, text_size=size.tiny)
+        table.cell(t, col, 4, f_px(z.sl), text_color=slC, text_size=size.tiny)
+        table.cell(t, col, 5, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 6, etat, text_color=etatC, text_size=size.tiny)
+        table.cell(t, col, 7, str.tostring(rem) + " b", text_color=color.silver, text_size=size.tiny)
+    else
+        table.cell(t, col, 0, z.isBuy ? "🟢 BUY" : "🔴 SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+        table.cell(t, col, 1, str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 2, f_pzoGrade(z.score) + " · " + f_pzoQual(z.score), text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 3, f_px(z.entry), text_color=color.white, text_size=size.tiny)
+        table.cell(t, col, 4, f_px(z.bot) + " - " + f_px(z.top), text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 5, dist, text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 6, f_px(z.sl), text_color=slC, text_size=size.tiny)
+        table.cell(t, col, 7, f_px(z.tp1), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 8, f_px(z.tp2), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 9, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 10, etat, text_color=etatC, text_size=size.tiny)
+        table.cell(t, col, 11, str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 12, str.tostring(rem) + " b", text_color=color.silver, text_size=size.tiny)
 
 // ================= ANALYSE MULTI-TIMEFRAME PONDEREE =================
 // Lecture NON intrusive de tendances superieures (nouvelles requetes, sans
@@ -1839,37 +1916,43 @@ if pzoOn and array.size(pzoBuy) > 0
     for i = array.size(pzoBuy) - 1 to 0
         z = array.get(pzoBuy, i)
         bool expired   = bar_index - z.createBar > pzoMaxAgeBars
-        bool traversed = close < z.bot
+        bool traversed = close < z.sl
         if expired or traversed
             box.delete(z.bx)
             label.delete(z.lb)
             array.remove(pzoBuy, i)
         else
             z.active := low <= z.top and high >= z.bot
+            if z.active
+                z.touched := true
             color col = f_pzoBuyCol(z.score)
             box.set_right(z.bx, bar_index + 1)
-            box.set_border_color(z.bx, z.active ? color.rgb(241, 196, 15) : col)
+            box.set_border_color(z.bx, col)
+            box.set_border_width(z.bx, z.active ? 3 : 2)
             label.set_xy(z.lb, bar_index, z.top)
             label.set_text(z.lb, f_pzoLabel(z))
-            label.set_color(z.lb, color.new(z.active ? color.rgb(241, 196, 15) : col, 10))
+            label.set_color(z.lb, color.new(col, 10))
 
 if pzoOn and array.size(pzoSell) > 0
     for i = array.size(pzoSell) - 1 to 0
         z = array.get(pzoSell, i)
         bool expired   = bar_index - z.createBar > pzoMaxAgeBars
-        bool traversed = close > z.top
+        bool traversed = close > z.sl
         if expired or traversed
             box.delete(z.bx)
             label.delete(z.lb)
             array.remove(pzoSell, i)
         else
             z.active := low <= z.top and high >= z.bot
+            if z.active
+                z.touched := true
             color col = f_pzoSellCol(z.score)
             box.set_right(z.bx, bar_index + 1)
-            box.set_border_color(z.bx, z.active ? color.rgb(241, 196, 15) : col)
+            box.set_border_color(z.bx, col)
+            box.set_border_width(z.bx, z.active ? 3 : 2)
             label.set_xy(z.lb, bar_index, z.bot)
             label.set_text(z.lb, f_pzoLabel(z))
-            label.set_color(z.lb, color.new(z.active ? color.rgb(241, 196, 15) : col, 10))
+            label.set_color(z.lb, color.new(col, 10))
 
 // ================= CREATION DE NOUVELLES ZONES (avec dedup + priorite score) =================
 if pzoBuyCand
@@ -1881,10 +1964,11 @@ if pzoBuyCand
             if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
                 dup := true
     if not dup
+        float drawBot = math.max(pzoBuyBot, pzoBuyTop - f_pzoWidth(pzBullFactors))
         float entry = pzoBuyTop
         float sl    = pzoBuyBot - leAtr * pzoSlAtr
         float risk  = entry - sl
-        PZone nz = PZone.new(pzoBuyTop, pzoBuyBot, entry, sl, entry + risk * pzoTp1R, entry + risk * pzoTp2R, entry + risk * pzoTp3R, pzoBuyScore, bar_index, time, true, false, na, na)
+        PZone nz = PZone.new(pzoBuyTop, drawBot, entry, sl, entry + risk * pzoTp1R, entry + risk * pzoTp2R, entry + risk * pzoTp3R, pzoBuyScore, bar_index, time, true, false, false, na, na)
         if array.size(pzoBuy) < pzoMaxPerSide
             f_pzoAttach(nz)
             array.push(pzoBuy, nz)
@@ -1913,10 +1997,11 @@ if pzoSellCand
             if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
                 dup := true
     if not dup
+        float drawTop = math.min(pzoSellTop, pzoSellBot + f_pzoWidth(pzBearFactors))
         float entry = pzoSellBot
         float sl    = pzoSellTop + leAtr * pzoSlAtr
         float risk  = sl - entry
-        PZone nz = PZone.new(pzoSellTop, pzoSellBot, entry, sl, entry - risk * pzoTp1R, entry - risk * pzoTp2R, entry - risk * pzoTp3R, pzoSellScore, bar_index, time, false, false, na, na)
+        PZone nz = PZone.new(drawTop, pzoSellBot, entry, sl, entry - risk * pzoTp1R, entry - risk * pzoTp2R, entry - risk * pzoTp3R, pzoSellScore, bar_index, time, false, false, false, na, na)
         if array.size(pzoSell) < pzoMaxPerSide
             f_pzoAttach(nz)
             array.push(pzoSell, nz)
@@ -1937,59 +2022,49 @@ if pzoSellCand
                 array.push(pzoSell, nz)
 
 // ================= TABLEAU RECAPITULATIF DES ZONES =================
+// Design premium sombre. Desktop = tableau complet ; Mobile = version compacte
+// (moins de lignes, infos essentielles). Aucune couleur jaune : vert = buy,
+// rouge = sell, l'etat "Active" s'affiche en vert (jamais en rectangle jaune).
 if barstate.islast
     if not na(pzoTbl)
         table.delete(pzoTbl)
         pzoTbl := na
     int nZones = array.size(pzoBuy) + array.size(pzoSell)
     if pzoOn and nZones > 0
-        color hdBg = color.new(color.rgb(14, 32, 51), 0)
-        pzoTbl := table.new(f_pzoPos(pzoTblPos), 1 + nZones, 11, bgcolor=color.new(color.rgb(20, 26, 33), 8), border_width=1, border_color=color.new(color.gray, 60), frame_width=1, frame_color=color.new(color.gray, 40))
-        // Colonne des libelles
-        table.cell(pzoTbl, 0, 0,  "🎯 ZONES", text_color=color.rgb(230, 193, 90), text_size=size.small, bgcolor=hdBg)
-        table.cell(pzoTbl, 0, 1,  "Score",      text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 2,  "Qualite",    text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 3,  "Prix ideal", text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 4,  "Zone",       text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 5,  "Stop Loss",  text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 6,  "TP1",        text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 7,  "TP2",        text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 8,  "TP Final",   text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 9,  "Cree le",    text_color=color.silver, text_size=size.tiny)
-        table.cell(pzoTbl, 0, 10, "Validite",   text_color=color.silver, text_size=size.tiny)
-        // Colonnes des zones : Buy d'abord, puis Sell
+        bool mob = uiIsMobile
+        int nRows = mob ? 8 : 13
+        color hdBg = color.new(color.rgb(18, 27, 44), 0)
+        color lblC = color.rgb(140, 156, 173)
+        pzoTbl := table.new(f_pzoPos(pzoTblPos), 1 + nZones, nRows, bgcolor=color.new(color.rgb(13, 18, 26), 6), border_width=1, border_color=color.new(color.rgb(70, 84, 102), 55), frame_width=1, frame_color=color.new(color.rgb(70, 84, 102), 40))
+        table.cell(pzoTbl, 0, 0, "◆ ZONES", text_color=uiAccent, text_size=size.small, bgcolor=hdBg)
+        if mob
+            table.cell(pzoTbl, 0, 1, "Score",      text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 2, "Qualite",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 3, "Prix ideal", text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 4, "Stop Loss",  text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 5, "TP Final",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 6, "Etat",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 7, "Restant",    text_color=lblC, text_size=size.tiny)
+        else
+            table.cell(pzoTbl, 0, 1,  "Score",      text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 2,  "Qualite",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 3,  "Prix ideal", text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 4,  "Zone",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 5,  "Distance",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 6,  "Stop Loss",  text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 7,  "TP1",        text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 8,  "TP2",        text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 9,  "TP Final",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 10, "Etat",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 11, "Cree le",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 12, "Restant",    text_color=lblC, text_size=size.tiny)
+        // Colonnes des zones : Buy d'abord (meilleur score en tete via priorite), puis Sell
         int c = 1
         if array.size(pzoBuy) > 0
             for i = 0 to array.size(pzoBuy) - 1
-                z = array.get(pzoBuy, i)
-                color zc = f_pzoBuyCol(z.score)
-                int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
-                table.cell(pzoTbl, c, 0,  (z.active ? "🟡 " : "🟢 ") + "BUY", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
-                table.cell(pzoTbl, c, 1,  str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
-                table.cell(pzoTbl, c, 2,  f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
-                table.cell(pzoTbl, c, 3,  f_px(z.entry), text_color=color.white, text_size=size.tiny)
-                table.cell(pzoTbl, c, 4,  f_px(z.bot) + "-" + f_px(z.top), text_color=color.silver, text_size=size.tiny)
-                table.cell(pzoTbl, c, 5,  f_px(z.sl), text_color=color.rgb(231, 76, 60), text_size=size.tiny)
-                table.cell(pzoTbl, c, 6,  f_px(z.tp1), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 7,  f_px(z.tp2), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 8,  f_px(z.tp3), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 9,  str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
-                table.cell(pzoTbl, c, 10, z.active ? "🟡 ACTIVE" : (str.tostring(rem) + " b"), text_color=z.active ? color.rgb(241, 196, 15) : color.silver, text_size=size.tiny)
+                f_pzoFillCol(pzoTbl, c, array.get(pzoBuy, i), mob)
                 c += 1
         if array.size(pzoSell) > 0
             for i = 0 to array.size(pzoSell) - 1
-                z = array.get(pzoSell, i)
-                color zc = f_pzoSellCol(z.score)
-                int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
-                table.cell(pzoTbl, c, 0,  (z.active ? "🟡 " : "🔴 ") + "SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
-                table.cell(pzoTbl, c, 1,  str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
-                table.cell(pzoTbl, c, 2,  f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
-                table.cell(pzoTbl, c, 3,  f_px(z.entry), text_color=color.white, text_size=size.tiny)
-                table.cell(pzoTbl, c, 4,  f_px(z.bot) + "-" + f_px(z.top), text_color=color.silver, text_size=size.tiny)
-                table.cell(pzoTbl, c, 5,  f_px(z.sl), text_color=color.rgb(231, 76, 60), text_size=size.tiny)
-                table.cell(pzoTbl, c, 6,  f_px(z.tp1), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 7,  f_px(z.tp2), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 8,  f_px(z.tp3), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
-                table.cell(pzoTbl, c, 9,  str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
-                table.cell(pzoTbl, c, 10, z.active ? "🟡 ACTIVE" : (str.tostring(rem) + " b"), text_color=z.active ? color.rgb(241, 196, 15) : color.silver, text_size=size.tiny)
+                f_pzoFillCol(pzoTbl, c, array.get(pzoSell, i), mob)
                 c += 1

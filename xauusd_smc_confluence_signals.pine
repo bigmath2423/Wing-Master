@@ -1770,14 +1770,19 @@ pzoOn        = input.bool(true,  "Activer le moteur de zones predictives", group
 pzoMinScore  = input.int(84,     "Score minimum d'une zone (A+/A)", minval=50, maxval=99, group=grpPZO)
 pzoShowBC    = input.bool(false, "Afficher aussi les zones B / C", group=grpPZO)
 pzoMaxPerSide= input.int(2,      "Nombre max de zones par sens", minval=1, maxval=2, group=grpPZO)
-pzoMaxAgeBars= input.int(500,    "Duree de validite max (barres)", minval=50, group=grpPZO)
+pzoValidDays = input.float(3.0,  "Duree de validite (jours)", minval=0.5, step=0.5, group=grpPZO)
 pzoDedupAtr  = input.float(1.0,  "Distance min entre 2 zones (x ATR)", minval=0.2, step=0.1, group=grpPZO)
 pzoSlAtr     = input.float(0.5,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpPZO)
 pzoTp1R      = input.float(1.5,  "TP1 (x risque)", minval=0.5, step=0.1, group=grpPZO)
 pzoTp2R      = input.float(3.0,  "TP2 (x risque)", minval=1.0, step=0.1, group=grpPZO)
 pzoTp3R      = input.float(5.0,  "TP Final (x risque)", minval=1.0, step=0.1, group=grpPZO)
 pzoEmaLen    = input.int(50,     "EMA de reference multi-timeframe", minval=10, group=grpPZO)
+pzoShowCard  = input.bool(true,  "Afficher la fiche detaillee sur chaque zone", group=grpPZO)
+pzoShowTable = input.bool(true,  "Afficher le tableau recapitulatif des zones", group=grpPZO)
 pzoTblPos    = input.string("Milieu droite", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO)
+// Duree de validite convertie en millisecondes (expiration basee sur le temps,
+// donc identique quel que soit le timeframe).
+pzoValidMs = pzoValidDays * 86400000.0
 
 // ---- Structure d'une zone predictive ----
 type PZone
@@ -1811,26 +1816,40 @@ f_pzoQual(int s)    => s >= 94 ? "Institutional" : s >= 84 ? "Elevee" : s >= 74 
 // plus la zone est etroite -> le veritable point d'entree institutionnel.
 f_pzoWidth(int factors) => leAtr * math.max(0.10, 0.55 - 0.045 * factors)
 
-f_pzoLabel(PZone z) =>
+// Etat lisible d'une zone (statut).
+f_pzoEtat(PZone z) => z.active ? "ZONE ACTIVE" : z.touched ? "TOUCHEE" : "EN ATTENTE"
+
+// Fiche detaillee (multi-lignes) affichee a cote de la zone (style maquette).
+f_pzoCard(PZone z) =>
+    string t = (z.isBuy ? "🟢 BUY LIMIT ZONE" : "🔴 SELL LIMIT ZONE")
+    t + "\n" + "Score : " + str.tostring(z.score) + "/100   " + f_pzoGrade(z.score) + " (" + f_pzoQual(z.score) + ")" + "\n" + "Entree : " + f_px(z.entry) + "\n" + "Zone : " + f_px(z.bot) + " - " + f_px(z.top) + "\n" + "SL : " + f_px(z.sl) + "\n" + "TP1 : " + f_px(z.tp1) + "\n" + "TP2 : " + f_px(z.tp2) + "\n" + "TP Final : " + f_px(z.tp3) + "\n" + "Creee : " + str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone) + "\n" + "Valable : " + str.tostring(pzoValidDays, "#.#") + " j" + "\n" + "● " + f_pzoEtat(z)
+
+// Libelle court (si la fiche detaillee est desactivee).
+f_pzoLabelShort(PZone z) =>
     string emo = z.isBuy ? "🟢 " : "🔴 "
     string typ = z.isBuy ? "BUY LIMIT" : "SELL LIMIT"
     emo + typ + "  " + f_pzoGrade(z.score) + "  " + str.tostring(z.score) + "/100" + (z.active ? "  • ACTIVE" : "")
 
-// Cree la boite + le label d'une zone (appele une seule fois a la creation)
+f_pzoLabel(PZone z) => pzoShowCard ? f_pzoCard(z) : f_pzoLabelShort(z)
+
+// Cree la boite + la fiche d'une zone (appele une seule fois a la creation).
+// La boite = zone verte/rouge resserree ; la fiche flotte a droite, au niveau de
+// la zone (fond sombre, texte clair) -> lisible et discret, style terminal pro.
 f_pzoAttach(PZone z) =>
     color col = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
     int   tp  = f_pzoTransp(z.score)
     z.bx := box.new(z.createBar, z.top, bar_index + 1, z.bot, border_color=col, border_width=2, bgcolor=color.new(col, tp), extend=extend.right)
-    z.lb := label.new(bar_index, z.isBuy ? z.top : z.bot, f_pzoLabel(z), style=z.isBuy ? label.style_label_down : label.style_label_up, color=color.new(col, 10), textcolor=color.white, size=size.tiny)
+    z.lb := label.new(bar_index, (z.top + z.bot) / 2, f_pzoLabel(z), xloc=xloc.bar_index, style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=color.rgb(233, 238, 244), size=pzoShowCard ? size.small : size.tiny)
 
 f_pzoPos(string s) => s == "Haut gauche" ? position.top_left : s == "Haut droite" ? position.top_right : s == "Bas droite" ? position.bottom_right : s == "Bas gauche" ? position.bottom_left : position.middle_right
 
 // Remplit une colonne du tableau des zones (desktop = complet, mobile = compact).
 f_pzoFillCol(table t, int col, PZone z, bool mob) =>
     color zc = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
-    int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
-    string etat = z.active ? "🟢 Active" : z.touched ? "Touchee" : "En attente"
-    color etatC = z.active ? color.rgb(46, 204, 113) : z.touched ? color.silver : color.gray
+    float remD = math.max(0.0, (z.createTime + pzoValidMs - time) / 86400000.0)
+    string remTxt = str.tostring(remD, "#.#") + " j"
+    string etat = f_pzoEtat(z)
+    color etatC = z.active ? color.rgb(235, 160, 40) : z.touched ? color.silver : color.gray
     color slC = color.rgb(231, 76, 60)
     color tpC = color.rgb(46, 204, 113)
     string dist = f_pips(math.abs(close - z.entry)) + " p"
@@ -1842,7 +1861,7 @@ f_pzoFillCol(table t, int col, PZone z, bool mob) =>
         table.cell(t, col, 4, f_px(z.sl), text_color=slC, text_size=size.tiny)
         table.cell(t, col, 5, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
         table.cell(t, col, 6, etat, text_color=etatC, text_size=size.tiny)
-        table.cell(t, col, 7, str.tostring(rem) + " b", text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 7, remTxt, text_color=color.silver, text_size=size.tiny)
     else
         table.cell(t, col, 0, z.isBuy ? "🟢 BUY" : "🔴 SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
         table.cell(t, col, 1, str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
@@ -1856,7 +1875,7 @@ f_pzoFillCol(table t, int col, PZone z, bool mob) =>
         table.cell(t, col, 9, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
         table.cell(t, col, 10, etat, text_color=etatC, text_size=size.tiny)
         table.cell(t, col, 11, str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
-        table.cell(t, col, 12, str.tostring(rem) + " b", text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 12, remTxt, text_color=color.silver, text_size=size.tiny)
 
 // ================= ANALYSE MULTI-TIMEFRAME PONDEREE =================
 // Lecture NON intrusive de tendances superieures (nouvelles requetes, sans
@@ -1915,7 +1934,7 @@ if not pzoOn
 if pzoOn and array.size(pzoBuy) > 0
     for i = array.size(pzoBuy) - 1 to 0
         z = array.get(pzoBuy, i)
-        bool expired   = bar_index - z.createBar > pzoMaxAgeBars
+        bool expired   = time - z.createTime > pzoValidMs
         bool traversed = close < z.sl
         if expired or traversed
             box.delete(z.bx)
@@ -1929,14 +1948,13 @@ if pzoOn and array.size(pzoBuy) > 0
             box.set_right(z.bx, bar_index + 1)
             box.set_border_color(z.bx, col)
             box.set_border_width(z.bx, z.active ? 3 : 2)
-            label.set_xy(z.lb, bar_index, z.top)
+            label.set_xy(z.lb, bar_index, (z.top + z.bot) / 2)
             label.set_text(z.lb, f_pzoLabel(z))
-            label.set_color(z.lb, color.new(col, 10))
 
 if pzoOn and array.size(pzoSell) > 0
     for i = array.size(pzoSell) - 1 to 0
         z = array.get(pzoSell, i)
-        bool expired   = bar_index - z.createBar > pzoMaxAgeBars
+        bool expired   = time - z.createTime > pzoValidMs
         bool traversed = close > z.sl
         if expired or traversed
             box.delete(z.bx)
@@ -1950,9 +1968,8 @@ if pzoOn and array.size(pzoSell) > 0
             box.set_right(z.bx, bar_index + 1)
             box.set_border_color(z.bx, col)
             box.set_border_width(z.bx, z.active ? 3 : 2)
-            label.set_xy(z.lb, bar_index, z.bot)
+            label.set_xy(z.lb, bar_index, (z.top + z.bot) / 2)
             label.set_text(z.lb, f_pzoLabel(z))
-            label.set_color(z.lb, color.new(col, 10))
 
 // ================= CREATION DE NOUVELLES ZONES (avec dedup + priorite score) =================
 if pzoBuyCand
@@ -2030,7 +2047,7 @@ if barstate.islast
         table.delete(pzoTbl)
         pzoTbl := na
     int nZones = array.size(pzoBuy) + array.size(pzoSell)
-    if pzoOn and nZones > 0
+    if pzoOn and pzoShowTable and nZones > 0
         bool mob = uiIsMobile
         int nRows = mob ? 8 : 13
         color hdBg = color.new(color.rgb(18, 27, 44), 0)

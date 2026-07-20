@@ -1,0 +1,671 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<style>
+  :root{
+    --navy:#0e2033; --navy2:#16324e; --gold:#c99b3a; --gold2:#e6c15a;
+    --bull:#1f9d55; --bull2:#e7f6ee; --bear:#d64545; --bear2:#fbeaea;
+    --blue:#2b6fb0; --blue2:#e9f1fa; --ink:#1c2733; --muted:#5b6b7a;
+    --line:#e2e8ee; --paper:#ffffff; --soft:#f5f8fb; --amber:#e08a1e;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:var(--serif);color:var(--ink);font-size:11.2pt;line-height:1.6}
+  h1,h2,h3,h4,.san{font-family:var(--sans)}
+  p{margin:8px 0;text-align:justify}
+  .page{page-break-after:always;padding:4mm 2mm}
+  .nobreak{page-break-inside:avoid}
+  a{color:var(--blue);text-decoration:none}
+
+  /* ---------- COVER ---------- */
+  .cover{page-break-after:always;height:262mm;position:relative;color:#eef4f8;
+    background:radial-gradient(120% 80% at 80% 0%,#1c4a6e 0,transparent 60%),linear-gradient(160deg,#0a1826,#173a52 40%,#0a1826);
+    background-color:#0b1a2b;padding:26mm 22mm;overflow:hidden}
+  .cover::after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px)}
+  .cover>*{position:relative;z-index:2}
+  .cv-kick{font-family:var(--sans);letter-spacing:.32em;text-transform:uppercase;color:var(--gold2);font-weight:700;font-size:12pt}
+  .cv-logo{font-size:46pt;margin:8mm 0 4mm}
+  .cv-title{font-family:var(--sans);font-weight:800;font-size:40pt;line-height:1.02;color:#fff;letter-spacing:-.01em}
+  .cv-title .g{color:var(--gold2)}
+  .cv-sub{font-family:var(--sans);font-size:15pt;color:#9fd0b4;margin-top:8mm;font-weight:600;max-width:150mm}
+  .cv-line{width:70mm;height:3px;background:linear-gradient(90deg,var(--gold),transparent);margin:10mm 0}
+  .cv-desc{color:#a9bccb;font-size:11pt;max-width:135mm}
+  .cv-foot{position:absolute;bottom:22mm;left:22mm;right:22mm;font-family:var(--sans);
+    color:#8ea3b4;font-size:10pt;border-top:1px solid rgba(255,255,255,.15);padding-top:6mm;display:flex;justify-content:space-between}
+  .cv-badges{margin-top:9mm;display:flex;gap:8px;flex-wrap:wrap}
+  .cv-badge{font-family:var(--sans);font-size:9.5pt;color:#dfe9f0;border:1px solid rgba(230,193,90,.5);
+    padding:4px 12px;border-radius:20px}
+  .cv-emblem{position:absolute;right:-20mm;bottom:-20mm;width:130mm;height:130mm;border-radius:50%;
+    border:1px solid rgba(230,193,90,.18);z-index:1}
+  .cv-emblem2{position:absolute;right:-6mm;bottom:-6mm;width:90mm;height:90mm;border-radius:50%;
+    border:1px solid rgba(230,193,90,.12);z-index:1}
+
+  /* ---------- TABLE OF CONTENTS ---------- */
+  .toc-h{font-family:var(--sans);font-size:24pt;color:var(--navy);font-weight:800;margin-bottom:2mm}
+  .toc-rule{height:3px;width:40mm;background:var(--gold);margin-bottom:8mm}
+  .toc li{list-style:none;display:flex;align-items:baseline;gap:8px;margin:7px 0;font-family:var(--sans);font-size:12pt}
+  .toc .n{color:var(--gold);font-weight:800;width:26px}
+  .toc .t{color:var(--ink);font-weight:600}
+  .toc .d{flex:1;border-bottom:1px dotted #c7d2dc;transform:translateY(-3px)}
+
+  /* ---------- CHAPTER ---------- */
+  .chead{page-break-before:always;margin:0 0 6mm}
+  .chead .num{font-family:var(--sans);color:var(--gold);font-weight:800;letter-spacing:.2em;font-size:12pt;text-transform:uppercase}
+  .chead h2{font-family:var(--sans);font-size:26pt;color:var(--navy);font-weight:800;line-height:1.08;margin:2mm 0}
+  .chead .bar{height:4px;width:34mm;background:linear-gradient(90deg,var(--gold),var(--gold2));margin-top:3mm}
+  h3{font-family:var(--sans);font-size:15pt;color:var(--navy2);margin:9mm 0 2mm}
+  h4{font-family:var(--sans);font-size:12pt;color:var(--navy2);margin:5mm 0 1mm}
+
+  .lead{font-size:12.5pt;color:#33475b;font-style:italic;border-left:3px solid var(--gold);
+    padding:2mm 0 2mm 5mm;margin:4mm 0}
+
+  /* ---------- CALLOUT BOXES ---------- */
+  .box{border-radius:10px;padding:5mm 6mm;margin:5mm 0;page-break-inside:avoid;font-family:var(--sans);font-size:10.5pt}
+  .box .bh{font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:2mm;font-size:11pt}
+  .box p,.box li{font-family:var(--serif)}
+  .b-tip{background:var(--blue2);border:1px solid #bcd6ef}
+  .b-tip .bh{color:var(--blue)}
+  .b-err{background:var(--bear2);border:1px solid #f0c4c4}
+  .b-err .bh{color:var(--bear)}
+  .b-sum{background:#eef7f1;border:1px solid #c2e2cf}
+  .b-sum .bh{color:var(--bull)}
+  .b-chk{background:#fbf7ea;border:1px solid #ecdca6}
+  .b-chk .bh{color:var(--amber)}
+  .b-ex{background:var(--soft);border:1px solid var(--line)}
+  .b-ex .bh{color:var(--navy)}
+  .b-quote{background:var(--navy);color:#eaf2f8;border:0;font-style:italic;font-size:13pt;text-align:center;padding:7mm}
+  .b-quote .who{display:block;margin-top:3mm;font-size:9.5pt;color:var(--gold2);font-style:normal;letter-spacing:.1em;text-transform:uppercase}
+  ul.clean{list-style:none;margin:2mm 0}
+  ul.clean li{padding-left:22px;position:relative;margin:4px 0}
+  ul.clean li::before{content:"›";position:absolute;left:6px;color:var(--gold);font-weight:800}
+  ul.chk li::before{content:"☐";color:var(--amber);left:2px}
+
+  /* ---------- FIGURE ---------- */
+  figure{margin:6mm 0;page-break-inside:avoid;background:#fff;border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 8px 24px -18px rgba(20,40,60,.5);overflow:hidden}
+  figure .cap{font-family:var(--sans);font-size:9.5pt;color:var(--muted);padding:3mm 6mm 4mm;border-top:1px solid var(--line);background:var(--soft)}
+  figure .cap b{color:var(--navy)}
+  svg{display:block;width:100%;height:auto}
+  .figtitle{font-family:var(--sans);font-size:10pt;font-weight:700;color:var(--navy);padding:3mm 6mm 0}
+
+  /* ---------- TABLE ---------- */
+  table{width:100%;border-collapse:collapse;margin:5mm 0;font-family:var(--sans);font-size:10pt;page-break-inside:avoid}
+  th{background:var(--navy);color:#fff;text-align:left;padding:7px 10px;font-weight:600}
+  td{padding:6px 10px;border-bottom:1px solid var(--line)}
+  tr:nth-child(even) td{background:var(--soft)}
+  .pill{display:inline-block;padding:1px 9px;border-radius:20px;color:#fff;font-size:9pt;font-weight:700}
+  .p-ap{background:#0f8a4d}.p-a{background:#28a35f}.p-b{background:#d9a520;color:#3a2c00}.p-c{background:#d9812a}.p-x{background:#d64545}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+  .disc{font-family:var(--sans);font-size:9pt;color:var(--muted);background:#fff6ed;border:1px solid #f0d9bd;
+    border-radius:8px;padding:4mm 5mm;margin:5mm 0}
+</style></head>
+<body>
+
+<!-- ==================== COVER ==================== -->
+<div class="cover">
+  <div class="cv-emblem"></div><div class="cv-emblem2"></div>
+  <div class="cv-kick">Manuel de formation · Trading institutionnel</div>
+  <div class="cv-logo">🎯</div>
+  <div class="cv-title">La Méthode<br><span class="g">XAUUSD&nbsp;SMC</span></div>
+  <div class="cv-line"></div>
+  <div class="cv-sub">Lire le marché comme une institution — structure, liquidité et confluence</div>
+  <div class="cv-desc">Un manuel illustré pour comprendre, voir et reproduire une stratégie de confluence
+    Smart Money : structure de marché, Order Blocks, Fair Value Gaps, Wyckoff, Premium/Discount,
+    Fibonacci, VWAP, volume et gestion du risque — schémas dessinés à chaque concept.</div>
+  <div class="cv-badges">
+    <span class="cv-badge">Édition illustrée</span>
+    <span class="cv-badge">Smart Money Concepts</span>
+    <span class="cv-badge">XAU/USD</span>
+  </div>
+  <div class="cv-foot"><span>Manuel premium — édition 1.0</span><span>Le trading comporte un risque de perte en capital</span></div>
+</div>
+
+<!-- ==================== TOC ==================== -->
+<div class="page">
+  <div class="toc-h san">Sommaire</div>
+  <div class="toc-rule"></div>
+  <ul class="toc">
+    <li><span class="n">1</span><span class="t"><a href="#c1">La philosophie institutionnelle</a></span><span class="d"></span></li>
+    <li><span class="n">2</span><span class="t"><a href="#c2">La structure du marché</a></span><span class="d"></span></li>
+    <li><span class="n">3</span><span class="t"><a href="#c3">BOS &amp; CHoCH</a></span><span class="d"></span></li>
+    <li><span class="n">4</span><span class="t"><a href="#c4">Liquidité &amp; Sweep</a></span><span class="d"></span></li>
+    <li><span class="n">5</span><span class="t"><a href="#c5">Les Order Blocks</a></span><span class="d"></span></li>
+    <li><span class="n">6</span><span class="t"><a href="#c6">Les Fair Value Gaps</a></span><span class="d"></span></li>
+    <li><span class="n">7</span><span class="t"><a href="#c7">Premium &amp; Discount</a></span><span class="d"></span></li>
+    <li><span class="n">8</span><span class="t"><a href="#c8">Le Fibonacci (OTE)</a></span><span class="d"></span></li>
+    <li><span class="n">9</span><span class="t"><a href="#c9">Wyckoff</a></span><span class="d"></span></li>
+    <li><span class="n">10</span><span class="t"><a href="#c10">VWAP &amp; Volume</a></span><span class="d"></span></li>
+    <li><span class="n">11</span><span class="t"><a href="#c11">La logique complète (score /100)</a></span><span class="d"></span></li>
+    <li><span class="n">12</span><span class="t"><a href="#c12">Gestion du risque</a></span><span class="d"></span></li>
+    <li><span class="n">13</span><span class="t"><a href="#c13">Exemples : validé vs refusé</a></span><span class="d"></span></li>
+    <li><span class="n">14</span><span class="t"><a href="#c14">Plan de progression &amp; conclusion</a></span><span class="d"></span></li>
+  </ul>
+  <div class="disc"><b>Avertissement.</b> Ce manuel est un support pédagogique. Il ne constitue pas un conseil
+    en investissement ni une garantie de résultat. Le trading à effet de levier comporte un risque de perte en
+    capital pouvant dépasser le dépôt initial. Entraînez-vous en démonstration avant tout usage en réel.</div>
+</div>
+
+<!-- ==================== CH1 ==================== -->
+<div id="c1" class="page">
+  <div class="chead"><div class="num">Chapitre 1</div><h2>La philosophie institutionnelle</h2><div class="bar"></div></div>
+  <p class="lead">On ne trade jamais un signal isolé. On trade une histoire cohérente que plusieurs
+    éléments confirment au même endroit : la confluence.</p>
+  <p>La plupart des débutants cherchent <b>le</b> déclencheur — une flèche, un croisement. Les
+    professionnels cherchent un <b>contexte</b>. Cette méthode note huit familles de critères sur 100
+    et n'autorise un trade qu'après deux verrous non négociables : une <b>prise de liquidité</b>
+    (sweep) et une <b>confirmation de structure</b> (BOS/CHoCH).</p>
+
+  <figure class="nobreak">
+    <div class="figtitle">Le score de confluence — 8 familles, 100 points</div>
+    <svg viewBox="0 0 760 250">
+      <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#c99b3a"/><stop offset="1" stop-color="#e6c15a"/></linearGradient></defs>
+      <!-- bars -->
+      <g font-family="Segoe UI, sans-serif" font-size="13" fill="#1c2733">
+        <text x="20" y="30">Liquidité</text><rect x="150" y="18" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="18" width="360" height="16" rx="4" fill="url(#gg)"/><text x="525" y="31" fill="#c99b3a" font-weight="700">20</text>
+        <text x="20" y="58">Structure BOS/CHoCH</text><rect x="150" y="46" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="46" width="360" height="16" rx="4" fill="url(#gg)"/><text x="525" y="59" fill="#c99b3a" font-weight="700">20</text>
+        <text x="20" y="86">Order Block / FVG</text><rect x="150" y="74" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="74" width="270" height="16" rx="4" fill="url(#gg)"/><text x="525" y="87" fill="#c99b3a" font-weight="700">15</text>
+        <text x="20" y="114">Wyckoff</text><rect x="150" y="102" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="102" width="270" height="16" rx="4" fill="url(#gg)"/><text x="525" y="115" fill="#c99b3a" font-weight="700">15</text>
+        <text x="20" y="142">Tendance HTF</text><rect x="150" y="130" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="130" width="180" height="16" rx="4" fill="url(#gg)"/><text x="525" y="143" fill="#c99b3a" font-weight="700">10</text>
+        <text x="20" y="170">ATR + Session</text><rect x="150" y="158" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="158" width="180" height="16" rx="4" fill="url(#gg)"/><text x="525" y="171" fill="#c99b3a" font-weight="700">10</text>
+        <text x="20" y="198">Volume</text><rect x="150" y="186" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="186" width="90" height="16" rx="4" fill="url(#gg)"/><text x="525" y="199" fill="#c99b3a" font-weight="700">5</text>
+        <text x="20" y="226">VWAP</text><rect x="150" y="214" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="214" width="90" height="16" rx="4" fill="url(#gg)"/><text x="525" y="227" fill="#c99b3a" font-weight="700">5</text>
+      </g>
+      <!-- total dial -->
+      <g transform="translate(645,120)">
+        <circle r="72" fill="none" stroke="#eef2f5" stroke-width="14"/>
+        <circle r="72" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="70" transform="rotate(-90)"/>
+        <text text-anchor="middle" y="-2" font-family="Segoe UI" font-size="30" font-weight="800" fill="#0e2033">100</text>
+        <text text-anchor="middle" y="20" font-family="Segoe UI" font-size="11" fill="#5b6b7a">points max</text>
+      </g>
+    </svg>
+    <div class="cap"><b>Lecture.</b> Aucune famille ne suffit seule. C'est l'accumulation de confluences
+      qui fait grimper le score — et seuls les scores élevés déclenchent un signal.</div>
+  </figure>
+
+  <div class="box b-err"><div class="bh">⚠ Pourquoi les particuliers échouent</div>
+    <ul class="clean"><li>Sur-trading : trop de positions de faible qualité.</li>
+    <li>Absence de contexte : trader le M5 sans regarder le H1.</li>
+    <li>Mauvais rapport risque/rendement, gestion du risque « au feeling ».</li>
+    <li>Émotions : fermer un gagnant trop tôt, laisser courir un perdant.</li></ul></div>
+
+  <div class="box b-quote">« Le meilleur trade est souvent celui que l'on ne prend pas. »<span class="who">Principe directeur</span></div>
+
+  <div class="box b-chk"><div class="bh">✔ Check-list du chapitre</div>
+    <ul class="clean chk"><li>Je comprends la notion de confluence.</li>
+    <li>Je sais citer les deux verrous éliminatoires (sweep + structure).</li>
+    <li>J'accepte de rester à l'écart la majorité du temps.</li></ul></div>
+</div>
+
+<!-- ==================== CH2 ==================== -->
+<div id="c2" class="page">
+  <div class="chead"><div class="num">Chapitre 2</div><h2>La structure du marché</h2><div class="bar"></div></div>
+  <p class="lead">La structure est le squelette de toute la méthode : sans elle, les zones ne sont que des rectangles.</p>
+  <p>Le prix avance par vagues. En comparant les sommets et les creux, on lit la tendance :
+    <b>HH</b> (sommet plus haut), <b>HL</b> (creux plus haut), <b>LH</b> (sommet plus bas),
+    <b>LL</b> (creux plus bas).</p>
+
+  <figure class="nobreak">
+    <div class="figtitle">Tendance haussière (HH/HL) puis retournement (LH/LL)</div>
+    <svg viewBox="0 0 760 260">
+      <g stroke="#cfd8e0" stroke-width="1">
+        <line x1="30" y1="230" x2="740" y2="230"/><line x1="30" y1="30" x2="30" y2="230"/>
+      </g>
+      <!-- up trend polyline -->
+      <polyline points="40,210 110,150 160,180 240,110 300,140 380,70" fill="none" stroke="#1f9d55" stroke-width="3"/>
+      <!-- reversal -->
+      <polyline points="380,70 460,130 520,95 600,170 660,140 720,215" fill="none" stroke="#d64545" stroke-width="3"/>
+      <g font-family="Segoe UI" font-size="12" font-weight="700">
+        <circle cx="110" cy="150" r="4" fill="#1f9d55"/><text x="96" y="140" fill="#1f9d55">HH</text>
+        <circle cx="160" cy="180" r="4" fill="#1f9d55"/><text x="150" y="200" fill="#1f9d55">HL</text>
+        <circle cx="240" cy="110" r="4" fill="#1f9d55"/><text x="228" y="100" fill="#1f9d55">HH</text>
+        <circle cx="300" cy="140" r="4" fill="#1f9d55"/><text x="290" y="160" fill="#1f9d55">HL</text>
+        <circle cx="380" cy="70" r="5" fill="#0e2033"/><text x="366" y="60" fill="#0e2033">HH</text>
+        <circle cx="520" cy="95" r="4" fill="#d64545"/><text x="508" y="86" fill="#d64545">LH</text>
+        <circle cx="600" cy="170" r="4" fill="#d64545"/><text x="590" y="190" fill="#d64545">LL</text>
+        <circle cx="660" cy="140" r="4" fill="#d64545"/><text x="650" y="130" fill="#d64545">LH</text>
+      </g>
+      <text x="150" y="250" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">▲ HAUSSIER : HH + HL</text>
+      <text x="520" y="250" font-family="Segoe UI" font-size="12" fill="#d64545" font-weight="700">▼ BAISSIER : LH + LL</text>
+    </svg>
+    <div class="cap"><b>Règle.</b> Une suite de HH+HL = tendance haussière (acheteurs). Une suite de
+      LH+LL = tendance baissière (vendeurs). Un mélange = range indécis.</div>
+  </figure>
+
+  <div class="box b-tip"><div class="bh">💡 Astuce de lecture</div>
+    <p>Ne cherchez pas à deviner. Étiquetez mécaniquement chaque sommet et chaque creux : la tendance
+      apparaît d'elle-même une fois les points nommés.</p></div>
+
+  <div class="box b-err"><div class="bh">⚠ Erreur fréquente</div>
+    <p>Croire qu'une seule bougie rouge inverse une tendance haussière. Une tendance saine respire :
+      elle fait des HL sans être terminée. Le vrai retournement suit une séquence (chapitre 3).</p></div>
+
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Je sais étiqueter HH/HL/LH/LL.</li><li>Je distingue tendance et range.</li>
+    <li>Je ne confonds pas une respiration avec un retournement.</li></ul></div>
+</div>
+
+<!-- ==================== CH3 ==================== -->
+<div id="c3" class="page">
+  <div class="chead"><div class="num">Chapitre 3</div><h2>BOS &amp; CHoCH</h2><div class="bar"></div></div>
+  <p class="lead">Deux cassures, deux messages : l'une continue la tendance, l'autre annonce son retournement.</p>
+  <div class="grid2">
+    <figure class="nobreak">
+      <div class="figtitle">BOS — cassure de continuation</div>
+      <svg viewBox="0 0 360 220">
+        <line x1="20" y1="60" x2="340" y2="60" stroke="#94a3b2" stroke-dasharray="5 4"/>
+        <text x="24" y="52" font-family="Segoe UI" font-size="11" fill="#5b6b7a">dernier sommet</text>
+        <polyline points="30,170 90,110 130,140 200,70 250,100 320,40" fill="none" stroke="#1f9d55" stroke-width="3"/>
+        <circle cx="200" cy="70" r="4" fill="#1f9d55"/>
+        <path d="M300,60 L300,45" stroke="#1f9d55" stroke-width="2"/><text x="270" y="35" font-family="Segoe UI" font-size="12" font-weight="800" fill="#1f9d55">BOS ↑</text>
+      </svg>
+      <div class="cap">Le prix casse le dernier sommet dans le sens de la tendance : elle <b>continue</b>.</div>
+    </figure>
+    <figure class="nobreak">
+      <div class="figtitle">CHoCH — changement de caractère</div>
+      <svg viewBox="0 0 360 220">
+        <line x1="20" y1="150" x2="340" y2="150" stroke="#94a3b2" stroke-dasharray="5 4"/>
+        <text x="24" y="143" font-family="Segoe UI" font-size="11" fill="#5b6b7a">dernier creux</text>
+        <polyline points="30,180 90,120 140,150 200,90 250,150 320,190" fill="none" stroke="#1f9d55" stroke-width="3"/>
+        <polyline points="250,150 320,190" fill="none" stroke="#d64545" stroke-width="3"/>
+        <path d="M300,150 L300,168" stroke="#d64545" stroke-width="2"/><text x="262" y="185" font-family="Segoe UI" font-size="12" font-weight="800" fill="#d64545">CHoCH ↓</text>
+      </svg>
+      <div class="cap">Le prix casse le dernier creux : la tendance haussière <b>pourrait s'inverser</b>.</div>
+    </figure>
+  </div>
+  <div class="box b-tip"><div class="bh">💡 Le détail qui change tout</div>
+    <p>La cassure se valide sur une <b>clôture</b> au-delà du niveau, jamais sur une simple mèche.
+      C'est ce qui évite d'être piégé par les faux dépassements.</p></div>
+  <h3>Quand une tendance change réellement</h3>
+  <p>La séquence institutionnelle d'un vrai retournement est toujours la même :</p>
+  <table>
+    <tr><th>Étape</th><th>Événement</th><th>Signification</th></tr>
+    <tr><td>1</td><td>Sweep de liquidité</td><td>Le piège se referme sur les particuliers</td></tr>
+    <tr><td>2</td><td>CHoCH</td><td>Premier signe de changement de caractère</td></tr>
+    <tr><td>3</td><td>BOS dans le nouveau sens</td><td>Confirmation de la nouvelle tendance</td></tr>
+  </table>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>BOS = continuation, CHoCH = retournement possible.</li>
+    <li>Je valide sur clôture.</li><li>Je cherche un sweep AVANT le CHoCH.</li></ul></div>
+</div>
+
+<!-- ==================== CH4 ==================== -->
+<div id="c4" class="page">
+  <div class="chead"><div class="num">Chapitre 4</div><h2>Liquidité &amp; Sweep</h2><div class="bar"></div></div>
+  <p class="lead">Les institutions ont besoin de contrepartie. Elles vont la chercher là où sont les stops.</p>
+  <p>La liquidité se concentre à des endroits prévisibles : au-dessus des sommets, sous les creux, sur
+    les niveaux ronds, sur les extrêmes de la veille (PDH/PDL) et de la semaine (PWH/PWL), et sur les
+    <b>equal highs/lows</b>.</p>
+
+  <figure class="nobreak">
+    <div class="figtitle">Le sweep : balayer la liquidité, puis se retourner</div>
+    <svg viewBox="0 0 760 250">
+      <line x1="30" y1="90" x2="600" y2="90" stroke="#94a3b2" stroke-dasharray="6 4"/>
+      <text x="34" y="82" font-family="Segoe UI" font-size="11" fill="#5b6b7a">equal lows — stops des acheteurs dessous</text>
+      <!-- candles approaching -->
+      <g>
+        <rect x="120" y="60" width="14" height="34" fill="#1f9d55"/><line x1="127" y1="52" x2="127" y2="98" stroke="#1f9d55"/>
+        <rect x="180" y="70" width="14" height="30" fill="#d64545"/><line x1="187" y1="64" x2="187" y2="104" stroke="#d64545"/>
+        <!-- sweep candle: long wick below the level, close back above -->
+        <rect x="250" y="72" width="16" height="26" fill="#1f9d55"/><line x1="258" y1="66" x2="258" y2="140" stroke="#1f9d55" stroke-width="2"/>
+        <text x="240" y="158" font-family="Segoe UI" font-size="11" fill="#c99b3a" font-weight="800">SWEEP</text>
+        <!-- rally -->
+        <rect x="300" y="55" width="14" height="30" fill="#1f9d55"/><line x1="307" y1="48" x2="307" y2="88" stroke="#1f9d55"/>
+        <rect x="340" y="40" width="14" height="26" fill="#1f9d55"/><line x1="347" y1="34" x2="347" y2="70" stroke="#1f9d55"/>
+      </g>
+      <path d="M266,120 C330,120 360,70 400,45" fill="none" stroke="#1f9d55" stroke-width="2.5" marker-end="url(#ar)"/>
+      <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+      <text x="430" y="60" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">La liquidité prise sert de carburant à la hausse</text>
+    </svg>
+    <div class="cap"><b>Sweep haussier.</b> La mèche perce le creux (déclenche les stops = des ventes),
+      puis la clôture revient au-dessus. La contrepartie récoltée alimente le retournement.</div>
+  </figure>
+
+  <div class="box b-err"><div class="bh">⚠ Erreur fréquente : entrer en cassure naïve</div>
+    <p>Vendre parce que « ça a cassé le support » vous place exactement du côté du piège. Attendez le
+      sweep <b>et</b> la confirmation de structure.</p></div>
+  <div class="box b-sum"><div class="bh">✅ Résumé</div>
+    <p>Le sweep est le <b>premier verrou</b> de la méthode : sans prise de liquidité récente, aucun signal.</p></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>J'identifie les poches de liquidité (sommets, creux, PDH/PDL, EQH/EQL).</li>
+    <li>Je reconnais un sweep : mèche au-delà + clôture de rejet.</li><li>Je n'entre jamais en cassure naïve.</li></ul></div>
+</div>
+
+<!-- ==================== CH5 ==================== -->
+<div id="c5" class="page">
+  <div class="chead"><div class="num">Chapitre 5</div><h2>Les Order Blocks</h2><div class="bar"></div></div>
+  <p class="lead">L'empreinte des gros ordres : la dernière bougie opposée avant l'impulsion qui casse la structure.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Order Block haussier (zone de demande)</div>
+    <svg viewBox="0 0 760 250">
+      <!-- OB zone -->
+      <rect x="150" y="150" width="560" height="40" fill="#1f9d55" opacity="0.12"/>
+      <rect x="150" y="150" width="560" height="40" fill="none" stroke="#1f9d55" stroke-dasharray="5 4"/>
+      <text x="600" y="145" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">Order Block ↑</text>
+      <!-- last down candle = OB -->
+      <rect x="150" y="150" width="18" height="40" fill="#d64545"/><line x1="159" y1="144" x2="159" y2="196" stroke="#d64545"/>
+      <text x="120" y="215" font-family="Segoe UI" font-size="10" fill="#5b6b7a">dernière bougie baissière</text>
+      <!-- impulse up -->
+      <g fill="#1f9d55" stroke="#1f9d55">
+        <rect x="185" y="120" width="16" height="30"/><line x1="193" y1="112" x2="193" y2="152"/>
+        <rect x="215" y="80" width="16" height="42"/><line x1="223" y1="74" x2="223" y2="124"/>
+        <rect x="245" y="50" width="16" height="32"/><line x1="253" y1="44" x2="253" y2="84"/>
+      </g>
+      <line x1="150" y1="70" x2="710" y2="70" stroke="#94a3b2" stroke-dasharray="5 4"/>
+      <text x="270" y="64" font-family="Segoe UI" font-size="11" fill="#5b6b7a">impulsion → BOS (casse le sommet)</text>
+      <!-- return to OB -->
+      <g fill="#d64545" stroke="#d64545">
+        <rect x="470" y="90" width="14" height="26"/><rect x="500" y="110" width="14" height="30"/>
+      </g>
+      <path d="M520,150 C560,190 620,150 660,120" fill="none" stroke="#1f9d55" stroke-width="2.5" marker-end="url(#ar2)"/>
+      <defs><marker id="ar2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+      <text x="545" y="215" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">retour dans l'OB → réaction acheteuse</text>
+    </svg>
+    <div class="cap"><b>Utilisation.</b> On n'entre pas en pleine impulsion : on attend le <b>retour</b>
+      du prix dans l'OB, du bon côté (discount), pour un stop serré.</div>
+  </figure>
+  <div class="box b-err"><div class="bh">⚠ Erreurs fréquentes</div>
+    <ul class="clean"><li>Prendre n'importe quelle bougie opposée : un OB doit précéder une cassure de structure.</li>
+    <li>Ignorer le contexte : un OB haussier en premium et à contre-tendance est un piège.</li>
+    <li>Oublier l'invalidation : une clôture franche au-delà annule l'OB.</li></ul></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Mon OB précède une cassure de structure.</li><li>Il est du bon côté (discount pour un achat).</li>
+    <li>J'attends le retour dans la zone. </li><li>Je sais quand il est invalidé.</li></ul></div>
+</div>
+
+<!-- ==================== CH6 ==================== -->
+<div id="c6" class="page">
+  <div class="chead"><div class="num">Chapitre 6</div><h2>Les Fair Value Gaps</h2><div class="bar"></div></div>
+  <p class="lead">Un déséquilibre laissé par un mouvement trop rapide — que le marché revient souvent combler.</p>
+  <figure class="nobreak">
+    <div class="figtitle">FVG haussier : le « trou » de trois bougies</div>
+    <svg viewBox="0 0 760 250">
+      <g>
+        <rect x="120" y="150" width="26" height="40" fill="#1f9d55"/><line x1="133" y1="130" x2="133" y2="196" stroke="#1f9d55" stroke-width="2"/>
+        <text x="112" y="212" font-family="Segoe UI" font-size="10" fill="#5b6b7a">bougie 1 (haut)</text>
+        <!-- big middle candle -->
+        <rect x="200" y="60" width="30" height="120" fill="#1f9d55"/><line x1="215" y1="48" x2="215" y2="190" stroke="#1f9d55" stroke-width="2"/>
+        <text x="188" y="44" font-family="Segoe UI" font-size="10" fill="#5b6b7a">déplacement</text>
+        <rect x="285" y="40" width="26" height="46" fill="#1f9d55"/><line x1="298" y1="30" x2="298" y2="92" stroke="#1f9d55" stroke-width="2"/>
+        <text x="278" y="108" font-family="Segoe UI" font-size="10" fill="#5b6b7a">bougie 3 (bas)</text>
+      </g>
+      <!-- gap zone: between top of candle1 (y=130) and bottom of candle3 (y=86) -->
+      <rect x="120" y="86" width="440" height="44" fill="#c99b3a" opacity="0.16"/>
+      <rect x="120" y="86" width="440" height="44" fill="none" stroke="#c99b3a" stroke-dasharray="5 4"/>
+      <text x="470" y="82" font-family="Segoe UI" font-size="11" fill="#c99b3a" font-weight="800">FVG (déséquilibre)</text>
+      <!-- return to fill -->
+      <path d="M430,40 C470,40 500,120 540,150" fill="none" stroke="#2b6fb0" stroke-width="2.5" marker-end="url(#ar3)"/>
+      <defs><marker id="ar3" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2b6fb0"/></marker></defs>
+      <text x="470" y="175" font-family="Segoe UI" font-size="11" fill="#2b6fb0" font-weight="700">le prix revient combler, puis repart</text>
+    </svg>
+    <div class="cap"><b>Définition.</b> Le bas de la 3ᵉ bougie est au-dessus du haut de la 1ʳᵉ : il reste une
+      zone où aucune transaction équilibrée n'a eu lieu. Point d'entrée sur le retour.</div>
+  </figure>
+  <div class="box b-tip"><div class="bh">💡 Confluence forte</div>
+    <p>Un FVG qui se <b>superpose à un Order Block</b> forme une zone d'entrée de premier ordre.</p></div>
+  <div class="box b-err"><div class="bh">⚠ Quand l'ignorer</div>
+    <ul class="clean"><li>FVG contraire au contexte.</li><li>Trop vieux, déjà comblé plusieurs fois.</li>
+    <li>Minuscule (bruit) ou isolé, sans structure autour.</li></ul></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Mon FVG naît d'un vrai déplacement.</li><li>Il va dans le sens de la structure.</li>
+    <li>Idéalement superposé à un OB.</li></ul></div>
+</div>
+
+<!-- ==================== CH7 ==================== -->
+<div id="c7" class="page">
+  <div class="chead"><div class="num">Chapitre 7</div><h2>Premium &amp; Discount</h2><div class="bar"></div></div>
+  <p class="lead">Le prix est-il cher ou bon marché dans son range ? Les institutions achètent bas, vendent haut.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Range, équilibre 50 %, zones d'achat et de vente</div>
+    <svg viewBox="0 0 760 250">
+      <rect x="60" y="30" width="640" height="90" fill="#d64545" opacity="0.08"/>
+      <rect x="60" y="120" width="640" height="90" fill="#1f9d55" opacity="0.08"/>
+      <line x1="60" y1="30" x2="700" y2="30" stroke="#94a3b2"/><text x="705" y="34" font-family="Segoe UI" font-size="11" fill="#5b6b7a">Haut</text>
+      <line x1="60" y1="210" x2="700" y2="210" stroke="#94a3b2"/><text x="705" y="214" font-family="Segoe UI" font-size="11" fill="#5b6b7a">Bas</text>
+      <line x1="60" y1="120" x2="700" y2="120" stroke="#0e2033" stroke-dasharray="6 4"/><text x="705" y="124" font-family="Segoe UI" font-size="11" fill="#0e2033" font-weight="700">EQ 50%</text>
+      <text x="300" y="80" font-family="Segoe UI" font-size="15" fill="#d64545" font-weight="800">PREMIUM — vendre</text>
+      <text x="300" y="175" font-family="Segoe UI" font-size="15" fill="#1f9d55" font-weight="800">DISCOUNT — acheter</text>
+      <rect x="120" y="150" width="60" height="24" fill="none" stroke="#1f9d55" stroke-dasharray="4 3"/><text x="122" y="145" font-family="Segoe UI" font-size="10" fill="#1f9d55">OB achat</text>
+      <rect x="560" y="52" width="60" height="24" fill="none" stroke="#d64545" stroke-dasharray="4 3"/><text x="560" y="47" font-family="Segoe UI" font-size="10" fill="#d64545">OB vente</text>
+    </svg>
+    <div class="cap"><b>Calcul.</b> Range = dernier swing haut / bas. Équilibre à 50 %. Au-dessus = premium
+      (zone de vente), en-dessous = discount (zone d'achat).</div>
+  </figure>
+  <div class="box b-tip"><div class="bh">💡 Bon sens institutionnel</div>
+    <p>Acheter en premium, c'est acheter le haut — exactement ce que fait le particulier piégé. À
+      confluence égale, un achat en <b>discount</b> vaut toujours mieux.</p></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>J'ai tracé l'équilibre 50 % du range.</li><li>J'achète en discount, je vends en premium.</li></ul></div>
+</div>
+
+<!-- ==================== CH8 ==================== -->
+<div id="c8" class="page">
+  <div class="chead"><div class="num">Chapitre 8</div><h2>Le Fibonacci (OTE)</h2><div class="bar"></div></div>
+  <p class="lead">Un filtre de confirmation interne : la zone où le smart money reprend souvent position.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Zone d'entrée optimale (OTE) : 0.618 – 0.786, cœur 0.705</div>
+    <svg viewBox="0 0 760 250">
+      <polyline points="40,210 200,40" fill="none" stroke="#1f9d55" stroke-width="3"/>
+      <line x1="40" y1="40" x2="720" y2="40" stroke="#cfd8e0"/><text x="620" y="35" font-family="Segoe UI" font-size="10" fill="#5b6b7a">0.0 (sommet)</text>
+      <line x1="40" y1="210" x2="720" y2="210" stroke="#cfd8e0"/><text x="620" y="205" font-family="Segoe UI" font-size="10" fill="#5b6b7a">1.0 (base)</text>
+      <line x1="40" y1="125" x2="720" y2="125" stroke="#b9c4cf" stroke-dasharray="4 4"/><text x="620" y="121" font-family="Segoe UI" font-size="10" fill="#5b6b7a">0.5</text>
+      <!-- OTE band 0.618-0.786 -->
+      <rect x="40" y="145" width="680" height="45" fill="#c99b3a" opacity="0.18"/>
+      <line x1="40" y1="152" x2="720" y2="152" stroke="#c99b3a"/><text x="620" y="148" font-family="Segoe UI" font-size="10" fill="#c99b3a">0.618</text>
+      <line x1="40" y1="167" x2="720" y2="167" stroke="#c99b3a" stroke-width="2"/><text x="620" y="163" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">0.705 (OTE)</text>
+      <line x1="40" y1="183" x2="720" y2="183" stroke="#c99b3a"/><text x="620" y="179" font-family="Segoe UI" font-size="10" fill="#c99b3a">0.786</text>
+      <!-- retrace into zone -->
+      <polyline points="200,40 320,167 420,90" fill="none" stroke="#2b6fb0" stroke-width="2.5"/>
+      <circle cx="320" cy="167" r="5" fill="#c99b3a"/>
+      <text x="330" y="200" font-family="Segoe UI" font-size="11" fill="#2b6fb0" font-weight="700">réaction en zone 0.705 → reprise haussière</text>
+    </svg>
+    <div class="cap"><b>Rôle.</b> Le Fibonacci <b>affine</b> la sélection : entre deux setups équivalents,
+      celui qui réagit en 0.705 est meilleur. Il ne déclenche jamais un trade seul.</div>
+  </figure>
+  <table>
+    <tr><th>Niveau</th><th>Rôle</th></tr>
+    <tr><td>0.50</td><td>Équilibre — entrée classique</td></tr>
+    <tr><td>0.618</td><td>Golden ratio — reprise fréquente</td></tr>
+    <tr><td>0.705</td><td><b>Cœur de l'OTE</b> — entrée optimale</td></tr>
+    <tr><td>0.786</td><td>Retracement profond — dernière défense</td></tr>
+    <tr><td>1.0</td><td>Retour complet — au-delà, idée invalidée</td></tr>
+  </table>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Je mesure sur le bon swing.</li><li>Je regarde la réaction en 0.618–0.786.</li>
+    <li>Je n'utilise jamais le Fibonacci seul.</li></ul></div>
+</div>
+
+<!-- ==================== CH9 ==================== -->
+<div id="c9" class="page">
+  <div class="chead"><div class="num">Chapitre 9</div><h2>Wyckoff</h2><div class="bar"></div></div>
+  <p class="lead">Où en est-on dans le cycle ? Acheter en accumulation est intelligent ; acheter en euphorie est dangereux.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Le cycle : accumulation → markup → distribution → markdown</div>
+    <svg viewBox="0 0 760 240">
+      <rect x="40" y="150" width="150" height="50" fill="#1f9d55" opacity="0.10"/>
+      <text x="70" y="220" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">Accumulation</text>
+      <rect x="520" y="40" width="150" height="50" fill="#d64545" opacity="0.10"/>
+      <text x="545" y="30" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">Distribution</text>
+      <polyline points="45,185 90,175 130,190 175,180" fill="none" stroke="#1f9d55" stroke-width="2.5"/>
+      <!-- spring -->
+      <line x1="150" y1="180" x2="150" y2="215" stroke="#c99b3a" stroke-width="2"/><text x="130" y="230" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">Spring</text>
+      <polyline points="175,180 360,70 520,65" fill="none" stroke="#1f9d55" stroke-width="3"/>
+      <text x="250" y="120" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">Markup ▲</text>
+      <polyline points="520,65 560,60 600,80 645,68" fill="none" stroke="#d64545" stroke-width="2.5"/>
+      <line x1="600" y1="65" x2="600" y2="34" stroke="#c99b3a" stroke-width="2"/><text x="585" y="28" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">Upthrust</text>
+      <polyline points="645,68 700,200" fill="none" stroke="#d64545" stroke-width="3"/>
+      <text x="640" y="150" font-family="Segoe UI" font-size="12" fill="#d64545" font-weight="700">Markdown ▼</text>
+    </svg>
+    <div class="cap"><b>Figures clés.</b> Le <b>Spring</b> (faux plus-bas) annonce la hausse en accumulation ;
+      l'<b>Upthrust</b> (faux plus-haut) annonce la baisse en distribution.</div>
+  </figure>
+  <div class="box b-tip"><div class="bh">💡 Le filtre Wyckoff</div>
+    <p>La méthode bloque les trades <b>contraires</b> à la phase : pas de vente en accumulation, pas
+      d'achat en distribution. Un setup aligné (Accumulation + Spring + Sweep + CHoCH) est très fort.</p></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Je situe la phase (range après hausse ou après baisse).</li>
+    <li>Je reconnais Spring et Upthrust.</li><li>Je ne trade pas à contre-cycle.</li></ul></div>
+</div>
+
+<!-- ==================== CH10 ==================== -->
+<div id="c10" class="page">
+  <div class="chead"><div class="num">Chapitre 10</div><h2>VWAP &amp; Volume</h2><div class="bar"></div></div>
+  <p class="lead">Le biais de la session (VWAP) et la conviction derrière un mouvement (volume).</p>
+  <div class="grid2">
+    <figure class="nobreak">
+      <div class="figtitle">VWAP — biais de session</div>
+      <svg viewBox="0 0 360 200">
+        <path d="M20,150 C80,120 140,110 200,95 C260,80 320,70 345,60" fill="none" stroke="#c99b3a" stroke-width="2.5"/>
+        <text x="250" y="52" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="700">VWAP</text>
+        <polyline points="20,170 90,120 150,130 220,70 300,55" fill="none" stroke="#1f9d55" stroke-width="2.5"/>
+        <text x="30" y="40" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">prix &gt; VWAP → biais haussier</text>
+      </svg>
+      <div class="cap">Au-dessus = session acheteuse ; en-dessous = vendeuse.</div>
+    </figure>
+    <figure class="nobreak">
+      <div class="figtitle">Volume — valider la cassure</div>
+      <svg viewBox="0 0 360 200">
+        <line x1="20" y1="170" x2="345" y2="170" stroke="#cfd8e0"/>
+        <rect x="40" y="130" width="20" height="40" fill="#9fb0bf"/>
+        <rect x="80" y="120" width="20" height="50" fill="#9fb0bf"/>
+        <rect x="120" y="70" width="20" height="100" fill="#1f9d55"/><text x="98" y="60" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="800">fort ✓</text>
+        <rect x="220" y="140" width="20" height="30" fill="#d64545"/><text x="196" y="130" font-family="Segoe UI" font-size="10" fill="#d64545" font-weight="800">faible ✗</text>
+        <rect x="260" y="150" width="20" height="20" fill="#9fb0bf"/>
+      </svg>
+      <div class="cap">Cassure sur fort volume = crédible ; sur faible volume = « FAKE ? ».</div>
+    </figure>
+  </div>
+  <div class="box b-sum"><div class="bh">✅ Résumé</div>
+    <p>VWAP = filtre de biais (5 pts). Volume = filtre anti faux breakout (5 pts). Aucun ne décide seul.</p></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>Je regarde de quel côté du VWAP est le prix.</li>
+    <li>Je compare le volume de cassure à sa moyenne.</li></ul></div>
+</div>
+
+<!-- ==================== CH11 ==================== -->
+<div id="c11" class="page">
+  <div class="chead"><div class="num">Chapitre 11</div><h2>La logique complète</h2><div class="bar"></div></div>
+  <p class="lead">Comment la méthode passe d'un graphique brut à une décision — étape par étape.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Le processus de décision (12 étapes)</div>
+    <svg viewBox="0 0 760 300">
+      <defs><marker id="fa" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5b6b7a"/></marker></defs>
+      <g font-family="Segoe UI" font-size="11">
+        <rect x="30" y="20" width="150" height="40" rx="8" fill="#16324e"/><text x="105" y="45" fill="#fff" text-anchor="middle" font-weight="700">1. Biais HTF</text>
+        <rect x="30" y="90" width="150" height="40" rx="8" fill="#16324e"/><text x="105" y="115" fill="#fff" text-anchor="middle" font-weight="700">2. Structure</text>
+        <rect x="30" y="160" width="150" height="40" rx="8" fill="#d64545"/><text x="105" y="185" fill="#fff" text-anchor="middle" font-weight="700">3. Sweep ?</text>
+        <text x="105" y="222" fill="#d64545" text-anchor="middle" font-weight="700" font-size="10">VERROUS ÉLIMINATOIRES</text>
+        <rect x="300" y="20" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="42" text-anchor="middle">4. Order Block</text>
+        <rect x="300" y="64" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="86" text-anchor="middle">5. FVG</text>
+        <rect x="300" y="108" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="130" text-anchor="middle">6. Wyckoff</text>
+        <rect x="300" y="152" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="174" text-anchor="middle">7. VWAP</text>
+        <rect x="300" y="196" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="218" text-anchor="middle">8. Volume</text>
+        <rect x="300" y="240" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="262" text-anchor="middle">9. Fibonacci · P/D</text>
+        <rect x="540" y="110" width="190" height="60" rx="10" fill="#c99b3a"/><text x="635" y="135" fill="#fff" text-anchor="middle" font-weight="800">11. Score /100</text><text x="635" y="155" fill="#fff" text-anchor="middle" font-size="10">12. ≥85 → signal + alerte</text>
+        <line x1="105" y1="60" x2="105" y2="90" stroke="#5b6b7a" marker-end="url(#fa)"/>
+        <line x1="105" y1="130" x2="105" y2="160" stroke="#5b6b7a" marker-end="url(#fa)"/>
+        <line x1="180" y1="180" x2="300" y2="120" stroke="#5b6b7a" marker-end="url(#fa)"/>
+        <line x1="450" y1="140" x2="540" y2="140" stroke="#5b6b7a" marker-end="url(#fa)"/>
+      </g>
+    </svg>
+    <div class="cap"><b>Deux verrous d'abord</b> (sweep + structure). Ensuite seulement, les confluences
+      notent la <b>qualité</b>. Score ≥ 85 → signal + alerte ; 80–84 → affiché ; &lt; 80 → rien.</div>
+  </figure>
+  <div class="box b-sum"><div class="bh">✅ À retenir</div>
+    <p>La discipline — deux verrous + un score + un seuil — transforme une intuition en
+      <b>processus reproductible</b>, à la main comme avec l'indicateur.</p></div>
+</div>
+
+<!-- ==================== CH12 ==================== -->
+<div id="c12" class="page">
+  <div class="chead"><div class="num">Chapitre 12</div><h2>Gestion du risque</h2><div class="bar"></div></div>
+  <p class="lead">Aucune stratégie ne survit à une mauvaise gestion du risque. C'est le sujet qui sépare ceux qui durent.</p>
+  <figure class="nobreak">
+    <div class="figtitle">Anatomie d'un trade : Entry, SL, TP1/TP2/TP Final, Break Even</div>
+    <svg viewBox="0 0 760 260">
+      <line x1="60" y1="200" x2="700" y2="200" stroke="#d64545" stroke-width="2"/><text x="705" y="204" font-family="Segoe UI" font-size="10" fill="#d64545">SL</text>
+      <line x1="60" y1="165" x2="700" y2="165" stroke="#0e2033" stroke-dasharray="5 4"/><text x="705" y="169" font-family="Segoe UI" font-size="10" fill="#0e2033">Entry</text>
+      <line x1="60" y1="120" x2="700" y2="120" stroke="#1f9d55"/><text x="705" y="124" font-family="Segoe UI" font-size="10" fill="#1f9d55">TP1 (1.5R)</text>
+      <line x1="60" y1="80" x2="700" y2="80" stroke="#1f9d55"/><text x="705" y="84" font-family="Segoe UI" font-size="10" fill="#1f9d55">TP2 (3R)</text>
+      <line x1="60" y1="40" x2="700" y2="40" stroke="#1f9d55" stroke-width="2"/><text x="705" y="44" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="700">TP Final (5R)</text>
+      <rect x="60" y="165" width="200" height="35" fill="#d64545" opacity="0.10"/><text x="100" y="188" font-family="Segoe UI" font-size="11" fill="#d64545">risque = 1R</text>
+      <polyline points="90,180 200,150 300,120 420,95 560,60 660,42" fill="none" stroke="#16324e" stroke-width="2.5"/>
+      <circle cx="300" cy="120" r="5" fill="#1f9d55"/><text x="270" y="112" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="800">TP1 → SL au BE</text>
+    </svg>
+    <div class="cap"><b>Gestion.</b> Risque fixe (≈1 %). À TP1 : on sécurise et on déplace le stop au
+      <b>Break Even</b> — le trade devient sans risque. Puis TP2, puis TP Final.</div>
+  </figure>
+  <div class="box b-tip"><div class="bh">💡 La formule de taille de position</div>
+    <p><b>Taille = (Capital × % risque) ÷ distance au Stop Loss.</b> Le risque en euros est le même,
+      que le setup soit A+ ou B. C'est ce qui rend un compte incassable.</p></div>
+  <div class="box b-err"><div class="bh">⚠ À ne jamais faire</div>
+    <ul class="clean"><li>Déplacer son stop pour « laisser une chance » au trade.</li>
+    <li>Augmenter la taille après une perte pour se refaire.</li></ul></div>
+  <div class="box b-chk"><div class="bh">✔ Check-list</div>
+    <ul class="clean chk"><li>% de risque fixe défini.</li><li>Taille calculée depuis le stop.</li>
+    <li>Break Even prévu à TP1.</li></ul></div>
+</div>
+
+<!-- ==================== CH13 ==================== -->
+<div id="c13" class="page">
+  <div class="chead"><div class="num">Chapitre 13</div><h2>Exemples : validé vs refusé</h2><div class="bar"></div></div>
+  <p class="lead">Le même graphique raconte une histoire complète… ou incomplète. Apprenez à voir la différence.</p>
+  <figure class="nobreak">
+    <div class="figtitle">✅ Trade VALIDÉ (achat) — l'histoire est complète</div>
+    <svg viewBox="0 0 760 210">
+      <line x1="40" y1="150" x2="720" y2="150" stroke="#94a3b2" stroke-dasharray="5 4"/>
+      <rect x="120" y="150" width="16" height="26" fill="#1f9d55"/><line x1="128" y1="150" x2="128" y2="185" stroke="#1f9d55" stroke-width="2"/>
+      <text x="90" y="200" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">1. Sweep</text>
+      <polyline points="136,160 220,90 300,120 380,60" fill="none" stroke="#1f9d55" stroke-width="3"/>
+      <text x="230" y="80" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="700">2. CHoCH/BOS</text>
+      <rect x="300" y="118" width="120" height="22" fill="#1f9d55" opacity="0.14" stroke="#1f9d55" stroke-dasharray="4 3"/>
+      <text x="305" y="112" font-family="Segoe UI" font-size="10" fill="#1f9d55">3. OB/FVG en discount</text>
+      <polyline points="420,128 520,80 620,40" fill="none" stroke="#1f9d55" stroke-width="3" marker-end="url(#av)"/>
+      <defs><marker id="av" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+      <text x="540" y="70" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="800">Score A+ → BUY</text>
+    </svg>
+    <div class="cap">Sweep → CHoCH → retour dans l'OB/FVG en discount, HTF haussier, VWAP au-dessus,
+      volume correct, Wyckoff en accumulation. Chaque brique confirme la même direction.</div>
+  </figure>
+  <figure class="nobreak">
+    <div class="figtitle">❌ Trade REFUSÉ — cassure naïve, pas de sweep</div>
+    <svg viewBox="0 0 760 190">
+      <line x1="40" y1="80" x2="720" y2="80" stroke="#94a3b2" stroke-dasharray="5 4"/><text x="44" y="72" font-family="Segoe UI" font-size="10" fill="#5b6b7a">résistance</text>
+      <polyline points="60,150 160,120 260,90 360,55" fill="none" stroke="#1f9d55" stroke-width="3"/>
+      <text x="250" y="45" font-family="Segoe UI" font-size="11" fill="#1f9d55">belle bougie verte… tentant</text>
+      <rect x="330" y="40" width="18" height="20" fill="#1f9d55"/>
+      <polyline points="360,55 460,110 560,150 660,175" fill="none" stroke="#d64545" stroke-width="3"/>
+      <text x="480" y="130" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="800">✗ pas de sweep · volume faible → REFUS</text>
+    </svg>
+    <div class="cap">Sans prise de liquidité et avec un volume faible (« FAKE ? »), la méthode refuse.
+      Le prix retombe aussitôt : c'était un piège.</div>
+  </figure>
+  <div class="box b-err"><div class="bh">⚠ Les erreurs à bannir</div>
+    <ul class="clean"><li>Cassure naïve sans sweep.</li><li>Acheter en premium / vendre en discount.</li>
+    <li>Trader contre le H1.</li><li>OB/FVG sans cassure de structure.</li></ul></div>
+</div>
+
+<!-- ==================== CH14 ==================== -->
+<div id="c14" class="page">
+  <div class="chead"><div class="num">Chapitre 14</div><h2>Plan de progression &amp; conclusion</h2><div class="bar"></div></div>
+  <p class="lead">La performance vient de la répétition d'un avantage avec discipline, pas d'un trade héroïque.</p>
+  <table>
+    <tr><th>Période</th><th>Objectif</th></tr>
+    <tr><td>Semaines 1–2</td><td>Observation. Aucun trade. Dérouler les 12 étapes par écrit sur 3 setups/jour.</td></tr>
+    <tr><td>Semaines 3–4</td><td>Démo guidée. Uniquement les setups A+/A, check-list complète, journal rigoureux.</td></tr>
+    <tr><td>Semaines 5–6</td><td>Démo autonome. Identifier les setups avant l'outil, puis comparer.</td></tr>
+    <tr><td>Semaines 7–8</td><td>Bilan. Passer au réel seulement si plan respecté &gt; 90 %, R:R favorable, sérénité.</td></tr>
+  </table>
+  <div class="box b-quote">« Tradez peu, tradez bien, protégez votre capital. »<span class="who">Le mot de la fin</span></div>
+  <div class="box b-sum"><div class="bh">✅ Ce que vous savez faire désormais</div>
+    <p>Lire la structure, traquer la liquidité, situer le cycle Wyckoff, repérer OB et FVG, vous placer en
+      discount/premium, affiner avec Fibonacci/VWAP/volume, assembler un score de confluence et gérer le
+      risque — avec ou sans l'indicateur.</p></div>
+  <div class="disc"><b>Rappel final.</b> Le trading comporte un risque réel de perte en capital. Ce livre
+    est un support éducatif et ne constitue pas un conseil en investissement. Aucune stratégie ne garantit
+    de gains. Entraînez-vous en démonstration et ne risquez jamais plus que ce que vous pouvez perdre.</div>
+</div>
+
+</body></html>

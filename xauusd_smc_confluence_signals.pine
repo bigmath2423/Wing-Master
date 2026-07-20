@@ -483,7 +483,7 @@ uiAccent = color.rgb(212, 175, 96)
 uiPosition = f_uiPos(uiPos)
 uiDetailPosition = f_uiPos(uiDetailPos)
 // Panneau principal (toujours visible) + Confirmations, chacun dans SON coin.
-var table mainPanel = table.new(uiPosition, 2, 40, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
+var table mainPanel = table.new(uiPosition, 2, 48, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
 var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
@@ -1704,6 +1704,29 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 35, f_ok(ckFibOk), text_color=f_okCol(ckFibOk), text_size=uiTxtSize)
         table.cell(mainPanel, 0, 36, mainIsBuy ? "Discount" : "Premium", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 36, f_ok(ckPdOk), text_color=f_okCol(ckPdOk), text_size=uiTxtSize)
+        // ---------- MARKET STRUCTURE ----------
+        msCtxTxt = msCtxTrend == 1 ? "Bullish" : msCtxTrend == -1 ? "Bearish" : "Neutral"
+        msCtxCol = msCtxTrend == 1 ? color.rgb(46, 204, 113) : msCtxTrend == -1 ? color.rgb(231, 76, 60) : color.gray
+        stTxt = structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral"
+        stCol = structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray
+        bosCol = msLastBOS == "haussier" ? color.rgb(46, 204, 113) : msLastBOS == "baissier" ? color.rgb(231, 76, 60) : color.gray
+        chochCol = msLastCHoCH == "haussier" ? color.rgb(46, 204, 113) : msLastCHoCH == "baissier" ? color.rgb(231, 76, 60) : color.gray
+        table.cell(mainPanel, 0, 37, "MARKET STRUCTURE", text_color=uiAccent, bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 37, "", bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 38, "Structure", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 38, stTxt, text_color=stCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 39, "Contexte HTF", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 39, msCtxTxt, text_color=msCtxCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 40, "Dernier BOS", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 40, msLastBOS, text_color=bosCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 41, "Dernier CHoCH", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 41, msLastCHoCH, text_color=chochCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 42, "Phase Wyckoff", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 42, wyPhase, text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 43, "Swing haut", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 43, na(swingHighVal) ? "—" : f_px(swingHighVal), text_color=uiValCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 44, "Swing bas", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 44, na(swingLowVal) ? "—" : f_px(swingLowVal), text_color=uiValCol, text_size=uiTxtSize)
     else
         table.cell(mainPanel, 0, 3, "Probabilite", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 3, str.tostring(f_prob(mainScore)) + " %", text_color=gradeCol, text_size=uiTxtSize)
@@ -1769,7 +1792,7 @@ grpPZO = "Module 10 - Zones institutionnelles predictives"
 pzoOn        = input.bool(true,  "Activer le moteur de zones predictives", group=grpPZO)
 pzoMinScore  = input.int(84,     "Score minimum d'une zone (A+/A)", minval=50, maxval=99, group=grpPZO)
 pzoShowBC    = input.bool(false, "Afficher aussi les zones B / C", group=grpPZO)
-pzoMaxPerSide= input.int(2,      "Nombre max de zones par sens", minval=1, maxval=2, group=grpPZO)
+pzoMaxPerSide= input.int(4,      "Nombre max de zones par sens", minval=1, maxval=6, group=grpPZO)
 pzoValidDays = input.float(3.0,  "Duree de validite (jours)", minval=0.5, step=0.5, group=grpPZO)
 pzoDedupAtr  = input.float(1.0,  "Distance min entre 2 zones (x ATR)", minval=0.2, step=0.1, group=grpPZO)
 pzoSlAtr     = input.float(0.5,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpPZO)

@@ -222,7 +222,8 @@ deMaxSignalLabels = input.int(12, "Max signal labels kept", minval=1, maxval=50,
 
 grpPZ = "Module 7 - Zones Potentielles (pre-signal)"
 pzShow = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
-pzMinFactors = input.int(4, "Confluences minimales pour afficher une zone (max 6)", minval=2, maxval=6, group=grpPZ, tooltip="Les 6 facteurs pris en compte : Tendance HTF, Order Block, FVG, Premium/Discount, Liquidite (sweep recent) et Structure de marche. La zone apparait des que ce nombre de facteurs est aligne.")
+pzShowBC = input.bool(false, "Afficher aussi les zones B et C (moins fiables)", group=grpPZ, tooltip="Par defaut, seules les zones A+ et A (forte confluence) sont affichees. Activez pour voir aussi les zones B (correcte) et C (faible). Recommande : laisser desactive pour n'afficher que les meilleures zones.")
+pzMaxWidthAtr = input.float(0.6, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -1236,22 +1237,34 @@ if sellSignal
     f_dePushSignalLabel(label.new(bar_index, high + leAtr * 3, deSellTxt, style=label.style_label_down, color=color.new(deSellAPlus ? color.red : color.maroon, deSellAPlus ? 10 : 40), textcolor=color.white, size=size.small))
 
 // ================= MODULE 7 : POTENTIAL BUY / SELL ZONES (PRE-SIGNAL) =================
-// Zones "en construction" affichees AVANT le signal final. Elles montrent ou une
-// opportunite se prepare, a partir de la confluence entre : Tendance HTF, Order
-// Blocks, FVG, Premium/Discount, Liquidite (sweep recent) et Structure de marche.
-// Elles ne declenchent JAMAIS d'alerte (aucun appel a alert() ici). Des que
-// toutes les confirmations sont reunies (score >= seuil d'alerte), la zone
-// disparait et laisse place au signal BUY/SELL du Module 6 (avec alerte).
-// Une seule zone active par sens (meme philosophie anti-accumulation que OB/FVG).
+// Zones "en construction" affichees AVANT le signal final, notees A+/A/B/C selon
+// leur confluence (sur 10 : Tendance HTF, Order Block, FVG, Premium/Discount,
+// Liquidite/Sweep, Structure BOS/CHoCH, VWAP, Volume, Fibonacci, Wyckoff).
+// Par defaut, SEULES les zones A+ et A (forte confluence) sont affichees ; B/C
+// s'activent dans les reglages. Chaque zone est RESSERREE a la volatilite (ATR)
+// pour rester precise, et une seule zone (la meilleure) par sens est conservee
+// -> pas de doublons, priorite a la plus forte confluence. Une zone invalidee
+// (bornes na, ou score deja alertable, ou signal tire) est supprimee
+// automatiquement. AFFICHAGE uniquement : ne touche ni aux signaux, ni au score,
+// ni aux TP/SL, et ne declenche JAMAIS d'alerte.
 
-// ---- Les 6 facteurs de confluence, par sens ----
+// ---- Note de qualite d'une zone (AFFICHAGE) : plus il y a de confluences,
+//      plus la note est haute. A+ >= 8/10, A >= 6, B >= 5, C >= 4. ----
+f_pzGrade(int f) => f >= 8 ? "A+" : f >= 6 ? "A" : f >= 5 ? "B" : "C"
+f_pzGradeCol(int f) => f >= 8 ? color.rgb(0, 150, 60) : f >= 6 ? color.rgb(46, 204, 113) : f >= 5 ? color.rgb(241, 196, 15) : color.rgb(230, 126, 34)
+
+// ---- Les 10 facteurs de confluence, par sens (lecture de booleens deja calcules) ----
 pzBullHtf    = htfClose > htfEma or msCtxTrend == 1
 pzBullOb     = bullObActive
 pzBullFvg    = bullFvgActive
 pzBullPd     = smcInDiscount
 pzBullLiq    = deBullSweepRecent
 pzBullStruct = deBullStructRecent or structTrend == "bullish"
-pzBullFactors = (pzBullHtf ? 1 : 0) + (pzBullOb ? 1 : 0) + (pzBullFvg ? 1 : 0) + (pzBullPd ? 1 : 0) + (pzBullLiq ? 1 : 0) + (pzBullStruct ? 1 : 0)
+pzBullVwap   = pfVwapBull
+pzBullVol    = pfBullVolOK
+pzBullFib    = deBullFibPts > 0
+pzBullWy     = wyBullSetupCtx
+pzBullFactors = (pzBullHtf ? 1 : 0) + (pzBullOb ? 1 : 0) + (pzBullFvg ? 1 : 0) + (pzBullPd ? 1 : 0) + (pzBullLiq ? 1 : 0) + (pzBullStruct ? 1 : 0) + (pzBullVwap ? 1 : 0) + (pzBullVol ? 1 : 0) + (pzBullFib ? 1 : 0) + (pzBullWy ? 1 : 0)
 
 pzBearHtf    = htfClose < htfEma or msCtxTrend == -1
 pzBearOb     = bearObActive
@@ -1259,18 +1272,33 @@ pzBearFvg    = bearFvgActive
 pzBearPd     = smcInPremium
 pzBearLiq    = deBearSweepRecent
 pzBearStruct = deBearStructRecent or structTrend == "bearish"
-pzBearFactors = (pzBearHtf ? 1 : 0) + (pzBearOb ? 1 : 0) + (pzBearFvg ? 1 : 0) + (pzBearPd ? 1 : 0) + (pzBearLiq ? 1 : 0) + (pzBearStruct ? 1 : 0)
+pzBearVwap   = pfVwapBear
+pzBearVol    = pfBearVolOK
+pzBearFib    = deBearFibPts > 0
+pzBearWy     = wyBearSetupCtx
+pzBearFactors = (pzBearHtf ? 1 : 0) + (pzBearOb ? 1 : 0) + (pzBearFvg ? 1 : 0) + (pzBearPd ? 1 : 0) + (pzBearLiq ? 1 : 0) + (pzBearStruct ? 1 : 0) + (pzBearVwap ? 1 : 0) + (pzBearVol ? 1 : 0) + (pzBearFib ? 1 : 0) + (pzBearWy ? 1 : 0)
 
-// ---- Bornes de la zone (priorite : Order Block -> FVG -> Discount/Premium) ----
-pzBullTop = bullObActive ? bullObTop : bullFvgActive ? bullFvgTop : smcPdReady ? smcEq : na
-pzBullBot = bullObActive ? bullObBot : bullFvgActive ? bullFvgBot : smcPdReady ? smcRangeBot : na
-pzBearTop = bearObActive ? bearObTop : bearFvgActive ? bearFvgTop : smcPdReady ? smcRangeTop : na
-pzBearBot = bearObActive ? bearObBot : bearFvgActive ? bearFvgBot : smcPdReady ? smcEq : na
+// ---- Bornes brutes (priorite : Order Block -> FVG -> Discount/Premium) ----
+pzBullTop0 = bullObActive ? bullObTop : bullFvgActive ? bullFvgTop : smcPdReady ? smcEq : na
+pzBullBot0 = bullObActive ? bullObBot : bullFvgActive ? bullFvgBot : smcPdReady ? smcRangeBot : na
+pzBearTop0 = bearObActive ? bearObTop : bearFvgActive ? bearFvgTop : smcPdReady ? smcRangeTop : na
+pzBearBot0 = bearObActive ? bearObBot : bearFvgActive ? bearFvgBot : smcPdReady ? smcEq : na
 
-// ---- Condition d'affichage : assez de confluence, mais PAS encore un signal
-//      alertable (score < seuil d'alerte) et pas de signal deja tire cette barre ----
-pzBullDrawable = pzShow and pzBullFactors >= pzMinFactors and deBullScore < deScoreAPlus and not buySignal and not na(pzBullTop) and not na(pzBullBot)
-pzBearDrawable = pzShow and pzBearFactors >= pzMinFactors and deBearScore < deScoreAPlus and not sellSignal and not na(pzBearTop) and not na(pzBearBot)
+// ---- Resserrement ATR : zone la plus etroite possible. On garde le bord PROXIMAL
+//      (cote reaction) et on rapproche le bord oppose a <= pzMaxWidthAtr x ATR. ----
+pzMaxW = leAtr * pzMaxWidthAtr
+pzBullTop = pzBullTop0
+pzBullBot = na(pzBullBot0) or na(pzBullTop0) ? na : math.max(pzBullBot0, pzBullTop0 - pzMaxW)
+pzBearBot = pzBearBot0
+pzBearTop = na(pzBearTop0) or na(pzBearBot0) ? na : math.min(pzBearTop0, pzBearBot0 + pzMaxW)
+
+// ---- Filtre qualite : A+/A toujours affichees ; B/C seulement si pzShowBC.
+//      Zone ecartee si score deja alertable, si un signal vient de tirer, ou si
+//      les bornes sont invalides (zone institutionnelle deja invalidee -> na). ----
+pzBullShowGrade = pzBullFactors >= 6 or (pzShowBC and pzBullFactors >= 4)
+pzBearShowGrade = pzBearFactors >= 6 or (pzShowBC and pzBearFactors >= 4)
+pzBullDrawable = pzShow and pzBullShowGrade and deBullScore < deScoreAPlus and not buySignal and not na(pzBullTop) and not na(pzBullBot)
+pzBearDrawable = pzShow and pzBearShowGrade and deBearScore < deScoreAPlus and not sellSignal and not na(pzBearTop) and not na(pzBearBot)
 
 var box   pzBullBox = na
 var label pzBullLbl = na
@@ -1279,15 +1307,20 @@ var label pzBearLbl = na
 
 // Zone potentielle haussiere
 if pzBullDrawable
+    pzBullCol = f_pzGradeCol(pzBullFactors)
+    pzBullTxt = "BUY ZONE  " + f_pzGrade(pzBullFactors) + "  " + str.tostring(pzBullFactors) + "/10"
     if na(pzBullBox)
-        pzBullBox := box.new(bar_index, pzBullTop, bar_index + 1, pzBullBot, border_color=color.new(color.green, 25), border_style=line.style_dashed, bgcolor=color.new(color.green, 90), extend=extend.right)
-        pzBullLbl := label.new(bar_index, pzBullTop, "POTENTIAL BUY ZONE " + str.tostring(pzBullFactors) + "/6", style=label.style_label_down, color=color.new(color.green, 20), textcolor=color.white, size=size.tiny)
+        pzBullBox := box.new(bar_index, pzBullTop, bar_index + 1, pzBullBot, border_color=pzBullCol, border_style=line.style_solid, bgcolor=color.new(pzBullCol, 88), extend=extend.right)
+        pzBullLbl := label.new(bar_index, pzBullTop, pzBullTxt, style=label.style_label_down, color=color.new(pzBullCol, 15), textcolor=color.white, size=size.tiny)
     else
         box.set_top(pzBullBox, pzBullTop)
         box.set_bottom(pzBullBox, pzBullBot)
         box.set_right(pzBullBox, bar_index + 1)
+        box.set_border_color(pzBullBox, pzBullCol)
+        box.set_bgcolor(pzBullBox, color.new(pzBullCol, 88))
         label.set_xy(pzBullLbl, bar_index, pzBullTop)
-        label.set_text(pzBullLbl, "POTENTIAL BUY ZONE " + str.tostring(pzBullFactors) + "/6")
+        label.set_text(pzBullLbl, pzBullTxt)
+        label.set_color(pzBullLbl, color.new(pzBullCol, 15))
 else
     if not na(pzBullBox)
         box.delete(pzBullBox)
@@ -1297,15 +1330,20 @@ else
 
 // Zone potentielle baissiere
 if pzBearDrawable
+    pzBearCol = f_pzGradeCol(pzBearFactors)
+    pzBearTxt = "SELL ZONE  " + f_pzGrade(pzBearFactors) + "  " + str.tostring(pzBearFactors) + "/10"
     if na(pzBearBox)
-        pzBearBox := box.new(bar_index, pzBearTop, bar_index + 1, pzBearBot, border_color=color.new(color.red, 25), border_style=line.style_dashed, bgcolor=color.new(color.red, 90), extend=extend.right)
-        pzBearLbl := label.new(bar_index, pzBearBot, "POTENTIAL SELL ZONE " + str.tostring(pzBearFactors) + "/6", style=label.style_label_up, color=color.new(color.red, 20), textcolor=color.white, size=size.tiny)
+        pzBearBox := box.new(bar_index, pzBearTop, bar_index + 1, pzBearBot, border_color=pzBearCol, border_style=line.style_solid, bgcolor=color.new(pzBearCol, 88), extend=extend.right)
+        pzBearLbl := label.new(bar_index, pzBearBot, pzBearTxt, style=label.style_label_up, color=color.new(pzBearCol, 15), textcolor=color.white, size=size.tiny)
     else
         box.set_top(pzBearBox, pzBearTop)
         box.set_bottom(pzBearBox, pzBearBot)
         box.set_right(pzBearBox, bar_index + 1)
+        box.set_border_color(pzBearBox, pzBearCol)
+        box.set_bgcolor(pzBearBox, color.new(pzBearCol, 88))
         label.set_xy(pzBearLbl, bar_index, pzBearBot)
-        label.set_text(pzBearLbl, "POTENTIAL SELL ZONE " + str.tostring(pzBearFactors) + "/6")
+        label.set_text(pzBearLbl, pzBearTxt)
+        label.set_color(pzBearLbl, color.new(pzBearCol, 15))
 else
     if not na(pzBearBox)
         box.delete(pzBearBox)

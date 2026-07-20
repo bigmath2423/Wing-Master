@@ -1,0 +1,794 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>La Methode XAUUSD SMC - Guide complet</title><style>
+  :root{
+    --navy:#0e2033; --navy2:#16324e; --gold:#c99b3a; --gold2:#e6c15a;
+    --bull:#1f9d55; --bull2:#e7f6ee; --bear:#d64545; --bear2:#fbeaea;
+    --blue:#2b6fb0; --blue2:#e9f1fa; --ink:#1c2733; --muted:#5b6b7a;
+    --line:#e2e8ee; --paper:#ffffff; --soft:#f5f8fb; --amber:#e08a1e;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:var(--serif);color:var(--ink);font-size:11.2pt;line-height:1.6}
+  h1,h2,h3,h4,.san{font-family:var(--sans)}
+  p{margin:8px 0;text-align:justify}
+  .page{page-break-after:always;padding:4mm 2mm}
+  .nobreak{page-break-inside:avoid}
+  a{color:var(--blue);text-decoration:none}
+
+  .cover{page-break-after:always;height:262mm;position:relative;color:#eef4f8;
+    background:radial-gradient(120% 80% at 80% 0%,#1c4a6e 0,transparent 60%),linear-gradient(160deg,#0a1826,#173a52 40%,#0a1826);
+    background-color:#0b1a2b;padding:26mm 22mm;overflow:hidden}
+  .cover::after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px)}
+  .cover>*{position:relative;z-index:2}
+  .cv-kick{font-family:var(--sans);letter-spacing:.32em;text-transform:uppercase;color:var(--gold2);font-weight:700;font-size:12pt}
+  .cv-logo{font-size:46pt;margin:8mm 0 4mm}
+  .cv-title{font-family:var(--sans);font-weight:800;font-size:38pt;line-height:1.02;color:#fff;letter-spacing:-.01em}
+  .cv-title .g{color:var(--gold2)}
+  .cv-sub{font-family:var(--sans);font-size:15pt;color:#9fd0b4;margin-top:8mm;font-weight:600;max-width:150mm}
+  .cv-line{width:70mm;height:3px;background:linear-gradient(90deg,var(--gold),transparent);margin:10mm 0}
+  .cv-desc{color:#a9bccb;font-size:11pt;max-width:135mm}
+  .cv-foot{position:absolute;bottom:22mm;left:22mm;right:22mm;font-family:var(--sans);
+    color:#8ea3b4;font-size:10pt;border-top:1px solid rgba(255,255,255,.15);padding-top:6mm;display:flex;justify-content:space-between}
+  .cv-badges{margin-top:9mm;display:flex;gap:8px;flex-wrap:wrap}
+  .cv-badge{font-family:var(--sans);font-size:9.5pt;color:#dfe9f0;border:1px solid rgba(230,193,90,.5);
+    padding:4px 12px;border-radius:20px}
+  .cv-emblem{position:absolute;right:-20mm;bottom:-20mm;width:130mm;height:130mm;border-radius:50%;
+    border:1px solid rgba(230,193,90,.18);z-index:1}
+  .cv-emblem2{position:absolute;right:-6mm;bottom:-6mm;width:90mm;height:90mm;border-radius:50%;
+    border:1px solid rgba(230,193,90,.12);z-index:1}
+
+  .toc-h{font-family:var(--sans);font-size:24pt;color:var(--navy);font-weight:800;margin-bottom:2mm}
+  .toc-rule{height:3px;width:40mm;background:var(--gold);margin-bottom:6mm}
+  .toc li{list-style:none;display:flex;align-items:baseline;gap:8px;margin:5px 0;font-family:var(--sans);font-size:11.5pt}
+  .toc .n{color:var(--gold);font-weight:800;width:26px}
+  .toc .t{color:var(--ink);font-weight:600}
+  .toc .d{flex:1;border-bottom:1px dotted #c7d2dc;transform:translateY(-3px)}
+  .toc .part{font-family:var(--sans);font-size:9.5pt;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold);font-weight:800;margin:6mm 0 2mm}
+
+  .chead{page-break-before:always;margin:0 0 6mm}
+  .chead .num{font-family:var(--sans);color:var(--gold);font-weight:800;letter-spacing:.2em;font-size:12pt;text-transform:uppercase}
+  .chead h2{font-family:var(--sans);font-size:25pt;color:var(--navy);font-weight:800;line-height:1.08;margin:2mm 0}
+  .chead .bar{height:4px;width:34mm;background:linear-gradient(90deg,var(--gold),var(--gold2));margin-top:3mm}
+  h3{font-family:var(--sans);font-size:15pt;color:var(--navy2);margin:9mm 0 2mm}
+  h4{font-family:var(--sans);font-size:12pt;color:var(--navy2);margin:5mm 0 1mm}
+
+  .lead{font-size:12.5pt;color:#33475b;font-style:italic;border-left:3px solid var(--gold);
+    padding:2mm 0 2mm 5mm;margin:4mm 0}
+
+  .box{border-radius:10px;padding:5mm 6mm;margin:5mm 0;page-break-inside:avoid;font-family:var(--sans);font-size:10.5pt}
+  .box .bh{font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:2mm;font-size:11pt}
+  .box p,.box li{font-family:var(--serif)}
+  .b-tip{background:var(--blue2);border:1px solid #bcd6ef}
+  .b-tip .bh{color:var(--blue)}
+  .b-err{background:var(--bear2);border:1px solid #f0c4c4}
+  .b-err .bh{color:var(--bear)}
+  .b-sum{background:#eef7f1;border:1px solid #c2e2cf}
+  .b-sum .bh{color:var(--bull)}
+  .b-chk{background:#fbf7ea;border:1px solid #ecdca6}
+  .b-chk .bh{color:var(--amber)}
+  .b-ex{background:var(--soft);border:1px solid var(--line)}
+  .b-ex .bh{color:var(--navy)}
+  .b-quote{background:var(--navy);color:#eaf2f8;border:0;font-style:italic;font-size:13pt;text-align:center;padding:7mm}
+  .b-quote .who{display:block;margin-top:3mm;font-size:9.5pt;color:var(--gold2);font-style:normal;letter-spacing:.1em;text-transform:uppercase}
+  ul.clean{list-style:none;margin:2mm 0}
+  ul.clean li{padding-left:22px;position:relative;margin:4px 0}
+  ul.clean li::before{content:"›";position:absolute;left:6px;color:var(--gold);font-weight:800}
+  ul.chk li::before{content:"\2610";color:var(--amber);left:2px}
+  ol{margin:3mm 0 3mm 0;padding-left:0;counter-reset:oli;list-style:none}
+  ol>li{position:relative;padding-left:30px;margin:5px 0;line-height:1.5}
+  ol>li::before{counter-increment:oli;content:counter(oli);position:absolute;left:0;top:1px;
+    width:19px;height:19px;border-radius:50%;background:var(--navy);color:#fff;font-family:var(--sans);
+    font-size:9.5pt;font-weight:700;text-align:center;line-height:19px}
+
+  figure{margin:6mm 0;page-break-inside:avoid;background:#fff;border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 8px 24px -18px rgba(20,40,60,.5);overflow:hidden}
+  figure .cap{font-family:var(--sans);font-size:9.5pt;color:var(--muted);padding:3mm 6mm 4mm;border-top:1px solid var(--line);background:var(--soft)}
+  figure .cap b{color:var(--navy)}
+  svg{display:block;width:100%;height:auto}
+  .figtitle{font-family:var(--sans);font-size:10pt;font-weight:700;color:var(--navy);padding:3mm 6mm 0}
+
+  table{width:100%;border-collapse:collapse;margin:5mm 0;font-family:var(--sans);font-size:10pt;page-break-inside:avoid}
+  th{background:var(--navy);color:#fff;text-align:left;padding:7px 10px;font-weight:600}
+  td{padding:6px 10px;border-bottom:1px solid var(--line)}
+  tr:nth-child(even) td{background:var(--soft)}
+  .pill{display:inline-block;padding:1px 9px;border-radius:20px;color:#fff;font-size:9pt;font-weight:700}
+  .p-ap{background:#0f8a4d}.p-a{background:#28a35f}.p-b{background:#d9a520;color:#3a2c00}.p-c{background:#d9812a}.p-x{background:#d64545}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+  .disc{font-family:var(--sans);font-size:9pt;color:var(--muted);background:#fff6ed;border:1px solid #f0d9bd;
+    border-radius:8px;padding:4mm 5mm;margin:5mm 0}
+  .partsep{page-break-before:always;height:150mm;display:flex;flex-direction:column;justify-content:center;
+    padding:0 20mm;border-left:6px solid var(--gold)}
+  .partsep .pk{font-family:var(--sans);letter-spacing:.28em;text-transform:uppercase;color:var(--gold);font-weight:800;font-size:12pt}
+  .partsep .pt{font-family:var(--sans);font-size:30pt;font-weight:800;color:var(--navy);line-height:1.05;margin-top:3mm}
+  .partsep .pd{font-size:12pt;color:var(--muted);margin-top:5mm;max-width:130mm}
+</style></head><body><div class="cover">
+  <div class="cv-emblem"></div><div class="cv-emblem2"></div>
+  <div class="cv-kick">Guide complet &middot; Trading institutionnel</div>
+  <div class="cv-logo">&#127919;</div>
+  <div class="cv-title">La Methode<br><span class="g">XAUUSD&nbsp;SMC</span></div>
+  <div class="cv-sub">Le guide complet pour comprendre, reproduire et maitriser la strategie</div>
+  <div class="cv-line"></div>
+  <div class="cv-desc">20 chapitres, 4 parties : des fondations du marche jusqu'a l'autonomie totale.
+    Structure, liquidite, Wyckoff, Order Blocks, Fair Value Gaps, Premium/Discount, Fibonacci, VWAP, volume,
+    multi-timeframe, gestion du risque et psychologie &mdash; chaque concept illustre, explique et accompagne
+    d'exemples, de check-lists et d'exercices.</div>
+  <div class="cv-badges">
+    <span class="cv-badge">20 chapitres</span>
+    <span class="cv-badge">Illustre</span>
+    <span class="cv-badge">Exercices &amp; check-lists</span>
+    <span class="cv-badge">XAU/USD</span>
+  </div>
+  <div class="cv-foot"><span>Guide premium &mdash; edition 1.0</span><span>Le trading comporte un risque de perte en capital</span></div>
+</div><div class="page">
+  <div class="toc-h san">Sommaire</div>
+  <div class="toc-rule"></div>
+  <ul class="toc"><li class="part">Partie I &mdash; Comprendre le marche</li><li><span class="n">1</span><span class="t"><a href="#c1">Introduction</a></span><span class="d"></span></li><li><span class="n">2</span><span class="t"><a href="#c2">Les bases</a></span><span class="d"></span></li><li><span class="n">3</span><span class="t"><a href="#c3">La structure du marche</a></span><span class="d"></span></li><li class="part">Partie II &mdash; Les outils Smart Money</li><li><span class="n">4</span><span class="t"><a href="#c4">Smart Money Concepts</a></span><span class="d"></span></li><li><span class="n">5</span><span class="t"><a href="#c5">Wyckoff</a></span><span class="d"></span></li><li><span class="n">6</span><span class="t"><a href="#c6">Les Order Blocks</a></span><span class="d"></span></li><li><span class="n">7</span><span class="t"><a href="#c7">Les Fair Value Gaps</a></span><span class="d"></span></li><li><span class="n">8</span><span class="t"><a href="#c8">Premium &amp; Discount</a></span><span class="d"></span></li><li><span class="n">9</span><span class="t"><a href="#c9">Le Fibonacci (OTE)</a></span><span class="d"></span></li><li><span class="n">10</span><span class="t"><a href="#c10">Le VWAP</a></span><span class="d"></span></li><li><span class="n">11</span><span class="t"><a href="#c11">Le Volume</a></span><span class="d"></span></li><li class="part">Partie III &mdash; Assembler et decider</li><li><span class="n">12</span><span class="t"><a href="#c12">Analyse multi-timeframe</a></span><span class="d"></span></li><li><span class="n">13</span><span class="t"><a href="#c13">Les confirmations</a></span><span class="d"></span></li><li><span class="n">14</span><span class="t"><a href="#c14">La logique complete</a></span><span class="d"></span></li><li><span class="n">15</span><span class="t"><a href="#c15">Exemples detailles</a></span><span class="d"></span></li><li class="part">Partie IV &mdash; Devenir autonome</li><li><span class="n">16</span><span class="t"><a href="#c16">Gestion du risque</a></span><span class="d"></span></li><li><span class="n">17</span><span class="t"><a href="#c17">Psychologie</a></span><span class="d"></span></li><li><span class="n">18</span><span class="t"><a href="#c18">Plan de trading</a></span><span class="d"></span></li><li><span class="n">19</span><span class="t"><a href="#c19">FAQ</a></span><span class="d"></span></li><li><span class="n">20</span><span class="t"><a href="#c20">Conclusion &amp; progression</a></span><span class="d"></span></li></ul>
+  <div class="disc"><b>Avertissement.</b> Ce guide est un support pedagogique. Il ne constitue pas un conseil
+    en investissement ni une garantie de resultat. Le trading a effet de levier comporte un risque de perte
+    en capital pouvant depasser le depot initial. Entrainez-vous en demonstration avant tout usage en reel.</div>
+</div><div class="partsep"><div class="pk">Partie I</div>
+  <div class="pt">Comprendre le marche</div>
+  <div class="pd">Avant les outils, la philosophie. Cette premiere partie pose les fondations :
+    comment le marche fonctionne reellement, qui le fait bouger, et pourquoi la structure est le
+    langage commun de tout ce qui suivra.</div></div><div id="c1" class="page"><div class="chead"><div class="num">Chapitre 1</div><h2>Introduction</h2><div class="bar"></div></div><p class="lead">On ne trade jamais un signal isole. On trade une histoire coherente que plusieurs
+    elements confirment au meme endroit : la confluence.</p>
+
+<h3>La philosophie de la strategie</h3>
+<p>Ce livre repose sur une conviction simple : le marche de l'or n'est pas un chaos aleatoire, c'est un
+  champ de bataille entre deux camps. D'un cote, la masse des <b>traders particuliers</b>, qui reagissent
+  a l'emotion, achetent quand ca monte et vendent quand ca baisse. De l'autre, les <b>institutions</b> -
+  banques, fonds, teneurs de marche - qui ont besoin de cette masse pour executer leurs enormes ordres.
+  Toute la methode consiste a arreter de faire partie de la masse, et a lire les traces laissees par les
+  gros acteurs pour se positionner <b>avec</b> eux plutot que contre eux.</p>
+<p>La confluence est le fil rouge de tout l'ouvrage. Au lieu de parier sur un seul indice - une bougie, un
+  croisement de moyennes - on attend que <b>plusieurs elements independants racontent la meme histoire</b>
+  au meme prix : une prise de liquidite, une cassure de structure, un Order Block en zone de discount, un
+  retracement Fibonacci, une tendance superieure alignee. Quand tous ces temoins s'accordent, la probabilite
+  grimpe. Quand ils se contredisent, on s'abstient - et savoir s'abstenir est deja une competence rare.</p>
+
+<h3>Pourquoi les traders particuliers echouent</h3>
+<p>Les statistiques des courtiers sont sans appel : la grande majorite des comptes particuliers perdent.
+  Ce n'est pas une question d'intelligence, mais de <b>comportement</b>. Les memes erreurs reviennent
+  inlassablement :</p><div class="box b-err"><div class="bh">&#9888; Les erreurs qui ruinent un compte</div><ul class="clean">
+    <li><b>Le sur-trading</b> : prendre 15 positions par jour par ennui ou par avidite, au lieu de 2 setups de qualite.</li>
+    <li><b>L'absence de contexte</b> : trader le M5 sans jamais regarder le H1, comme lire une phrase sans connaitre le paragraphe.</li>
+    <li><b>La cassure naive</b> : acheter quand "ca casse la resistance" - pile au moment ou l'institution vend.</li>
+    <li><b>La mauvaise gestion du risque</b> : risquer 10% sur un trade "sur", puis exploser le compte en une serie de pertes.</li>
+    <li><b>Les emotions</b> : couper un gagnant par peur, laisser courir un perdant par espoir.</li>
+    </ul></div><p>La bonne nouvelle : chacune de ces erreurs a un antidote precis, et ce livre vous les donne un par un.
+  L'ennemi n'est pas le marche, c'est votre propre impulsivite - que la methode remplace par un
+  <b>processus</b>.</p>
+
+<h3>Comment les institutions analysent le marche</h3>
+<p>Une institution ne peut pas acheter 500 lots d'or d'un clic sans faire exploser le prix contre elle. Il
+  lui faut de la <b>contrepartie</b> : des vendeurs pour absorber ses achats. Ou trouve-t-elle ces vendeurs ?
+  La ou se trouvent les ordres des particuliers : sous les creux evidents (les stops des acheteurs),
+  au-dessus des sommets evidents (les stops des vendeurs). C'est pourquoi le prix vient si souvent
+  "chercher" un niveau, declenche les stops, puis repart brutalement dans l'autre sens. Ce mouvement, que le
+  debutant subit, est en realite le <b>mecanisme central</b> du marche. Apprendre a le lire, c'est passer de
+  la proie au chasseur.</p><figure class="nobreak"><div class="figtitle">Le score de confluence - 8 familles, 100 points</div><svg viewBox="0 0 760 250">
+  <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#c99b3a"/><stop offset="1" stop-color="#e6c15a"/></linearGradient></defs>
+  <g font-family="Segoe UI, sans-serif" font-size="13" fill="#1c2733">
+    <text x="20" y="30">Liquidite</text><rect x="150" y="18" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="18" width="360" height="16" rx="4" fill="url(#gg)"/><text x="525" y="31" fill="#c99b3a" font-weight="700">20</text>
+    <text x="20" y="58">Structure BOS/CHoCH</text><rect x="150" y="46" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="46" width="360" height="16" rx="4" fill="url(#gg)"/><text x="525" y="59" fill="#c99b3a" font-weight="700">20</text>
+    <text x="20" y="86">Order Block / FVG</text><rect x="150" y="74" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="74" width="270" height="16" rx="4" fill="url(#gg)"/><text x="525" y="87" fill="#c99b3a" font-weight="700">15</text>
+    <text x="20" y="114">Wyckoff</text><rect x="150" y="102" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="102" width="270" height="16" rx="4" fill="url(#gg)"/><text x="525" y="115" fill="#c99b3a" font-weight="700">15</text>
+    <text x="20" y="142">Tendance HTF</text><rect x="150" y="130" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="130" width="180" height="16" rx="4" fill="url(#gg)"/><text x="525" y="143" fill="#c99b3a" font-weight="700">10</text>
+    <text x="20" y="170">ATR + Session</text><rect x="150" y="158" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="158" width="180" height="16" rx="4" fill="url(#gg)"/><text x="525" y="171" fill="#c99b3a" font-weight="700">10</text>
+    <text x="20" y="198">Volume</text><rect x="150" y="186" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="186" width="90" height="16" rx="4" fill="url(#gg)"/><text x="525" y="199" fill="#c99b3a" font-weight="700">5</text>
+    <text x="20" y="226">VWAP</text><rect x="150" y="214" width="360" height="16" rx="4" fill="#eef2f5"/><rect x="150" y="214" width="90" height="16" rx="4" fill="url(#gg)"/><text x="525" y="227" fill="#c99b3a" font-weight="700">5</text>
+  </g>
+  <g transform="translate(645,120)">
+    <circle r="72" fill="none" stroke="#eef2f5" stroke-width="14"/>
+    <circle r="72" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="70" transform="rotate(-90)"/>
+    <text text-anchor="middle" y="-2" font-family="Segoe UI" font-size="30" font-weight="800" fill="#0e2033">100</text>
+    <text text-anchor="middle" y="20" font-family="Segoe UI" font-size="11" fill="#5b6b7a">points max</text>
+  </g>
+</svg><div class="cap"><b>Lecture.</b> Aucune famille ne suffit seule. C'est l'accumulation de confluences qui fait grimper le score - et seuls les scores eleves declenchent un signal.</div></figure><div class="box b-tip"><div class="bh">&#128161; Ce que ce livre va vous apprendre</div><p>A la fin de cet ouvrage, vous saurez lire un graphique XAUUSD comme une institution : identifier
+    ou se cache la liquidite, reconnaitre un vrai retournement, reperer les zones d'entree precises, assembler
+    un score de confluence et gerer votre risque - <b>avec ou sans l'indicateur</b>. L'outil devient un
+    accelerateur, pas une bequille.</p></div><div class="box b-quote"><div class="bh">Le meilleur trade est souvent celui que l'on ne prend pas.<span class="who">Principe directeur</span></div></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je comprends la notion de confluence.</li><li>Je sais pourquoi les particuliers echouent (sur-trading, cassure naive, emotions).</li><li>Je comprends que les institutions chassent la liquidite des stops.</li><li>J'accepte de rester a l'ecart la majorite du temps.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Ouvrez un graphique XAUUSD en H1. Sur les 30 dernieres bougies, entourez chaque endroit ou le prix est alle chercher un niveau evident (un creux ou un sommet marque) avant de repartir brutalement. Vous venez de reperer des prises de liquidite - le point de depart de toute la methode.</p></div></div><div id="c2" class="page"><div class="chead"><div class="num">Chapitre 2</div><h2>Les bases</h2><div class="bar"></div></div><p class="lead">Avant de courir, on apprend a marcher. Ce chapitre pose le vocabulaire fondamental :
+    comment un prix se forme, ce qu'est la liquidite, et pourquoi tout revient a l'offre et la demande.</p>
+
+<h3>Comment fonctionne reellement un marche</h3>
+<p>Un prix n'est rien d'autre que le point de rencontre entre des acheteurs et des vendeurs a un instant
+  donne. Il monte quand les acheteurs sont plus <b>agressifs</b> (ils acceptent de payer plus cher pour
+  entrer maintenant) et baisse quand les vendeurs le sont. Chaque bougie que vous voyez est le resultat
+  de cette bataille : le corps montre qui a gagne, les meches montrent les tentatives repoussees. Comprendre
+  cela change tout : vous ne regardez plus des lignes qui montent et descendent, mais un <b>rapport de force</b>.</p>
+
+<h3>La liquidite : le carburant du marche</h3>
+<p>La liquidite, ce sont les ordres en attente : surtout les <b>stops</b> des traders deja positionnes, et
+  les ordres de ceux qui veulent entrer sur cassure. Un gros acteur a besoin de liquidite pour remplir sa
+  position sans deraper le prix. C'est pour cela qu'il pousse le prix vers les zones ou la liquidite
+  s'accumule - exactement comme on va peche la ou il y a du poisson. Ces zones sont previsibles :</p><table>
+  <tr><th>Poche de liquidite</th><th>Qui a ses ordres la</th></tr>
+  <tr><td>Au-dessus d'un sommet evident</td><td>Stops des vendeurs</td></tr>
+  <tr><td>Sous un creux evident</td><td>Stops des acheteurs</td></tr>
+  <tr><td>Equal highs / equal lows (double sommet ou creux)</td><td>Liquidite "propre", cible privilegiee</td></tr>
+  <tr><td>Haut/bas de la veille (PDH/PDL) et de la semaine (PWH/PWL)</td><td>Traders intraday et swing</td></tr>
+  <tr><td>Chiffres ronds (4000, 3950...)</td><td>Ordres psychologiques masses</td></tr>
+</table><h3>Offre et demande</h3>
+<p>Tout, au fond, se ramene a deux forces. Une <b>zone de demande</b> est un niveau ou les acheteurs sont
+  si nombreux que le prix rebondit a chaque visite ; une <b>zone d'offre</b>, un niveau ou les vendeurs
+  dominent et font retomber le prix. Les Order Blocks, les FVG, les zones de discount que vous verrez plus
+  loin ne sont que des <b>versions precises et datees</b> de ces deux idees. Retenez le principe : on achete
+  dans la demande, on vend dans l'offre - jamais l'inverse.</p><figure class="nobreak"><div class="figtitle">Zones d'offre et de demande</div><svg viewBox="0 0 760 250">
+  <rect x="60" y="40" width="640" height="40" fill="#d64545" opacity="0.12"/>
+  <rect x="60" y="40" width="640" height="40" fill="none" stroke="#d64545" stroke-dasharray="5 4"/>
+  <text x="70" y="34" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">ZONE D'OFFRE (vendeurs) - le prix chute en la touchant</text>
+  <rect x="60" y="170" width="640" height="40" fill="#1f9d55" opacity="0.12"/>
+  <rect x="60" y="170" width="640" height="40" fill="none" stroke="#1f9d55" stroke-dasharray="5 4"/>
+  <text x="70" y="230" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">ZONE DE DEMANDE (acheteurs) - le prix rebondit en la touchant</text>
+  <polyline points="80,190 160,80 240,150 320,60 400,190 480,70 560,160 640,80" fill="none" stroke="#16324e" stroke-width="2.5"/>
+  <circle cx="160" cy="80" r="4" fill="#d64545"/><circle cx="320" cy="60" r="4" fill="#d64545"/><circle cx="480" cy="70" r="4" fill="#d64545"/>
+  <circle cx="240" cy="150" r="4" fill="#1f9d55"/><circle cx="400" cy="190" r="4" fill="#1f9d55"/><circle cx="560" cy="160" r="4" fill="#1f9d55"/>
+</svg><div class="cap"><b>Regle.</b> Le prix reagit aux memes zones plusieurs fois. Tant qu'une zone tient, elle reste valable ; une cloture franche au travers l'invalide.</div></figure><h3>Les cycles du marche</h3>
+<p>Le marche ne monte ni ne descend en ligne droite : il respire par cycles, toujours dans le meme ordre.
+  Savoir ou l'on se trouve dans ce cycle vaut mieux que n'importe quel indicateur.</p><figure class="nobreak"><div class="figtitle">Le cycle en quatre phases</div><svg viewBox="0 0 760 240">
+  <path d="M40,180 C120,175 180,178 210,176 C260,90 320,70 360,66 C420,64 470,66 520,64 C560,150 620,175 720,180"
+        fill="none" stroke="#16324e" stroke-width="3"/>
+  <rect x="40" y="160" width="180" height="35" fill="#1f9d55" opacity="0.10"/>
+  <text x="60" y="215" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">1. Accumulation</text>
+  <text x="250" y="120" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">2. Expansion (markup)</text>
+  <rect x="440" y="50" width="150" height="35" fill="#d64545" opacity="0.10"/>
+  <text x="450" y="42" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">3. Distribution</text>
+  <text x="560" y="150" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">4. Declin (markdown)</text>
+  <text x="300" y="228" font-family="Segoe UI" font-size="10" fill="#5b6b7a">Le meme cycle se repete sur toutes les unites de temps</text>
+</svg><div class="cap"><b>Cycle.</b> Accumulation (les gros achetent bas) -> Expansion (la hausse) -> Distribution (les gros vendent haut) -> Declin (la baisse). Puis tout recommence, sur chaque unite de temps.</div></figure><div class="box b-tip"><div class="bh">&#128161; L'idee la plus importante du chapitre</div><p>Acheter en phase d'<b>accumulation</b> est intelligent ; acheter en pleine <b>distribution</b> (au sommet, dans l'euphorie) est dangereux. Le chapitre 5 sur Wyckoff vous apprendra a reconnaitre chaque phase precisement.</p></div><div class="box b-sum"><div class="bh">&#9989; Resume</div><p>Un prix = un rapport de force offre/demande. Les gros acteurs chassent la <b>liquidite</b> (les stops) pour se remplir, puis le marche avance par <b>cycles</b>. Tout le reste du livre precise ces trois idees.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je vois une bougie comme un rapport de force, pas une simple ligne.</li><li>Je sais ou se cache la liquidite (sommets, creux, EQH/EQL, PDH/PDL).</li><li>Je distingue une zone d'offre d'une zone de demande.</li><li>Je situe le marche dans son cycle (accumulation/expansion/distribution/declin).</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD en H1, identifiez une zone ou le prix a rebondi au moins deux fois : c'est une zone de demande. Tracez-la. Le prix y est-il revenu ensuite ? Faites de meme avec une zone d'offre en haut du graphique.</p></div></div><div id="c3" class="page"><div class="chead"><div class="num">Chapitre 3</div><h2>La structure du marche</h2><div class="bar"></div></div><p class="lead">La structure est le squelette de toute la methode : sans elle, les zones ne sont que des
+    rectangles poses au hasard.</p>
+<p>Le prix avance par vagues. En comparant les sommets et les creux successifs, on lit la tendance. Quatre
+  sigles suffisent : <b>HH</b> (sommet plus haut), <b>HL</b> (creux plus haut), <b>LH</b> (sommet plus bas),
+  <b>LL</b> (creux plus bas).</p><figure class="nobreak"><div class="figtitle">Tendance haussiere (HH/HL) puis retournement (LH/LL)</div><svg viewBox="0 0 760 260">
+  <g stroke="#cfd8e0" stroke-width="1"><line x1="30" y1="230" x2="740" y2="230"/><line x1="30" y1="30" x2="30" y2="230"/></g>
+  <polyline points="40,210 110,150 160,180 240,110 300,140 380,70" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <polyline points="380,70 460,130 520,95 600,170 660,140 720,215" fill="none" stroke="#d64545" stroke-width="3"/>
+  <g font-family="Segoe UI" font-size="12" font-weight="700">
+    <circle cx="110" cy="150" r="4" fill="#1f9d55"/><text x="96" y="140" fill="#1f9d55">HH</text>
+    <circle cx="160" cy="180" r="4" fill="#1f9d55"/><text x="150" y="200" fill="#1f9d55">HL</text>
+    <circle cx="240" cy="110" r="4" fill="#1f9d55"/><text x="228" y="100" fill="#1f9d55">HH</text>
+    <circle cx="300" cy="140" r="4" fill="#1f9d55"/><text x="290" y="160" fill="#1f9d55">HL</text>
+    <circle cx="380" cy="70" r="5" fill="#0e2033"/><text x="366" y="60" fill="#0e2033">HH</text>
+    <circle cx="520" cy="95" r="4" fill="#d64545"/><text x="508" y="86" fill="#d64545">LH</text>
+    <circle cx="600" cy="170" r="4" fill="#d64545"/><text x="590" y="190" fill="#d64545">LL</text>
+    <circle cx="660" cy="140" r="4" fill="#d64545"/><text x="650" y="130" fill="#d64545">LH</text>
+  </g>
+  <text x="150" y="250" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">HAUSSIER : HH + HL</text>
+  <text x="520" y="250" font-family="Segoe UI" font-size="12" fill="#d64545" font-weight="700">BAISSIER : LH + LL</text>
+</svg><div class="cap"><b>Regle.</b> Une suite de HH+HL = tendance haussiere. Une suite de LH+LL = tendance baissiere. Un melange = range indecis.</div></figure><h3>Lire la structure pas a pas</h3>
+<ol>
+  <li><b>Reperez les points pivots.</b> Un sommet est une bougie plus haute que ses voisines ; un creux, l'inverse. Marquez-les.</li>
+  <li><b>Nommez chaque nouveau point</b> par rapport au precedent du meme type : plus haut (HH/HL) ou plus bas (LH/LL) ?</li>
+  <li><b>Lisez la sequence.</b> HH+HL = acheteurs aux commandes ; LH+LL = vendeurs ; melange = range, on attend.</li>
+</ol>
+<h3>BOS et CHoCH : deux cassures, deux messages</h3>
+<p>Ces deux sigles decrivent tous deux une cassure de niveau, mais racontent des choses opposees. Le
+  <b>BOS</b> (Break of Structure) est une cassure <b>dans le sens de la tendance</b> : elle continue. Le
+  <b>CHoCH</b> (Change of Character) est une cassure <b>contre la tendance</b> : elle annonce un possible
+  retournement. C'est la nuance la plus importante de la lecture SMC.</p><div class="grid2"><figure class="nobreak"><div class="figtitle">BOS - cassure de continuation</div><svg viewBox="0 0 360 220">
+  <line x1="20" y1="60" x2="340" y2="60" stroke="#94a3b2" stroke-dasharray="5 4"/>
+  <text x="24" y="52" font-family="Segoe UI" font-size="11" fill="#5b6b7a">dernier sommet</text>
+  <polyline points="30,170 90,110 130,140 200,70 250,100 320,40" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <circle cx="200" cy="70" r="4" fill="#1f9d55"/>
+  <path d="M300,60 L300,45" stroke="#1f9d55" stroke-width="2"/><text x="270" y="35" font-family="Segoe UI" font-size="12" font-weight="800" fill="#1f9d55">BOS</text>
+</svg><div class="cap">Le prix casse le dernier sommet dans le sens de la tendance : elle <b>continue</b>.</div></figure><figure class="nobreak"><div class="figtitle">CHoCH - changement de caractere</div><svg viewBox="0 0 360 220">
+  <line x1="20" y1="150" x2="340" y2="150" stroke="#94a3b2" stroke-dasharray="5 4"/>
+  <text x="24" y="143" font-family="Segoe UI" font-size="11" fill="#5b6b7a">dernier creux</text>
+  <polyline points="30,180 90,120 140,150 200,90 250,150 320,190" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <polyline points="250,150 320,190" fill="none" stroke="#d64545" stroke-width="3"/>
+  <path d="M300,150 L300,168" stroke="#d64545" stroke-width="2"/><text x="262" y="185" font-family="Segoe UI" font-size="12" font-weight="800" fill="#d64545">CHoCH</text>
+</svg><div class="cap">Le prix casse le dernier creux : la tendance haussiere <b>pourrait s'inverser</b>.</div></figure></div><div class="box b-tip"><div class="bh">&#128161; Le detail qui change tout</div><p>Une cassure ne compte que si une bougie <b>ferme</b> au-dela du niveau, jamais sur une simple meche. Sur l'or, tres volatil, les meches de 5 a 10 $ au-dela d'un niveau sont frequentes : exiger la cloture filtre l'immense majorite des faux signaux.</p></div><h3>Quand une tendance change reellement</h3>
+<p>Un vrai retournement suit presque toujours la meme choregraphie en trois temps. Memorisez-la : c'est le
+  schema d'entree le plus fiable de la methode.</p>
+<table>
+  <tr><th>Etape</th><th>Evenement</th><th>Signification</th></tr>
+  <tr><td>1</td><td>Sweep de liquidite</td><td>Le piege se referme sur les particuliers</td></tr>
+  <tr><td>2</td><td>CHoCH</td><td>Premier signe de changement de caractere</td></tr>
+  <tr><td>3</td><td>BOS dans le nouveau sens</td><td>Confirmation de la nouvelle tendance</td></tr>
+</table><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Tendance baissiere : LH a 4020, LL a 3980. Le prix pique a 3974 (sweep du LL), puis <b>cloture au-dessus de 4020</b> - le dernier LH. Franchir ce niveau <b>contre la tendance</b> est un <b>CHoCH</b>. On bascule en recherche d'achats. Quand le prix casse ensuite un nouveau sommet a 4035 en cloture, c'est un <b>BOS haussier</b> qui confirme le nouveau regime.</p></div><div class="box b-err"><div class="bh">&#9888; Erreur frequente</div><p>Croire qu'une seule bougie rouge inverse une tendance haussiere. Une tendance saine respire : elle fait des HL sans etre terminee. Le vrai retournement suit la sequence Sweep -> CHoCH -> BOS.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je sais etiqueter HH/HL/LH/LL.</li><li>BOS = continuation, CHoCH = retournement possible.</li><li>Je valide toujours sur cloture, jamais sur une meche.</li><li>Je cherche un sweep AVANT le CHoCH.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Trouvez sur XAUUSD un retournement recent et verifiez qu'il respecte la sequence Sweep -> CHoCH -> BOS. Notez les trois prix exacts. Puis trouvez un cas ou le prix a casse un niveau SANS sweep prealable : observez a quelle frequence il fait demi-tour.</p></div></div><div class="partsep"><div class="pk">Partie II</div>
+  <div class="pt">Les outils Smart Money</div>
+  <div class="pd">Chaque brique de la confluence, expliquee et illustree : liquidite, Wyckoff, Order Blocks,
+    Fair Value Gaps, Premium/Discount, Fibonacci, VWAP et volume. Autant de temoins independants qui,
+    reunis, forment un signal fiable.</div></div><div id="c4" class="page"><div class="chead"><div class="num">Chapitre 4</div><h2>Smart Money Concepts</h2><div class="bar"></div></div><p class="lead">Les institutions ont besoin de contrepartie. Elles vont la chercher exactement la ou
+    sont les stops - et c'est previsible.</p>
+
+<h3>Les principes du SMC</h3>
+<p>Le Smart Money Concept part d'une idee : le marche est en grande partie orchestre par les gros acteurs
+  ("smart money"), qui laissent des <b>empreintes</b> reconnaissables. Plutot que de suivre des indicateurs
+  retardes, on lit ces empreintes directement sur le prix : ou la liquidite a ete prise, ou la structure a
+  casse, quelle zone a provoque l'impulsion. Le SMC n'invente rien de magique : il donne un <b>vocabulaire
+  precis</b> a ce que font reellement les institutions.</p>
+
+<h3>Pourquoi les institutions creent des pieges</h3>
+<p>Imaginez un fonds qui veut acheter massivement l'or. S'il achete au marche, il fait grimper le prix
+  contre lui-meme et paie de plus en plus cher. Sa solution : pousser d'abord le prix vers le <b>bas</b>,
+  sous un creux evident, pour declencher les stops des acheteurs deja en position. Ces stops se transforment
+  en ordres de <b>vente</b> - la contrepartie parfaite pour que le fonds achete a bon prix. Une fois rempli,
+  il laisse le prix repartir a la hausse. Le particulier, lui, a l'impression que "le support a lache" et
+  vend au pire moment. Le piege n'est pas une theorie du complot : c'est de la simple mecanique d'execution.</p><figure class="nobreak"><div class="figtitle">Le sweep : balayer la liquidite, puis se retourner</div><svg viewBox="0 0 760 250">
+  <line x1="30" y1="90" x2="600" y2="90" stroke="#94a3b2" stroke-dasharray="6 4"/>
+  <text x="34" y="82" font-family="Segoe UI" font-size="11" fill="#5b6b7a">equal lows - stops des acheteurs dessous</text>
+  <g>
+    <rect x="120" y="60" width="14" height="34" fill="#1f9d55"/><line x1="127" y1="52" x2="127" y2="98" stroke="#1f9d55"/>
+    <rect x="180" y="70" width="14" height="30" fill="#d64545"/><line x1="187" y1="64" x2="187" y2="104" stroke="#d64545"/>
+    <rect x="250" y="72" width="16" height="26" fill="#1f9d55"/><line x1="258" y1="66" x2="258" y2="140" stroke="#1f9d55" stroke-width="2"/>
+    <text x="240" y="158" font-family="Segoe UI" font-size="11" fill="#c99b3a" font-weight="800">SWEEP</text>
+    <rect x="300" y="55" width="14" height="30" fill="#1f9d55"/><line x1="307" y1="48" x2="307" y2="88" stroke="#1f9d55"/>
+    <rect x="340" y="40" width="14" height="26" fill="#1f9d55"/><line x1="347" y1="34" x2="347" y2="70" stroke="#1f9d55"/>
+  </g>
+  <path d="M266,120 C330,120 360,70 400,45" fill="none" stroke="#1f9d55" stroke-width="2.5" marker-end="url(#ar)"/>
+  <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+  <text x="430" y="60" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">La liquidite prise sert de carburant a la hausse</text>
+</svg><div class="cap"><b>Sweep haussier.</b> La meche perce le creux (declenche les stops = des ventes), puis la cloture revient au-dessus. La contrepartie recoltee alimente le retournement.</div></figure><h3>Les prises de liquidite (sweeps)</h3>
+<p>Un sweep n'est pas une simple cassure : c'est un aller-retour rapide, une fausse cassure concue pour
+  piéger. Il se deroule en trois temps :</p>
+<ol>
+  <li><b>Approche</b> - le prix se dirige vers une poche de liquidite bien visible.</li>
+  <li><b>Perce</b> - une meche depasse le niveau et declenche les stops accumules (le carburant).</li>
+  <li><b>Rejet</b> - la bougie <b>cloture de l'autre cote</b> : le depassement etait un piege, le prix repart.</li>
+</ol>
+<p>La difference entre un sweep et une vraie cassure ? Le <b>retour</b>. Une vraie cassure ferme et continue ;
+  un sweep ferme de l'autre cote et repart. C'est cette reintegration qui trahit la main institutionnelle.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Deux creux identiques a 3950 (equal lows, beaucoup de stops d'acheteurs dessous). Le prix descend, <b>meche a 3946</b>, declenche les stops... puis <b>cloture a 3953</b>. Sweep haussier confirme. Les ventes declenchees ont fourni la contrepartie aux acheteurs institutionnels : le prix a desormais du carburant pour monter. On guette le CHoCH pour entrer.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>La liquidite vaut <b>20 points</b> et constitue le <b>premier verrou</b>. Sans sweep recent, aucun signal n'est emis - meme si tout le reste est parfait. C'est la regle la plus importante de toute la methode.</p></div><div class="box b-err"><div class="bh">&#9888; Erreur frequente : la cassure naive</div><p>Vendre parce que "ca a casse le support" vous place exactement du cote du piege : vous devenez la liquidite que l'institution vient recolter. Attendez le sweep <b>et</b> la confirmation de structure.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je comprends que les institutions chassent la contrepartie.</li><li>J'identifie les poches de liquidite avant qu'elles soient prises.</li><li>Je reconnais un sweep : meche au-dela + cloture de rejet de l'autre cote.</li><li>Je n'entre jamais en cassure naive.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Reperez sur XAUUSD une paire d'equal lows ou d'equal highs. Attendez que le prix aille les balayer et notez : meche + cloture de rejet ? Que s'est-il passe dans les 10 bougies suivantes ? Tenez un journal de vos sweeps reperes.</p></div></div><div id="c5" class="page"><div class="chead"><div class="num">Chapitre 5</div><h2>Wyckoff</h2><div class="bar"></div></div><p class="lead">Ou en est-on dans le cycle ? Acheter en accumulation est intelligent ; acheter en
+    euphorie est dangereux.</p><figure class="nobreak"><div class="figtitle">Le cycle : accumulation -> markup -> distribution -> markdown</div><svg viewBox="0 0 760 240">
+  <rect x="40" y="150" width="150" height="50" fill="#1f9d55" opacity="0.10"/>
+  <text x="70" y="220" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">Accumulation</text>
+  <rect x="520" y="40" width="150" height="50" fill="#d64545" opacity="0.10"/>
+  <text x="545" y="30" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">Distribution</text>
+  <polyline points="45,185 90,175 130,190 175,180" fill="none" stroke="#1f9d55" stroke-width="2.5"/>
+  <line x1="150" y1="180" x2="150" y2="215" stroke="#c99b3a" stroke-width="2"/><text x="130" y="230" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">Spring</text>
+  <polyline points="175,180 360,70 520,65" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <text x="250" y="120" font-family="Segoe UI" font-size="12" fill="#1f9d55" font-weight="700">Markup</text>
+  <polyline points="520,65 560,60 600,80 645,68" fill="none" stroke="#d64545" stroke-width="2.5"/>
+  <line x1="600" y1="65" x2="600" y2="34" stroke="#c99b3a" stroke-width="2"/><text x="585" y="28" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">Upthrust</text>
+  <polyline points="645,68 700,200" fill="none" stroke="#d64545" stroke-width="3"/>
+  <text x="640" y="150" font-family="Segoe UI" font-size="12" fill="#d64545" font-weight="700">Markdown</text>
+</svg><div class="cap"><b>Figures cles.</b> Le Spring (faux plus-bas) annonce la hausse en accumulation ; l'Upthrust (faux plus-haut) annonce la baisse en distribution.</div></figure><h3>Les quatre phases du cycle</h3>
+<p>Richard Wyckoff a compris il y a un siecle que le marche tourne toujours selon le meme cycle, orchestre
+  par les gros operateurs. Savoir <b>ou l'on se trouve</b> vaut mieux que n'importe quel indicateur.</p>
+<table>
+  <tr><th>Phase</th><th>Ce qui se passe</th><th>Comportement</th></tr>
+  <tr><td><b>Accumulation</b></td><td>Range apres une baisse : le smart money achete discretement</td><td>Se preparer a <b>acheter</b> (surtout apres un Spring)</td></tr>
+  <tr><td><b>Markup</b></td><td>Hausse : HH+HL</td><td>Accompagner sur repli</td></tr>
+  <tr><td><b>Distribution</b></td><td>Range apres une hausse : le smart money vend discretement</td><td>Se preparer a <b>vendre</b> (surtout apres un Upthrust)</td></tr>
+  <tr><td><b>Markdown</b></td><td>Baisse : LH+LL</td><td>Accompagner sur rebond</td></tr>
+</table>
+<h3>Spring et Upthrust : les figures qui trahissent le smart money</h3>
+<ul class="clean">
+  <li><b>Spring</b> (en accumulation) : un faux plus-bas sous le range qui balaie la liquidite des vendeurs,
+    puis reintegre. C'est un sweep deguise qui annonce le markup.</li>
+  <li><b>Upthrust</b> (en distribution) : un faux plus-haut au-dessus du range qui piege les acheteurs, puis
+    retombe. Il annonce le markdown.</li>
+</ul>
+<p>Remarquez la coherence de la methode : un Spring <b>est</b> un sweep, qui precede un CHoCH, dans une zone
+  de discount, souvent sur un OB. Tous les concepts du livre decrivent la meme realite sous des angles
+  differents.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Apres une baisse, l'or stagne entre 3940 et 3970 pendant des heures (range = accumulation probable). Soudain, meche a <b>3933</b> sous le range, puis reintegration et cloture a 3948 : c'est un <b>Spring</b>. La phase et la figure pointent vers la hausse. Un achat ici, confirme par un CHoCH, est aligne avec le cycle.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Wyckoff pese <b>15 points</b>. L'indicateur situe la phase et detecte Spring/Upthrust. Surtout, il agit comme <b>garde-fou directionnel</b> : un signal a contre-cycle est fortement penalise, ce qui vous evite d'acheter un sommet de distribution ou de vendre un creux d'accumulation.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je situe la phase (range apres hausse ou apres baisse).</li><li>Je reconnais Spring et Upthrust.</li><li>Je ne trade pas a contre-cycle.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD, reperez un range recent. Etait-ce une accumulation (apres baisse) ou une distribution (apres hausse) ? Y a-t-il eu un Spring ou un Upthrust pour en sortir ? Verifiez que la sortie s'est faite dans le sens attendu par la phase.</p></div></div><div id="c6" class="page"><div class="chead"><div class="num">Chapitre 6</div><h2>Les Order Blocks</h2><div class="bar"></div></div><p class="lead">L'empreinte des gros ordres : la derniere bougie opposee avant l'impulsion qui casse la
+    structure.</p><figure class="nobreak"><div class="figtitle">Order Block haussier (zone de demande)</div><svg viewBox="0 0 760 250">
+  <rect x="150" y="150" width="560" height="40" fill="#1f9d55" opacity="0.12"/>
+  <rect x="150" y="150" width="560" height="40" fill="none" stroke="#1f9d55" stroke-dasharray="5 4"/>
+  <text x="600" y="145" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">Order Block</text>
+  <rect x="150" y="150" width="18" height="40" fill="#d64545"/><line x1="159" y1="144" x2="159" y2="196" stroke="#d64545"/>
+  <text x="120" y="215" font-family="Segoe UI" font-size="10" fill="#5b6b7a">derniere bougie baissiere</text>
+  <g fill="#1f9d55" stroke="#1f9d55">
+    <rect x="185" y="120" width="16" height="30"/><line x1="193" y1="112" x2="193" y2="152"/>
+    <rect x="215" y="80" width="16" height="42"/><line x1="223" y1="74" x2="223" y2="124"/>
+    <rect x="245" y="50" width="16" height="32"/><line x1="253" y1="44" x2="253" y2="84"/>
+  </g>
+  <line x1="150" y1="70" x2="710" y2="70" stroke="#94a3b2" stroke-dasharray="5 4"/>
+  <text x="270" y="64" font-family="Segoe UI" font-size="11" fill="#5b6b7a">impulsion vers BOS (casse le sommet)</text>
+  <g fill="#d64545" stroke="#d64545"><rect x="470" y="90" width="14" height="26"/><rect x="500" y="110" width="14" height="30"/></g>
+  <path d="M520,150 C560,190 620,150 660,120" fill="none" stroke="#1f9d55" stroke-width="2.5" marker-end="url(#ar2)"/>
+  <defs><marker id="ar2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+  <text x="545" y="215" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">retour dans l'OB -> reaction acheteuse</text>
+</svg><div class="cap"><b>Utilisation.</b> On n'entre pas en pleine impulsion : on attend le retour du prix dans l'OB, du bon cote (discount), pour un stop serre.</div></figure><h3>Qu'est-ce qu'un Order Block, vraiment ?</h3>
+<p>Un Order Block (OB) est la <b>derniere bougie de sens oppose avant une impulsion qui casse la
+  structure</b>. Pourquoi cette bougie precise ? Parce que c'est la que les institutions ont place leurs
+  ordres avant de propulser le prix. Cette zone garde une "memoire" : quand le prix y revient, les ordres
+  restants reagissent et le mouvement reprend. Un OB haussier est la derniere bougie <b>baissiere</b> avant
+  une forte hausse ; un OB baissier, la derniere bougie <b>haussiere</b> avant une forte baisse.</p>
+<h3>Comment l'identifier et le valider</h3>
+<ol>
+  <li><b>Identifiez l'impulsion</b> qui a casse un sommet ou un creux (un BOS).</li>
+  <li><b>Remontez a la derniere bougie opposee</b> juste avant cette impulsion : c'est votre OB.</li>
+  <li><b>Tracez la zone</b> de l'ouverture a la cloture (voire jusqu'a la meche) de cette bougie.</li>
+  <li><b>Attendez le retour du prix</b> dans la zone - de preference en discount - avec un stop juste au-dela.</li>
+</ol>
+<p>L'enorme avantage de l'OB : il permet un <b>stop tres serre</b> pour un objectif lointain. C'est ce qui
+  cree des rapports risque/rendement de 1:3, 1:5 et plus.</p><div class="box b-tip"><div class="bh">&#128161; Fraicheur d'un Order Block</div><p>Un OB "frais" (jamais reteste) est le plus puissant. A chaque retour, une partie des ordres est consommee : un OB touche trois fois est fatigue. Apres une cloture franche <b>au travers</b>, considerez-le comme <b>invalide</b>.</p></div><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Le prix chute jusqu'a une derniere bougie baissiere 3988-3990, puis explose et casse le sommet a 4005 (BOS). Votre OB est la zone <b>3988-3990</b>. Achat a 3990, stop a 3986 (2 $ de risque). Au retour sur 3990 en discount, la reaction repart : pour 2 $ risques, TP a 4005 offre plus de 7 $, soit un R:R superieur a 1:3.</p></div><div class="box b-err"><div class="bh">&#9888; Erreurs frequentes</div><ul class="clean">
+    <li>Prendre n'importe quelle bougie opposee : un OB doit preceder une cassure de structure.</li>
+    <li>Ignorer le contexte : un OB haussier en premium et a contre-tendance est un piege.</li>
+    <li>Retrader un OB deja touche plusieurs fois (zone epuisee).</li>
+    <li>Oublier l'invalidation : une cloture franche au-dela annule l'OB.</li></ul></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Order Block et FVG partagent une famille de <b>15 points</b>. L'indicateur ne retient que les OB qui precedent une cassure de structure et se situent du bon cote (discount/premium). Un OB isole, a contre-tendance ou invalide ne compte pas.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Mon OB precede une cassure de structure.</li><li>Il est du bon cote (discount pour un achat).</li><li>Il est encore frais (peu ou pas reteste).</li><li>Je sais quand il est invalide.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD, trouvez trois impulsions qui ont casse la structure. Pour chacune, tracez l'OB (derniere bougie opposee) et notez si le prix y est revenu, et comment il a reagi. Comparez la force de la reaction entre un OB frais et un OB deja reteste.</p></div></div><div id="c7" class="page"><div class="chead"><div class="num">Chapitre 7</div><h2>Les Fair Value Gaps</h2><div class="bar"></div></div><p class="lead">Un desequilibre laisse par un mouvement trop rapide - que le marche revient souvent
+    combler.</p><figure class="nobreak"><div class="figtitle">FVG haussier : le trou de trois bougies</div><svg viewBox="0 0 760 250">
+  <g>
+    <rect x="120" y="150" width="26" height="40" fill="#1f9d55"/><line x1="133" y1="130" x2="133" y2="196" stroke="#1f9d55" stroke-width="2"/>
+    <text x="112" y="212" font-family="Segoe UI" font-size="10" fill="#5b6b7a">bougie 1 (haut)</text>
+    <rect x="200" y="60" width="30" height="120" fill="#1f9d55"/><line x1="215" y1="48" x2="215" y2="190" stroke="#1f9d55" stroke-width="2"/>
+    <text x="188" y="44" font-family="Segoe UI" font-size="10" fill="#5b6b7a">deplacement</text>
+    <rect x="285" y="40" width="26" height="46" fill="#1f9d55"/><line x1="298" y1="30" x2="298" y2="92" stroke="#1f9d55" stroke-width="2"/>
+    <text x="278" y="108" font-family="Segoe UI" font-size="10" fill="#5b6b7a">bougie 3 (bas)</text>
+  </g>
+  <rect x="120" y="86" width="440" height="44" fill="#c99b3a" opacity="0.16"/>
+  <rect x="120" y="86" width="440" height="44" fill="none" stroke="#c99b3a" stroke-dasharray="5 4"/>
+  <text x="470" y="82" font-family="Segoe UI" font-size="11" fill="#c99b3a" font-weight="800">FVG (desequilibre)</text>
+  <path d="M430,40 C470,40 500,120 540,150" fill="none" stroke="#2b6fb0" stroke-width="2.5" marker-end="url(#ar3)"/>
+  <defs><marker id="ar3" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2b6fb0"/></marker></defs>
+  <text x="470" y="175" font-family="Segoe UI" font-size="11" fill="#2b6fb0" font-weight="700">le prix revient combler, puis repart</text>
+</svg><div class="cap"><b>Definition.</b> Le bas de la 3e bougie est au-dessus du haut de la 1re : il reste une zone ou aucune transaction equilibree n'a eu lieu. Point d'entree sur le retour.</div></figure><h3>D'ou vient un Fair Value Gap ?</h3>
+<p>Quand le marche se deplace trop vite - sur une news, une cassure violente - il "saute" des niveaux de
+  prix sans y echanger de volume dans les deux sens. Il reste un <b>trou</b>, un desequilibre : c'est le
+  Fair Value Gap. Sur trois bougies, il y a un FVG haussier quand le <b>bas de la 3e bougie est au-dessus du
+  haut de la 1re</b>. Le marche deteste ces desequilibres : il revient tres souvent les <b>combler</b> avant
+  de repartir. Ce retour est notre opportunite d'entree.</p>
+<h3>Comment l'utiliser</h3>
+<ol>
+  <li><b>Reperez un deplacement franc</b> (une grande bougie d'impulsion, idealement qui casse la structure).</li>
+  <li><b>Marquez le trou</b> des trois bougies : c'est votre zone de FVG.</li>
+  <li><b>Attendez le retour</b> du prix. L'entree classique se fait au comblement partiel (souvent 50 %).</li>
+  <li><b>Stop</b> de l'autre cote du gap ; objectif dans le sens du deplacement d'origine.</li>
+</ol><div class="box b-tip"><div class="bh">&#128161; Confluence forte : FVG + Order Block</div><p>Un FVG qui se <b>superpose a un Order Block</b> forme une zone d'entree de premier ordre : deux raisons independantes de reagir au meme prix. Quand vous voyez cet empilement en discount et dans le sens de la tendance, c'est l'une des configurations les plus fiables de la methode.</p></div><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Une impulsion propulse l'or de 3980 a 3998. La bougie 1 plafonnait a 3984, la bougie 3 demarre a 3992 : il reste un <b>FVG entre 3984 et 3992</b>. Un OB se trouve justement a 3986-3990 : les deux zones se chevauchent. Entree visee vers <b>3988</b>, stop a 3983, pour viser le retour vers 3998 et au-dela.</p></div><div class="box b-err"><div class="bh">&#9888; Quand l'ignorer</div><ul class="clean"><li>FVG contraire au contexte.</li><li>Trop vieux, deja comble plusieurs fois.</li>
+    <li>Minuscule (bruit) ou isole, sans structure autour.</li></ul></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Le FVG partage les <b>15 points</b> de la famille OB/FVG. L'indicateur privilegie les gaps nes d'un vrai deplacement, alignes avec la structure, et recompense la superposition OB+FVG. Les micro-gaps de bruit sont ignores.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Mon FVG nait d'un vrai deplacement.</li><li>Il va dans le sens de la structure.</li><li>Idealement superpose a un OB.</li><li>Il n'a pas deja ete comble plusieurs fois.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Trouvez sur XAUUSD une grande bougie d'impulsion des dernieres seances. Y a-t-il un FVG entre la 1re et la 3e bougie ? Le prix est-il revenu le combler ? Cherchez ensuite un cas ou un FVG et un OB se superposent : notez la qualite de la reaction.</p></div></div><div id="c8" class="page"><div class="chead"><div class="num">Chapitre 8</div><h2>Premium &amp; Discount</h2><div class="bar"></div></div><p class="lead">Le prix est-il cher ou bon marche dans son range ? Les institutions achetent bas,
+    vendent haut - et le mesurent objectivement.</p><figure class="nobreak"><div class="figtitle">Range, equilibre 50 %, zones d'achat et de vente</div><svg viewBox="0 0 760 250">
+  <rect x="60" y="30" width="640" height="90" fill="#d64545" opacity="0.08"/>
+  <rect x="60" y="120" width="640" height="90" fill="#1f9d55" opacity="0.08"/>
+  <line x1="60" y1="30" x2="700" y2="30" stroke="#94a3b2"/><text x="705" y="34" font-family="Segoe UI" font-size="11" fill="#5b6b7a">Haut</text>
+  <line x1="60" y1="210" x2="700" y2="210" stroke="#94a3b2"/><text x="705" y="214" font-family="Segoe UI" font-size="11" fill="#5b6b7a">Bas</text>
+  <line x1="60" y1="120" x2="700" y2="120" stroke="#0e2033" stroke-dasharray="6 4"/><text x="705" y="124" font-family="Segoe UI" font-size="11" fill="#0e2033" font-weight="700">EQ 50%</text>
+  <text x="300" y="80" font-family="Segoe UI" font-size="15" fill="#d64545" font-weight="800">PREMIUM - vendre</text>
+  <text x="300" y="175" font-family="Segoe UI" font-size="15" fill="#1f9d55" font-weight="800">DISCOUNT - acheter</text>
+  <rect x="120" y="150" width="60" height="24" fill="none" stroke="#1f9d55" stroke-dasharray="4 3"/><text x="122" y="145" font-family="Segoe UI" font-size="10" fill="#1f9d55">OB achat</text>
+  <rect x="560" y="52" width="60" height="24" fill="none" stroke="#d64545" stroke-dasharray="4 3"/><text x="560" y="47" font-family="Segoe UI" font-size="10" fill="#d64545">OB vente</text>
+</svg><div class="cap"><b>Calcul.</b> Range = dernier swing haut / bas. Equilibre a 50 %. Au-dessus = premium (zone de vente), en-dessous = discount (zone d'achat).</div></figure><h3>Comment les calculer</h3>
+<p>On prend le dernier mouvement significatif (un swing), on trace son point haut et son point bas, puis son
+  milieu a <b>50 %</b> (l'equilibre). Au-dessus de 50 % = <b>premium</b> (le prix est cher, on cherche des
+  ventes) ; en dessous = <b>discount</b> (le prix est bon marche, on cherche des achats). Ce filtre elimine
+  a lui seul une grande partie des mauvais trades du debutant, qui achete l'euphorie et vend la panique.</p>
+<h3>Quand acheter, quand vendre</h3>
+<p>Le Premium/Discount ne se suffit pas a lui-meme : c'est un <b>filtre de qualite</b>. Un Order Block
+  haussier situe en discount vaut bien plus que le meme OB en premium. La configuration ideale d'un achat :
+  tendance haussiere + sweep + CHoCH + OB/FVG <b>en discount</b>. On additionne les avantages.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Swing de reference : bas 3950, haut 4050. L'equilibre est a <b>4000</b>. Un signal d'achat a 3975 est <b>en discount</b> : feu vert. Le meme signal a 4030 serait <b>en premium</b> : on le refuse pour un achat.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Le Premium/Discount agit comme <b>filtre transversal</b> qui valorise ou penalise les autres briques. Un OB/FVG du bon cote marque plein pot ; du mauvais cote, il est fortement devalue. La checklist affiche une ligne "Discount/Premium".</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>J'ai trace l'equilibre 50 % du range.</li><li>J'achete en discount, je vends en premium.</li><li>Je verifie que mon OB/FVG est du bon cote de l'equilibre.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD, tracez le dernier swing marquant et son niveau 50 %. Repérez les trois derniers signaux d'achat possibles : combien etaient reellement en discount ? Ceux en premium ont-ils moins bien fonctionne ?</p></div></div><div id="c9" class="page"><div class="chead"><div class="num">Chapitre 9</div><h2>Le Fibonacci (OTE)</h2><div class="bar"></div></div><p class="lead">Un filtre de confirmation interne : la zone ou le smart money reprend souvent
+    position.</p><figure class="nobreak"><div class="figtitle">Zone d'entree optimale (OTE) : 0.618 - 0.786, coeur 0.705</div><svg viewBox="0 0 760 250">
+  <polyline points="40,210 200,40" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <line x1="40" y1="40" x2="720" y2="40" stroke="#cfd8e0"/><text x="620" y="35" font-family="Segoe UI" font-size="10" fill="#5b6b7a">0.0 (sommet)</text>
+  <line x1="40" y1="210" x2="720" y2="210" stroke="#cfd8e0"/><text x="620" y="205" font-family="Segoe UI" font-size="10" fill="#5b6b7a">1.0 (base)</text>
+  <line x1="40" y1="125" x2="720" y2="125" stroke="#b9c4cf" stroke-dasharray="4 4"/><text x="620" y="121" font-family="Segoe UI" font-size="10" fill="#5b6b7a">0.5</text>
+  <rect x="40" y="145" width="680" height="45" fill="#c99b3a" opacity="0.18"/>
+  <line x1="40" y1="152" x2="720" y2="152" stroke="#c99b3a"/><text x="620" y="148" font-family="Segoe UI" font-size="10" fill="#c99b3a">0.618</text>
+  <line x1="40" y1="167" x2="720" y2="167" stroke="#c99b3a" stroke-width="2"/><text x="620" y="163" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">0.705 (OTE)</text>
+  <line x1="40" y1="183" x2="720" y2="183" stroke="#c99b3a"/><text x="620" y="179" font-family="Segoe UI" font-size="10" fill="#c99b3a">0.786</text>
+  <polyline points="200,40 320,167 420,90" fill="none" stroke="#2b6fb0" stroke-width="2.5"/>
+  <circle cx="320" cy="167" r="5" fill="#c99b3a"/>
+  <text x="330" y="200" font-family="Segoe UI" font-size="11" fill="#2b6fb0" font-weight="700">reaction en zone 0.705 -> reprise haussiere</text>
+</svg><div class="cap"><b>Role.</b> Le Fibonacci affine la selection : entre deux setups equivalents, celui qui reagit en 0.705 est meilleur. Il ne declenche jamais un trade seul.</div></figure><h3>Pourquoi le Fibonacci dans la strategie</h3>
+<p>Apres une impulsion, le prix respire et recule : c'est le retracement. L'experience montre que le smart
+  money reprend souvent position quand ce recul atteint la zone <b>0.618 - 0.786</b>, avec un coeur autour
+  de <b>0.705</b> - l'OTE (Optimal Trade Entry). C'est assez profond pour offrir un bon prix et un stop
+  serre, mais pas au point de casser la structure. Entrer trop tot donne un mauvais prix ; entrer au-dela de
+  1.0 signifie que l'idee est invalidee.</p>
+<h3>Les niveaux importants</h3>
+<table>
+  <tr><th>Niveau</th><th>Role</th></tr>
+  <tr><td>0.50</td><td>Equilibre - entree classique</td></tr>
+  <tr><td>0.618</td><td>Golden ratio - reprise frequente</td></tr>
+  <tr><td>0.705</td><td><b>Coeur de l'OTE</b> - entree optimale</td></tr>
+  <tr><td>0.786</td><td>Retracement profond - derniere defense</td></tr>
+  <tr><td>1.0</td><td>Retour complet - au-dela, idee invalidee</td></tr>
+</table><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Impulsion de 3960 (base) a 4000 (sommet), 40 $ d'amplitude. OTE : 0.618 -> 4000 - (40 x 0.618) = <b>3975</b> ; 0.786 -> <b>3969</b> ; coeur 0.705 -> <b>3972</b>. Si un OB se trouve vers 3972, l'entree devient ideale : bon prix, stop serre sous 3969, objectif au-dela de 4000.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise (Fibonacci invisible)</div><p>Le moteur Fibonacci est un <b>bonus interne, jamais affiche sur le graphique</b>. Il mesure automatiquement le retracement et ajoute des points selon la profondeur atteinte (0.618, 0.705, 0.786...), jusqu'a un plafond. Resultat : entre deux setups equivalents, celui qui reagit pile dans l'OTE obtient un meilleur score - sans encombrer l'ecran.</p></div><div class="box b-err"><div class="bh">&#9888; Erreurs frequentes</div><ul class="clean"><li>Mesurer sur un swing insignifiant.</li>
+    <li>Forcer une entree hors de la zone parce qu'on ne veut pas rater.</li>
+    <li>Utiliser le Fibonacci seul, sans structure ni sweep.</li></ul></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je mesure sur le bon swing (l'impulsion qui casse la structure).</li><li>Je regarde la reaction en 0.618 - 0.786, coeur 0.705.</li><li>Je cherche une confluence (OB/FVG/discount) dans la zone.</li><li>Je n'utilise jamais le Fibonacci seul.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD, tracez le retracement de Fibonacci sur la derniere impulsion nette. Le prix a-t-il reagi dans la zone 0.618-0.786 ? Y avait-il un OB ou un FVG a cet endroit ? Notez la qualite du rebond selon qu'il y avait ou non cette confluence.</p></div></div><div id="c10" class="page"><div class="chead"><div class="num">Chapitre 10</div><h2>Le VWAP</h2><div class="bar"></div></div><p class="lead">La ligne de flottaison de la session : le prix moyen que suivent les gros
+    intervenants.</p><figure class="nobreak"><div class="figtitle">VWAP - biais de session</div><svg viewBox="0 0 360 200">
+  <path d="M20,150 C80,120 140,110 200,95 C260,80 320,70 345,60" fill="none" stroke="#c99b3a" stroke-width="2.5"/>
+  <text x="250" y="52" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="700">VWAP</text>
+  <polyline points="20,170 90,120 150,130 220,70 300,55" fill="none" stroke="#1f9d55" stroke-width="2.5"/>
+  <text x="30" y="40" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">prix &gt; VWAP -> biais haussier</text>
+</svg><div class="cap"><b>Lecture.</b> Au-dessus du VWAP = session acheteuse ; en-dessous = vendeuse.</div></figure><h3>Son utilite</h3>
+<p>Le VWAP (Volume Weighted Average Price) est le prix moyen pondere par le volume depuis le debut de la
+  session. C'est la reference qu'utilisent les institutions pour juger si elles achetent "bien" ou "mal".
+  Regle simple : <b>prix au-dessus du VWAP -> biais acheteur</b> ; <b>prix en dessous -> biais vendeur</b>.
+  Prendre un achat alors que le prix est nettement sous son VWAP, c'est nager a contre-courant du flux
+  dominant de la journee.</p>
+<h3>Pourquoi il ameliore les probabilites</h3>
+<p>Le VWAP ne cree jamais un signal a lui seul, mais il <b>departage</b>. A confluence egale, un setup du bon
+  cote du VWAP a statistiquement plus de chances de fonctionner, car il va dans le sens ou les gros acteurs
+  sont deja engages. Il sert aussi d'aimant : le prix revient souvent le tester avant de repartir, ce qui en
+  fait un bon point de reference pour affiner une entree.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Session de New York : VWAP a 3982, prix a 3990 (<b>au-dessus</b> -> biais acheteur). Un achat aligne avec le VWAP part avec le vent dans le dos. A l'inverse, tenter un achat a 3975, sous le VWAP, revient a lutter contre le flux de la seance.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Le VWAP est un <b>filtre leger de 5 points</b>. Il ne declenche rien seul, mais valorise les setups qui vont dans le sens du biais de session. La checklist affiche une ligne VWAP.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je regarde de quel cote du VWAP est le prix.</li><li>Je privilegie les achats au-dessus, les ventes en dessous.</li><li>Je me sers du VWAP comme reference, pas comme declencheur.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Ajoutez un VWAP sur XAUUSD en seance. Sur 5 trades potentiels, notez si le prix etait au-dessus ou en dessous. Les trades alignes avec le VWAP ont-ils mieux fonctionne ?</p></div></div><div id="c11" class="page"><div class="chead"><div class="num">Chapitre 11</div><h2>Le Volume</h2><div class="bar"></div></div><p class="lead">La conviction derriere un mouvement : un deplacement sans volume est un deplacement sans
+    conviction.</p><figure class="nobreak"><div class="figtitle">Volume - valider la cassure</div><svg viewBox="0 0 360 200">
+  <line x1="20" y1="170" x2="345" y2="170" stroke="#cfd8e0"/>
+  <rect x="40" y="130" width="20" height="40" fill="#9fb0bf"/>
+  <rect x="80" y="120" width="20" height="50" fill="#9fb0bf"/>
+  <rect x="120" y="70" width="20" height="100" fill="#1f9d55"/><text x="98" y="60" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="800">fort</text>
+  <rect x="220" y="140" width="20" height="30" fill="#d64545"/><text x="196" y="130" font-family="Segoe UI" font-size="10" fill="#d64545" font-weight="800">faible</text>
+  <rect x="260" y="150" width="20" height="20" fill="#9fb0bf"/>
+</svg><div class="cap"><b>Lecture.</b> Cassure sur fort volume = credible ; sur faible volume = suspecte (piege probable).</div></figure><h3>Lire le volume</h3>
+<p>Le volume mesure la quantite d'echanges sur une bougie. Un pic de volume signale que de <b>vrais
+  acteurs</b> sont intervenus ; un volume faible, que peu de monde soutient le mouvement. On ne lit pas le
+  volume dans l'absolu mais <b>par rapport a sa moyenne recente</b> : c'est le contraste qui parle.</p>
+<h3>Valider un mouvement</h3>
+<p>Le volume repond a une question essentielle : <b>cette cassure est-elle vraie ou est-ce un piege ?</b>
+  Une cassure de structure accompagnee d'un pic de volume est credible. La meme cassure sur volume faible
+  sent le faux breakout - souvent le prelude a un sweep en sens inverse. De meme, un sweep sur gros volume
+  (climax) est un signal de retournement particulierement puissant.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>L'or casse un sommet a 3995 avec un volume <b>double</b> de sa moyenne recente : cassure credible, on peut suivre. La meme cassure sur volume faible serait un candidat classique au piege : on s'abstient et on guette plutot le retour.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>Le volume est un <b>filtre de 5 points</b>, anti faux breakout. Combine au VWAP (5 pts), il forme les 10 points de "confirmation legere" qui departagent les setups a confluence egale.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je compare le volume au sien propre (sa moyenne), pas dans l'absolu.</li><li>Je me mefie d'une cassure sur volume faible.</li><li>Un sweep sur gros volume renforce ma conviction de retournement.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Sur XAUUSD, reperez 5 cassures de niveau. Notez pour chacune si le volume etait fort ou faible, puis ce qui s'est passe ensuite. Les cassures sur faible volume ont-elles plus souvent echoue ?</p></div></div><div class="partsep"><div class="pk">Partie III</div>
+  <div class="pt">Assembler et decider</div>
+  <div class="pd">Les briques isolees ne suffisent pas. Cette partie montre comment les faire travailler
+    ensemble : aligner les unites de temps, comprendre chaque confirmation, suivre la logique complete de
+    decision et l'observer sur des exemples reels.</div></div><div id="c12" class="page"><div class="chead"><div class="num">Chapitre 12</div><h2>Analyse multi-timeframe</h2><div class="bar"></div></div><p class="lead">Une meme zone racontee par plusieurs unites de temps devient une evidence. Le contexte
+    donne la direction, l'unite basse donne le timing.</p><figure class="nobreak"><div class="figtitle">Aligner H1, M15 et M5</div><svg viewBox="0 0 760 260">
+  <g font-family="Segoe UI">
+    <rect x="20" y="20" width="230" height="220" rx="10" fill="#f5f8fb" stroke="#e2e8ee"/>
+    <text x="35" y="45" font-size="12" font-weight="800" fill="#16324e">H1 - CONTEXTE</text>
+    <polyline points="40,200 90,150 130,170 180,110 230,80" fill="none" stroke="#1f9d55" stroke-width="3"/>
+    <text x="40" y="225" font-size="10" fill="#1f9d55">Biais : HAUSSIER (on cherche des achats)</text>
+    <rect x="265" y="20" width="230" height="220" rx="10" fill="#f5f8fb" stroke="#e2e8ee"/>
+    <text x="280" y="45" font-size="12" font-weight="800" fill="#16324e">M15 - ZONE</text>
+    <polyline points="285,90 330,140 370,120 410,175 460,150" fill="none" stroke="#16324e" stroke-width="2.5"/>
+    <rect x="410" y="150" width="70" height="26" fill="#1f9d55" opacity="0.15" stroke="#1f9d55" stroke-dasharray="4 3"/>
+    <text x="290" y="225" font-size="10" fill="#5b6b7a">Repli vers un OB/FVG en discount</text>
+    <rect x="510" y="20" width="230" height="220" rx="10" fill="#f5f8fb" stroke="#e2e8ee"/>
+    <text x="525" y="45" font-size="12" font-weight="800" fill="#16324e">M5 - DECLENCHEUR</text>
+    <line x1="525" y1="150" x2="725" y2="150" stroke="#94a3b2" stroke-dasharray="4 3"/>
+    <rect x="560" y="150" width="12" height="20" fill="#1f9d55"/><line x1="566" y1="150" x2="566" y2="180" stroke="#1f9d55" stroke-width="2"/>
+    <polyline points="572,160 620,120 670,140 720,80" fill="none" stroke="#1f9d55" stroke-width="3"/>
+    <text x="525" y="225" font-size="10" fill="#1f9d55">Sweep + CHoCH -> entree precise</text>
+  </g>
+</svg><div class="cap"><b>Principe.</b> Le H1 donne le biais (ici haussier), le M15 la zone precise (OB/FVG en discount), le M5 le declencheur (sweep + CHoCH). Chaque echelle a un role distinct.</div></figure><h3>Le role de chaque unite de temps</h3>
+<p>Trader une seule unite de temps, c'est lire un mot sans la phrase. La force de la methode vient de la
+  <b>hierarchie</b> : les grandes unites decident de la direction, les petites de l'execution.</p>
+<table>
+  <tr><th>Unite</th><th>Role</th><th>Ce qu'on y lit</th></tr>
+  <tr><td><b>D1 / H4</b></td><td>Contexte majeur</td><td>La tendance de fond, les grandes zones</td></tr>
+  <tr><td><b>H1</b></td><td>Biais principal</td><td>La direction a suivre aujourd'hui</td></tr>
+  <tr><td><b>M15</b></td><td>Preparation</td><td>La zone d'entree (OB/FVG, discount)</td></tr>
+  <tr><td><b>M5</b></td><td>Execution</td><td>Le declencheur (sweep + CHoCH)</td></tr>
+  <tr><td><b>M1</b></td><td>Precision (optionnel)</td><td>Affiner l'entree, resserrer le stop</td></tr>
+</table>
+<h3>Comment aligner les unites - sans rigidite</h3>
+<p>L'erreur serait d'exiger un alignement parfait a 100 % : on ne traderait presque jamais. La bonne approche
+  est une <b>ponderation intelligente</b> : les grandes unites pesent plus lourd, mais une petite divergence
+  ne tue pas le setup. Concretement :</p>
+<ol>
+  <li><b>Determinez le biais</b> sur H1/H4 : haussier, baissier ou neutre.</li>
+  <li><b>Cherchez votre zone</b> sur M15, dans le sens du biais (un OB/FVG en discount pour un achat).</li>
+  <li><b>Attendez le declencheur</b> sur M5 : sweep + CHoCH dans la zone.</li>
+  <li><b>Entrez</b>, eventuellement affine en M1, avec un stop cale sur la structure M5.</li>
+</ol><div class="box b-tip"><div class="bh">&#128161; La regle d'or du multi-timeframe</div><p>On <b>ne trade jamais</b> un signal M5 qui va contre le H1. En revanche, un signal M5 <b>aligne</b> avec un H1 haussier et une zone M15 en discount, c'est le coeur de la methode - le fameux "trade en confluence".</p></div><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>H1 haussier (HH+HL). M15 : le prix reflue vers un OB a 3985-3988, en discount du dernier swing. M5 : meche a 3983 (sweep), puis CHoCH en cloture a 3990. Les trois echelles s'accordent -> achat a 3988, stop 3982. Le H4 confirme aussi la hausse : le trade part avec tout le contexte dans le dos.</p></div><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise</div><p>La tendance HTF vaut <b>10 points</b> dans le score, et la ponderation multi-timeframe evite les filtres trop rigides : un contexte superieur aligne fait grimper le score, une divergence le penalise sans forcement l'annuler. Le panneau affiche la ligne "HTF" pour que vous voyiez le biais superieur d'un coup d'oeil.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je definis mon biais sur H1/H4 avant tout.</li><li>Je cherche ma zone sur M15, dans le sens du biais.</li><li>J'attends le declencheur M5 (sweep + CHoCH).</li><li>Je ne prends jamais un M5 contre le H1.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Choisissez un moment sur XAUUSD. Notez le biais H1, puis descendez en M15 pour trouver une zone alignee, puis en M5 pour le declencheur. Ecrivez les trois observations : voyez-vous l'histoire se preciser a mesure que vous descendez ?</p></div></div><div id="c13" class="page"><div class="chead"><div class="num">Chapitre 13</div><h2>Les confirmations</h2><div class="bar"></div></div><p class="lead">Voici, reunies, les dix confirmations que l'indicateur verifie a chaque bougie - la
+    meme checklist que vous pouvez tenir a la main.</p>
+<p>Chaque confirmation est un temoin independant. Prises isolement, elles ne valent pas grand-chose ;
+  reunies au meme endroit, elles forment un signal fiable. Voici le role exact de chacune.</p>
+<table>
+  <tr><th>Confirmation</th><th>Ce qu'elle prouve</th><th>Poids</th></tr>
+  <tr><td><b>Sweep</b></td><td>La liquidite a ete prise (le piege s'est referme)</td><td>Verrou - 20</td></tr>
+  <tr><td><b>BOS</b></td><td>La tendance continue (cassure dans le sens)</td><td>Structure - 20</td></tr>
+  <tr><td><b>CHoCH</b></td><td>La tendance change (cassure contre le sens)</td><td>Structure - 20</td></tr>
+  <tr><td><b>Order Block</b></td><td>Zone d'ordres institutionnels, entree precise</td><td>OB/FVG - 15</td></tr>
+  <tr><td><b>Fair Value Gap</b></td><td>Desequilibre a combler, entree precise</td><td>OB/FVG - 15</td></tr>
+  <tr><td><b>Wyckoff</b></td><td>Le setup est aligne avec la phase du cycle</td><td>15</td></tr>
+  <tr><td><b>HTF</b></td><td>Le contexte superieur soutient la direction</td><td>10</td></tr>
+  <tr><td><b>VWAP</b></td><td>Le prix est du bon cote du biais de session</td><td>5</td></tr>
+  <tr><td><b>Volume</b></td><td>Le mouvement a une vraie conviction</td><td>5</td></tr>
+  <tr><td><b>Fibonacci</b></td><td>L'entree se fait dans l'OTE (bonus invisible)</td><td>bonus</td></tr>
+</table>
+<h3>Comment les lire ensemble</h3>
+<p>En mode Expert, l'indicateur affiche cette liste en direct avec des coches vertes et rouges. Une coche
+  <b>verte</b> signale une confirmation presente ; une <b>rouge</b>, une confirmation manquante. Vous voyez
+  ainsi, en temps reel, ce qui construit ou bloque un signal. La ligne "Ecart" indique combien de points
+  manquent pour atteindre le seuil.</p>
+<p>Les deux premieres - <b>Sweep</b> et <b>Structure (BOS/CHoCH)</b> - sont <b>eliminatoires</b> : sans
+  elles, les huit autres ne servent a rien. Les suivantes affinent la <b>qualite</b> d'un setup deja
+  valide.</p><div class="box b-ex"><div class="bh">&#128200; Exemple : lire une checklist en direct</div><p>Ecran Expert : Sweep OK, CHoCH OK, OB OK, FVG OK, Discount OK, HTF haussier OK, Wyckoff OK, VWAP OK, Volume OK, Fibonacci en OTE. Dix coches vertes -> score ~93 -> <b>BUY A+</b>. Autre cas : tout est vert sauf <b>Sweep</b> (rouge). Verrou non franchi -> <b>aucun signal</b>, malgre neuf confirmations.</p></div><div class="box b-sum"><div class="bh">&#9989; Resume</div><p>Dix confirmations, deux verrous eliminatoires, un score sur 100. C'est ce systeme qui transforme une intuition en decision reproductible - et c'est exactement ce que l'indicateur automatise.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je connais les 10 confirmations et leur poids.</li><li>Je sais lesquelles sont eliminatoires (Sweep + Structure).</li><li>Je sais lire la checklist verte/rouge en mode Expert.</li><li>Je comprends que les confirmations legeres affinent, sans decider seules.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Imprimez la liste des 10 confirmations. Sur votre prochain setup XAUUSD, cochez a la main chaque confirmation presente. Comparez ensuite votre total au score affiche par l'indicateur : vous apprendrez a voir le score sans l'outil.</p></div></div><div id="c14" class="page"><div class="chead"><div class="num">Chapitre 14</div><h2>La logique complete de la strategie</h2><div class="bar"></div></div><p class="lead">Comment la methode passe d'un graphique brut a une decision - etape par etape, sans rien
+    laisser au hasard.</p><figure class="nobreak"><div class="figtitle">Le processus de decision (12 etapes)</div><svg viewBox="0 0 760 300">
+  <defs><marker id="fa" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5b6b7a"/></marker></defs>
+  <g font-family="Segoe UI" font-size="11">
+    <rect x="30" y="20" width="150" height="40" rx="8" fill="#16324e"/><text x="105" y="45" fill="#fff" text-anchor="middle" font-weight="700">1. Biais HTF</text>
+    <rect x="30" y="90" width="150" height="40" rx="8" fill="#16324e"/><text x="105" y="115" fill="#fff" text-anchor="middle" font-weight="700">2. Structure</text>
+    <rect x="30" y="160" width="150" height="40" rx="8" fill="#d64545"/><text x="105" y="185" fill="#fff" text-anchor="middle" font-weight="700">3. Sweep ?</text>
+    <text x="105" y="222" fill="#d64545" text-anchor="middle" font-weight="700" font-size="10">VERROUS ELIMINATOIRES</text>
+    <rect x="300" y="20" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="42" text-anchor="middle">4. Order Block</text>
+    <rect x="300" y="64" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="86" text-anchor="middle">5. FVG</text>
+    <rect x="300" y="108" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="130" text-anchor="middle">6. Wyckoff</text>
+    <rect x="300" y="152" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="174" text-anchor="middle">7. VWAP</text>
+    <rect x="300" y="196" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="218" text-anchor="middle">8. Volume</text>
+    <rect x="300" y="240" width="150" height="34" rx="8" fill="#eef2f5"/><text x="375" y="262" text-anchor="middle">9. Fibonacci / P/D</text>
+    <rect x="540" y="110" width="190" height="60" rx="10" fill="#c99b3a"/><text x="635" y="135" fill="#fff" text-anchor="middle" font-weight="800">11. Score /100</text><text x="635" y="155" fill="#fff" text-anchor="middle" font-size="10">12. >=85 -> signal + alerte</text>
+    <line x1="105" y1="60" x2="105" y2="90" stroke="#5b6b7a" marker-end="url(#fa)"/>
+    <line x1="105" y1="130" x2="105" y2="160" stroke="#5b6b7a" marker-end="url(#fa)"/>
+    <line x1="180" y1="180" x2="300" y2="120" stroke="#5b6b7a" marker-end="url(#fa)"/>
+    <line x1="450" y1="140" x2="540" y2="140" stroke="#5b6b7a" marker-end="url(#fa)"/>
+  </g>
+</svg><div class="cap"><b>Deux verrous d'abord</b> (sweep + structure). Ensuite seulement, les confluences notent la qualite. Score >= 85 -> signal + alerte ; 80-84 -> affiche ; < 80 -> rien.</div></figure><h3>Le processus, dans l'ordre</h3>
+<ol>
+  <li><b>Analyse HTF</b> - quel est le biais du contexte superieur (D1/H4/H1) ?</li>
+  <li><b>Analyse de la structure</b> - HH/HL ou LH/LL ? Ou sont les derniers BOS/CHoCH ?</li>
+  <li><b>Recherche de liquidite</b> - y a-t-il eu un sweep recent ? (verrou 1)</li>
+  <li><b>Confirmation de structure</b> - un BOS/CHoCH valide en cloture ? (verrou 2)</li>
+  <li><b>Order Blocks</b> - le prix reagit-il sur un OB frais du bon cote ?</li>
+  <li><b>Fair Value Gaps</b> - un FVG a combler, idealement superpose a l'OB ?</li>
+  <li><b>Wyckoff</b> - le setup est-il aligne avec la phase (pas de contre-cycle) ?</li>
+  <li><b>Premium / Discount</b> - l'entree est-elle du bon cote de l'equilibre ?</li>
+  <li><b>VWAP</b> - le prix est-il du bon cote du biais de session ?</li>
+  <li><b>Volume</b> - le mouvement est-il soutenu par un vrai volume ?</li>
+  <li><b>Fibonacci</b> - la reaction se fait-elle dans l'OTE (bonus interne) ?</li>
+  <li><b>Calcul du score et decision</b> - somme des points, puis validation ou refus.</li>
+</ol>
+<h3>Le bareme complet sur 100</h3>
+<table>
+  <tr><th>Famille</th><th>Points</th><th>Role</th></tr>
+  <tr><td>Liquidite (sweep)</td><td>20</td><td>Verrou 1</td></tr>
+  <tr><td>Structure (BOS/CHoCH)</td><td>20</td><td>Verrou 2</td></tr>
+  <tr><td>Order Block / FVG</td><td>15</td><td>Entree precise</td></tr>
+  <tr><td>Wyckoff</td><td>15</td><td>Alignement au cycle</td></tr>
+  <tr><td>Tendance HTF</td><td>10</td><td>Contexte</td></tr>
+  <tr><td>ATR + Session</td><td>10</td><td>Volatilite &amp; horaires</td></tr>
+  <tr><td>Volume</td><td>5</td><td>Anti faux breakout</td></tr>
+  <tr><td>VWAP</td><td>5</td><td>Biais de session</td></tr>
+  <tr><td><b>Total</b></td><td><b>100</b></td><td>+ bonus Fibonacci</td></tr>
+</table>
+<h3>Du score a la decision</h3>
+<table>
+  <tr><th>Score</th><th>Note</th><th>Decision</th></tr>
+  <tr><td>90-100</td><td><span class="pill p-ap">A+</span></td><td>Signal + alerte</td></tr>
+  <tr><td>85-89</td><td><span class="pill p-a">A</span></td><td>Signal + alerte</td></tr>
+  <tr><td>80-84</td><td><span class="pill p-b">B</span></td><td>Affiche, sans alerte</td></tr>
+  <tr><td>70-79</td><td><span class="pill p-c">C</span></td><td>Surveillance</td></tr>
+  <tr><td>&lt; 70</td><td><span class="pill p-x">-</span></td><td>Aucun signal</td></tr>
+</table>
+<p>Rappel capital : meme un score parfait sur les six autres familles ne produit <b>rien</b> si l'un des deux
+  verrous manque. Les points ne mesurent que la <b>qualite</b> d'un setup deja valide.</p><div class="box b-ex"><div class="bh">&#128200; Exemple chiffre sur XAUUSD</div><p>Sweep (20) + BOS (20) + OB en discount (13/15) + Wyckoff aligne (12/15) + HTF haussier (10) + ATR/Session (8/10) + Volume fort (5) + VWAP au-dessus (5) = <b>93/100</b>, plus le bonus Fibonacci. Resultat : <b>BUY A+ avec alerte</b>. Retirez le sweep : score bloque, <b>aucun signal</b>.</p></div><div class="box b-sum"><div class="bh">&#9989; A retenir</div><p>La discipline - deux verrous + un score + un seuil - transforme une intuition en <b>processus reproductible</b>, a la main comme avec l'indicateur.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je connais les 12 etapes dans l'ordre.</li><li>Je verifie les deux verrous AVANT de compter les points.</li><li>Je connais les seuils (85 = alerte, 80 = affiche, <80 = rien).</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Prenez un setup XAUUSD et deroulez les 12 etapes par ecrit, en attribuant vous-meme les points. Comparez votre total au score de l'indicateur. Refaites-le sur 3 setups par jour pendant une semaine.</p></div></div><div id="c15" class="page"><div class="chead"><div class="num">Chapitre 15</div><h2>Exemples detailles</h2><div class="bar"></div></div><p class="lead">Le meme graphique raconte une histoire complete... ou incomplete. Apprenez a voir la
+    difference.</p><figure class="nobreak"><div class="figtitle">Trade VALIDE (achat) - l'histoire est complete</div><svg viewBox="0 0 760 210">
+  <line x1="40" y1="150" x2="720" y2="150" stroke="#94a3b2" stroke-dasharray="5 4"/>
+  <rect x="120" y="150" width="16" height="26" fill="#1f9d55"/><line x1="128" y1="150" x2="128" y2="185" stroke="#1f9d55" stroke-width="2"/>
+  <text x="90" y="200" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="800">1. Sweep</text>
+  <polyline points="136,160 220,90 300,120 380,60" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <text x="230" y="80" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="700">2. CHoCH/BOS</text>
+  <rect x="300" y="118" width="120" height="22" fill="#1f9d55" opacity="0.14" stroke="#1f9d55" stroke-dasharray="4 3"/>
+  <text x="305" y="112" font-family="Segoe UI" font-size="10" fill="#1f9d55">3. OB/FVG en discount</text>
+  <polyline points="420,128 520,80 620,40" fill="none" stroke="#1f9d55" stroke-width="3" marker-end="url(#av)"/>
+  <defs><marker id="av" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f9d55"/></marker></defs>
+  <text x="540" y="70" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="800">Score A+ -> BUY</text>
+</svg><div class="cap">Sweep -> CHoCH -> retour dans l'OB/FVG en discount, HTF haussier, VWAP au-dessus, volume correct, Wyckoff en accumulation. Chaque brique confirme la meme direction.</div></figure><h3>Decortiquons le trade gagnant, brique par brique</h3>
+<table>
+  <tr><th>Brique</th><th>Constat</th><th>Points</th></tr>
+  <tr><td>Liquidite</td><td>Sweep d'un creux evident, cloture de rejet</td><td><span class="pill p-ap">20</span></td></tr>
+  <tr><td>Structure</td><td>CHoCH puis BOS haussier en cloture</td><td><span class="pill p-ap">20</span></td></tr>
+  <tr><td>OB / FVG</td><td>Retour dans un OB superpose a un FVG</td><td><span class="pill p-a">14</span></td></tr>
+  <tr><td>Discount</td><td>Entree sous l'equilibre 50 %</td><td><span class="pill p-a">OK</span></td></tr>
+  <tr><td>HTF / Wyckoff</td><td>H1 haussier, sortie d'accumulation</td><td><span class="pill p-a">20</span></td></tr>
+  <tr><td>VWAP / Volume</td><td>Prix &gt; VWAP, cassure sur volume fort</td><td><span class="pill p-a">10</span></td></tr>
+</table>
+<p>Chaque temoin raconte la meme histoire, au meme endroit : c'est la confluence. Score eleve -> <b>BUY A+</b>.</p><figure class="nobreak"><div class="figtitle">Trade REFUSE - cassure naive, pas de sweep</div><svg viewBox="0 0 760 190">
+  <line x1="40" y1="80" x2="720" y2="80" stroke="#94a3b2" stroke-dasharray="5 4"/><text x="44" y="72" font-family="Segoe UI" font-size="10" fill="#5b6b7a">resistance</text>
+  <polyline points="60,150 160,120 260,90 360,55" fill="none" stroke="#1f9d55" stroke-width="3"/>
+  <text x="250" y="45" font-family="Segoe UI" font-size="11" fill="#1f9d55">belle bougie verte... tentant</text>
+  <rect x="330" y="40" width="18" height="20" fill="#1f9d55"/>
+  <polyline points="360,55 460,110 560,150 660,175" fill="none" stroke="#d64545" stroke-width="3"/>
+  <text x="480" y="130" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="800">pas de sweep, volume faible -> REFUS</text>
+</svg><div class="cap">Sans prise de liquidite et avec un volume faible, la methode refuse. Le prix retombe aussitot : c'etait un piege.</div></figure><h3>Pourquoi ce trade est refuse</h3>
+<ul class="clean">
+  <li><b>Aucun sweep</b> prealable - le premier verrou n'est pas franchi : redhibitoire.</li>
+  <li><b>Volume faible</b> sur la cassure - signe classique de faux breakout.</li>
+  <li><b>Entree en premium</b> - on acheterait le haut, du mauvais cote.</li>
+</ul>
+<p>La methode refuse, et le prix retombe aussitot. Ne pas prendre ce trade est une <b>victoire</b>, pas une
+  occasion manquee.</p>
+<h3>Un trade perdant... correctement gere</h3>
+<p>Meme un setup A+ peut perdre - aucune methode ne gagne a 100 %. La difference se joue sur la
+  <b>gestion</b> : stop place avant l'entree, risque limite a 1 %, pas de deplacement du stop. Un A+ qui
+  touche son stop coute <b>1R</b> et rien de plus. C'est precisement parce que les pertes sont petites et
+  fixes que la serie de gains (a 1:3 ou plus) rend le compte gagnant sur la duree.</p><div class="box b-err"><div class="bh">&#9888; Les erreurs a bannir</div><ul class="clean"><li>Cassure naive sans sweep.</li><li>Acheter en premium / vendre en discount.</li>
+    <li>Trader contre le H1.</li><li>Deplacer un stop pour "laisser une chance".</li></ul></div><div class="box b-tip"><div class="bh">&#128161; Comment lire le refus sur l'indicateur</div><p>En mode Expert, la checklist affiche ce qui manque : Sweep rouge, Volume rouge, Discount rouge. La ligne "Ecart" indique combien de points il manque. Vous voyez <b>pourquoi</b> l'outil reste silencieux.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je reconnais une histoire complete (toutes les briques alignees).</li><li>Je repère un refus (verrou manquant) et je l'accepte.</li><li>Je comprends qu'un A+ perdant bien gere ne coute qu'1R.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Tenez un journal des non-trades : a chaque tentation d'entrer, ecrivez les briques presentes et manquantes. Comptez a la fin combien de setups refuses se seraient reellement retournes contre vous.</p></div></div><div class="partsep"><div class="pk">Partie IV</div>
+  <div class="pt">Devenir autonome</div>
+  <div class="pd">La technique ne suffit pas. Cette derniere partie forge le trader : gestion du risque,
+    psychologie, plan de trading, reponses aux questions frequentes et plan de progression pour transformer
+    la connaissance en resultats reguliers.</div></div><div id="c16" class="page"><div class="chead"><div class="num">Chapitre 16</div><h2>Gestion du risque</h2><div class="bar"></div></div><p class="lead">Aucune strategie ne survit a une mauvaise gestion du risque. C'est le sujet qui separe
+    ceux qui durent de ceux qui explosent.</p><figure class="nobreak"><div class="figtitle">Anatomie d'un trade : Entry, SL, TP1/TP2/TP Final, Break Even</div><svg viewBox="0 0 760 260">
+  <line x1="60" y1="200" x2="700" y2="200" stroke="#d64545" stroke-width="2"/><text x="705" y="204" font-family="Segoe UI" font-size="10" fill="#d64545">SL</text>
+  <line x1="60" y1="165" x2="700" y2="165" stroke="#0e2033" stroke-dasharray="5 4"/><text x="705" y="169" font-family="Segoe UI" font-size="10" fill="#0e2033">Entry</text>
+  <line x1="60" y1="120" x2="700" y2="120" stroke="#1f9d55"/><text x="705" y="124" font-family="Segoe UI" font-size="10" fill="#1f9d55">TP1 (1.5R)</text>
+  <line x1="60" y1="80" x2="700" y2="80" stroke="#1f9d55"/><text x="705" y="84" font-family="Segoe UI" font-size="10" fill="#1f9d55">TP2 (3R)</text>
+  <line x1="60" y1="40" x2="700" y2="40" stroke="#1f9d55" stroke-width="2"/><text x="705" y="44" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="700">TP Final (5R)</text>
+  <rect x="60" y="165" width="200" height="35" fill="#d64545" opacity="0.10"/><text x="100" y="188" font-family="Segoe UI" font-size="11" fill="#d64545">risque = 1R</text>
+  <polyline points="90,180 200,150 300,120 420,95 560,60 660,42" fill="none" stroke="#16324e" stroke-width="2.5"/>
+  <circle cx="300" cy="120" r="5" fill="#1f9d55"/><text x="270" y="112" font-family="Segoe UI" font-size="10" fill="#1f9d55" font-weight="800">TP1 -> SL au BE</text>
+</svg><div class="cap"><b>Gestion.</b> Risque fixe (~1 %). A TP1 : on securise et on deplace le stop au Break Even - le trade devient sans risque. Puis TP2, puis TP Final.</div></figure><h3>La notion de R : votre unite de mesure</h3>
+<p>Oubliez les euros un instant et raisonnez en <b>R</b>. 1R = le montant risque sur un trade (distance
+  entre l'entree et le stop). Tout se mesure en multiples de R : un TP a 3R rapporte trois fois le risque ;
+  une perte, c'est -1R. Avec un R:R moyen de 1:3, vous pouvez vous tromper <b>deux fois sur trois</b> et
+  rester gagnant. C'est la puissance du rapport risque/rendement.</p>
+<h3>Position sizing : la formule qui rend un compte incassable</h3>
+<p><b>Taille = (Capital x % risque) / distance au Stop Loss.</b></p>
+<p>Exemple : capital 5000 $, risque 1 % = 50 $. Entree 3990, stop 3985 -> distance 5 $. Taille = 50 / 5 =
+  <b>10 unites</b> (a adapter a la valeur du point de votre courtier). Si le stop touche, vous perdez pile
+  50 $ ; si TP2 a 3R touche, +150 $. Le risque en euros reste <b>identique</b> que le setup soit A+ ou B :
+  c'est ce qui vous protege des series de pertes.</p>
+<h3>Stop Loss, TP1, TP2, TP Final, Break Even</h3>
+<ol>
+  <li><b>Stop Loss</b> - place <b>avant</b> d'entrer, cale sur la structure (au-dela de l'OB ou du sweep). Jamais deplace contre soi.</li>
+  <li><b>TP1</b> - premier objectif proche (~1.5R). On securise une part.</li>
+  <li><b>Break Even</b> - a TP1, on remonte le stop au prix d'entree : le trade devient <b>sans risque</b>.</li>
+  <li><b>TP2</b> - objectif intermediaire (~3R). On encaisse une nouvelle part.</li>
+  <li><b>TP Final</b> - objectif lointain cale sur la liquidite (~5R). On solde le reste.</li>
+</ol><div class="box b-tip"><div class="bh">&#128161; Comment l'indicateur l'utilise (TP Engine)</div><p>Les objectifs ne sont <b>jamais</b> des points fixes : le moteur de TP les ancre sur l'<b>ATR</b> (adaptes au timeframe et a la volatilite) puis les <b>cale sur la structure</b> la plus proche (liquidite, PDH/PDL, swings, OB, FVG). Trois modes - Conservateur, Equilibre, Agressif. Le suivi affiche TP1/TP2/TP Final, le passage au Break Even et la cloture.</p></div><div class="box b-err"><div class="bh">&#9888; A ne jamais faire</div><ul class="clean"><li>Deplacer son stop pour "laisser une chance" au trade.</li>
+    <li>Augmenter la taille apres une perte pour se refaire (martingale = ruine).</li>
+    <li>Risquer plus sur un setup "qu'on sent bien".</li>
+    <li>Trader sans stop.</li></ul></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>% de risque fixe defini (ex. 1 %).</li><li>Taille calculee depuis le stop.</li><li>Break Even prevu a TP1.</li><li>Je raisonne en R, je vise un R:R >= 1:2.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Avec votre capital reel, calculez la taille exacte pour un risque de 1 % avec un stop de 4 $, puis de 8 $ sur XAUUSD. Constatez comment la taille diminue quand le stop s'elargit : c'est ainsi que le risque en euros reste constant.</p></div></div><div id="c17" class="page"><div class="chead"><div class="num">Chapitre 17</div><h2>Psychologie</h2><div class="bar"></div></div><p class="lead">La strategie decide quoi faire ; la psychologie decide si vous le ferez vraiment. C'est
+    souvent la que tout se joue.</p><figure class="nobreak"><div class="figtitle">La courbe emotionnelle du trader</div><svg viewBox="0 0 760 240">
+  <path d="M40,120 C120,60 160,50 200,70 C240,90 250,150 300,170 C350,188 380,150 430,120 C500,80 560,190 640,190 C690,190 710,150 730,120"
+        fill="none" stroke="#16324e" stroke-width="2.5"/>
+  <text x="150" y="45" font-family="Segoe UI" font-size="11" fill="#1f9d55" font-weight="700">Euphorie ("je suis invincible")</text>
+  <circle cx="200" cy="70" r="4" fill="#1f9d55"/>
+  <text x="250" y="200" font-family="Segoe UI" font-size="11" fill="#d64545" font-weight="700">Panique / doute</text>
+  <circle cx="300" cy="170" r="4" fill="#d64545"/>
+  <line x1="40" y1="120" x2="730" y2="120" stroke="#c99b3a" stroke-dasharray="5 4"/>
+  <text x="45" y="114" font-family="Segoe UI" font-size="10" fill="#c99b3a" font-weight="700">Zone de discipline : execution neutre, sans emotion</text>
+</svg><div class="cap"><b>Le piege.</b> L'euphorie pousse a sur-risquer, la panique a couper trop tot. L'objectif : rester dans la zone neutre de discipline, ou l'execution suit le plan sans emotion.</div></figure><h3>Discipline : suivre le plan, meme quand c'est inconfortable</h3>
+<p>La discipline, ce n'est pas la motivation ; c'est faire ce qui est prevu meme quand on n'en a pas envie.
+  Le marche recompense la constance et punit l'improvisation. Un plan mediocre suivi avec discipline bat un
+  plan brillant applique au hasard. La force de l'indicateur est justement de <b>materialiser</b> le plan :
+  quand il n'affiche rien, la discipline consiste a ne rien faire.</p>
+<h3>Patience : attendre le bon moment</h3>
+<p>La majorite du temps, le marche ne propose rien de bon. Le trader amateur s'ennuie et force ; le
+  professionnel attend. Rappelez-vous : ne pas trader est une <b>position</b>, souvent la meilleure. Deux
+  excellents trades par semaine valent mieux que vingt trades mediocres par jour.</p>
+<h3>Gestion des emotions</h3>
+<p>Deux emotions ruinent les comptes : la <b>peur</b> (couper un gagnant trop tot, ne pas oser entrer) et
+  l'<b>avidite</b> (sur-risquer, courir apres le marche). L'antidote n'est pas de les supprimer - c'est
+  impossible - mais de <b>reduire leur emprise</b> par des regles fixes : risque constant, stop place
+  d'avance, Break Even automatique a TP1. Quand les decisions difficiles sont deja prises a froid, l'emotion
+  n'a plus de prise.</p><div class="box b-tip"><div class="bh">&#128161; La regle des 3 respirations</div><p>Avant chaque entree, prenez trois respirations et posez-vous : "Ce trade respecte-t-il mon plan a 100 % ?" Si un seul element manque, passez. Ce micro-rituel casse l'impulsivite.</p></div><div class="box b-ex"><div class="bh">&#128200; Situation typique</div><p>Vous venez d'enchainer deux pertes. L'envie de "vous refaire" tout de suite est enorme. C'est exactement le moment de <b>fermer l'ecran</b>. Le marche sera la demain ; votre capital, seulement si vous le protegez aujourd'hui.</p></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>Je suis mon plan meme quand c'est inconfortable.</li><li>J'accepte de ne pas trader la majorite du temps.</li><li>Mes regles fixes (risque, stop, BE) neutralisent mes emotions.</li><li>Apres une serie de pertes, je fais une pause.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Notez pendant une semaine votre etat emotionnel avant chaque trade (calme / excite / en colere / craintif). A la fin, comparez : vos meilleurs resultats correspondent-ils a l'etat calme ?</p></div></div><div id="c18" class="page"><div class="chead"><div class="num">Chapitre 18</div><h2>Plan de trading</h2><div class="bar"></div></div><p class="lead">Un trader sans routine est un pilote sans check-list. Voici une routine quotidienne
+    complete : avant, pendant et apres la session.</p>
+<h3>Avant la session (preparation)</h3>
+<ol>
+  <li><b>Contexte HTF</b> : ouvrez le D1/H4/H1, notez le biais du jour (haussier / baissier / neutre).</li>
+  <li><b>Zones cles</b> : marquez les grandes zones (OB/FVG HTF, PDH/PDL, PWH/PWL, chiffres ronds).</li>
+  <li><b>Niveaux de liquidite</b> : reperez les equal highs/lows evidents - les cibles probables.</li>
+  <li><b>Plan si/alors</b> : "Si le prix balaie X et fait un CHoCH, je cherche un achat vers Y."</li>
+  <li><b>Etat mental</b> : etes-vous repose, calme ? Sinon, ne tradez pas.</li>
+</ol>
+<h3>Pendant la session (execution)</h3>
+<ol>
+  <li><b>Attendre la zone</b> : ne rien faire tant que le prix n'atteint pas une zone preparee.</li>
+  <li><b>Verifier les verrous</b> : sweep + structure. Pas de verrou, pas de trade.</li>
+  <li><b>Lire le score / la checklist</b> : laissez l'indicateur confirmer ou refuser.</li>
+  <li><b>Executer proprement</b> : entree, stop cale sur la structure, taille calculee au risque fixe.</li>
+  <li><b>Gerer</b> : Break Even a TP1, puis laisser le plan se derouler sans interference.</li>
+</ol>
+<h3>Apres la session (revue)</h3>
+<ol>
+  <li><b>Journal</b> : notez chaque trade (et chaque non-trade important).</li>
+  <li><b>Plan respecte ?</b> : la seule question qui compte vraiment - pas le resultat, mais la discipline.</li>
+  <li><b>Une lecon</b> : qu'ameliorer demain ? Une seule chose a la fois.</li>
+</ol><div class="box b-ex"><div class="bh">&#128200; Modele de journal (a recopier)</div><table>
+    <tr><th>Champ</th><th>Exemple</th></tr>
+    <tr><td>Date / session</td><td>20/07 - New York</td></tr>
+    <tr><td>Sens / score</td><td>BUY - 91/100 - A+</td></tr>
+    <tr><td>Briques presentes</td><td>Sweep, CHoCH, OB+FVG discount, HTF haut, volume fort</td></tr>
+    <tr><td>Entree / SL / TP</td><td>3990 / 3985 / 4005</td></tr>
+    <tr><td>Risque / resultat</td><td>1R -> +3R</td></tr>
+    <tr><td>Plan respecte ?</td><td>Oui - BE a TP1, pas de stop deplace</td></tr>
+    <tr><td>Lecon</td><td>A refaire a l'identique</td></tr>
+    </table></div><div class="box b-chk"><div class="bh">&#10004; Check-list</div><ul class="clean chk"><li>J'ai une routine ecrite avant / pendant / apres.</li><li>Je prepare mes zones a l'avance, je ne les improvise pas.</li><li>Je juge ma journee sur la discipline, pas sur le resultat.</li><li>Je tiens un journal a chaque session.</li></ul></div><div class="box b-ex"><div class="bh">&#9997;&#65039; Exercice</div><p>Ecrivez votre propre routine sur une seule page et affichez-la pres de votre ecran. Suivez-la a la lettre pendant 5 sessions, puis ajustez-la selon ce qui vous a manque.</p></div></div><div id="c19" class="page"><div class="chead"><div class="num">Chapitre 19</div><h2>FAQ</h2><div class="bar"></div></div><p class="lead">Les questions que tout le monde se pose - avec des reponses directes.</p><div class="box b-ex"><div class="bh">&#10067; Sur quelle unite de temps utiliser la strategie ?</div><p>Le contexte se lit sur H1/H4, l'execution sur M5/M15. L'indicateur, lui, s'adapte a <b>toutes</b> les unites (M1 a W1) : ses objectifs sont ancres sur l'ATR du timeframe choisi. Pour debuter, restez en M15 avec un contexte H1.</p></div><div class="box b-ex"><div class="bh">&#10067; Pourquoi l'indicateur n'affiche-t-il aucun signal aujourd'hui ?</div><p>Parce qu'un des deux verrous manque (pas de sweep ou pas de cassure de structure), ou que le score reste sous le seuil. C'est normal et voulu : la methode passe la majorite du temps a <b>attendre</b>. Le mode Expert vous montre exactement ce qui manque.</p></div><div class="box b-ex"><div class="bh">&#10067; Faut-il prendre tous les signaux ?</div><p>Les signaux A+ et A (>=85) sont les plus fiables. Les B (80-84) sont affiches sans alerte : a vous de juger selon le contexte. Rien ne vous oblige a tout prendre - la selectivite est un avantage.</p></div><div class="box b-ex"><div class="bh">&#10067; La probabilite estimee est-elle une vraie probabilite ?</div><p>Non. C'est un <b>indicateur de confiance</b> derive du score, pas une probabilite reelle de gain. Aucun outil ne peut garantir l'avenir. Considerez-la comme une echelle de qualite relative.</p></div><div class="box b-ex"><div class="bh">&#10067; Puis-je l'utiliser sur d'autres actifs que l'or ?</div><p>La logique SMC est universelle et l'indicateur fonctionne sur d'autres paires. Il a ete concu et regle pour l'<b>or (XAUUSD)</b> ; sur un autre actif, testez d'abord en demo pour valider le comportement.</p></div><div class="box b-ex"><div class="bh">&#10067; L'indicateur trade-t-il a ma place ?</div><p>Non. C'est un <b>outil d'aide a la decision</b>. Il analyse et signale ; vous decidez, executez et gerez le risque. C'est justement le but de ce livre : vous rendre autonome, pas dependant.</p></div><div class="box b-ex"><div class="bh">&#10067; Combien de trades par jour puis-je esperer ?</div><p>Cela depend de la volatilite et de vos reglages. Souvent quelques opportunites de qualite par jour, parfois aucune. <b>Peu de trades excellents</b> valent mieux que beaucoup de mediocres.</p></div><div class="box b-ex"><div class="bh">&#10067; Que faire apres une serie de pertes ?</div><p>Rien de plus que d'habitude, surtout pas augmenter la taille. Verifiez que vous avez respecte le plan. Si oui, les pertes font partie du jeu (a 1:3, on gagne meme en se trompant souvent). Faites une pause si l'emotion monte.</p></div></div><div id="c20" class="page"><div class="chead"><div class="num">Chapitre 20</div><h2>Conclusion &amp; plan de progression</h2><div class="bar"></div></div><p class="lead">La performance vient de la repetition d'un avantage avec discipline, pas d'un trade
+    heroique.</p>
+<h3>Les 10 regles d'or a graver</h3>
+<ol>
+  <li>Pas de <b>sweep</b> recent -> pas de trade (verrou 1).</li>
+  <li>Pas de <b>BOS/CHoCH</b> en cloture -> pas de trade (verrou 2).</li>
+  <li>J'achete en <b>discount</b>, je vends en <b>premium</b>.</li>
+  <li>Je vais dans le sens du <b>HTF</b>, jamais contre.</li>
+  <li>Je ne trade pas a <b>contre-cycle</b> Wyckoff.</li>
+  <li>Une cassure ne compte que <b>sur cloture</b>.</li>
+  <li>Mon <b>risque est fixe</b> (~1 %), calcule depuis le stop.</li>
+  <li>Je passe au <b>Break Even a TP1</b>.</li>
+  <li>Je raisonne en <b>R</b>, je vise un R:R >= 1:2.</li>
+  <li>Dans le doute, je <b>ne prends pas</b> le trade.</li>
+</ol>
+<h3>Votre plan de progression sur 8 semaines</h3>
+<table>
+  <tr><th>Periode</th><th>Objectif</th></tr>
+  <tr><td>Semaines 1-2</td><td>Observation. Aucun trade reel. Derouler les 12 etapes par ecrit sur 3 setups/jour.</td></tr>
+  <tr><td>Semaines 3-4</td><td>Demo guidee. Uniquement les setups A+/A, checklist complete, journal rigoureux.</td></tr>
+  <tr><td>Semaines 5-6</td><td>Demo autonome. Identifier les setups AVANT l'outil, puis comparer.</td></tr>
+  <tr><td>Semaines 7-8</td><td>Bilan. Passer au reel seulement si plan respecte > 90 %, R:R favorable, serenite.</td></tr>
+</table><div class="box b-quote"><div class="bh">Tradez peu, tradez bien, protegez votre capital.<span class="who">Le mot de la fin</span></div></div><div class="box b-sum"><div class="bh">&#9989; Ce que vous savez faire desormais</div><p>Lire la structure, traquer la liquidite, situer le cycle Wyckoff, reperer OB et FVG, vous placer en discount/premium, affiner avec Fibonacci/VWAP/volume, aligner les unites de temps, assembler un score de confluence et gerer le risque - avec ou sans l'indicateur. Vous n'etes plus un suiveur de signaux : vous comprenez la methode.</p></div><div class="disc"><b>Rappel final.</b> Le trading comporte un risque reel de perte en capital, pouvant depasser le depot initial. Ce livre est un support educatif et ne constitue pas un conseil en investissement. Aucune strategie ne garantit de gains. La "probabilite estimee" de l'indicateur est un indicateur de confiance, non une probabilite reelle. Entrainez-vous en demonstration et ne risquez jamais plus que ce que vous pouvez perdre.</div></div></body></html>

@@ -1706,3 +1706,290 @@ if barstate.islast and uiShowMain
 // L'ancien tableau unique (infoTable) et la table TP (tpTable) sont remplaces par
 // le PANNEAU PRINCIPAL (essentiels + TP integres) et le PANNEAU DETAILS, definis
 // plus haut. Interface responsive : voir la section "HELPERS PANNEAUX".
+
+
+// ================= MODULE 10 : ZONES INSTITUTIONNELLES PREDICTIVES =================
+// Moteur 100% AUTONOME et NON INTRUSIF. Il ne modifie AUCUNE logique existante :
+// ni les signaux BUY/SELL, ni le score, ni le TP Engine, ni le Fibonacci interne,
+// ni le Wyckoff, ni le VWAP, ni les alertes, ni les TP/SL, ni les confirmations.
+// Il se contente de LIRE des variables deja calculees plus haut et d'afficher des
+// zones a l'avance.
+//
+// Objectif : anticiper, plusieurs heures voire plusieurs jours a l'avance, les
+// meilleures zones Buy Limit / Sell Limit ou le prix a une forte probabilite de
+// reagir, afin de preparer ses trades. Quand le prix arrive dans une zone, le
+// moteur affiche "🟡 Zone active" MAIS ne declenche AUCUN trade : c'est la
+// strategie existante (confirmations : BOS/CHoCH/Sweep/OB/FVG/P-D/Wyckoff/VWAP/
+// Fibonacci/Volume/ATR) qui valide ou refuse le signal quand le prix y arrive.
+//
+// Analyse multi-timeframe INTELLIGENTE et PONDEREE (pas d'alignement obligatoire
+// a 100%) : D1 et H4 (les plus influents), H1/contexte, structure du graphique.
+// Chaque zone a son PROPRE score /100, independant du score des signaux.
+
+grpPZO = "Module 10 - Zones institutionnelles predictives"
+pzoOn        = input.bool(true,  "Activer le moteur de zones predictives", group=grpPZO)
+pzoMinScore  = input.int(84,     "Score minimum d'une zone (A+/A)", minval=50, maxval=99, group=grpPZO)
+pzoShowBC    = input.bool(false, "Afficher aussi les zones B / C", group=grpPZO)
+pzoMaxPerSide= input.int(2,      "Nombre max de zones par sens", minval=1, maxval=2, group=grpPZO)
+pzoMaxAgeBars= input.int(500,    "Duree de validite max (barres)", minval=50, group=grpPZO)
+pzoDedupAtr  = input.float(1.0,  "Distance min entre 2 zones (x ATR)", minval=0.2, step=0.1, group=grpPZO)
+pzoSlAtr     = input.float(0.5,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpPZO)
+pzoTp1R      = input.float(1.5,  "TP1 (x risque)", minval=0.5, step=0.1, group=grpPZO)
+pzoTp2R      = input.float(3.0,  "TP2 (x risque)", minval=1.0, step=0.1, group=grpPZO)
+pzoTp3R      = input.float(5.0,  "TP Final (x risque)", minval=1.0, step=0.1, group=grpPZO)
+pzoEmaLen    = input.int(50,     "EMA de reference multi-timeframe", minval=10, group=grpPZO)
+pzoTblPos    = input.string("Milieu droite", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO)
+
+// ---- Structure d'une zone predictive ----
+type PZone
+    float top
+    float bot
+    float entry
+    float sl
+    float tp1
+    float tp2
+    float tp3
+    int   score
+    int   createBar
+    int   createTime
+    bool  isBuy
+    bool  active
+    box   bx
+    label lb
+
+var array<PZone> pzoBuy  = array.new<PZone>()
+var array<PZone> pzoSell = array.new<PZone>()
+var table        pzoTbl  = na
+
+// ---- Helpers : note, couleurs, transparence, libelle ----
+f_pzoGrade(int s) => s >= 94 ? "A+" : s >= 84 ? "A" : s >= 74 ? "B" : s >= 62 ? "C" : "-"
+f_pzoBuyCol(int s)  => s >= 94 ? color.rgb(0, 170, 75) : s >= 84 ? color.rgb(46, 204, 113) : s >= 74 ? color.rgb(120, 190, 130) : color.rgb(165, 205, 175)
+f_pzoSellCol(int s) => s >= 94 ? color.rgb(200, 30, 30) : s >= 84 ? color.rgb(231, 76, 60) : s >= 74 ? color.rgb(210, 130, 120) : color.rgb(220, 175, 170)
+f_pzoTransp(int s)  => int(math.max(62, 88 - (s - 60) * 0.55))   // score eleve -> plus opaque (plus visible)
+
+f_pzoLabel(PZone z) =>
+    string emo = z.active ? "🟡 " : (z.isBuy ? "🟢 " : "🔴 ")
+    string typ = z.isBuy ? "BUY LIMIT" : "SELL LIMIT"
+    emo + typ + "  " + f_pzoGrade(z.score) + "  " + str.tostring(z.score) + "/100" + (z.active ? "  · ACTIVE" : "")
+
+// Cree la boite + le label d'une zone (appele une seule fois a la creation)
+f_pzoAttach(PZone z) =>
+    color col = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
+    int   tp  = f_pzoTransp(z.score)
+    z.bx := box.new(z.createBar, z.top, bar_index + 1, z.bot, border_color=col, border_width=2, bgcolor=color.new(col, tp), extend=extend.right)
+    z.lb := label.new(bar_index, z.isBuy ? z.top : z.bot, f_pzoLabel(z), style=z.isBuy ? label.style_label_down : label.style_label_up, color=color.new(col, 10), textcolor=color.white, size=size.tiny)
+
+f_pzoPos(string s) => s == "Haut gauche" ? position.top_left : s == "Haut droite" ? position.top_right : s == "Bas droite" ? position.bottom_right : s == "Bas gauche" ? position.bottom_left : position.middle_right
+
+// ================= ANALYSE MULTI-TIMEFRAME PONDEREE =================
+// Lecture NON intrusive de tendances superieures (nouvelles requetes, sans
+// impact sur le reste). Ponderation : D1 25, H4 20, H1 20, contexte 20, chart 15.
+pzoD1C = request.security(syminfo.tickerid, "1D",  close,                 lookahead=barmerge.lookahead_off)
+pzoD1E = request.security(syminfo.tickerid, "1D",  ta.ema(close, pzoEmaLen), lookahead=barmerge.lookahead_off)
+pzoH4C = request.security(syminfo.tickerid, "240", close,                 lookahead=barmerge.lookahead_off)
+pzoH4E = request.security(syminfo.tickerid, "240", ta.ema(close, pzoEmaLen), lookahead=barmerge.lookahead_off)
+
+pzoD1Bull = not na(pzoD1C) and not na(pzoD1E) and pzoD1C > pzoD1E
+pzoH4Bull = not na(pzoH4C) and not na(pzoH4E) and pzoH4C > pzoH4E
+pzoH1Bull = htfClose > htfEma
+pzoCtxBull= msCtxTrend == 1
+pzoChBull = structTrend == "bullish"
+
+pzoMtfBull = (pzoD1Bull ? 25 : 0) + (pzoH4Bull ? 20 : 0) + (pzoH1Bull ? 20 : 0) + (pzoCtxBull ? 20 : 0) + (pzoChBull ? 15 : 0)
+pzoMtfBear = ((not pzoD1Bull) ? 25 : 0) + ((not pzoH4Bull) ? 20 : 0) + ((not pzoH1Bull) ? 20 : 0) + (msCtxTrend == -1 ? 20 : 0) + (structTrend == "bearish" ? 15 : 0)
+
+// ---- Score /100 d'une zone = confluence (facteurs module 7, ponderes 55%)
+//      + biais multi-timeframe (ponderes 45%). Independant du score des signaux. ----
+pzoBuyScore  = int(math.round(0.55 * (pzBullFactors * 10) + 0.45 * pzoMtfBull))
+pzoSellScore = int(math.round(0.55 * (pzBearFactors * 10) + 0.45 * pzoMtfBear))
+
+pzoEffMin = pzoShowBC ? 62 : pzoMinScore
+
+// ---- Bornes candidates : Order Block prioritaire, sinon FVG ----
+pzoBuyTop  = bullObActive ? bullObTop : bullFvgActive ? bullFvgTop : na
+pzoBuyBot  = bullObActive ? bullObBot : bullFvgActive ? bullFvgBot : na
+pzoSellTop = bearObActive ? bearObTop : bearFvgActive ? bearFvgTop : na
+pzoSellBot = bearObActive ? bearObBot : bearFvgActive ? bearFvgBot : na
+
+// Candidate PREDICTIVE : la zone est encore SOUS le prix (buy) / AU-DESSUS (sell),
+// donc le prix n'y est pas encore -> on la prepare a l'avance.
+pzoBuyCand  = pzoOn and not na(pzoBuyTop)  and not na(pzoBuyBot)  and pzoBuyTop  < close and pzoBuyScore  >= pzoEffMin
+pzoSellCand = pzoOn and not na(pzoSellTop) and not na(pzoSellBot) and pzoSellBot > close and pzoSellScore >= pzoEffMin
+
+// ================= NETTOYAGE SI MOTEUR DESACTIVE =================
+if not pzoOn
+    if array.size(pzoBuy) > 0
+        for i = array.size(pzoBuy) - 1 to 0
+            zz = array.get(pzoBuy, i)
+            box.delete(zz.bx)
+            label.delete(zz.lb)
+            array.remove(pzoBuy, i)
+    if array.size(pzoSell) > 0
+        for i = array.size(pzoSell) - 1 to 0
+            zz = array.get(pzoSell, i)
+            box.delete(zz.bx)
+            label.delete(zz.lb)
+            array.remove(pzoSell, i)
+
+// ================= MISE A JOUR / PURGE DES ZONES EXISTANTES =================
+// Une zone est supprimee si : elle est traversee (cloture au-dela sans reaction),
+// ou expiree (trop ancienne). Sinon on met a jour son etat (active si le prix est
+// dedans) et son affichage.
+if pzoOn and array.size(pzoBuy) > 0
+    for i = array.size(pzoBuy) - 1 to 0
+        z = array.get(pzoBuy, i)
+        bool expired   = bar_index - z.createBar > pzoMaxAgeBars
+        bool traversed = close < z.bot
+        if expired or traversed
+            box.delete(z.bx)
+            label.delete(z.lb)
+            array.remove(pzoBuy, i)
+        else
+            z.active := low <= z.top and high >= z.bot
+            color col = f_pzoBuyCol(z.score)
+            box.set_right(z.bx, bar_index + 1)
+            box.set_border_color(z.bx, z.active ? color.rgb(241, 196, 15) : col)
+            label.set_xy(z.lb, bar_index, z.top)
+            label.set_text(z.lb, f_pzoLabel(z))
+            label.set_color(z.lb, color.new(z.active ? color.rgb(241, 196, 15) : col, 10))
+
+if pzoOn and array.size(pzoSell) > 0
+    for i = array.size(pzoSell) - 1 to 0
+        z = array.get(pzoSell, i)
+        bool expired   = bar_index - z.createBar > pzoMaxAgeBars
+        bool traversed = close > z.top
+        if expired or traversed
+            box.delete(z.bx)
+            label.delete(z.lb)
+            array.remove(pzoSell, i)
+        else
+            z.active := low <= z.top and high >= z.bot
+            color col = f_pzoSellCol(z.score)
+            box.set_right(z.bx, bar_index + 1)
+            box.set_border_color(z.bx, z.active ? color.rgb(241, 196, 15) : col)
+            label.set_xy(z.lb, bar_index, z.bot)
+            label.set_text(z.lb, f_pzoLabel(z))
+            label.set_color(z.lb, color.new(z.active ? color.rgb(241, 196, 15) : col, 10))
+
+// ================= CREATION DE NOUVELLES ZONES (avec dedup + priorite score) =================
+if pzoBuyCand
+    float mid = (pzoBuyTop + pzoBuyBot) / 2
+    bool dup = false
+    if array.size(pzoBuy) > 0
+        for i = 0 to array.size(pzoBuy) - 1
+            z = array.get(pzoBuy, i)
+            if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
+                dup := true
+    if not dup
+        float entry = pzoBuyTop
+        float sl    = pzoBuyBot - leAtr * pzoSlAtr
+        float risk  = entry - sl
+        PZone nz = PZone.new(pzoBuyTop, pzoBuyBot, entry, sl, entry + risk * pzoTp1R, entry + risk * pzoTp2R, entry + risk * pzoTp3R, pzoBuyScore, bar_index, time, true, false, na, na)
+        if array.size(pzoBuy) < pzoMaxPerSide
+            f_pzoAttach(nz)
+            array.push(pzoBuy, nz)
+        else
+            int wi = 0
+            int ws = 101
+            for i = 0 to array.size(pzoBuy) - 1
+                z = array.get(pzoBuy, i)
+                if z.score < ws
+                    ws := z.score
+                    wi := i
+            if pzoBuyScore > ws
+                zo = array.get(pzoBuy, wi)
+                box.delete(zo.bx)
+                label.delete(zo.lb)
+                array.remove(pzoBuy, wi)
+                f_pzoAttach(nz)
+                array.push(pzoBuy, nz)
+
+if pzoSellCand
+    float mid = (pzoSellTop + pzoSellBot) / 2
+    bool dup = false
+    if array.size(pzoSell) > 0
+        for i = 0 to array.size(pzoSell) - 1
+            z = array.get(pzoSell, i)
+            if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
+                dup := true
+    if not dup
+        float entry = pzoSellBot
+        float sl    = pzoSellTop + leAtr * pzoSlAtr
+        float risk  = sl - entry
+        PZone nz = PZone.new(pzoSellTop, pzoSellBot, entry, sl, entry - risk * pzoTp1R, entry - risk * pzoTp2R, entry - risk * pzoTp3R, pzoSellScore, bar_index, time, false, false, na, na)
+        if array.size(pzoSell) < pzoMaxPerSide
+            f_pzoAttach(nz)
+            array.push(pzoSell, nz)
+        else
+            int wi = 0
+            int ws = 101
+            for i = 0 to array.size(pzoSell) - 1
+                z = array.get(pzoSell, i)
+                if z.score < ws
+                    ws := z.score
+                    wi := i
+            if pzoSellScore > ws
+                zo = array.get(pzoSell, wi)
+                box.delete(zo.bx)
+                label.delete(zo.lb)
+                array.remove(pzoSell, wi)
+                f_pzoAttach(nz)
+                array.push(pzoSell, nz)
+
+// ================= TABLEAU RECAPITULATIF DES ZONES =================
+if barstate.islast
+    if not na(pzoTbl)
+        table.delete(pzoTbl)
+        pzoTbl := na
+    int nZones = array.size(pzoBuy) + array.size(pzoSell)
+    if pzoOn and nZones > 0
+        color hdBg = color.new(color.rgb(14, 32, 51), 0)
+        pzoTbl := table.new(f_pzoPos(pzoTblPos), 1 + nZones, 11, bgcolor=color.new(color.rgb(20, 26, 33), 8), border_width=1, border_color=color.new(color.gray, 60), frame_width=1, frame_color=color.new(color.gray, 40))
+        // Colonne des libelles
+        table.cell(pzoTbl, 0, 0,  "🎯 ZONES", text_color=color.rgb(230, 193, 90), text_size=size.small, bgcolor=hdBg)
+        table.cell(pzoTbl, 0, 1,  "Score",      text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 2,  "Qualite",    text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 3,  "Prix ideal", text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 4,  "Zone",       text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 5,  "Stop Loss",  text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 6,  "TP1",        text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 7,  "TP2",        text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 8,  "TP Final",   text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 9,  "Cree le",    text_color=color.silver, text_size=size.tiny)
+        table.cell(pzoTbl, 0, 10, "Validite",   text_color=color.silver, text_size=size.tiny)
+        // Colonnes des zones : Buy d'abord, puis Sell
+        int c = 1
+        if array.size(pzoBuy) > 0
+            for i = 0 to array.size(pzoBuy) - 1
+                z = array.get(pzoBuy, i)
+                color zc = f_pzoBuyCol(z.score)
+                int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
+                table.cell(pzoTbl, c, 0,  (z.active ? "🟡 " : "🟢 ") + "BUY", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+                table.cell(pzoTbl, c, 1,  str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+                table.cell(pzoTbl, c, 2,  f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
+                table.cell(pzoTbl, c, 3,  f_px(z.entry), text_color=color.white, text_size=size.tiny)
+                table.cell(pzoTbl, c, 4,  f_px(z.bot) + "-" + f_px(z.top), text_color=color.silver, text_size=size.tiny)
+                table.cell(pzoTbl, c, 5,  f_px(z.sl), text_color=color.rgb(231, 76, 60), text_size=size.tiny)
+                table.cell(pzoTbl, c, 6,  f_px(z.tp1), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 7,  f_px(z.tp2), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 8,  f_px(z.tp3), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 9,  str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
+                table.cell(pzoTbl, c, 10, z.active ? "🟡 ACTIVE" : (str.tostring(rem) + " b"), text_color=z.active ? color.rgb(241, 196, 15) : color.silver, text_size=size.tiny)
+                c += 1
+        if array.size(pzoSell) > 0
+            for i = 0 to array.size(pzoSell) - 1
+                z = array.get(pzoSell, i)
+                color zc = f_pzoSellCol(z.score)
+                int rem = math.max(0, pzoMaxAgeBars - (bar_index - z.createBar))
+                table.cell(pzoTbl, c, 0,  (z.active ? "🟡 " : "🔴 ") + "SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+                table.cell(pzoTbl, c, 1,  str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+                table.cell(pzoTbl, c, 2,  f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
+                table.cell(pzoTbl, c, 3,  f_px(z.entry), text_color=color.white, text_size=size.tiny)
+                table.cell(pzoTbl, c, 4,  f_px(z.bot) + "-" + f_px(z.top), text_color=color.silver, text_size=size.tiny)
+                table.cell(pzoTbl, c, 5,  f_px(z.sl), text_color=color.rgb(231, 76, 60), text_size=size.tiny)
+                table.cell(pzoTbl, c, 6,  f_px(z.tp1), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 7,  f_px(z.tp2), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 8,  f_px(z.tp3), text_color=color.rgb(46, 204, 113), text_size=size.tiny)
+                table.cell(pzoTbl, c, 9,  str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
+                table.cell(pzoTbl, c, 10, z.active ? "🟡 ACTIVE" : (str.tostring(rem) + " b"), text_color=z.active ? color.rgb(241, 196, 15) : color.silver, text_size=size.tiny)
+                c += 1

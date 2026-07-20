@@ -81,6 +81,11 @@
   ul.clean li{padding-left:22px;position:relative;margin:4px 0}
   ul.clean li::before{content:"›";position:absolute;left:6px;color:var(--gold);font-weight:800}
   ul.chk li::before{content:"☐";color:var(--amber);left:2px}
+  ol{margin:3mm 0 3mm 0;padding-left:0;counter-reset:oli;list-style:none}
+  ol>li{position:relative;padding-left:30px;margin:5px 0;line-height:1.5}
+  ol>li::before{counter-increment:oli;content:counter(oli);position:absolute;left:0;top:1px;
+    width:19px;height:19px;border-radius:50%;background:var(--navy);color:#fff;font-family:var(--sans);
+    font-size:9.5pt;font-weight:700;text-align:center;line-height:19px}
 
   /* ---------- FIGURE ---------- */
   figure{margin:6mm 0;page-break-inside:avoid;background:#fff;border:1px solid var(--line);border-radius:12px;
@@ -191,12 +196,61 @@
     <li>Mauvais rapport risque/rendement, gestion du risque « au feeling ».</li>
     <li>Émotions : fermer un gagnant trop tôt, laisser courir un perdant.</li></ul></div>
 
+  <h3>Qu'est-ce que la confluence, concrètement ?</h3>
+  <p>Imaginez un procès. Un seul témoin, même sûr de lui, ne suffit pas à condamner. Mais si dix témoins
+    indépendants racontent la même histoire, au même endroit, au même moment, alors la vérité devient
+    difficile à contester. La <b>confluence</b>, c'est exactement cela : au lieu de parier sur un seul
+    indice, on attend que <b>plusieurs éléments indépendants pointent tous dans la même direction</b>. Sur
+    l'or, cela veut dire qu'un même niveau de prix est à la fois une zone de liquidité prise, un Order Block,
+    un Fair Value Gap, une zone de discount et un retracement Fibonacci — le tout dans le sens de la tendance
+    supérieure. Quand tous ces témoins s'accordent, la probabilité que le mouvement se produise augmente
+    fortement. Quand ils se contredisent, on s'abstient.</p>
+
+  <h3>Ce que fait une institution — et pourquoi c'est différent de vous</h3>
+  <p>Une banque ou un fonds ne peut pas acheter 500 lots d'or d'un seul clic sans faire exploser le prix
+    contre lui. Il lui faut de la <b>contrepartie</b> : quelqu'un qui vende pendant qu'elle achète. Cette
+    contrepartie, elle va la chercher là où se trouvent les ordres des particuliers — sous les creux évidents,
+    au-dessus des sommets évidents, sur les stops. C'est pour cela que le prix vient si souvent « chercher »
+    un niveau, déclenche les stops, puis repart dans l'autre sens : ce n'est pas un hasard, c'est le mécanisme
+    même du marché. Toute la méthode consiste à <b>lire ces empreintes</b> au lieu de les subir.</p>
+
+  <h3>Les deux verrous non négociables</h3>
+  <p>Avant même de compter le moindre point, la méthode exige deux conditions. Sans elles, aucun trade,
+    quel que soit le reste :</p>
+  <table>
+    <tr><th>Verrou</th><th>Ce qu'il prouve</th><th>Sans lui</th></tr>
+    <tr><td><b>1. Sweep de liquidité</b></td><td>Les institutions ont récolté leur contrepartie ; le piège s'est refermé.</td><td>On risque d'acheter juste avant que le prix aille chercher les stops sous nos pieds.</td></tr>
+    <tr><td><b>2. Confirmation de structure (BOS/CHoCH)</b></td><td>Le marché a réellement changé de main, pas seulement fait une mèche.</td><td>On confond une simple respiration avec un vrai retournement.</td></tr>
+  </table>
+  <p>Ces deux verrous sont <b>éliminatoires</b> : ils fonctionnent comme un disjoncteur. Tant qu'ils ne sont
+    pas franchis, l'indicateur n'affiche rien, même si sept autres critères sont réunis. C'est volontaire :
+    mieux vaut manquer un trade que d'en prendre un fragile.</p>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>L'or est à 3&nbsp;992. Sous 3&nbsp;988 se trouvent des <i>equal lows</i> évidents : des centaines de
+      stops d'acheteurs. Le prix plonge à 3&nbsp;985 (mèche), déclenche ces stops, puis <b>clôture à
+      3&nbsp;991</b> : c'est un <b>sweep</b> (verrou&nbsp;1 ✔). Deux bougies plus tard, il casse le dernier
+      petit sommet à 3&nbsp;996 en clôture : <b>CHoCH</b> (verrou&nbsp;2 ✔). Il revient alors sur un Order Block
+      à 3&nbsp;990, en zone de discount, avec le H1 haussier. Score&nbsp;: 91/100 → <b>signal BUY A+</b>. À
+      l'inverse, si le prix avait simplement cassé 3&nbsp;996 sans avoir d'abord balayé la liquidité en bas,
+      le verrou&nbsp;1 aurait bloqué : <b>aucun signal</b>.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur applique tout ça</div>
+    <p>Ce que vous liriez à l'œil, l'indicateur le calcule à chaque bougie : il vérifie d'abord les deux
+      verrous, puis additionne les huit familles pour produire un score sur 100 et une note (A+, A, B, C).
+      Le livre vous apprend à <b>comprendre</b> ce que l'outil décide — pour lui faire confiance en
+      connaissance de cause, et pour savoir <i>pourquoi</i> il refuse un setup.</p></div>
+
   <div class="box b-quote">« Le meilleur trade est souvent celui que l'on ne prend pas. »<span class="who">Principe directeur</span></div>
 
   <div class="box b-chk"><div class="bh">✔ Check-list du chapitre</div>
     <ul class="clean chk"><li>Je comprends la notion de confluence.</li>
     <li>Je sais citer les deux verrous éliminatoires (sweep + structure).</li>
     <li>J'accepte de rester à l'écart la majorité du temps.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Ouvrez un graphique XAUUSD en H1. Sur les 20 dernières bougies, entourez chaque endroit où le prix
+      est allé « chercher » un niveau évident (un creux ou un sommet marqué) avant de repartir. Vous venez
+      d'identifier des <b>sweeps</b> — le point de départ de tout signal.</p></div>
 </div>
 
 <!-- ==================== CH2 ==================== -->
@@ -234,9 +288,44 @@
       LH+LL = tendance baissière (vendeurs). Un mélange = range indécis.</div>
   </figure>
 
+  <h3>Comment lire la structure pas à pas</h3>
+  <p>La structure paraît intimidante ; en réalité elle se lit avec une méthode mécanique, sans intuition&nbsp;:</p>
+  <ol>
+    <li><b>Repérez les points pivots.</b> Un sommet (swing high) est une bougie plus haute que ses voisines
+      de gauche et de droite ; un creux (swing low), l'inverse. Marquez-les d'un point.</li>
+    <li><b>Nommez chaque nouveau point</b> par rapport au précédent du même type&nbsp;: le nouveau sommet
+      est-il plus haut (HH) ou plus bas (LH) ? Le nouveau creux plus haut (HL) ou plus bas (LL) ?</li>
+    <li><b>Lisez la séquence.</b> Une succession de HH et HL = les acheteurs commandent. Une succession de
+      LH et LL = les vendeurs commandent. Un mélange désordonné = un range, on attend.</li>
+  </ol>
+
+  <h3>Les trois régimes de marché</h3>
+  <p>À tout instant, l'or est dans l'un de ces trois états — et chacun appelle un comportement différent&nbsp;:</p>
+  <table>
+    <tr><th>Régime</th><th>Signature</th><th>Ce qu'on fait</th></tr>
+    <tr><td><b>Tendance haussière</b></td><td>HH + HL répétés</td><td>On cherche des <b>achats</b> sur repli (en discount)</td></tr>
+    <tr><td><b>Tendance baissière</b></td><td>LH + LL répétés</td><td>On cherche des <b>ventes</b> sur rebond (en premium)</td></tr>
+    <tr><td><b>Range / indécision</b></td><td>sommets et creux emmêlés</td><td>On <b>attend</b> une cassure nette ou un sweep aux bornes</td></tr>
+  </table>
+  <p>Cette lecture doit se faire sur <b>plusieurs échelles de temps</b>. La structure du H1 donne le
+    <i>contexte</i> (le biais général), celle du M5 ou M15 donne le <i>timing</i> d'entrée. Trader un achat
+    M5 alors que le H1 fait des LH/LL, c'est ramer à contre-courant&nbsp;: statistiquement perdant.</p>
+
   <div class="box b-tip"><div class="bh">💡 Astuce de lecture</div>
     <p>Ne cherchez pas à deviner. Étiquetez mécaniquement chaque sommet et chaque creux : la tendance
-      apparaît d'elle-même une fois les points nommés.</p></div>
+      apparaît d'elle-même une fois les points nommés. Si vous hésitez à nommer un point, c'est souvent
+      le signe d'un range — donc d'une raison de ne pas trader.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Sur le H1, l'or enchaîne&nbsp;: creux 3&nbsp;960 → sommet 3&nbsp;985 → creux 3&nbsp;972 → sommet
+      4&nbsp;010. On lit&nbsp;: 3&nbsp;985 puis 4&nbsp;010 = <b>HH</b>, et 3&nbsp;972 &gt; 3&nbsp;960 =
+      <b>HL</b>. Séquence HH+HL → <b>tendance haussière</b>. Tant que le prix ne casse pas le dernier HL à
+      3&nbsp;972 en clôture, on ne cherche que des <b>achats</b> — jamais de vente à contre-tendance.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>La structure vaut <b>20 points</b> dans le score (BOS/CHoCH) et sert de second verrou éliminatoire.
+      L'indicateur suit en permanence le dernier BOS et le dernier CHoCH, et affiche la tendance courante&nbsp;:
+      c'est le squelette sur lequel toutes les autres briques viennent se poser.</p></div>
 
   <div class="box b-err"><div class="bh">⚠ Erreur fréquente</div>
     <p>Croire qu'une seule bougie rouge inverse une tendance haussière. Une tendance saine respire :
@@ -244,7 +333,12 @@
 
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>Je sais étiqueter HH/HL/LH/LL.</li><li>Je distingue tendance et range.</li>
+    <li>Je lis la structure sur H1 (contexte) ET M5/M15 (timing).</li>
     <li>Je ne confonds pas une respiration avec un retournement.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Sur un graphique H1 vierge, placez un point sur chaque sommet et chaque creux des 30 dernières
+      bougies, puis écrivez à côté HH, HL, LH ou LL. Concluez en une phrase&nbsp;: « la tendance est… ».
+      Refaites-le chaque matin pendant une semaine&nbsp;: la lecture deviendra automatique.</p></div>
 </div>
 
 <!-- ==================== CH3 ==================== -->
@@ -278,17 +372,53 @@
   <div class="box b-tip"><div class="bh">💡 Le détail qui change tout</div>
     <p>La cassure se valide sur une <b>clôture</b> au-delà du niveau, jamais sur une simple mèche.
       C'est ce qui évite d'être piégé par les faux dépassements.</p></div>
+  <h3>BOS et CHoCH : deux mots, deux histoires</h3>
+  <p>Ces deux sigles sont le cœur battant de la lecture SMC. Ils décrivent tous deux une cassure de niveau,
+    mais racontent des choses opposées&nbsp;:</p>
+  <table>
+    <tr><th></th><th>BOS (Break of Structure)</th><th>CHoCH (Change of Character)</th></tr>
+    <tr><td><b>Sens de la cassure</b></td><td>Dans le sens de la tendance</td><td>Contre la tendance en cours</td></tr>
+    <tr><td><b>Message</b></td><td>La tendance <b>continue</b></td><td>La tendance <b>pourrait s'inverser</b></td></tr>
+    <tr><td><b>Exemple haussier</b></td><td>Le prix casse le dernier sommet</td><td>Le prix casse le dernier creux</td></tr>
+    <tr><td><b>Ce qu'on en fait</b></td><td>On reste dans le sens, on cherche un repli pour entrer</td><td>On se méfie, on guette le nouveau setup opposé</td></tr>
+  </table>
+
+  <h3>Pourquoi la clôture change tout</h3>
+  <p>Une cassure ne compte que si une bougie <b>ferme</b> au-delà du niveau. Une simple mèche qui dépasse
+    puis revient n'est pas une cassure&nbsp;: c'est très souvent un <b>sweep</b> (un piège). C'est la nuance
+    qui sépare le trader qui se fait prendre à chaque faux dépassement de celui qui attend la confirmation.
+    Sur l'or, très volatil, les mèches de 5 à 10&nbsp;$ au-delà d'un niveau sont fréquentes&nbsp;: exiger la
+    clôture filtre l'immense majorité des faux signaux.</p>
+
   <h3>Quand une tendance change réellement</h3>
-  <p>La séquence institutionnelle d'un vrai retournement est toujours la même :</p>
+  <p>Un vrai retournement n'arrive jamais d'un coup. Il suit presque toujours la même chorégraphie en trois
+    temps — mémorisez-la, c'est le schéma d'entrée le plus fiable de la méthode&nbsp;:</p>
   <table>
     <tr><th>Étape</th><th>Événement</th><th>Signification</th></tr>
     <tr><td>1</td><td>Sweep de liquidité</td><td>Le piège se referme sur les particuliers</td></tr>
     <tr><td>2</td><td>CHoCH</td><td>Premier signe de changement de caractère</td></tr>
     <tr><td>3</td><td>BOS dans le nouveau sens</td><td>Confirmation de la nouvelle tendance</td></tr>
   </table>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Tendance baissière&nbsp;: LH à 4&nbsp;020, LL à 3&nbsp;980. Le prix pique à 3&nbsp;974 (sweep du LL),
+      puis <b>clôture au-dessus de 4&nbsp;020</b> — le dernier LH. Ce niveau était censé rester intact en
+      tendance baissière&nbsp;: le franchir <b>contre la tendance</b> est un <b>CHoCH</b>. On bascule alors en
+      recherche d'achats. Quand le prix casse ensuite un nouveau sommet à 4&nbsp;035 en clôture, c'est un
+      <b>BOS haussier</b> qui confirme le nouveau régime.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>BOS et CHoCH pèsent <b>20 points</b> (famille Structure) et forment le second verrou&nbsp;: sans
+      cassure de structure récente validée <b>en clôture</b>, aucun signal n'est émis, quel que soit le
+      reste. L'indicateur mémorise le dernier BOS et le dernier CHoCH pour situer chaque nouveau setup.</p></div>
+
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>BOS = continuation, CHoCH = retournement possible.</li>
-    <li>Je valide sur clôture.</li><li>Je cherche un sweep AVANT le CHoCH.</li></ul></div>
+    <li>Je valide toujours sur clôture, jamais sur une mèche.</li><li>Je cherche un sweep AVANT le CHoCH.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Trouvez sur XAUUSD un retournement récent et vérifiez qu'il respecte bien la séquence
+      <b>Sweep → CHoCH → BOS</b>. Notez les trois prix exacts. Puis trouvez un cas où le prix a cassé un
+      niveau <b>sans</b> sweep préalable&nbsp;: observez à quelle fréquence il fait demi-tour.</p></div>
 </div>
 
 <!-- ==================== CH4 ==================== -->
@@ -323,14 +453,57 @@
       puis la clôture revient au-dessus. La contrepartie récoltée alimente le retournement.</div>
   </figure>
 
+  <h3>Où se cache la liquidité ?</h3>
+  <p>La liquidité, ce sont les ordres en attente&nbsp;: surtout les <b>stops</b> des traders déjà positionnés,
+    et les ordres de ceux qui veulent entrer sur cassure. Elle s'accumule toujours aux mêmes endroits
+    prévisibles. Apprenez à les repérer&nbsp;:</p>
+  <table>
+    <tr><th>Poche de liquidité</th><th>Qui a ses stops là</th></tr>
+    <tr><td>Au-dessus d'un sommet évident</td><td>Les vendeurs (stops au-dessus)</td></tr>
+    <tr><td>Sous un creux évident</td><td>Les acheteurs (stops en dessous)</td></tr>
+    <tr><td><b>Equal highs / equal lows</b> (double sommet/creux)</td><td>Cible privilégiée : liquidité concentrée et « propre »</td></tr>
+    <tr><td>PDH / PDL (haut / bas de la veille)</td><td>Traders intraday</td></tr>
+    <tr><td>PWH / PWL (haut / bas de la semaine)</td><td>Traders swing</td></tr>
+    <tr><td>Chiffres ronds (4&nbsp;000, 3&nbsp;950…)</td><td>Ordres psychologiques massés</td></tr>
+  </table>
+
+  <h3>Anatomie d'un sweep en trois temps</h3>
+  <p>Un sweep n'est pas un simple dépassement&nbsp;: c'est un aller-retour rapide, une <b>fausse cassure</b>
+    conçue pour piéger. Il se déroule ainsi&nbsp;:</p>
+  <ol>
+    <li><b>Approche</b> — le prix se dirige vers une poche de liquidité bien visible.</li>
+    <li><b>Perce</b> — une mèche dépasse le niveau et déclenche les stops accumulés (le carburant).</li>
+    <li><b>Rejet</b> — la bougie <b>clôture de l'autre côté</b> du niveau&nbsp;: le dépassement était un piège,
+      le prix repart en sens inverse.</li>
+  </ol>
+  <p>La différence entre un sweep et une vraie cassure&nbsp;? Le <b>retour</b>. Une vraie cassure ferme et
+    continue&nbsp;; un sweep ferme <b>de l'autre côté</b> et repart. C'est cette réintégration qui trahit la
+    main institutionnelle.</p>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Deux creux identiques à 3&nbsp;950 (des <i>equal lows</i>&nbsp;: liquidité propre, beaucoup de stops
+      d'acheteurs juste dessous). Le prix descend, <b>mèche à 3&nbsp;946</b>, déclenche les stops… puis
+      <b>clôture à 3&nbsp;953</b>. Sweep haussier confirmé. Les ventes déclenchées ont fourni la contrepartie
+      aux acheteurs institutionnels&nbsp;: le prix a désormais du carburant pour monter. On guette le CHoCH
+      pour entrer.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>La liquidité vaut <b>20 points</b> et constitue le <b>premier verrou</b>. L'indicateur détecte les
+      sweeps sur les poches ci-dessus (sommets/creux, EQH/EQL, PDH/PDL). <b>Pas de sweep récent → aucun
+      signal</b>, même si tout le reste est parfait. C'est la règle la plus importante de toute la méthode.</p></div>
+
   <div class="box b-err"><div class="bh">⚠ Erreur fréquente : entrer en cassure naïve</div>
-    <p>Vendre parce que « ça a cassé le support » vous place exactement du côté du piège. Attendez le
-      sweep <b>et</b> la confirmation de structure.</p></div>
+    <p>Vendre parce que « ça a cassé le support » vous place exactement du côté du piège&nbsp;: vous êtes la
+      liquidité que l'institution vient récolter. Attendez le sweep <b>et</b> la confirmation de structure.</p></div>
   <div class="box b-sum"><div class="bh">✅ Résumé</div>
     <p>Le sweep est le <b>premier verrou</b> de la méthode : sans prise de liquidité récente, aucun signal.</p></div>
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>J'identifie les poches de liquidité (sommets, creux, PDH/PDL, EQH/EQL).</li>
-    <li>Je reconnais un sweep : mèche au-delà + clôture de rejet.</li><li>Je n'entre jamais en cassure naïve.</li></ul></div>
+    <li>Je reconnais un sweep : mèche au-delà + clôture de rejet de l'autre côté.</li><li>Je n'entre jamais en cassure naïve.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Repérez sur XAUUSD une paire d'<i>equal lows</i> ou d'<i>equal highs</i>. Attendez que le prix aille
+      les balayer et notez&nbsp;: y a-t-il eu mèche + clôture de rejet&nbsp;? Que s'est-il passé dans les
+      10&nbsp;bougies suivantes&nbsp;? Tenez un petit journal de vos sweeps repérés.</p></div>
 </div>
 
 <!-- ==================== CH5 ==================== -->
@@ -366,13 +539,55 @@
     <div class="cap"><b>Utilisation.</b> On n'entre pas en pleine impulsion : on attend le <b>retour</b>
       du prix dans l'OB, du bon côté (discount), pour un stop serré.</div>
   </figure>
+  <h3>Qu'est-ce qu'un Order Block, vraiment ?</h3>
+  <p>Un Order Block (OB) est la <b>dernière bougie de sens opposé avant une impulsion qui casse la
+    structure</b>. Pourquoi cette bougie précise&nbsp;? Parce que c'est là que les institutions ont placé
+    leurs ordres avant de propulser le prix. Cette zone garde une « mémoire »&nbsp;: quand le prix y revient,
+    les ordres restants réagissent et le mouvement reprend. Un OB haussier (zone de demande) est la dernière
+    bougie <b>baissière</b> avant une forte hausse&nbsp;; un OB baissier (zone d'offre), la dernière bougie
+    <b>haussière</b> avant une forte baisse.</p>
+
+  <h3>Comment le tracer et l'utiliser</h3>
+  <ol>
+    <li><b>Identifiez l'impulsion</b> qui a cassé un sommet ou un creux (un BOS).</li>
+    <li><b>Remontez à la dernière bougie opposée</b> juste avant cette impulsion&nbsp;: c'est votre OB.</li>
+    <li><b>Tracez la zone</b> de l'ouverture à la clôture (voire jusqu'à la mèche) de cette bougie.</li>
+    <li><b>Attendez le retour du prix</b> dans la zone — on n'entre jamais en pleine impulsion, on attend le
+      repli — de préférence en <b>discount</b> pour un achat, avec un stop juste sous l'OB.</li>
+  </ol>
+  <p>L'énorme avantage de l'OB&nbsp;: il permet un <b>stop très serré</b> (juste au-delà de la zone) pour un
+    objectif lointain. C'est ce qui crée des rapports risque/rendement de 1:3, 1:5 et plus.</p>
+
+  <div class="box b-tip"><div class="bh">💡 Fraîcheur d'un Order Block</div>
+    <p>Un OB <b>« frais »</b> (jamais retesté) est le plus puissant. À chaque retour, une partie des ordres
+      est consommée&nbsp;: un OB touché trois fois est fatigué. Après une clôture franche <b>au travers</b>
+      de l'OB, considérez-le comme <b>invalidé</b> — on ne le retrade pas.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Le prix chute jusqu'à une dernière bougie baissière 3&nbsp;988–3&nbsp;990, puis explose et casse le
+      sommet à 4&nbsp;005 (BOS haussier). Votre OB haussier est la zone <b>3&nbsp;988–3&nbsp;990</b>. Vous
+      placez un ordre d'achat à 3&nbsp;990 avec un stop à 3&nbsp;986 (2&nbsp;$ de risque). Quand le prix
+      revient tester 3&nbsp;990 en discount, la réaction acheteuse repart&nbsp;: pour 2&nbsp;$ risqués, TP2
+      à 4&nbsp;005 offre déjà plus de 7&nbsp;$ de gain, soit un R:R supérieur à 1:3.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>Order Block et FVG partagent une famille de <b>15 points</b>. L'indicateur ne retient que les OB
+      <b>qui précèdent une cassure de structure</b> et se situent du bon côté (discount/premium). Un OB isolé,
+      à contre-tendance ou déjà invalidé, ne compte pas.</p></div>
+
   <div class="box b-err"><div class="bh">⚠ Erreurs fréquentes</div>
     <ul class="clean"><li>Prendre n'importe quelle bougie opposée : un OB doit précéder une cassure de structure.</li>
     <li>Ignorer le contexte : un OB haussier en premium et à contre-tendance est un piège.</li>
-    <li>Oublier l'invalidation : une clôture franche au-delà annule l'OB.</li></ul></div>
+    <li>Oublier l'invalidation : une clôture franche au-delà annule l'OB.</li>
+    <li>Retrader un OB déjà touché plusieurs fois (zone épuisée).</li></ul></div>
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>Mon OB précède une cassure de structure.</li><li>Il est du bon côté (discount pour un achat).</li>
+    <li>Il est encore frais (peu ou pas retesté).</li>
     <li>J'attends le retour dans la zone. </li><li>Je sais quand il est invalidé.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Sur XAUUSD, trouvez trois impulsions qui ont cassé la structure. Pour chacune, tracez l'OB (dernière
+      bougie opposée) et notez si le prix y est revenu, et comment il a réagi. Comparez la force de la
+      réaction entre un OB frais et un OB déjà retesté.</p></div>
 </div>
 
 <!-- ==================== CH6 ==================== -->
@@ -403,14 +618,50 @@
     <div class="cap"><b>Définition.</b> Le bas de la 3ᵉ bougie est au-dessus du haut de la 1ʳᵉ : il reste une
       zone où aucune transaction équilibrée n'a eu lieu. Point d'entrée sur le retour.</div>
   </figure>
-  <div class="box b-tip"><div class="bh">💡 Confluence forte</div>
-    <p>Un FVG qui se <b>superpose à un Order Block</b> forme une zone d'entrée de premier ordre.</p></div>
+  <h3>D'où vient un Fair Value Gap ?</h3>
+  <p>Quand le marché se déplace trop vite — sur une news, une cassure violente — il « saute » des niveaux de
+    prix sans y échanger de volume dans les deux sens. Il reste un <b>trou</b>, un déséquilibre&nbsp;: c'est
+    le Fair Value Gap. Techniquement, sur trois bougies consécutives, il y a un FVG haussier quand le
+    <b>bas de la 3ᵉ bougie est au-dessus du haut de la 1ʳᵉ</b> — l'espace entre les deux n'a jamais été
+    « équilibré ». Le marché déteste ces déséquilibres&nbsp;: il revient très souvent les <b>combler</b>
+    (rééquilibrer) avant de repartir. Ce retour est notre opportunité d'entrée.</p>
+
+  <h3>Comment le trader</h3>
+  <ol>
+    <li><b>Repérez un déplacement franc</b> (une grande bougie d'impulsion, idéalement qui casse la structure).</li>
+    <li><b>Marquez le trou</b> des trois bougies&nbsp;: c'est votre zone de FVG.</li>
+    <li><b>Attendez le retour</b> du prix dans la zone. L'entrée classique se fait au comblement partiel
+      (souvent 50&nbsp;% du gap).</li>
+    <li><b>Stop</b> de l'autre côté du gap&nbsp;; objectif dans le sens du déplacement d'origine.</li>
+  </ol>
+
+  <div class="box b-tip"><div class="bh">💡 Confluence forte : FVG + Order Block</div>
+    <p>Un FVG qui se <b>superpose à un Order Block</b> forme une zone d'entrée de premier ordre&nbsp;: deux
+      raisons indépendantes de réagir au même prix. Quand vous voyez cet empilement en discount et dans le
+      sens de la tendance, c'est l'une des configurations les plus fiables de toute la méthode.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Une bougie d'impulsion propulse l'or de 3&nbsp;980 à 3&nbsp;998. La bougie 1 plafonnait à 3&nbsp;984,
+      la bougie 3 démarre à 3&nbsp;992&nbsp;: il reste un <b>FVG entre 3&nbsp;984 et 3&nbsp;992</b>. Un Order
+      Block se trouve justement à 3&nbsp;986–3&nbsp;990&nbsp;: les deux zones se chevauchent. Vous visez une
+      entrée vers <b>3&nbsp;988</b> (milieu du gap, cœur de l'OB), stop à 3&nbsp;983, pour viser le retour
+      vers 3&nbsp;998 puis au-delà.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>Le FVG partage les <b>15 points</b> de la famille « OB/FVG ». L'indicateur privilégie les gaps
+      <b>nés d'un vrai déplacement</b>, alignés avec la structure, et récompense la <b>superposition
+      OB+FVG</b>. Les micro-gaps de bruit ou les gaps à contre-tendance sont ignorés.</p></div>
+
   <div class="box b-err"><div class="bh">⚠ Quand l'ignorer</div>
     <ul class="clean"><li>FVG contraire au contexte.</li><li>Trop vieux, déjà comblé plusieurs fois.</li>
     <li>Minuscule (bruit) ou isolé, sans structure autour.</li></ul></div>
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>Mon FVG naît d'un vrai déplacement.</li><li>Il va dans le sens de la structure.</li>
-    <li>Idéalement superposé à un OB.</li></ul></div>
+    <li>Idéalement superposé à un OB.</li><li>Il n'a pas déjà été comblé plusieurs fois.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Trouvez sur XAUUSD une grande bougie d'impulsion des dernières séances. Y a-t-il un FVG entre la 1ʳᵉ
+      et la 3ᵉ bougie&nbsp;? Le prix est-il revenu le combler&nbsp;? Cherchez ensuite un cas où un FVG et un
+      OB se superposent&nbsp;: notez la qualité de la réaction à ce double niveau.</p></div>
 </div>
 
 <!-- ==================== CH7 ==================== -->
@@ -433,11 +684,49 @@
     <div class="cap"><b>Calcul.</b> Range = dernier swing haut / bas. Équilibre à 50 %. Au-dessus = premium
       (zone de vente), en-dessous = discount (zone d'achat).</div>
   </figure>
+  <h3>Le principe : cher ou bon marché ?</h3>
+  <p>Toute la logique institutionnelle tient en une phrase&nbsp;: <b>acheter bas, vendre haut</b>. Encore
+    faut-il définir « bas » et « haut » objectivement. C'est le rôle du Premium/Discount. On prend le dernier
+    mouvement significatif (un swing), on trace son point haut et son point bas, puis son milieu à
+    <b>50&nbsp;%</b> (l'équilibre)&nbsp;:</p>
+  <ul class="clean">
+    <li><b>Au-dessus de 50&nbsp;% = premium</b> — le prix est « cher ». C'est la zone où l'on cherche des
+      <b>ventes</b>, jamais des achats.</li>
+    <li><b>En dessous de 50&nbsp;% = discount</b> — le prix est « bon marché ». C'est la zone où l'on cherche
+      des <b>achats</b>.</li>
+  </ul>
+  <p>Ce filtre a l'air simple, mais il élimine à lui seul une grande partie des mauvais trades du débutant,
+    qui achète l'euphorie (en premium) et vend la panique (en discount) — exactement l'inverse de ce qu'il
+    faudrait.</p>
+
+  <h3>Comment le combiner aux autres briques</h3>
+  <p>Le Premium/Discount ne se suffit pas à lui-même&nbsp;: c'est un <b>filtre de qualité</b>. Un Order Block
+    haussier situé en discount vaut bien plus que le même OB en premium. La configuration idéale d'un achat&nbsp;:
+    tendance haussière + sweep + CHoCH + OB/FVG <b>en discount</b>. On additionne les avantages.</p>
+
   <div class="box b-tip"><div class="bh">💡 Bon sens institutionnel</div>
     <p>Acheter en premium, c'est acheter le haut — exactement ce que fait le particulier piégé. À
       confluence égale, un achat en <b>discount</b> vaut toujours mieux.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Swing de référence&nbsp;: bas 3&nbsp;950, haut 4&nbsp;050. L'équilibre (50&nbsp;%) est à
+      <b>4&nbsp;000</b>. Un signal d'achat qui se présente à 3&nbsp;975 est <b>en discount</b> (sous 4&nbsp;000)&nbsp;:
+      feu vert. Le même signal à 4&nbsp;030 serait <b>en premium</b>&nbsp;: on le refuse pour un achat, on le
+      garderait plutôt en tête pour une éventuelle vente.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>Le Premium/Discount ne porte pas de points « en propre »&nbsp;: il agit comme <b>filtre transversal</b>
+      qui valorise ou pénalise les autres briques. Un OB/FVG du bon côté (discount pour un achat) marque
+      plein pot&nbsp;; du mauvais côté, il est fortement dévalué. La checklist de l'indicateur affiche
+      d'ailleurs une ligne « Discount/Premium ».</p></div>
+
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
-    <ul class="clean chk"><li>J'ai tracé l'équilibre 50 % du range.</li><li>J'achète en discount, je vends en premium.</li></ul></div>
+    <ul class="clean chk"><li>J'ai tracé l'équilibre 50 % du range.</li><li>J'achète en discount, je vends en premium.</li>
+    <li>Je vérifie que mon OB/FVG est du bon côté de l'équilibre.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Sur XAUUSD, tracez le dernier swing marquant et son niveau 50&nbsp;%. Repérez ensuite les trois
+      derniers signaux d'achat que vous auriez pu prendre&nbsp;: combien étaient réellement en discount&nbsp;?
+      Ceux en premium ont-ils moins bien fonctionné&nbsp;?</p></div>
 </div>
 
 <!-- ==================== CH8 ==================== -->
@@ -472,9 +761,52 @@
     <tr><td>0.786</td><td>Retracement profond — dernière défense</td></tr>
     <tr><td>1.0</td><td>Retour complet — au-delà, idée invalidée</td></tr>
   </table>
+
+  <h3>Qu'est-ce que l'OTE ?</h3>
+  <p>OTE signifie <b>Optimal Trade Entry</b> — la zone d'entrée optimale. Après une impulsion, le prix
+    respire et recule&nbsp;: c'est le <b>retracement</b>. L'expérience montre que le smart money reprend
+    souvent position quand ce recul atteint la zone <b>0.618 – 0.786</b>, avec un cœur autour de
+    <b>0.705</b>. Pourquoi&nbsp;? Parce que c'est assez profond pour offrir un bon prix (proche du discount)
+    et un stop serré, mais pas au point de casser la structure. Entrer trop tôt (à 0.382) donne un mauvais
+    prix&nbsp;; entrer trop tard (au-delà de 1.0) signifie que l'idée est invalidée.</p>
+
+  <h3>Comment tracer le retracement</h3>
+  <ol>
+    <li><b>Choisissez le bon swing</b>&nbsp;: l'impulsion qui vient de casser la structure (le mouvement que
+      vous voulez « suivre »).</li>
+    <li><b>Pour un achat</b>&nbsp;: placez le 0.0 sur le sommet de l'impulsion et le 1.0 sur sa base. La zone
+      OTE (0.618–0.786) apparaît dans le bas — c'est là qu'on guette la réaction acheteuse.</li>
+    <li><b>Cherchez une confluence</b> dans cette zone&nbsp;: un OB, un FVG, du discount. Le Fibonacci
+      <b>confirme</b>, il ne décide pas seul.</li>
+  </ol>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Impulsion haussière de 3&nbsp;960 (base) à 4&nbsp;000 (sommet), soit 40&nbsp;$ d'amplitude. La zone
+      OTE se situe entre&nbsp;: 0.618 → 4&nbsp;000 − (40 × 0.618) = <b>3&nbsp;975</b>, et 0.786 →
+      4&nbsp;000 − (40 × 0.786) ≈ <b>3&nbsp;969</b>. Cœur 0.705 ≈ <b>3&nbsp;972</b>. Si un Order Block se
+      trouve justement vers 3&nbsp;972, l'entrée devient idéale&nbsp;: bon prix, stop serré sous 3&nbsp;969,
+      objectif au-delà de 4&nbsp;000.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise (Fibonacci invisible)</div>
+    <p>Le moteur Fibonacci est un <b>bonus interne, jamais affiché sur le graphique</b>. Il mesure
+      automatiquement le retracement et ajoute des points selon la profondeur atteinte (réaction en 0.618,
+      0.705, 0.786…), jusqu'à un plafond. Résultat&nbsp;: entre deux setups équivalents, celui qui réagit
+      pile dans l'OTE obtient un meilleur score — sans encombrer votre écran de lignes.</p></div>
+
+  <div class="box b-err"><div class="bh">⚠ Erreurs fréquentes</div>
+    <ul class="clean"><li>Mesurer sur un swing insignifiant (le Fibonacci n'a alors aucun sens).</li>
+    <li>Forcer une entrée hors de la zone parce qu'« on ne veut pas rater ».</li>
+    <li>Utiliser le Fibonacci <b>seul</b>, sans structure ni sweep.</li></ul></div>
+
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
-    <ul class="clean chk"><li>Je mesure sur le bon swing.</li><li>Je regarde la réaction en 0.618–0.786.</li>
+    <ul class="clean chk"><li>Je mesure sur le bon swing (l'impulsion qui casse la structure).</li>
+    <li>Je regarde la réaction en 0.618–0.786, cœur 0.705.</li>
+    <li>Je cherche une confluence (OB/FVG/discount) dans la zone.</li>
     <li>Je n'utilise jamais le Fibonacci seul.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Sur XAUUSD, tracez le retracement de Fibonacci sur la dernière impulsion nette. Le prix a-t-il réagi
+      dans la zone 0.618–0.786&nbsp;? Y avait-il un OB ou un FVG à cet endroit&nbsp;? Notez la qualité du
+      rebond selon qu'il y avait ou non cette confluence.</p></div>
 </div>
 
 <!-- ==================== CH9 ==================== -->
@@ -501,12 +833,52 @@
     <div class="cap"><b>Figures clés.</b> Le <b>Spring</b> (faux plus-bas) annonce la hausse en accumulation ;
       l'<b>Upthrust</b> (faux plus-haut) annonce la baisse en distribution.</div>
   </figure>
+  <h3>Les quatre phases du cycle</h3>
+  <p>Wyckoff a compris il y a un siècle que le marché tourne toujours selon le même cycle, orchestré par les
+    gros opérateurs. Savoir <b>où l'on se trouve</b> dans ce cycle vaut mieux que n'importe quel indicateur&nbsp;:</p>
+  <table>
+    <tr><th>Phase</th><th>Ce qui se passe</th><th>Comportement à adopter</th></tr>
+    <tr><td><b>1. Accumulation</b></td><td>Range après une baisse&nbsp;: le smart money achète discrètement</td><td>On se prépare à <b>acheter</b> (surtout après un Spring)</td></tr>
+    <tr><td><b>2. Markup</b></td><td>Hausse&nbsp;: la tendance monte, HH+HL</td><td>On accompagne la hausse sur repli</td></tr>
+    <tr><td><b>3. Distribution</b></td><td>Range après une hausse&nbsp;: le smart money vend discrètement</td><td>On se prépare à <b>vendre</b> (surtout après un Upthrust)</td></tr>
+    <tr><td><b>4. Markdown</b></td><td>Baisse&nbsp;: la tendance descend, LH+LL</td><td>On accompagne la baisse sur rebond</td></tr>
+  </table>
+
+  <h3>Spring et Upthrust : les figures qui trahissent le smart money</h3>
+  <p>Deux figures valent de l'or car elles marquent la <b>fin</b> d'un range&nbsp;:</p>
+  <ul class="clean">
+    <li><b>Spring</b> (en accumulation)&nbsp;: un faux plus-bas sous le range qui balaie la liquidité des
+      vendeurs, puis réintègre. C'est un sweep déguisé qui annonce le markup (la hausse).</li>
+    <li><b>Upthrust</b> (en distribution)&nbsp;: un faux plus-haut au-dessus du range qui piège les acheteurs,
+      puis retombe. Il annonce le markdown (la baisse).</li>
+  </ul>
+  <p>Remarquez la cohérence de toute la méthode&nbsp;: un Spring <b>est</b> un sweep, qui précède un CHoCH,
+    dans une zone de discount, souvent sur un OB. Tous les concepts du livre décrivent la même réalité sous
+    des angles différents.</p>
+
   <div class="box b-tip"><div class="bh">💡 Le filtre Wyckoff</div>
     <p>La méthode bloque les trades <b>contraires</b> à la phase : pas de vente en accumulation, pas
       d'achat en distribution. Un setup aligné (Accumulation + Spring + Sweep + CHoCH) est très fort.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Après une baisse, l'or stagne entre 3&nbsp;940 et 3&nbsp;970 pendant des heures (range =
+      <b>accumulation</b> probable). Soudain, mèche à <b>3&nbsp;933</b> sous le range, puis réintégration et
+      clôture à 3&nbsp;948&nbsp;: c'est un <b>Spring</b>. La phase et la figure pointent vers la hausse. Un
+      achat déclenché ici, confirmé par un CHoCH, est aligné avec le cycle — donc bien plus fiable qu'un
+      achat pris au hasard en plein markdown.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>Wyckoff pèse <b>15 points</b>. L'indicateur situe la phase et détecte Spring/Upthrust. Surtout, il agit
+      comme <b>garde-fou directionnel</b>&nbsp;: un signal à contre-cycle est fortement pénalisé, ce qui vous
+      évite d'acheter un sommet de distribution ou de vendre un creux d'accumulation.</p></div>
+
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>Je situe la phase (range après hausse ou après baisse).</li>
     <li>Je reconnais Spring et Upthrust.</li><li>Je ne trade pas à contre-cycle.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Sur XAUUSD, repérez un range récent. Était-ce plutôt une accumulation (après baisse) ou une
+      distribution (après hausse)&nbsp;? Y a-t-il eu un Spring ou un Upthrust pour en sortir&nbsp;? Vérifiez
+      que la sortie s'est faite dans le sens attendu par la phase.</p></div>
 </div>
 
 <!-- ==================== CH10 ==================== -->
@@ -537,11 +909,43 @@
       <div class="cap">Cassure sur fort volume = crédible ; sur faible volume = « FAKE ? ».</div>
     </figure>
   </div>
+  <h3>Le VWAP : la « ligne de flottaison » de la session</h3>
+  <p>Le VWAP (Volume Weighted Average Price) est le prix moyen pondéré par le volume depuis le début de la
+    session. C'est la référence que suivent les gros intervenants pour savoir s'ils achètent « bien » ou
+    « mal ». Sa lecture est simple&nbsp;: <b>prix au-dessus du VWAP → biais acheteur</b> sur la session&nbsp;;
+    <b>prix en dessous → biais vendeur</b>. Prendre un achat alors que le prix est nettement sous son VWAP,
+    c'est nager à contre-courant du flux dominant de la journée.</p>
+
+  <h3>Le volume : la conviction derrière le mouvement</h3>
+  <p>Un mouvement sans volume est un mouvement sans conviction. Le volume répond à une question essentielle&nbsp;:
+    <b>« cette cassure est-elle vraie ou est-ce un piège&nbsp;? »</b>. Une cassure de structure accompagnée
+    d'un <b>pic de volume</b> est crédible&nbsp;: de vrais acteurs sont derrière. La même cassure sur volume
+    <b>faible</b> sent le faux breakout — souvent le prélude à un sweep en sens inverse.</p>
+
   <div class="box b-sum"><div class="bh">✅ Résumé</div>
     <p>VWAP = filtre de biais (5 pts). Volume = filtre anti faux breakout (5 pts). Aucun ne décide seul.</p></div>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Session de New York&nbsp;: VWAP à 3&nbsp;982, prix à 3&nbsp;990 (<b>au-dessus</b> → biais acheteur ✔).
+      L'or casse un sommet à 3&nbsp;995 avec un volume <b>double</b> de sa moyenne récente&nbsp;: cassure
+      crédible. Un achat ici est aligné avec le VWAP <b>et</b> validé par le volume. À l'inverse, une cassure
+      de 3&nbsp;995 sur un volume faible et sous le VWAP serait un candidat classique au piège&nbsp;: on
+      s'abstient.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise</div>
+    <p>Ce sont deux <b>filtres légers de 5 points chacun</b> (10 au total). Ils ne créent jamais un signal à
+      eux seuls, mais ils <b>départagent</b>&nbsp;: à confluence égale, un setup du bon côté du VWAP et porté
+      par le volume passera devant un setup qui les ignore. La checklist affiche une ligne VWAP et une ligne
+      Volume.</p></div>
+
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
     <ul class="clean chk"><li>Je regarde de quel côté du VWAP est le prix.</li>
-    <li>Je compare le volume de cassure à sa moyenne.</li></ul></div>
+    <li>Je compare le volume de cassure à sa moyenne.</li>
+    <li>Je me méfie d'une cassure sur volume faible.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Ajoutez un VWAP sur XAUUSD en séance. Notez, sur 5&nbsp;trades potentiels, si le prix était au-dessus
+      ou en dessous, et si les cassures se faisaient sur volume fort ou faible. Les cassures sur faible
+      volume ont-elles plus souvent échoué&nbsp;?</p></div>
 </div>
 
 <!-- ==================== CH11 ==================== -->
@@ -573,6 +977,41 @@
     <div class="cap"><b>Deux verrous d'abord</b> (sweep + structure). Ensuite seulement, les confluences
       notent la <b>qualité</b>. Score ≥ 85 → signal + alerte ; 80–84 → affiché ; &lt; 80 → rien.</div>
   </figure>
+  <h3>Le barème complet sur 100</h3>
+  <p>Chaque famille apporte un nombre de points fixe. Le total forme le score, et le score décide de tout&nbsp;:</p>
+  <table>
+    <tr><th>Famille de confluence</th><th>Points</th><th>Rôle</th></tr>
+    <tr><td>Liquidité (sweep)</td><td>20</td><td><b>Verrou 1</b> — éliminatoire</td></tr>
+    <tr><td>Structure (BOS/CHoCH)</td><td>20</td><td><b>Verrou 2</b> — éliminatoire</td></tr>
+    <tr><td>Order Block / FVG</td><td>15</td><td>Zone d'entrée précise</td></tr>
+    <tr><td>Wyckoff</td><td>15</td><td>Alignement au cycle</td></tr>
+    <tr><td>Tendance HTF</td><td>10</td><td>Contexte supérieur</td></tr>
+    <tr><td>ATR + Session</td><td>10</td><td>Volatilité &amp; horaires</td></tr>
+    <tr><td>Volume</td><td>5</td><td>Anti faux breakout</td></tr>
+    <tr><td>VWAP</td><td>5</td><td>Biais de session</td></tr>
+    <tr><td><b>Total</b></td><td><b>100</b></td><td>+ bonus Fibonacci interne</td></tr>
+  </table>
+
+  <h3>Du score à la décision : les seuils</h3>
+  <p>Le score n'est pas qu'un chiffre décoratif&nbsp;: il déclenche (ou non) une action précise&nbsp;:</p>
+  <table>
+    <tr><th>Score</th><th>Note</th><th>Décision</th></tr>
+    <tr><td>90–100</td><td><span class="pill p-ap">A+</span></td><td>Signal validé <b>+ alerte</b></td></tr>
+    <tr><td>85–89</td><td><span class="pill p-a">A</span></td><td>Signal validé <b>+ alerte</b></td></tr>
+    <tr><td>80–84</td><td><span class="pill p-b">B</span></td><td>Signal <b>affiché</b>, sans alerte</td></tr>
+    <tr><td>70–79</td><td><span class="pill p-c">C</span></td><td>Surveillance — pas de signal</td></tr>
+    <tr><td>&lt; 70</td><td><span class="pill p-x">—</span></td><td>Aucun signal</td></tr>
+  </table>
+  <p>Rappel capital&nbsp;: même un score de 100 sur les six autres familles ne produit <b>rien</b> si l'un
+    des deux verrous (sweep, structure) manque. Les points ne servent qu'à mesurer la <b>qualité</b> d'un
+    setup <i>déjà</i> valide.</p>
+
+  <div class="box b-ex"><div class="bh">📈 Exemple chiffré sur XAUUSD</div>
+    <p>Sweep ✔ (20) + BOS ✔ (20) + OB en discount (13/15) + Wyckoff aligné (12/15) + HTF haussier (10) +
+      ATR/Session OK (8/10) + Volume fort (5) + VWAP au-dessus (5) = <b>93/100</b>, plus le bonus Fibonacci
+      pour une réaction en 0.705. Résultat&nbsp;: <b>BUY A+ avec alerte</b>. Retirez le sweep de l'équation&nbsp;:
+      score bloqué, <b>aucun signal</b>, quelle que soit la beauté du reste.</p></div>
+
   <div class="box b-sum"><div class="bh">✅ À retenir</div>
     <p>La discipline — deux verrous + un score + un seuil — transforme une intuition en
       <b>processus reproductible</b>, à la main comme avec l'indicateur.</p></div>
@@ -600,12 +1039,55 @@
   <div class="box b-tip"><div class="bh">💡 La formule de taille de position</div>
     <p><b>Taille = (Capital × % risque) ÷ distance au Stop Loss.</b> Le risque en euros est le même,
       que le setup soit A+ ou B. C'est ce qui rend un compte incassable.</p></div>
+  <h3>La notion de R : votre unité de mesure</h3>
+  <p>Oubliez les euros un instant et raisonnez en <b>R</b>. 1R = le montant que vous risquez sur un trade
+    (la distance entre l'entrée et le stop). Tout se mesure alors en multiples de R&nbsp;: un TP à 3R rapporte
+    trois fois ce que vous risquiez&nbsp;; une perte, c'est −1R. L'avantage&nbsp;? Vous jugez votre trading sur
+    le <b>R:R</b> et la régularité, pas sur des montants qui varient. Avec un R:R moyen de 1:3, vous pouvez
+    vous tromper <b>deux fois sur trois</b> et rester gagnant.</p>
+
+  <h3>La formule de taille de position</h3>
+  <p>C'est la formule la plus importante du livre — celle qui rend un compte « incassable »&nbsp;:</p>
+  <div class="box b-ex"><div class="bh">🧮 Le calcul, étape par étape</div>
+    <p><b>Taille = (Capital × % risque) ÷ distance au Stop Loss.</b></p>
+    <p>Exemple sur XAUUSD&nbsp;: capital 5&nbsp;000&nbsp;$, risque 1&nbsp;% = <b>50&nbsp;$</b> à risquer.
+      Entrée 3&nbsp;990, stop 3&nbsp;985 → distance = <b>5&nbsp;$</b>. Taille = 50 ÷ 5 = <b>10 unités</b>
+      (à adapter à la valeur du point de votre courtier). Si le stop touche, vous perdez pile 50&nbsp;$&nbsp;;
+      si TP2 à 3R touche, vous gagnez 150&nbsp;$. Le risque en euros reste <b>identique</b> que le setup soit
+      A+ ou B&nbsp;: c'est ce qui vous protège des séries de pertes.</p></div>
+
+  <h3>La gestion en vie d'un trade</h3>
+  <ol>
+    <li><b>À l'entrée</b>&nbsp;: risque fixe (≈1&nbsp;%), stop placé <b>avant</b> d'entrer, jamais déplacé
+      contre soi.</li>
+    <li><b>À TP1</b>&nbsp;: on sécurise une partie et on remonte le stop au <b>Break Even</b> (au prix
+      d'entrée). Le trade devient <b>sans risque</b> — psychologiquement, tout change.</li>
+    <li><b>À TP2</b>&nbsp;: on encaisse une nouvelle part, on laisse courir le reste.</li>
+    <li><b>À TP Final</b>&nbsp;: on solde. Objectif atteint, on ne regrette rien.</li>
+  </ol>
+
+  <div class="box b-tip"><div class="bh">💡 La formule de taille de position</div>
+    <p><b>Taille = (Capital × % risque) ÷ distance au Stop Loss.</b> Le risque en euros est le même,
+      que le setup soit A+ ou B. C'est ce qui rend un compte incassable.</p></div>
+
+  <div class="box b-tip"><div class="bh">💡 Comment l'indicateur l'utilise (TP Engine)</div>
+    <p>Les objectifs ne sont <b>jamais</b> des points fixes&nbsp;: le moteur de TP les ancre sur l'<b>ATR</b>
+      (donc adaptés au timeframe et à la volatilité) puis les <b>cale sur la structure</b> la plus proche
+      (liquidité, PDH/PDL, swings, OB, FVG). Trois modes — Conservateur, Équilibré, Agressif — rapprochent
+      ou éloignent les cibles. Le suivi affiche TP1/TP2/TP Final, le passage au Break Even et la clôture.</p></div>
+
   <div class="box b-err"><div class="bh">⚠ À ne jamais faire</div>
     <ul class="clean"><li>Déplacer son stop pour « laisser une chance » au trade.</li>
-    <li>Augmenter la taille après une perte pour se refaire.</li></ul></div>
+    <li>Augmenter la taille après une perte pour se refaire (martingale = ruine).</li>
+    <li>Risquer plus sur un setup « qu'on sent bien »&nbsp;: le risque reste fixe.</li>
+    <li>Trader sans stop, ou le placer après être entré.</li></ul></div>
   <div class="box b-chk"><div class="bh">✔ Check-list</div>
-    <ul class="clean chk"><li>% de risque fixe défini.</li><li>Taille calculée depuis le stop.</li>
-    <li>Break Even prévu à TP1.</li></ul></div>
+    <ul class="clean chk"><li>% de risque fixe défini (ex. 1&nbsp;%).</li><li>Taille calculée depuis le stop.</li>
+    <li>Break Even prévu à TP1.</li><li>Je raisonne en R, pas en euros.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Prenez votre capital réel et calculez, pour un risque de 1&nbsp;%, la taille exacte d'une position
+      XAUUSD avec un stop de 4&nbsp;$, puis de 8&nbsp;$. Constatez comment la taille <b>diminue</b> quand le
+      stop s'élargit&nbsp;: c'est ainsi que le risque en euros reste constant.</p></div>
 </div>
 
 <!-- ==================== CH13 ==================== -->
@@ -642,9 +1124,45 @@
     <div class="cap">Sans prise de liquidité et avec un volume faible (« FAKE ? »), la méthode refuse.
       Le prix retombe aussitôt : c'était un piège.</div>
   </figure>
+  <h3>Décortiquons le trade validé, brique par brique</h3>
+  <p>Le setup gagnant du haut de page n'a rien de magique&nbsp;: c'est l'empilement méthodique de tout ce
+    que vous avez appris. Relisez-le comme une histoire cohérente&nbsp;:</p>
+  <table>
+    <tr><th>Brique</th><th>Constat</th><th>Points</th></tr>
+    <tr><td>Liquidité</td><td>Sweep d'un creux évident, clôture de rejet</td><td><span class="pill p-ap">✔ 20</span></td></tr>
+    <tr><td>Structure</td><td>CHoCH puis BOS haussier en clôture</td><td><span class="pill p-ap">✔ 20</span></td></tr>
+    <tr><td>OB / FVG</td><td>Retour dans un OB superposé à un FVG</td><td><span class="pill p-a">✔ 14</span></td></tr>
+    <tr><td>Premium/Discount</td><td>Entrée en discount (sous 50&nbsp;%)</td><td><span class="pill p-a">✔</span></td></tr>
+    <tr><td>HTF / Wyckoff</td><td>H1 haussier, sortie d'accumulation</td><td><span class="pill p-a">✔ 20</span></td></tr>
+    <tr><td>VWAP / Volume</td><td>Prix &gt; VWAP, cassure sur volume fort</td><td><span class="pill p-a">✔ 10</span></td></tr>
+  </table>
+  <p>Chaque témoin raconte la même histoire, au même endroit&nbsp;: c'est la définition même de la confluence.
+    Score élevé → <b>BUY A+</b>.</p>
+
+  <h3>Pourquoi le second est refusé</h3>
+  <p>Le trade du bas est tentant&nbsp;: une belle bougie verte casse une résistance. Mais l'histoire est
+    <b>incomplète</b>&nbsp;:</p>
+  <ul class="clean">
+    <li><b>✘ Aucun sweep</b> préalable — le premier verrou n'est pas franchi&nbsp;: à lui seul, c'est
+      rédhibitoire.</li>
+    <li><b>✘ Volume faible</b> sur la cassure — signe classique de faux breakout.</li>
+    <li><b>✘ Entrée en premium</b> — on achèterait le haut, du mauvais côté.</li>
+  </ul>
+  <p>La méthode <b>refuse</b>, et le prix retombe aussitôt&nbsp;: la cassure n'était qu'un piège à liquidité.
+    Ne pas prendre ce trade est une <b>victoire</b>, pas une occasion manquée.</p>
+
+  <div class="box b-tip"><div class="bh">💡 Comment lire le refus sur l'indicateur</div>
+    <p>En mode Expert, la checklist affiche en direct ce qui manque&nbsp;: <b>✘ Sweep</b>, <b>✘ Volume</b>,
+      <b>✘ Discount</b>. La ligne « Écart » indique combien de points il manque pour atteindre le seuil.
+      Vous voyez ainsi <i>pourquoi</i> l'outil reste silencieux — et vous apprenez à faire de même à l'œil.</p></div>
+
   <div class="box b-err"><div class="bh">⚠ Les erreurs à bannir</div>
     <ul class="clean"><li>Cassure naïve sans sweep.</li><li>Acheter en premium / vendre en discount.</li>
     <li>Trader contre le H1.</li><li>OB/FVG sans cassure de structure.</li></ul></div>
+  <div class="box b-ex"><div class="bh">✍️ Exercice</div>
+    <p>Cette semaine, tenez un « journal des non-trades »&nbsp;: à chaque fois que vous êtes tenté d'entrer,
+      écrivez les briques présentes et celles qui manquent. Comptez à la fin combien de setups refusés se
+      seraient réellement retournés contre vous.</p></div>
 </div>
 
 <!-- ==================== CH14 ==================== -->
@@ -658,6 +1176,34 @@
     <tr><td>Semaines 5–6</td><td>Démo autonome. Identifier les setups avant l'outil, puis comparer.</td></tr>
     <tr><td>Semaines 7–8</td><td>Bilan. Passer au réel seulement si plan respecté &gt; 90 %, R:R favorable, sérénité.</td></tr>
   </table>
+  <h3>Les 10 règles d'or à graver</h3>
+  <p>Si vous ne deviez retenir qu'une page de ce livre, ce serait celle-ci&nbsp;:</p>
+  <ol>
+    <li>Pas de <b>sweep</b> récent → pas de trade (verrou 1).</li>
+    <li>Pas de <b>BOS/CHoCH</b> en clôture → pas de trade (verrou 2).</li>
+    <li>J'achète en <b>discount</b>, je vends en <b>premium</b>.</li>
+    <li>Je vais dans le sens du <b>HTF</b> (H1), jamais contre.</li>
+    <li>Je ne trade pas à <b>contre-cycle</b> Wyckoff.</li>
+    <li>Une cassure ne compte que <b>sur clôture</b>.</li>
+    <li>Mon <b>risque est fixe</b> (≈1 %), calculé depuis le stop.</li>
+    <li>Je passe au <b>Break Even à TP1</b>.</li>
+    <li>Je raisonne en <b>R</b>, je vise un R:R ≥ 1:2.</li>
+    <li>Dans le doute, je <b>ne prends pas</b> le trade.</li>
+  </ol>
+
+  <h3>Votre journal de trading (modèle)</h3>
+  <p>Le progrès vient de la relecture, pas de la quantité. Pour chaque trade, notez au minimum&nbsp;:</p>
+  <table>
+    <tr><th>Champ</th><th>Exemple</th></tr>
+    <tr><td>Date / heure / session</td><td>20/07 · 15h10 · New York</td></tr>
+    <tr><td>Sens &amp; score</td><td>BUY · 91/100 · A+</td></tr>
+    <tr><td>Briques présentes</td><td>Sweep, CHoCH, OB+FVG discount, HTF↑, volume fort</td></tr>
+    <tr><td>Entrée / SL / TP</td><td>3&nbsp;990 / 3&nbsp;985 / 4&nbsp;005</td></tr>
+    <tr><td>Risque (R) &amp; résultat</td><td>1R risqué → +3R</td></tr>
+    <tr><td>Plan respecté&nbsp;?</td><td>Oui — BE à TP1, pas de stop déplacé</td></tr>
+    <tr><td>Émotion &amp; leçon</td><td>Calme. À refaire à l'identique.</td></tr>
+  </table>
+
   <div class="box b-quote">« Tradez peu, tradez bien, protégez votre capital. »<span class="who">Le mot de la fin</span></div>
   <div class="box b-sum"><div class="bh">✅ Ce que vous savez faire désormais</div>
     <p>Lire la structure, traquer la liquidité, situer le cycle Wyckoff, repérer OB et FVG, vous placer en

@@ -1,0 +1,300 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Guide des reglages - XAUUSD SMC</title>
+<style>
+  :root{
+    --navy:#0e2033; --navy2:#16324e; --gold:#c99b3a; --gold2:#e6c15a;
+    --bull:#1f9d55; --bear:#d64545; --blue:#2b6fb0; --blue2:#e9f1fa;
+    --ink:#1c2733; --muted:#5b6b7a; --line:#e2e8ee; --soft:#f5f8fb; --amber:#e08a1e;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:var(--serif);color:var(--ink);font-size:10.8pt;line-height:1.55}
+  h1,h2,h3,.san{font-family:var(--sans)}
+  p{margin:6px 0;text-align:justify}
+  .page{page-break-after:always;padding:4mm 2mm}
+  .nobreak{page-break-inside:avoid}
+
+  .cover{page-break-after:always;height:262mm;position:relative;color:#eef4f8;
+    background:radial-gradient(120% 80% at 80% 0%,#1c4a6e 0,transparent 60%),linear-gradient(160deg,#0a1826,#173a52 40%,#0a1826);
+    background-color:#0b1a2b;padding:26mm 22mm;overflow:hidden}
+  .cover::after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 46px)}
+  .cover>*{position:relative;z-index:2}
+  .cv-kick{font-family:var(--sans);letter-spacing:.32em;text-transform:uppercase;color:var(--gold2);font-weight:700;font-size:11pt}
+  .cv-logo{font-size:44pt;margin:8mm 0 4mm}
+  .cv-title{font-family:var(--sans);font-weight:800;font-size:34pt;line-height:1.05;color:#fff}
+  .cv-title .g{color:var(--gold2)}
+  .cv-sub{font-family:var(--sans);font-size:14pt;color:#9fd0b4;margin-top:7mm;font-weight:600;max-width:150mm}
+  .cv-line{width:70mm;height:3px;background:linear-gradient(90deg,var(--gold),transparent);margin:9mm 0}
+  .cv-desc{color:#a9bccb;font-size:11pt;max-width:140mm}
+  .cv-foot{position:absolute;bottom:20mm;left:22mm;right:22mm;font-family:var(--sans);
+    color:#8ea3b4;font-size:9.5pt;border-top:1px solid rgba(255,255,255,.15);padding-top:5mm;display:flex;justify-content:space-between}
+
+  .mh{page-break-inside:avoid;margin:8mm 0 3mm;display:flex;align-items:center;gap:10px}
+  .mh .n{font-family:var(--sans);background:var(--navy);color:#fff;font-weight:800;font-size:10pt;
+    border-radius:8px;padding:3px 10px;white-space:nowrap}
+  .mh h2{font-family:var(--sans);font-size:14.5pt;color:var(--navy);font-weight:800}
+  .mh .tag{font-family:var(--sans);font-size:8.5pt;font-weight:800;border-radius:20px;padding:2px 10px;margin-left:auto}
+  .t-ok{background:#eaf6ef;color:#0f8a4d;border:1px solid #bfe3cd}
+  .t-adj{background:#fdf3e2;color:#b06e12;border:1px solid #efd9ac}
+  .role{font-size:10pt;color:var(--muted);margin:0 0 2mm;font-style:italic}
+
+  table{width:100%;border-collapse:collapse;margin:2mm 0 4mm;font-family:var(--sans);font-size:9.3pt;page-break-inside:avoid}
+  th{background:var(--navy);color:#fff;text-align:left;padding:5px 9px;font-weight:600}
+  td{padding:4.5px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:var(--soft)}
+  td.v{font-weight:800;color:var(--navy);white-space:nowrap}
+  td.v .on{color:#0f8a4d}
+  td.v .off{color:#c0392b}
+
+  .box{border-radius:10px;padding:4mm 5mm;margin:4mm 0;page-break-inside:avoid;font-family:var(--sans);font-size:9.8pt}
+  .b-tip{background:var(--blue2);border:1px solid #bcd6ef}
+  .b-tip .bh{color:var(--blue);font-weight:800;margin-bottom:1.5mm}
+  .b-warn{background:#fdecec;border:1px solid #f0c4c4}
+  .b-warn .bh{color:var(--bear);font-weight:800;margin-bottom:1.5mm}
+  .b-gold{background:#fbf7ea;border:1px solid #ecdca6}
+  .b-gold .bh{color:var(--amber);font-weight:800;margin-bottom:1.5mm}
+  .box p{font-family:var(--serif)}
+  ul.clean{list-style:none;margin:1.5mm 0}
+  ul.clean li{padding-left:20px;position:relative;margin:3px 0;font-family:var(--serif)}
+  ul.clean li::before{content:"\203A";position:absolute;left:5px;color:var(--gold);font-weight:800}
+
+  .disc{font-family:var(--sans);font-size:8.5pt;color:var(--muted);background:#fff6ed;border:1px solid #f0d9bd;
+    border-radius:8px;padding:3.5mm 4.5mm;margin:4mm 0}
+  .profiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm;margin:4mm 0}
+  .prof{border:1px solid var(--line);border-radius:10px;padding:4mm;page-break-inside:avoid}
+  .prof h3{font-size:11pt;margin-bottom:2mm}
+  .prof.reco{border:2px solid var(--gold);background:#fffdf6}
+  .prof ul{font-size:9pt}
+  .badge{display:inline-block;font-family:var(--sans);font-size:8pt;font-weight:800;color:#fff;background:var(--gold);border-radius:12px;padding:1px 8px;margin-left:6px}
+</style></head><body>
+
+<div class="cover">
+  <div class="cv-kick">Guide officiel des reglages</div>
+  <div class="cv-logo">&#9881;&#65039;</div>
+  <div class="cv-title">Reglages parfaits<br><span class="g">XAUUSD&nbsp;SMC</span></div>
+  <div class="cv-line"></div>
+  <div class="cv-sub">Tous les modules, tous les parametres, valeurs recommandees et explications</div>
+  <div class="cv-desc">Configuration calibree pour l'or (XAU/USD) en M5 / M15, sessions Londres et New York.
+    Chaque parametre est explique : ce qu'il fait, la valeur conseillee, et quand la modifier.
+    Trois profils prets a l'emploi : Sniper, Equilibre, Souple.</div>
+  <div class="cv-foot"><span>Guide des reglages &mdash; edition 1.0</span><span>Le trading comporte un risque de perte en capital</span></div>
+</div>
+
+<!-- ============ PAGE 1 : DEMARRAGE + PROFILS ============ -->
+<div class="page">
+  <div class="mh"><span class="n">START</span><h2>Demarrage rapide</h2></div>
+  <ul class="clean">
+    <li><b>Graphique :</b> XAUUSD (or), unite de temps <b>M15</b> (execution) avec contexte H1. M5 possible pour les entrees fines.</li>
+    <li><b>Installation :</b> Pine Editor &rarr; coller le code &rarr; Ajouter au graphique. Apres chaque mise a jour : <b>supprimer</b> l'ancienne version du graphique puis re-ajouter (sinon TradingView garde les anciens reglages).</li>
+    <li><b>Alerte :</b> Alt+A &rarr; condition = l'indicateur &rarr; <b>&laquo; Tout appel de fonction alert() &raquo;</b> &rarr; Une fois par barre a la cloture. Seuls les signaux &ge; 85 (A+/A) declenchent une alerte.</li>
+  </ul>
+
+  <div class="mh"><span class="n">PROFILS</span><h2>Trois profils prets a l'emploi</h2></div>
+  <div class="profiles">
+    <div class="prof">
+      <h3>&#127919; Sniper</h3>
+      <p style="font-size:9pt;color:var(--muted)">Tres peu de trades, qualite maximale</p>
+      <ul class="clean">
+        <li>Seuil alerte : <b>90</b></li>
+        <li>Kill zones : <b>ON</b></li>
+        <li>Zones M10 : <b>2</b> par sens, score min <b>90</b></li>
+        <li>Distance M11 : <b>1.5</b> ATR</li>
+      </ul>
+    </div>
+    <div class="prof reco">
+      <h3>&#9878;&#65039; Equilibre <span class="badge">RECOMMANDE</span></h3>
+      <p style="font-size:9pt;color:var(--muted)">Le calibrage de ce guide</p>
+      <ul class="clean">
+        <li>Seuil alerte : <b>85</b></li>
+        <li>Sessions Londres + NY</li>
+        <li>Zones M10 : <b>2-4</b>, score min <b>84</b></li>
+        <li>Distance M11 : <b>1.0</b> ATR</li>
+      </ul>
+    </div>
+    <div class="prof">
+      <h3>&#127754; Souple</h3>
+      <p style="font-size:9pt;color:var(--muted)">Plus de signaux, a filtrer soi-meme</p>
+      <ul class="clean">
+        <li>Seuil alerte : <b>85</b>, affichage <b>75</b></li>
+        <li>Kill zones : <b>OFF</b></li>
+        <li>Zones B/C : <b>ON</b> (observation)</li>
+        <li>Distance M11 : <b>0.5</b> ATR</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box b-gold"><div class="bh">&#128161; La regle d'or du calibrage</div>
+    <p>Choisissez UN profil, tradez-le <b>2 semaines en demo sans rien toucher</b>, notez vos resultats,
+    puis ajustez <b>un seul parametre a la fois</b>. C'est exactement ainsi qu'un desk professionnel
+    calibre un systeme. Le sur-reglage permanent est l'ennemi n&deg;1 de la constance.</p></div>
+
+  <div class="mh"><span class="n">M1</span><h2>Market Structure</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Le squelette : HH/HL/LH/LL, BOS, CHoCH, structure multi-timeframe.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Pivots / lookback</td><td class="v">defaut</td><td>Calibres pour la volatilite de l'or</td></tr>
+    <tr><td>Timeframe de contexte</td><td class="v">60 (H1)</td><td>Le biais directeur de la journee</td></tr>
+    <tr><td>Affichage BOS / CHoCH / swings</td><td class="v"><span class="on">ON</span></td><td>Lecture immediate de la structure</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M2</span><h2>Liquidity Engine</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Detecte EQH/EQL, PDH/PDL, PWH/PWL et les sweeps de ces niveaux (verrou n&deg;1).</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Show previous day high/low (PDH/PDL)</td><td class="v"><span class="on">ON</span></td><td>Cibles de liquidite journalieres</td></tr>
+    <tr><td>Show previous week high/low (PWH/PWL)</td><td class="v"><span class="on">ON</span></td><td>Cibles de liquidite hebdomadaires</td></tr>
+    <tr><td>Detection EQH/EQL, sweeps</td><td class="v">defaut</td><td>Zero repaint, sur cloture uniquement</td></tr>
+  </table>
+</div>
+
+<!-- ============ PAGE 2 : M3-M6 ============ -->
+<div class="page">
+  <div class="mh"><span class="n">M3</span><h2>Smart Money Concepts</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Order Blocks, Fair Value Gaps, Premium/Discount, setups SMC+.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Detection OB / FVG</td><td class="v">defaut</td><td>Seuls les OB precedant une cassure comptent</td></tr>
+    <tr><td>Premium / Discount</td><td class="v">defaut</td><td>Equilibre 50 % du dernier swing majeur</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M4</span><h2>Wyckoff</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Phase du cycle (accumulation/markup/distribution/markdown), Spring et Upthrust.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Show Wyckoff range box + phase</td><td class="v"><span class="on">ON</span></td><td>Voir la phase en un coup d'oeil</td></tr>
+    <tr><td>Use Wyckoff phase as context filter</td><td class="v"><span class="on">ON</span></td><td><b>Bloque les trades a contre-cycle</b> (pas d'achat en distribution)</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M5</span><h2>Filtres Pro</h2><span class="tag t-adj">A ajuster selon toi</span></div>
+  <p class="role">Volume, VWAP, ATR, sessions : les filtres de contexte qui departagent.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Session Londres</td><td class="v"><span class="on">ON</span></td><td>Volatilite propre, respect des zones</td></tr>
+    <tr><td>Session New York</td><td class="v"><span class="on">ON</span></td><td>Le gros du volume sur l'or</td></tr>
+    <tr><td>Session Asie</td><td class="v"><span class="off">OFF</span></td><td>Faible volume, zones peu respectees</td></tr>
+    <tr><td>Kill zones (08h-11h / 14h30-17h Paris)</td><td class="v">au choix</td><td><b>ON</b> = qualite max (profil Sniper) &middot; <b>OFF</b> = plus de signaux</td></tr>
+    <tr><td>Filtre ATR (volatilite minimum)</td><td class="v"><span class="on">ON</span></td><td>Evite les marches trop calmes (ranges morts)</td></tr>
+    <tr><td>Filtre VWAP / Volume</td><td class="v">defaut</td><td>5 pts chacun dans le score, jamais bloquants seuls</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M6</span><h2>Moteur de decision (score /100)</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Le cerveau : additionne les 8 familles, applique les 2 verrous, decide.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Seuil d'affichage du signal</td><td class="v">80</td><td>En dessous : aucun signal affiche</td></tr>
+    <tr><td>Seuil d'alerte A+</td><td class="v">85</td><td>Alerte TradingView uniquement &ge; 85. Passer a <b>90</b> pour le profil Sniper</td></tr>
+    <tr><td>Sweep validity (barres)</td><td class="v">20</td><td>Verrou 1 : fenetre de validite du sweep</td></tr>
+    <tr><td>Cooldown entre signaux</td><td class="v">defaut</td><td>Anti-spam : un signal par configuration</td></tr>
+  </table>
+  <div class="box b-tip"><div class="bh">&#128161; Rappel du bareme</div>
+    <p>Liquidite 20 &middot; BOS/CHoCH 20 &middot; OB/FVG 15 &middot; Wyckoff 15 &middot; HTF 10 &middot;
+    ATR+Session 10 &middot; Volume 5 &middot; VWAP 5 (+ bonus Fibonacci interne, plafonne).
+    <b>Aucun signal sans sweep ET sans cassure de structure</b>, quel que soit le score.</p></div>
+</div>
+
+<!-- ============ PAGE 3 : M7-M9 + PRECISION ============ -->
+<div class="page">
+  <div class="mh"><span class="n">M7</span><h2>Zones potentielles (pre-signal)</h2><span class="tag t-adj">A ajuster selon toi</span></div>
+  <p class="role">Zones en construction notees sur 10 facteurs, avant le signal final.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Afficher les zones potentielles</td><td class="v"><span class="on">ON</span></td><td>Preparation des setups</td></tr>
+    <tr><td>Afficher aussi les zones B / C</td><td class="v"><span class="off">OFF</span></td><td>Seules les A+/A (&ge; 6 facteurs / 10) meritent l'ecran</td></tr>
+    <tr><td>Largeur maximale de zone (x ATR)</td><td class="v">0.4</td><td>Zone resserree = vrai point d'entree. 0.3 pour encore plus fin</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M8</span><h2>TP Engine (cibles dynamiques)</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">TP ancres sur l'ATR et cales sur la structure - jamais de points fixes.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Mode TP</td><td class="v">Equilibre</td><td>TP1 &asymp; 1.5 ATR, TP2 &asymp; 3, TP Final &asymp; 5. <b>Agressif</b> si tu laisses courir sur H1+, <b>Conservateur</b> pour scalping strict</td></tr>
+    <tr><td>SL (multiple ATR)</td><td class="v">defaut</td><td>Utilise seulement si Precision Engine OFF</td></tr>
+    <tr><td>Afficher les lignes TP</td><td class="v"><span class="on">ON</span></td><td>Lecture directe des objectifs sur le graphique</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M9</span><h2>Fibonacci interne (invisible)</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Bonus de score quand le prix reagit dans l'OTE (0.618-0.786). Ne trace rien.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Activer le bonus Fibonacci</td><td class="v"><span class="on">ON</span></td><td>Departage les setups, jamais decisif seul (max +10, plafonne a 100)</td></tr>
+    <tr><td>Tolerance de zone</td><td class="v">0.03</td><td>3 % de l'amplitude du swing autour de chaque niveau</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">PE</span><h2>Precision Engine (execution institutionnelle)</h2><span class="tag t-ok">Defauts parfaits</span></div>
+  <p class="role">Entree au niveau institutionnel exact + SL derriere la vraie invalidation.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Entree &amp; Stop Loss de precision</td><td class="v"><span class="on">ON</span></td><td>Entree limite sur bord d'OB / milieu de FVG, SL structurel serre, meilleur R:R</td></tr>
+    <tr><td>Distance max entree limite (x ATR)</td><td class="v">1.2</td><td>Au-dela, retour au prix de cloture (pour ne pas rater le mouvement)</td></tr>
+    <tr><td>Marge du SL structurel (x ATR)</td><td class="v">0.5</td><td>Marge serree derriere l'invalidation reelle</td></tr>
+  </table>
+  <div class="box b-warn"><div class="bh">&#9888;&#65039; Trade-off assume</div>
+    <p>Avec une entree limite, le prix peut parfois ne pas revenir remplir l'ordre : on rate le trade.
+    C'est le prix de la precision (meilleures entrees, R:R superieur). Si tu preferes ne jamais rater un
+    signal : <b>OFF</b> = comportement d'origine exact (entree au prix de cloture).</p></div>
+</div>
+
+<!-- ============ PAGE 4 : M10-M11 + INTERFACE ============ -->
+<div class="page">
+  <div class="mh"><span class="n">M10</span><h2>Zones institutionnelles predictives</h2><span class="tag t-adj">A ajuster selon toi</span></div>
+  <p class="role">Zones Buy/Sell Limit detectees a l'avance (contour PLEIN), score independant /100.</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Activer le moteur de zones predictives</td><td class="v"><span class="on">ON</span></td><td>Preparation des trades a l'avance</td></tr>
+    <tr><td>Score minimum d'une zone</td><td class="v">84</td><td>A+/A uniquement. 90 pour le profil Sniper</td></tr>
+    <tr><td>Afficher aussi les zones B / C</td><td class="v"><span class="off">OFF</span></td><td>Qualite avant quantite</td></tr>
+    <tr><td>Nombre max de zones par sens</td><td class="v">2 a 4</td><td>2 = graphe epure &middot; 4 = plus de preparation (max 6)</td></tr>
+    <tr><td>Duree de validite (jours)</td><td class="v">3</td><td>5-7 si tu trades aussi le H1 et veux voir tres loin</td></tr>
+    <tr><td>Distance min entre 2 zones (x ATR)</td><td class="v">1.0</td><td>Anti-doublons</td></tr>
+    <tr><td>Marge SL / TP1 / TP2 / TP Final</td><td class="v">0.5 / 1.5R / 3R / 5R</td><td>Plan de trade complet par zone</td></tr>
+    <tr><td>Fiche detaillee sur chaque zone</td><td class="v"><span class="on">ON</span></td><td>Score, entree, SL, TP, validite, statut</td></tr>
+    <tr><td>Tableau recapitulatif</td><td class="v"><span class="on">ON</span></td><td>Vue d'ensemble de toutes les zones</td></tr>
+    <tr><td>Position du tableau des zones</td><td class="v">Bas gauche</td><td><b>TOUJOURS un coin different du panneau principal</b> (sinon superposition)</td></tr>
+  </table>
+
+  <div class="mh"><span class="n">M11</span><h2>Zones d'anticipation HTF</h2><span class="tag t-adj">A ajuster selon toi</span></div>
+  <p class="role">Zones posees tres en avance sur PDH/PDL, PWH/PWL et swings H4 (contour POINTILLE, ligne d'entree exacte au centre).</p>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Activer les zones d'anticipation</td><td class="v"><span class="on">ON</span></td><td>Preparer les Buy/Sell Limit des heures/jours a l'avance</td></tr>
+    <tr><td>Zones sur PDH / PDL</td><td class="v"><span class="on">ON</span></td><td>Liquidite de la veille</td></tr>
+    <tr><td>Zones sur PWH / PWL</td><td class="v"><span class="on">ON</span></td><td>Liquidite de la semaine (les plus fortes)</td></tr>
+    <tr><td>Zones sur swings H4</td><td class="v"><span class="on">ON</span></td><td>Structure intermediaire</td></tr>
+    <tr><td>Demi-largeur de zone (x ATR)</td><td class="v">0.15</td><td>Chirurgical. La ligne pointillee = prix d'entree EXACT. Zones A+ encore resserrees automatiquement</td></tr>
+    <tr><td>Distance minimum au prix (x ATR)</td><td class="v">1.0</td><td>Ne montre que ce qui est vraiment EN AVANCE. 1.5 si trop de zones</td></tr>
+    <tr><td>Marge du Stop Loss (x ATR)</td><td class="v">0.6</td><td>SL conseille derriere le niveau</td></tr>
+  </table>
+  <div class="box b-tip"><div class="bh">&#128161; Lire les deux types de zones</div>
+    <p><b>Contour PLEIN</b> = zone predictive proche (Module 10). <b>Contour POINTILLE</b> = zone
+    d'anticipation lointaine (Module 11). Vert = achat, rouge = vente. <b>&bull; ACTIVE</b> quand le prix
+    est dedans - mais c'est TOUJOURS le score /100 et les deux verrous qui valident ou refusent le trade.</p></div>
+
+  <div class="mh"><span class="n">UI</span><h2>Interface / Panneaux</h2><span class="tag t-adj">A ton gout</span></div>
+  <table>
+    <tr><th>Parametre</th><th>Valeur</th><th>Pourquoi</th></tr>
+    <tr><td>Mode d'affichage</td><td class="v">Desktop</td><td>Panneau COMPLET d'office sur PC (Mobile = compact)</td></tr>
+    <tr><td>Position du panneau principal</td><td class="v">Milieu droite</td><td>Degage les bougies</td></tr>
+    <tr><td>Taille</td><td class="v">Normal</td><td>Compact sur petit ecran, Large sur grand ecran</td></tr>
+    <tr><td>Transparence des panneaux</td><td class="v">75 %</td><td>Voir les bougies derriere</td></tr>
+  </table>
+
+  <div class="box b-gold"><div class="bh">&#9989; Check-list finale (2 minutes)</div>
+    <ul class="clean">
+      <li>Sessions : Londres + New York ON, Asie OFF</li>
+      <li>Zones B/C : OFF partout (M7 et M10)</li>
+      <li>Tableau des zones : coin DIFFERENT du panneau principal</li>
+      <li>Alerte TradingView creee (&laquo; Tout appel de fonction alert() &raquo;)</li>
+      <li>2 semaines de demo avant tout reel, un seul reglage change a la fois</li>
+    </ul></div>
+
+  <div class="disc"><b>Avertissement.</b> Cet indicateur est un outil d'aide a la decision et ne constitue pas
+  un conseil en investissement. La &laquo; probabilite estimee &raquo; est un indicateur de confiance derive du
+  score, non une probabilite reelle de gain. Le trading a effet de levier comporte un risque de perte en
+  capital pouvant depasser le depot initial. Les performances passees ne prejugent pas des performances
+  futures. Testez en demonstration avant tout usage en reel.</div>
+</div>
+
+</body></html>

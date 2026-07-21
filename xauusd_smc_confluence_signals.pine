@@ -2124,3 +2124,111 @@ if barstate.islast
             for i = 0 to array.size(pzoSell) - 1
                 f_pzoFillCol(pzoTbl, c, array.get(pzoSell, i), mob)
                 c += 1
+
+// ================= MODULE 11 : ZONES D'ANTICIPATION HTF (TRES EN AVANCE) =================
+// AFFICHAGE UNIQUEMENT - aucune logique de trading modifiee. Ce module pose des
+// zones Buy Limit / Sell Limit LONGTEMPS a l'avance, sur les gros niveaux que le
+// prix met souvent des heures ou des jours a atteindre :
+//   - PDL / PDH : bas / haut de la VEILLE (liquidite journaliere)
+//   - PWL / PWH : bas / haut de la SEMAINE precedente (liquidite hebdomadaire)
+//   - Swings H4 : dernier pivot bas / haut confirme en 4 heures
+// Contour POINTILLE = zone d'anticipation (loin), contour PLEIN = zone predictive
+// du Module 10 (proche). Vert = achat, rouge = vente. Quand le prix entre dans la
+// zone, le statut passe a ACTIVE ; c'est TOUJOURS la strategie existante qui
+// valide ou refuse le trade. Score independant base sur la source du niveau et
+// l'alignement multi-timeframe du Module 10.
+grpAZ = "Module 11 - Zones d'anticipation HTF (tres en avance)"
+azOn       = input.bool(true,  "Activer les zones d'anticipation", group=grpAZ)
+azUseDaily = input.bool(true,  "Zones sur PDH / PDL (veille)", group=grpAZ)
+azUseWeekly= input.bool(true,  "Zones sur PWH / PWL (semaine)", group=grpAZ)
+azUseH4    = input.bool(true,  "Zones sur swings H4", group=grpAZ)
+azWidthAtr = input.float(0.35, "Demi-largeur de zone (x ATR)", minval=0.1, step=0.05, group=grpAZ)
+azMinDist  = input.float(1.0,  "Distance minimum au prix (x ATR)", minval=0.0, step=0.25, group=grpAZ, tooltip="La zone ne s'affiche que si le niveau est au moins a cette distance du prix : on ne montre que ce qui est vraiment EN AVANCE. 0 = toujours montrer.")
+azSlAtr    = input.float(0.6,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpAZ)
+azShowCard = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
+
+// ---- Swings H4 confirmes (pivots 5/5), memorises via fixnan ----
+azH4H = request.security(syminfo.tickerid, "240", fixnan(ta.pivothigh(high, 5, 5)), lookahead=barmerge.lookahead_off)
+azH4L = request.security(syminfo.tickerid, "240", fixnan(ta.pivotlow(low, 5, 5)),  lookahead=barmerge.lookahead_off)
+
+// ---- Score d'une zone d'anticipation : base selon la source + alignement MTF ----
+f_azScore(bool isBuy, int base) =>
+    int mtf = isBuy ? pzoMtfBull : pzoMtfBear
+    math.min(100, base + int(math.round(mtf * 0.15)))
+
+// ---- Fiche / libelle ----
+f_azText(bool isBuy, string src, int sc, float lvl, float slv, float t1, float t2, float t3, bool act) =>
+    string head = (isBuy ? "🟢 BUY LIMIT" : "🔴 SELL LIMIT") + " · " + src + "  " + f_pzoGrade(sc) + "  " + str.tostring(sc) + "/100" + (act ? "  • ACTIVE" : "")
+    azShowCard ? head + "\nEntree : " + f_px(lvl) + "\nSL : " + f_px(slv) + "\nTP1 : " + f_px(t1) + "  TP2 : " + f_px(t2) + "\nTP Final : " + f_px(t3) : head
+
+// ---- Une zone par source : dessin / mise a jour / suppression ----
+f_azDraw(box bx, label lb, bool enabled, bool isBuy, float lvl, string src, int base) =>
+    box   b = bx
+    label l = lb
+    bool okSide = isBuy ? lvl < close : lvl > close
+    bool okDist = math.abs(close - lvl) >= leAtr * azMinDist
+    bool okShow = azOn and enabled and not na(lvl) and okSide and (okDist or (low <= lvl + leAtr * azWidthAtr and high >= lvl - leAtr * azWidthAtr))
+    if okShow
+        float w   = leAtr * azWidthAtr
+        float top = lvl + w
+        float bot = lvl - w
+        bool  act = low <= top and high >= bot
+        int   sc  = f_azScore(isBuy, base)
+        float slv = isBuy ? lvl - leAtr * azSlAtr : lvl + leAtr * azSlAtr
+        float rk  = math.abs(lvl - slv)
+        float t1  = isBuy ? lvl + rk * pzoTp1R : lvl - rk * pzoTp1R
+        float t2  = isBuy ? lvl + rk * pzoTp2R : lvl - rk * pzoTp2R
+        float t3  = isBuy ? lvl + rk * pzoTp3R : lvl - rk * pzoTp3R
+        color col = isBuy ? f_pzoBuyCol(sc) : f_pzoSellCol(sc)
+        string txt = f_azText(isBuy, src, sc, lvl, slv, t1, t2, t3, act)
+        if na(b)
+            b := box.new(bar_index - 1, top, bar_index + 1, bot, border_color=col, border_width=act ? 3 : 2, border_style=line.style_dashed, bgcolor=color.new(col, 88), extend=extend.right)
+            l := label.new(bar_index, lvl, txt, style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=color.rgb(233, 238, 244), size=size.tiny)
+        else
+            box.set_top(b, top)
+            box.set_bottom(b, bot)
+            box.set_right(b, bar_index + 1)
+            box.set_border_color(b, col)
+            box.set_border_width(b, act ? 3 : 2)
+            box.set_bgcolor(b, color.new(col, 88))
+            label.set_xy(l, bar_index, lvl)
+            label.set_text(l, txt)
+    else
+        if not na(b)
+            box.delete(b)
+            b := na
+            label.delete(l)
+            l := na
+    [b, l]
+
+var box   azPdlBx = na
+var label azPdlLb = na
+var box   azPwlBx = na
+var label azPwlLb = na
+var box   azH4LBx = na
+var label azH4LLb = na
+var box   azPdhBx = na
+var label azPdhLb = na
+var box   azPwhBx = na
+var label azPwhLb = na
+var box   azH4HBx = na
+var label azH4HLb = na
+
+[azPdlBx2, azPdlLb2] = f_azDraw(azPdlBx, azPdlLb, azUseDaily,  true,  lePdl, "PDL",      80)
+azPdlBx := azPdlBx2
+azPdlLb := azPdlLb2
+[azPwlBx2, azPwlLb2] = f_azDraw(azPwlBx, azPwlLb, azUseWeekly, true,  lePwl, "PWL",      84)
+azPwlBx := azPwlBx2
+azPwlLb := azPwlLb2
+[azH4LBx2, azH4LLb2] = f_azDraw(azH4LBx, azH4LLb, azUseH4,     true,  azH4L, "Swing H4", 76)
+azH4LBx := azH4LBx2
+azH4LLb := azH4LLb2
+[azPdhBx2, azPdhLb2] = f_azDraw(azPdhBx, azPdhLb, azUseDaily,  false, lePdh, "PDH",      80)
+azPdhBx := azPdhBx2
+azPdhLb := azPdhLb2
+[azPwhBx2, azPwhLb2] = f_azDraw(azPwhBx, azPwhLb, azUseWeekly, false, lePwh, "PWH",      84)
+azPwhBx := azPwhBx2
+azPwhLb := azPwhLb2
+[azH4HBx2, azH4HLb2] = f_azDraw(azH4HBx, azH4HLb, azUseH4,     false, azH4H, "Swing H4", 76)
+azH4HBx := azH4HBx2
+azH4HLb := azH4HLb2

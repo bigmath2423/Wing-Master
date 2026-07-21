@@ -223,7 +223,7 @@ deMaxSignalLabels = input.int(12, "Max signal labels kept", minval=1, maxval=50,
 grpPZ = "Module 7 - Zones Potentielles (pre-signal)"
 pzShow = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
 pzShowBC = input.bool(false, "Afficher aussi les zones B et C (moins fiables)", group=grpPZ, tooltip="Par defaut, seules les zones A+ et A (forte confluence) sont affichees. Activez pour voir aussi les zones B (correcte) et C (faible). Recommande : laisser desactive pour n'afficher que les meilleures zones.")
-pzMaxWidthAtr = input.float(0.6, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
+pzMaxWidthAtr = input.float(0.4, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
 
 // ================= TREND FILTER =================
 emaTrend = ta.ema(close, emaLen)
@@ -1853,7 +1853,7 @@ f_pzoTransp(int s)  => int(math.max(62, 88 - (s - 60) * 0.55))   // score eleve 
 f_pzoQual(int s)    => s >= 94 ? "Institutional" : s >= 84 ? "Elevee" : s >= 74 ? "Moyenne" : "Basse"
 // Largeur de zone RESSERREE selon la confluence : plus il y a de facteurs (0..10),
 // plus la zone est etroite -> le veritable point d'entree institutionnel.
-f_pzoWidth(int factors) => leAtr * math.max(0.10, 0.55 - 0.045 * factors)
+f_pzoWidth(int factors) => leAtr * math.max(0.06, 0.40 - 0.035 * factors)
 
 // Etat lisible d'une zone (statut).
 f_pzoEtat(PZone z) => z.active ? "ZONE ACTIVE" : z.touched ? "TOUCHEE" : "EN ATTENTE"
@@ -2142,7 +2142,7 @@ azOn       = input.bool(true,  "Activer les zones d'anticipation", group=grpAZ)
 azUseDaily = input.bool(true,  "Zones sur PDH / PDL (veille)", group=grpAZ)
 azUseWeekly= input.bool(true,  "Zones sur PWH / PWL (semaine)", group=grpAZ)
 azUseH4    = input.bool(true,  "Zones sur swings H4", group=grpAZ)
-azWidthAtr = input.float(0.35, "Demi-largeur de zone (x ATR)", minval=0.1, step=0.05, group=grpAZ)
+azWidthAtr = input.float(0.15, "Demi-largeur de zone (x ATR)", minval=0.05, step=0.05, group=grpAZ, tooltip="Zone volontairement TRES fine autour du niveau exact (PDH/PDL/PWH/PWL/swing H4). Une ligne pointillee marque le prix d'entree exact au centre. Les zones a score eleve sont encore resserrees automatiquement.")
 azMinDist  = input.float(1.0,  "Distance minimum au prix (x ATR)", minval=0.0, step=0.25, group=grpAZ, tooltip="La zone ne s'affiche que si le niveau est au moins a cette distance du prix : on ne montre que ce qui est vraiment EN AVANCE. 0 = toujours montrer.")
 azSlAtr    = input.float(0.6,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpAZ)
 azShowCard = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
@@ -2162,18 +2162,22 @@ f_azText(bool isBuy, string src, int sc, float lvl, float slv, float t1, float t
     azShowCard ? head + "\nEntree : " + f_px(lvl) + "\nSL : " + f_px(slv) + "\nTP1 : " + f_px(t1) + "  TP2 : " + f_px(t2) + "\nTP Final : " + f_px(t3) : head
 
 // ---- Une zone par source : dessin / mise a jour / suppression ----
-f_azDraw(box bx, label lb, bool enabled, bool isBuy, float lvl, string src, int base) =>
+// PRECISION : zone tres fine centree sur le niveau EXACT + resserrage
+// automatique selon le score (A+ = encore plus fine) + ligne pointillee au
+// prix d'entree exact au centre de la zone.
+f_azDraw(box bx, label lb, line ex, bool enabled, bool isBuy, float lvl, string src, int base) =>
     box   b = bx
     label l = lb
+    line  e = ex
     bool okSide = isBuy ? lvl < close : lvl > close
     bool okDist = math.abs(close - lvl) >= leAtr * azMinDist
     bool okShow = azOn and enabled and not na(lvl) and okSide and (okDist or (low <= lvl + leAtr * azWidthAtr and high >= lvl - leAtr * azWidthAtr))
     if okShow
-        float w   = leAtr * azWidthAtr
+        int   sc  = f_azScore(isBuy, base)
+        float w   = leAtr * azWidthAtr * (sc >= 94 ? 0.7 : sc >= 84 ? 0.85 : 1.0)
         float top = lvl + w
         float bot = lvl - w
         bool  act = low <= top and high >= bot
-        int   sc  = f_azScore(isBuy, base)
         float slv = isBuy ? lvl - leAtr * azSlAtr : lvl + leAtr * azSlAtr
         float rk  = math.abs(lvl - slv)
         float t1  = isBuy ? lvl + rk * pzoTp1R : lvl - rk * pzoTp1R
@@ -2183,6 +2187,7 @@ f_azDraw(box bx, label lb, bool enabled, bool isBuy, float lvl, string src, int 
         string txt = f_azText(isBuy, src, sc, lvl, slv, t1, t2, t3, act)
         if na(b)
             b := box.new(bar_index - 1, top, bar_index + 1, bot, border_color=col, border_width=act ? 3 : 2, border_style=line.style_dashed, bgcolor=color.new(col, 88), extend=extend.right)
+            e := line.new(bar_index - 1, lvl, bar_index + 1, lvl, color=color.new(col, 0), style=line.style_dotted, width=1, extend=extend.right)
             l := label.new(bar_index, lvl, txt, style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=color.rgb(233, 238, 244), size=size.tiny)
         else
             box.set_top(b, top)
@@ -2191,6 +2196,9 @@ f_azDraw(box bx, label lb, bool enabled, bool isBuy, float lvl, string src, int 
             box.set_border_color(b, col)
             box.set_border_width(b, act ? 3 : 2)
             box.set_bgcolor(b, color.new(col, 88))
+            line.set_xy1(e, bar_index - 1, lvl)
+            line.set_xy2(e, bar_index + 1, lvl)
+            line.set_color(e, color.new(col, 0))
             label.set_xy(l, bar_index, lvl)
             label.set_text(l, txt)
     else
@@ -2199,36 +2207,50 @@ f_azDraw(box bx, label lb, bool enabled, bool isBuy, float lvl, string src, int 
             b := na
             label.delete(l)
             l := na
-    [b, l]
+            line.delete(e)
+            e := na
+    [b, l, e]
 
 var box   azPdlBx = na
 var label azPdlLb = na
+var line  azPdlLn = na
 var box   azPwlBx = na
 var label azPwlLb = na
+var line  azPwlLn = na
 var box   azH4LBx = na
 var label azH4LLb = na
+var line  azH4LLn = na
 var box   azPdhBx = na
 var label azPdhLb = na
+var line  azPdhLn = na
 var box   azPwhBx = na
 var label azPwhLb = na
+var line  azPwhLn = na
 var box   azH4HBx = na
 var label azH4HLb = na
+var line  azH4HLn = na
 
-[azPdlBx2, azPdlLb2] = f_azDraw(azPdlBx, azPdlLb, azUseDaily,  true,  lePdl, "PDL",      80)
+[azPdlBx2, azPdlLb2, azPdlLn2] = f_azDraw(azPdlBx, azPdlLb, azPdlLn, azUseDaily,  true,  lePdl, "PDL",      80)
 azPdlBx := azPdlBx2
 azPdlLb := azPdlLb2
-[azPwlBx2, azPwlLb2] = f_azDraw(azPwlBx, azPwlLb, azUseWeekly, true,  lePwl, "PWL",      84)
+azPdlLn := azPdlLn2
+[azPwlBx2, azPwlLb2, azPwlLn2] = f_azDraw(azPwlBx, azPwlLb, azPwlLn, azUseWeekly, true,  lePwl, "PWL",      84)
 azPwlBx := azPwlBx2
 azPwlLb := azPwlLb2
-[azH4LBx2, azH4LLb2] = f_azDraw(azH4LBx, azH4LLb, azUseH4,     true,  azH4L, "Swing H4", 76)
+azPwlLn := azPwlLn2
+[azH4LBx2, azH4LLb2, azH4LLn2] = f_azDraw(azH4LBx, azH4LLb, azH4LLn, azUseH4,     true,  azH4L, "Swing H4", 76)
 azH4LBx := azH4LBx2
 azH4LLb := azH4LLb2
-[azPdhBx2, azPdhLb2] = f_azDraw(azPdhBx, azPdhLb, azUseDaily,  false, lePdh, "PDH",      80)
+azH4LLn := azH4LLn2
+[azPdhBx2, azPdhLb2, azPdhLn2] = f_azDraw(azPdhBx, azPdhLb, azPdhLn, azUseDaily,  false, lePdh, "PDH",      80)
 azPdhBx := azPdhBx2
 azPdhLb := azPdhLb2
-[azPwhBx2, azPwhLb2] = f_azDraw(azPwhBx, azPwhLb, azUseWeekly, false, lePwh, "PWH",      84)
+azPdhLn := azPdhLn2
+[azPwhBx2, azPwhLb2, azPwhLn2] = f_azDraw(azPwhBx, azPwhLb, azPwhLn, azUseWeekly, false, lePwh, "PWH",      84)
 azPwhBx := azPwhBx2
 azPwhLb := azPwhLb2
-[azH4HBx2, azH4HLb2] = f_azDraw(azH4HBx, azH4HLb, azUseH4,     false, azH4H, "Swing H4", 76)
+azPwhLn := azPwhLn2
+[azH4HBx2, azH4HLb2, azH4HLn2] = f_azDraw(azH4HBx, azH4HLb, azH4HLn, azUseH4,     false, azH4H, "Swing H4", 76)
 azH4HBx := azH4HBx2
 azH4HLb := azH4HLb2
+azH4HLn := azH4HLn2

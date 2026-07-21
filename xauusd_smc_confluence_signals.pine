@@ -1818,7 +1818,7 @@ pzoTp3R      = input.float(5.0,  "TP Final (x risque)", minval=1.0, step=0.1, gr
 pzoEmaLen    = input.int(50,     "EMA de reference multi-timeframe", minval=10, group=grpPZO)
 pzoShowCard  = input.bool(true,  "Afficher la fiche detaillee sur chaque zone", group=grpPZO)
 pzoShowTable = input.bool(true,  "Afficher le tableau recapitulatif des zones", group=grpPZO)
-pzoTblPos    = input.string("Milieu droite", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO)
+pzoTblPos    = input.string("Bas gauche", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO, tooltip="A placer dans un coin DIFFERENT du panneau principal (qui est par defaut 'Milieu droite'), sinon les deux tableaux se superposent au meme endroit.")
 // Duree de validite convertie en millisecondes (expiration basee sur le temps,
 // donc identique quel que soit le timeframe).
 pzoValidMs = pzoValidDays * 86400000.0

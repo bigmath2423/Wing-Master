@@ -487,7 +487,7 @@ uiAccent = color.rgb(212, 175, 96)
 uiPosition = f_uiPos(uiPos)
 uiDetailPosition = f_uiPos(uiDetailPos)
 // Panneau principal (toujours visible) + Confirmations, chacun dans SON coin.
-var table mainPanel = table.new(uiPosition, 2, 48, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
+var table mainPanel = table.new(uiPosition, 2, 50, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
 var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
 
 // ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
@@ -1180,26 +1180,52 @@ fibBearR = fibReady ? (high - fibLo) / fibRng : na
 bearFibConfluence = deBearStructRecent or deBearSweepRecent or bearObActive or bearFvgActive or smcInPremium or htfClose < htfEma or msCtxTrend == -1
 deBearFibPts = fibReady and bearFibConfluence ? f_fibZonePts(fibBearR) : 0
 
-// ================= MODULE 12 : FILTRE MACRO YIELD SPREAD (CONTEXTE) =================
-// Filtre de CONTEXTE macro, JAMAIS un declencheur : le SMC (BOS, CHoCH, sweep,
-// OB, FVG...) reste le critere principal et les deux verrous eliminatoires sont
-// inchanges. Le module lit la courbe des taux US en DONNEES JOURNALIERES
-// (2 requetes security seulement -> tres leger, aucun ralentissement) :
-//   - Taux 10 ans SOUS sa moyenne (taux en baisse)      -> favorable a l'or
-//   - Spread 10Y-2Y AU-DESSUS de sa moyenne (pentification) -> favorable a l'or
-// Les DEUX conditions reunies = contexte FAVORABLE  -> petit bonus sur les BUY.
-// Les DEUX conditions inversees = contexte DEFAVORABLE -> petit bonus sur les SELL.
-// Signaux mixtes ou donnees indisponibles -> NEUTRE, aucun effet.
-// BONUS UNIQUEMENT (jamais de malus) : un setup SMC de tres haute qualite ne
-// peut JAMAIS etre bloque ou degrade par la macro.
-grpMACRO = "Module 12 - Filtre macro Yield Spread"
-macroOn = input.bool(true, "Activer le filtre macro (contexte)", group=grpMACRO, tooltip="Lit le taux US 10 ans et le spread 10Y-2Y (donnees journalieres TVC:US10Y / TVC:US02Y). Taux en baisse + courbe qui se repentifie = contexte favorable a l'or -> petit bonus de confiance sur les BUY. L'inverse -> petit bonus sur les SELL. Bonus uniquement : ne bloque jamais un setup SMC. OFF = aucun effet.")
-macroPts = input.int(10, "Poids macro (points de bonus)", minval=0, maxval=15, group=grpMACRO, tooltip="Bonus ajoute au score du cote favorise par la macro (environ 10-15 % du score total). Le total reste plafonne a 100.")
-macroEmaLen = input.int(20, "Lissage de tendance (jours)", minval=5, group=grpMACRO, tooltip="Moyenne mobile journaliere utilisee pour juger la direction du 10 ans et du spread.")
+// ================= MODULE 12 : FILTRES DE CONTEXTE MACRO & NEWS =================
+// Filtres de CONTEXTE, JAMAIS des declencheurs : le SMC (BOS, CHoCH, sweep, OB,
+// FVG, Premium/Discount, MTF, VWAP, ATR...) reste le critere PRINCIPAL et les
+// deux verrous eliminatoires sont inchanges. Ces filtres ne font qu'ajuster la
+// CONFIANCE (le score) et signaler le risque news. Ultra-leger : 3 requetes
+// security au total (DXY + 10Y + 2Y), les news ne coutent aucune requete.
+//
+// 1) DXY (Dollar Index, correlation inverse avec l'or) - filtre bidirectionnel :
+//    DXY haussier  -> petit MALUS sur BUY + petit bonus sur SELL
+//    DXY baissier  -> petit bonus sur BUY + petit malus sur SELL
+// 2) Yield Spread 10Y-2Y (bonus uniquement) : taux en baisse + pentification
+//    -> favorable a l'or (bonus BUY) ; inverse -> bonus SELL.
+// 3) News : fenetre autour d'annonces majeures (CPI/NFP/FOMC/taux) -> signale
+//    le risque, et peut bloquer les signaux pendant cette fenetre (au choix).
+//
+// PROTECTION A+ : un setup SMC dont le score PUR (hors macro) atteint deja le
+// niveau A+ ne peut JAMAIS etre degrade par un malus macro -> on n'annule jamais
+// un excellent setup a cause du contexte macro.
+grpMACRO = "Module 12 - Filtres macro & news (contexte)"
+// --- DXY ---
+dxyOn     = input.bool(true, "Filtre DXY (Dollar Index)", group=grpMACRO, tooltip="Contexte macro base sur la correlation inverse or / dollar. DXY haussier -> reduit legerement la confiance des BUY et favorise les SELL ; DXY baissier -> l'inverse. Jamais un signal a lui seul. Impact ~10-15 % du score. Un setup SMC deja A+ n'est jamais degrade.")
+dxyRes    = input.string("60", "DXY - unite de temps de tendance", options=["60", "240", "D"], group=grpMACRO, tooltip="60 = H1 (reactif intraday, adapte M5/M15). 240 = H4. D = journalier (contexte lent).")
+dxyEmaLen = input.int(50, "DXY - lissage (EMA)", minval=5, group=grpMACRO)
+dxyPts    = input.int(10, "DXY - poids (points)", minval=0, maxval=15, group=grpMACRO)
+// --- Yield Spread ---
+macroOn     = input.bool(true, "Filtre Yield Spread 10Y-2Y", group=grpMACRO, tooltip="Taux US 10 ans sous sa moyenne + spread 10Y-2Y en pentification = contexte favorable a l'or -> petit BONUS sur BUY. Inverse -> bonus SELL. Bonus uniquement, ne bloque jamais un setup. Impact ~5-10 %.")
+macroPts    = input.int(8, "Yield - poids (points de bonus)", minval=0, maxval=10, group=grpMACRO)
+macroEmaLen = input.int(20, "Yield - lissage (jours)", minval=5, group=grpMACRO)
+// --- News / volatilite ---
+newsOn     = input.bool(true, "Filtre news (volatilite)", group=grpMACRO, tooltip="Protege des pics de volatilite autour des annonces majeures (CPI, NFP, FOMC, decisions de taux). Renseigne la date/heure de chaque annonce ci-dessous ; le filtre agit dans la fenetre [avant ; apres].")
+newsMode   = input.string("Signaler seulement", "News - action", options=["Signaler seulement", "Bloquer les signaux"], group=grpMACRO, tooltip="Signaler seulement : affiche 'Risque news : eleve' sans toucher aux signaux. Bloquer : suspend l'emission des signaux (et alertes) pendant la fenetre.")
+newsBefore = input.int(15, "News - minutes AVANT", minval=0, maxval=240, group=grpMACRO)
+newsAfter  = input.int(15, "News - minutes APRES", minval=0, maxval=240, group=grpMACRO)
+news1 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 1 (date/heure)", group=grpMACRO)
+news2 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 2 (date/heure)", group=grpMACRO)
+news3 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 3 (date/heure)", group=grpMACRO)
 
+// ---- DXY (tendance vs EMA) ----
+[dxyClose, dxyEma] = request.security("TVC:DXY", dxyRes, [close, ta.ema(close, dxyEmaLen)], lookahead=barmerge.lookahead_off)
+dxyReady = dxyOn and not na(dxyClose) and not na(dxyEma)
+dxyBull  = dxyReady and dxyClose > dxyEma
+dxyBear  = dxyReady and dxyClose < dxyEma
+
+// ---- Yield Spread 10Y-2Y (journalier) ----
 [macro10y, macro10yEma] = request.security("TVC:US10Y", "D", [close, ta.ema(close, macroEmaLen)], lookahead=barmerge.lookahead_off)
 [macro02y, macro02yEma] = request.security("TVC:US02Y", "D", [close, ta.ema(close, macroEmaLen)], lookahead=barmerge.lookahead_off)
-
 macroReady = macroOn and not na(macro10y) and not na(macro10yEma) and not na(macro02y) and not na(macro02yEma)
 macroSpread = macroReady ? macro10y - macro02y : na
 macroSpreadEma = macroReady ? macro10yEma - macro02yEma : na
@@ -1207,15 +1233,31 @@ macroYieldDown = macroReady and macro10y < macro10yEma
 macroSteepening = macroReady and macroSpread > macroSpreadEma
 macroBullish = macroReady and macroYieldDown and macroSteepening
 macroBearish = macroReady and not macroYieldDown and not macroSteepening
+
+// ---- Risque news : fenetre autour des annonces renseignees ----
+f_newsWin(int t) => t > timestamp("2021-01-01 00:00 +0000") and time >= t - newsBefore * 60000 and time <= t + newsAfter * 60000
+newsRisk = newsOn and (f_newsWin(news1) or f_newsWin(news2) or f_newsWin(news3))
+newsBlockActive = newsRisk and newsMode == "Bloquer les signaux"
+
+// ---- Ajustements de confiance (DXY bidirectionnel + Yield bonus) ----
+dxyBullAdj = not dxyReady ? 0 : dxyBear ? dxyPts : dxyBull ? -dxyPts : 0
+dxyBearAdj = not dxyReady ? 0 : dxyBull ? dxyPts : dxyBear ? -dxyPts : 0
 macroBullPts = macroBullish ? macroPts : 0
 macroBearPts = macroBearish ? macroPts : 0
+macroBullAdj = dxyBullAdj + macroBullPts
+macroBearAdj = dxyBearAdj + macroBearPts
 
 // ---- SCORE TOTAL /100 ----
-// + bonus Fibonacci interne (max 10), total plafonne a 100 pour garder le /100
-// et les seuils inchanges. Fibonacci n'est PAS liste dans les raisons/dashboard
-// (module volontairement invisible pour l'utilisateur).
-deBullScore = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts + macroBullPts)
-deBearScore = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts + macroBearPts)
+// 1) Score PUR SMC (+ bonus Fibonacci interne), plafonne a 100 : c'est le coeur
+//    de la methode, inchange. 2) Ajustement macro applique par-dessus, avec
+//    PROTECTION A+ : un score SMC pur deja A+ ne peut jamais recevoir de malus.
+deBullSmc = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts)
+deBearSmc = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts)
+macroAplusRef = math.max(deScoreAPlus, deScoreMin)
+macroBullAdjP = deBullSmc >= macroAplusRef ? math.max(0, macroBullAdj) : macroBullAdj
+macroBearAdjP = deBearSmc >= macroAplusRef ? math.max(0, macroBearAdj) : macroBearAdj
+deBullScore = math.min(100, math.max(0, deBullSmc + macroBullAdjP))
+deBearScore = math.min(100, math.max(0, deBearSmc + macroBearAdjP))
 
 // ---- REGLES ELIMINATOIRES + NIVEAUX ----
 // Le seuil A+ ne peut pas etre sous le seuil d'affichage.
@@ -1240,8 +1282,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown
-sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive
 
 if buySignal
     bullSignalFired := true
@@ -1808,10 +1850,21 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 43, na(swingHighVal) ? "—" : f_px(swingHighVal), text_color=uiValCol, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 44, "Swing bas", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 44, na(swingLowVal) ? "—" : f_px(swingLowVal), text_color=uiValCol, text_size=uiTxtSize)
-        macroTxt = not macroOn ? "OFF" : not macroReady ? "indisponible" : macroBullish ? "Favorable or · +" + str.tostring(macroPts) + " BUY" : macroBearish ? "Defavorable · +" + str.tostring(macroPts) + " SELL" : "Neutre"
+        // MACRO (section)
+        table.cell(mainPanel, 0, 45, "MACRO & NEWS", text_color=uiAccent, bgcolor=uiSecBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 45, "", bgcolor=uiSecBg, text_size=uiTxtSize)
+        dxyTxt = not dxyOn ? "OFF" : not dxyReady ? "indisponible" : dxyBull ? "Bullish (favorise SELL)" : dxyBear ? "Bearish (favorise BUY)" : "Neutral"
+        dxyColU = not dxyOn or not dxyReady ? color.gray : dxyBull ? color.rgb(231, 76, 60) : dxyBear ? color.rgb(46, 204, 113) : color.silver
+        table.cell(mainPanel, 0, 46, "DXY (Dollar)", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 46, dxyTxt, text_color=dxyColU, text_size=uiTxtSize)
+        macroTxt = not macroOn ? "OFF" : not macroReady ? "indisponible" : macroBullish ? "Favorable or (+BUY)" : macroBearish ? "Defavorable (+SELL)" : "Neutre"
         macroCol = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
-        table.cell(mainPanel, 0, 45, "Macro Yield 10Y-2Y", text_color=uiLblCol, text_size=uiTxtSize)
-        table.cell(mainPanel, 1, 45, macroTxt + (macroReady ? "  (" + str.tostring(macroSpread, "#.##") + "%)" : ""), text_color=macroCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 0, 47, "Yield Spread 10Y-2Y", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 47, macroTxt + (macroReady ? "  (" + str.tostring(macroSpread, "#.##") + ")" : ""), text_color=macroCol, text_size=uiTxtSize)
+        newsTxt = not newsOn ? "OFF" : newsRisk ? (newsBlockActive ? "ELEVE · signaux bloques" : "ELEVE") : "Normal"
+        newsColU = not newsOn ? color.gray : newsRisk ? color.rgb(231, 76, 60) : color.rgb(46, 204, 113)
+        table.cell(mainPanel, 0, 48, "Risque news", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 48, newsTxt, text_color=newsColU, text_size=uiTxtSize)
     else
         stTxtS = structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral"
         stColS = structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray

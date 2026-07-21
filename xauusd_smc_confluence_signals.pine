@@ -1467,9 +1467,40 @@ f_px(float x) => str.tostring(x, "#.##")
 f_pips(float dist) => str.tostring(math.abs(dist) / tpPipSize, "#")
 f_rr(float dist, float risk) => str.tostring(math.abs(dist) / risk, "#.##")
 
+// ================= PRECISION ENGINE (execution institutionnelle) =================
+// Raffine UNIQUEMENT les niveaux d'execution (Entry / SL) des signaux : la
+// decision (score, verrous, seuils, alertes, cooldown) est STRICTEMENT identique.
+//   - Entree : placee sur le niveau institutionnel exact (bord proximal de
+//     l'Order Block, milieu du FVG) comme un ordre LIMITE, au lieu du prix de
+//     cloture. Bornee a 1.2 x ATR du prix (sinon retour au prix de cloture).
+//   - Stop Loss : derriere le VRAI point d'invalidation structurel (bas/haut de
+//     l'OB ou du FVG, meche du signal), avec une marge serree en ATR.
+// Resultat : meilleur prix d'entree, SL plus juste, R:R superieur - comme un
+// desk institutionnel. Desactivable pour retrouver l'ancien comportement exact.
+grpPE = "Precision Engine (execution institutionnelle)"
+pePrecision = input.bool(true, "Entree & Stop Loss de precision", group=grpPE, tooltip="ON : l'entree est calee sur la zone institutionnelle exacte (bord d'Order Block / milieu de FVG, style ordre limite) et le SL derriere le vrai point d'invalidation structurel, avec marge ATR serree. OFF : comportement d'origine (entree = cloture, SL = meche +/- ATR). Ne modifie NI le score, NI les conditions de signal, NI les alertes : uniquement les niveaux d'execution.")
+peMaxPull = input.float(1.2, "Distance max entree limite (x ATR)", minval=0.3, step=0.1, group=grpPE, tooltip="Si le niveau institutionnel est plus loin que cette distance, l'entree retombe sur le prix de cloture (ordre au marche) pour ne pas rater le mouvement.")
+peSlMargin = input.float(0.5, "Marge du SL structurel (x ATR)", minval=0.1, step=0.1, group=grpPE, tooltip="Marge ajoutee derriere le point d'invalidation structurel (bas/haut de l'OB, du FVG ou de la meche du signal).")
+
 if buySignal
-    entry = close
-    slLevel = low - atrVal * slAtrMult
+    // ---- Entree de precision : meilleur niveau institutionnel sous le prix ----
+    float peLvl = na
+    if pePrecision
+        if bullObActive and not na(bullObTop) and bullObTop <= close
+            peLvl := bullObTop
+        if bullFvgActive and not na(bullFvgTop) and not na(bullFvgBot)
+            fvgMid = (bullFvgTop + bullFvgBot) / 2
+            if fvgMid <= close and (na(peLvl) or fvgMid > peLvl)
+                peLvl := fvgMid
+    entry = not na(peLvl) and close - peLvl <= atrVal * peMaxPull ? peLvl : close
+    // ---- SL structurel : derriere l'invalidation reelle (OB / FVG / meche) ----
+    float peInval = low
+    if pePrecision
+        if bullObActive and not na(bullObBot)
+            peInval := math.min(peInval, bullObBot)
+        if bullFvgActive and not na(bullFvgBot)
+            peInval := math.min(peInval, bullFvgBot)
+    slLevel = pePrecision ? peInval - atrVal * peSlMargin : low - atrVal * slAtrMult
     riskDist = math.max(entry - slLevel, syminfo.mintick)
     rawUp = array.new<float>()
     if not na(swingHighVal) and swingHighVal > entry
@@ -1514,8 +1545,24 @@ if buySignal
         alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode, alert.freq_once_per_bar_close)
 
 if sellSignal
-    entry = close
-    slLevel2 = high + atrVal * slAtrMult
+    // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
+    float peLvlS = na
+    if pePrecision
+        if bearObActive and not na(bearObBot) and bearObBot >= close
+            peLvlS := bearObBot
+        if bearFvgActive and not na(bearFvgTop) and not na(bearFvgBot)
+            fvgMidS = (bearFvgTop + bearFvgBot) / 2
+            if fvgMidS >= close and (na(peLvlS) or fvgMidS < peLvlS)
+                peLvlS := fvgMidS
+    entry = not na(peLvlS) and peLvlS - close <= atrVal * peMaxPull ? peLvlS : close
+    // ---- SL structurel : derriere l'invalidation reelle (OB / FVG / meche) ----
+    float peInvalS = high
+    if pePrecision
+        if bearObActive and not na(bearObTop)
+            peInvalS := math.max(peInvalS, bearObTop)
+        if bearFvgActive and not na(bearFvgTop)
+            peInvalS := math.max(peInvalS, bearFvgTop)
+    slLevel2 = pePrecision ? peInvalS + atrVal * peSlMargin : high + atrVal * slAtrMult
     riskDist2 = math.max(slLevel2 - entry, syminfo.mintick)
     rawDn = array.new<float>()
     if not na(swingLowVal) and swingLowVal < entry

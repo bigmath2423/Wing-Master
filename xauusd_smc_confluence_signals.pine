@@ -467,6 +467,10 @@ f_okCol(bool b) => b ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
 uiIsMobile = uiDevice == "Mobile"
 uiExpert = uiViewMode == "Expert" and not uiIsMobile
 uiShowDetail = uiExpert
+// Panneau COMPLET (toutes les sections, dont Market Structure) sur PC/portable ;
+// seul le mode Mobile affiche la version compacte. Ainsi le tableau detaille
+// s'affiche toujours en entier sur ordinateur, quel que soit Simple / Expert.
+uiFullPanel = not uiIsMobile
 // Taille de police : Mobile force le plus petit, Auto = adaptatif, sinon le choix.
 uiTxtSize = uiIsMobile ? size.tiny : uiDevice == "Auto" ? size.auto : uiSize == "Compact" ? size.tiny : uiSize == "Large" ? size.large : size.normal
 // ---- PALETTE PREMIUM (style terminal pro : fond ardoise, accents discrets) ----
@@ -1631,7 +1635,7 @@ if barstate.islast and uiShowMain
     table.cell(mainPanel, 1, 1, dirTxt, text_color=dirCol, text_size=uiTxtSize)
     table.cell(mainPanel, 0, 2, "Score", text_color=uiLblCol, text_size=uiTxtSize)
     table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 82), text_size=uiTxtSize)
-    if uiExpert
+    if uiFullPanel
         // ---------- SIGNAL ----------
         table.cell(mainPanel, 0, 3, "Confiance", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 3, f_conf(mainScore), text_color=f_statutCol(mainScore), text_size=uiTxtSize)

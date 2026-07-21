@@ -1180,12 +1180,42 @@ fibBearR = fibReady ? (high - fibLo) / fibRng : na
 bearFibConfluence = deBearStructRecent or deBearSweepRecent or bearObActive or bearFvgActive or smcInPremium or htfClose < htfEma or msCtxTrend == -1
 deBearFibPts = fibReady and bearFibConfluence ? f_fibZonePts(fibBearR) : 0
 
+// ================= MODULE 12 : FILTRE MACRO YIELD SPREAD (CONTEXTE) =================
+// Filtre de CONTEXTE macro, JAMAIS un declencheur : le SMC (BOS, CHoCH, sweep,
+// OB, FVG...) reste le critere principal et les deux verrous eliminatoires sont
+// inchanges. Le module lit la courbe des taux US en DONNEES JOURNALIERES
+// (2 requetes security seulement -> tres leger, aucun ralentissement) :
+//   - Taux 10 ans SOUS sa moyenne (taux en baisse)      -> favorable a l'or
+//   - Spread 10Y-2Y AU-DESSUS de sa moyenne (pentification) -> favorable a l'or
+// Les DEUX conditions reunies = contexte FAVORABLE  -> petit bonus sur les BUY.
+// Les DEUX conditions inversees = contexte DEFAVORABLE -> petit bonus sur les SELL.
+// Signaux mixtes ou donnees indisponibles -> NEUTRE, aucun effet.
+// BONUS UNIQUEMENT (jamais de malus) : un setup SMC de tres haute qualite ne
+// peut JAMAIS etre bloque ou degrade par la macro.
+grpMACRO = "Module 12 - Filtre macro Yield Spread"
+macroOn = input.bool(true, "Activer le filtre macro (contexte)", group=grpMACRO, tooltip="Lit le taux US 10 ans et le spread 10Y-2Y (donnees journalieres TVC:US10Y / TVC:US02Y). Taux en baisse + courbe qui se repentifie = contexte favorable a l'or -> petit bonus de confiance sur les BUY. L'inverse -> petit bonus sur les SELL. Bonus uniquement : ne bloque jamais un setup SMC. OFF = aucun effet.")
+macroPts = input.int(10, "Poids macro (points de bonus)", minval=0, maxval=15, group=grpMACRO, tooltip="Bonus ajoute au score du cote favorise par la macro (environ 10-15 % du score total). Le total reste plafonne a 100.")
+macroEmaLen = input.int(20, "Lissage de tendance (jours)", minval=5, group=grpMACRO, tooltip="Moyenne mobile journaliere utilisee pour juger la direction du 10 ans et du spread.")
+
+[macro10y, macro10yEma] = request.security("TVC:US10Y", "D", [close, ta.ema(close, macroEmaLen)], lookahead=barmerge.lookahead_off)
+[macro02y, macro02yEma] = request.security("TVC:US02Y", "D", [close, ta.ema(close, macroEmaLen)], lookahead=barmerge.lookahead_off)
+
+macroReady = macroOn and not na(macro10y) and not na(macro10yEma) and not na(macro02y) and not na(macro02yEma)
+macroSpread = macroReady ? macro10y - macro02y : na
+macroSpreadEma = macroReady ? macro10yEma - macro02yEma : na
+macroYieldDown = macroReady and macro10y < macro10yEma
+macroSteepening = macroReady and macroSpread > macroSpreadEma
+macroBullish = macroReady and macroYieldDown and macroSteepening
+macroBearish = macroReady and not macroYieldDown and not macroSteepening
+macroBullPts = macroBullish ? macroPts : 0
+macroBearPts = macroBearish ? macroPts : 0
+
 // ---- SCORE TOTAL /100 ----
 // + bonus Fibonacci interne (max 10), total plafonne a 100 pour garder le /100
 // et les seuils inchanges. Fibonacci n'est PAS liste dans les raisons/dashboard
 // (module volontairement invisible pour l'utilisateur).
-deBullScore = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts)
-deBearScore = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts)
+deBullScore = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts + macroBullPts)
+deBearScore = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts + macroBearPts)
 
 // ---- REGLES ELIMINATOIRES + NIVEAUX ----
 // Le seuil A+ ne peut pas etre sous le seuil d'affichage.
@@ -1778,6 +1808,10 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 43, na(swingHighVal) ? "—" : f_px(swingHighVal), text_color=uiValCol, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 44, "Swing bas", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 44, na(swingLowVal) ? "—" : f_px(swingLowVal), text_color=uiValCol, text_size=uiTxtSize)
+        macroTxt = not macroOn ? "OFF" : not macroReady ? "indisponible" : macroBullish ? "Favorable or · +" + str.tostring(macroPts) + " BUY" : macroBearish ? "Defavorable · +" + str.tostring(macroPts) + " SELL" : "Neutre"
+        macroCol = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
+        table.cell(mainPanel, 0, 45, "Macro Yield 10Y-2Y", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 45, macroTxt + (macroReady ? "  (" + str.tostring(macroSpread, "#.##") + "%)" : ""), text_color=macroCol, text_size=uiTxtSize)
     else
         stTxtS = structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral"
         stColS = structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray
@@ -1809,6 +1843,10 @@ if barstate.islast and uiShowMain
         table.cell(mainPanel, 1, 15, rrTxt, text_color=color.aqua, text_size=uiTxtSize)
         table.cell(mainPanel, 0, 16, "📊 Etat", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 16, gestTxt, text_color=gestCol, text_size=uiTxtSize)
+        macroTxtM = not macroOn ? "OFF" : not macroReady ? "indisponible" : macroBullish ? "Favorable or" : macroBearish ? "Defavorable" : "Neutre"
+        macroColM = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
+        table.cell(mainPanel, 0, 17, "Macro Yield", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 17, macroTxtM, text_color=macroColM, text_size=uiTxtSize)
 
 // Les anciens panneaux Confirmations et Market Structure sont maintenant FUSIONNES
 // dans le panneau principal (section "PANNEAU PRINCIPAL", mode Expert) : tout est

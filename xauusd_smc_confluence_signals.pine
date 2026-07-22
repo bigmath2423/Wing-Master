@@ -1578,7 +1578,36 @@ f_rr(float dist, float risk) => str.tostring(math.abs(dist) / risk, "#.##")
 grpPE = "Precision Engine (execution institutionnelle)"
 pePrecision = input.bool(true, "Entree & Stop Loss de precision", group=grpPE, tooltip="ON : l'entree est calee sur la zone institutionnelle exacte (bord d'Order Block / milieu de FVG, style ordre limite) et le SL derriere le vrai point d'invalidation structurel, avec marge ATR serree. OFF : comportement d'origine (entree = cloture, SL = meche +/- ATR). Ne modifie NI le score, NI les conditions de signal, NI les alertes : uniquement les niveaux d'execution.")
 peMaxPull = input.float(1.2, "Distance max entree limite (x ATR)", minval=0.3, step=0.1, group=grpPE, tooltip="Si le niveau institutionnel est plus loin que cette distance, l'entree retombe sur le prix de cloture (ordre au marche) pour ne pas rater le mouvement.")
-peSlMargin = input.float(0.5, "Marge du SL structurel (x ATR)", minval=0.1, step=0.1, group=grpPE, tooltip="Marge ajoutee derriere le point d'invalidation structurel (bas/haut de l'OB, du FVG ou de la meche du signal).")
+peSlMargin = input.float(0.5, "Marge du SL structurel (x ATR)", minval=0.1, step=0.1, group=grpPE, tooltip="Marge ajoutee derriere le point d'invalidation structurel (bas/haut de l'OB, du FVG ou de la meche du signal). Utilise seulement si le Stop-Loss Engine est OFF.")
+
+// ================= STOP-LOSS ENGINE (placement structurel anti chasse) =================
+// Ameliore UNIQUEMENT le placement du stop (les signaux et le score sont
+// inchanges). Probleme resolu : le SL touche sur une simple meche de chasse aux
+// stops avant que le prix parte au TP. Solution : placer le SL AU-DELA du vrai
+// creux (BUY) / sommet (SELL) de structure ET de liquidite - le niveau meme que
+// la meche de chasse viendrait balayer - plus un buffer ATR. Le stop est ensuite
+// BORNE entre une distance minimale (jamais trop serre) et maximale (protege le
+// R:R et le risque). OFF -> ancien placement exact.
+grpSL2 = "Stop-Loss Engine (placement structurel anti chasse)"
+slSmartOn   = input.bool(true, "SL structurel anti chasse aux stops", group=grpSL2, tooltip="Place le stop AU-DELA du vrai creux/sommet de structure et de liquidite (le niveau qu'une meche de chasse viendrait balayer) + un buffer ATR, borne entre min et max ATR. OFF = ancien placement (sous la bougie / OB). N'affecte PAS les signaux ni le score : uniquement le niveau du stop.")
+slProtLook  = input.int(10, "Fenetre de protection (barres)", minval=2, group=grpSL2, tooltip="Cherche le creux/sommet extreme (incluant la meche de sweep) sur ces N dernieres barres pour placer le stop juste au-dela.")
+slBufferAtr = input.float(0.4, "Buffer ATR au-dela de la structure", minval=0.0, step=0.1, group=grpSL2, tooltip="Marge ajoutee sous le creux (BUY) / au-dessus du sommet (SELL) pour absorber les meches de chasse aux stops. Plus grand = stop plus a l'abri, mais risque plus large.")
+slMinAtr    = input.float(0.5, "Distance minimum du SL (x ATR)", minval=0.1, step=0.1, group=grpSL2, tooltip="Le stop n'est jamais plus proche que ceci -> evite un stop trop serre facile a chasser.")
+slMaxAtr    = input.float(2.8, "Distance maximum du SL (x ATR)", minval=0.5, step=0.1, group=grpSL2, tooltip="Le stop n'est jamais plus loin que ceci -> protege le risque et garde un bon ratio R:R.")
+
+// Extremes recents (calcules a chaque barre) : capturent la meche de sweep.
+slSwingLow  = ta.lowest(low, slProtLook)
+slSwingHigh = ta.highest(high, slProtLook)
+
+// SL structurel BUY : au-dela du plus bas protecteur + buffer, borne min/max ATR.
+f_slBuySmart(float entry, float atr, float protLow) =>
+    float raw = protLow - atr * slBufferAtr
+    float capped = math.max(raw, entry - atr * slMaxAtr)   // jamais trop loin (protege le R:R)
+    math.min(capped, entry - atr * slMinAtr)               // jamais trop serre
+f_slSellSmart(float entry, float atr, float protHigh) =>
+    float raw = protHigh + atr * slBufferAtr
+    float capped = math.min(raw, entry + atr * slMaxAtr)
+    math.max(capped, entry + atr * slMinAtr)
 
 if buySignal
     // ---- Entree de precision : meilleur niveau institutionnel sous le prix ----
@@ -1591,14 +1620,18 @@ if buySignal
             if fvgMid <= close and (na(peLvl) or fvgMid > peLvl)
                 peLvl := fvgMid
     entry = not na(peLvl) and close - peLvl <= atrVal * peMaxPull ? peLvl : close
-    // ---- SL structurel : derriere l'invalidation reelle (OB / FVG / meche) ----
+    // ---- SL structurel anti chasse : au-dela du VRAI creux de structure/liquidite ----
     float peInval = low
     if pePrecision
         if bullObActive and not na(bullObBot)
             peInval := math.min(peInval, bullObBot)
         if bullFvgActive and not na(bullFvgBot)
             peInval := math.min(peInval, bullFvgBot)
-    slLevel = pePrecision ? peInval - atrVal * peSlMargin : low - atrVal * slAtrMult
+    // Plus bas protecteur = extreme recent (meche de sweep) + OB/FVG + swing structurel
+    float protLow = math.min(slSwingLow, peInval)
+    if not na(swingLowVal) and swingLowVal < entry
+        protLow := math.min(protLow, swingLowVal)
+    slLevel = slSmartOn ? f_slBuySmart(entry, atrVal, protLow) : (pePrecision ? peInval - atrVal * peSlMargin : low - atrVal * slAtrMult)
     riskDist = math.max(entry - slLevel, syminfo.mintick)
     rawUp = array.new<float>()
     if not na(swingHighVal) and swingHighVal > entry
@@ -1653,14 +1686,18 @@ if sellSignal
             if fvgMidS >= close and (na(peLvlS) or fvgMidS < peLvlS)
                 peLvlS := fvgMidS
     entry = not na(peLvlS) and peLvlS - close <= atrVal * peMaxPull ? peLvlS : close
-    // ---- SL structurel : derriere l'invalidation reelle (OB / FVG / meche) ----
+    // ---- SL structurel anti chasse : au-dela du VRAI sommet de structure/liquidite ----
     float peInvalS = high
     if pePrecision
         if bearObActive and not na(bearObTop)
             peInvalS := math.max(peInvalS, bearObTop)
         if bearFvgActive and not na(bearFvgTop)
             peInvalS := math.max(peInvalS, bearFvgTop)
-    slLevel2 = pePrecision ? peInvalS + atrVal * peSlMargin : high + atrVal * slAtrMult
+    // Plus haut protecteur = extreme recent (meche de sweep) + OB/FVG + swing structurel
+    float protHigh = math.max(slSwingHigh, peInvalS)
+    if not na(swingHighVal) and swingHighVal > entry
+        protHigh := math.max(protHigh, swingHighVal)
+    slLevel2 = slSmartOn ? f_slSellSmart(entry, atrVal, protHigh) : (pePrecision ? peInvalS + atrVal * peSlMargin : high + atrVal * slAtrMult)
     riskDist2 = math.max(slLevel2 - entry, syminfo.mintick)
     rawDn = array.new<float>()
     if not na(swingLowVal) and swingLowVal < entry

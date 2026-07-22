@@ -202,6 +202,7 @@ wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
 grpPF = "⚙️ Expert — Module 5 - Filtres Pro"
 pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpE2)
 pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
+pfVolSource = input.string("Tick (spot, actuel)", "Source du volume (filtre)", options=["Tick (spot, actuel)", "Volume reel GC1! (COMEX)"], group=grpPF, tooltip="Tick (spot) : comportement actuel (volume tick du symbole affiche). Volume reel GC1! : utilise le vrai volume des futures COMEX (GC1!) pour valider les cassures. Repli automatique sur le tick spot si GC1! est indisponible. A/B testable sans toucher au reste.")
 pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
 pfShowFake = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
 pfMaxFakeLabels = 15  // verrouille (affichage)
@@ -1090,9 +1091,15 @@ wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= w
 // la qualite sans jamais bloquer par manque de donnees.
 
 // ---- 1. VOLUME : confirmation des cassures / faux breakouts ----
-pfVolSma = ta.sma(volume, pfVolLen)
-pfVolDataOK = not na(volume) and not na(pfVolSma) and pfVolSma > 0
-pfVolRatio = pfVolDataOK ? volume / pfVolSma : na
+// Source du volume selectionnable : tick spot (comportement actuel) ou volume reel GC1! (COMEX).
+// GC1! demande sur le MEME timeframe avec lookahead_off : semantique identique au volume natif
+// (final a la cloture, live en intrabar) -> aucun repaint/look-ahead nouveau. Repli sur le tick
+// spot si le volume GC1! est indisponible (na) : on n'aveugle jamais le filtre par manque de donnee.
+gcVolRaw = request.security(gcSym, timeframe.period, volume, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+volSrc = (pfVolSource == "Volume reel GC1! (COMEX)" and not na(gcVolRaw)) ? gcVolRaw : volume
+pfVolSma = ta.sma(volSrc, pfVolLen)
+pfVolDataOK = not na(volSrc) and not na(pfVolSma) and pfVolSma > 0
+pfVolRatio = pfVolDataOK ? volSrc / pfVolSma : na
 
 // Le ratio de volume est memorise au moment de chaque cassure de structure :
 // c'est la cassure qu'on valide, pas la barre de retracement du signal.
@@ -1287,6 +1294,9 @@ newsAfter  = input.int(15, "News - minutes APRES", minval=0, maxval=240, group=g
 news1 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 1 (date/heure)", group=grpE3)
 news2 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 2 (date/heure)", group=grpE3)
 news3 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 3 (date/heure)", group=grpE3)
+newsAutoOn  = input.bool(false, "News auto - NFP (1er vendredi)", group=grpE3, tooltip="Detecte automatiquement le NFP (Non-Farm Payrolls) : 1er vendredi du mois a l'heure ci-dessous (heure de New York, DST gere). Applique la meme fenetre [avant ; apres] et la meme action (Signaler/Bloquer) que les annonces manuelles. Seul le NFP est calculable par regle fiable en Pine ; CPI/FOMC/PPI restent en saisie manuelle (Annonces 1-3). OFF par defaut = comportement actuel inchange.")
+newsNfpHour = input.int(8, "News auto - heure NFP (New York)", minval=0, maxval=23, group=grpE3)
+newsNfpMin  = input.int(30, "News auto - minute NFP (New York)", minval=0, maxval=59, group=grpE3)
 
 // ---- DXY (tendance vs EMA) ----
 [dxyClose, dxyEma] = request.security("TVC:DXY", dxyRes, [close[1], ta.ema(close, dxyEmaLen)[1]], lookahead=barmerge.lookahead_off)  // [1] = bougie CLOTUREE (zero repaint)
@@ -1307,7 +1317,14 @@ macroBearish = macroReady and not macroYieldDown and not macroSteepening
 
 // ---- Risque news : fenetre autour des annonces renseignees ----
 f_newsWin(int t) => t > timestamp("2021-01-01 00:00 +0000") and time >= t - newsBefore * 60000 and time <= t + newsAfter * 60000
-newsRisk = newsOn and (f_newsWin(news1) or f_newsWin(news2) or f_newsWin(news3))
+// News AUTO : NFP = 1er vendredi du mois a newsNfpHour:newsNfpMin (heure de New York, DST auto).
+// nfpTs est construit a partir de la DATE de la bougie courante -> deterministe, zero look-ahead,
+// zero repaint (aucune donnee future, valeur stable a chaque re-calcul de la bougie).
+newsNyDom = dayofmonth(time, "America/New_York")
+newsIsNfpDay = dayofweek(time, "America/New_York") == dayofweek.friday and newsNyDom <= 7
+newsNfpTs = newsIsNfpDay ? timestamp("America/New_York", year(time, "America/New_York"), month(time, "America/New_York"), newsNyDom, newsNfpHour, newsNfpMin) : na
+newsAutoRisk = newsAutoOn and not na(newsNfpTs) and time >= newsNfpTs - newsBefore * 60000 and time <= newsNfpTs + newsAfter * 60000
+newsRisk = newsOn and (newsAutoRisk or f_newsWin(news1) or f_newsWin(news2) or f_newsWin(news3))
 newsBlockActive = newsRisk and newsMode == "Bloquer les signaux"
 
 // ---- Ajustements de confiance (DXY bidirectionnel + Yield bonus) ----

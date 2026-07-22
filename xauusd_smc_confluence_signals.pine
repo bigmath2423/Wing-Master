@@ -418,6 +418,32 @@ f_msStructure() =>
 [msStructTrendMtf, msStructEvent] = request.security(syminfo.tickerid, msTfStructure, f_msStructure(), lookahead=barmerge.lookahead_off)
 [msExecTrend, msExecEvent] = request.security(syminfo.tickerid, msTfExec, f_msStructure(), lookahead=barmerge.lookahead_off)
 
+// ================= MODULE 13 : CONFIRMATION GOLD FUTURES (GC1! COMEX) =================
+// Confirmation INTER-MARCHE : le XAUUSD reste le marche PRINCIPAL - tous les
+// calculs SMC (BOS, CHoCH, FVG, Order Blocks, Premium/Discount, VWAP, score...)
+// restent bases sur le XAUUSD, INCHANGES. Le Gold Futures (GC1!) sert UNIQUEMENT
+// a confirmer la structure : on lit sa tendance avec EXACTEMENT la meme logique
+// (f_msStructure), via une seule requete security (tres leger, aucun retard).
+//   - BUY  valide seulement si le GC1! confirme aussi le haussier.
+//   - SELL valide seulement si le GC1! confirme aussi le baissier.
+// OFF -> l'indicateur fonctionne EXACTEMENT comme avant (pour comparer en backtest).
+// Mode Souple (defaut) : bloque seulement si le GC1! est en structure OPPOSEE
+// (evite de supprimer de bons trades quand le future est neutre). Mode Strict :
+// exige une structure de MEME sens.
+grpGC = "Module 13 - Confirmation Gold Futures (GC1!)"
+gcOn   = input.bool(false, "Activer la confirmation Gold Futures (GC1!)", group=grpGC, tooltip="OFF = comportement d'origine exact (a utiliser pour comparer en backtest). ON = un BUY/SELL n'est valide que si le Gold Futures GC1! (COMEX) confirme la meme structure. Le XAUUSD reste le marche principal ; GC1! ne sert qu'a confirmer.")
+gcSym  = input.symbol("COMEX:GC1!", "Symbole Gold Futures", group=grpGC)
+gcRes  = input.string("Graphique", "Structure GC1! - unite de temps", options=["Graphique", "5", "15", "60", "240"], group=grpGC, tooltip="'Graphique' = meme unite de temps que le graphique (aligne avec l'execution). Sinon force une UT (H1 = 60 pour une confirmation plus stable, moins de faux blocages).")
+gcMode = input.string("Souple", "Mode de confirmation", options=["Souple", "Strict"], group=grpGC, tooltip="Souple (defaut) : bloque seulement si GC1! est en structure OPPOSEE (le neutre passe) -> ne supprime pas les bons trades. Strict : exige une structure de MEME sens (plus filtrant).")
+gcResEff = gcRes == "Graphique" ? timeframe.period : gcRes
+[gcTrend, gcEvent] = request.security(gcSym, gcResEff, f_msStructure(), lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+gcReady = gcOn and not na(gcTrend)
+gcBull = gcReady and gcTrend == 1
+gcBear = gcReady and gcTrend == -1
+// Confirmation par sens : si donnees indisponibles (na) -> on ne bloque pas.
+gcBuyOk  = not gcOn or not gcReady or (gcMode == "Strict" ? gcBull : not gcBear)
+gcSellOk = not gcOn or not gcReady or (gcMode == "Strict" ? gcBear : not gcBull)
+
 f_msTrendTxt(int t) =>
     t == 1 ? "Bullish" : t == -1 ? "Bearish" : "Neutral"
 
@@ -1282,8 +1308,8 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive
-sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and gcBuyOk
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and gcSellOk
 
 if buySignal
     bullSignalFired := true
@@ -1865,6 +1891,10 @@ if barstate.islast and uiShowMain
         newsColU = not newsOn ? color.gray : newsRisk ? color.rgb(231, 76, 60) : color.rgb(46, 204, 113)
         table.cell(mainPanel, 0, 48, "Risque news", text_color=uiLblCol, text_size=uiTxtSize)
         table.cell(mainPanel, 1, 48, newsTxt, text_color=newsColU, text_size=uiTxtSize)
+        gcTxt = not gcOn ? "OFF" : not gcReady ? "indisponible" : gcBull ? "Bullish (confirme BUY)" : gcBear ? "Bearish (confirme SELL)" : "Neutral"
+        gcColU = not gcOn or not gcReady ? color.gray : gcBull ? color.rgb(46, 204, 113) : gcBear ? color.rgb(231, 76, 60) : color.silver
+        table.cell(mainPanel, 0, 49, "Gold Futures GC1!", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 49, gcTxt, text_color=gcColU, text_size=uiTxtSize)
     else
         stTxtS = structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral"
         stColS = structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray

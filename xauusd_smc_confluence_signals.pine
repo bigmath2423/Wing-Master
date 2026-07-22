@@ -524,6 +524,13 @@ var table msPanel = table.new(msPanelPosition, 2, 10, bgcolor=uiCellBg, border_w
 // Volume, HTF) calculees plus loin. La table est juste declaree ici.
 
 // ================= FAIR VALUE GAPS =================
+// ATR global calcule UNE seule fois et reutilise partout (leAtr, atrVal, filtres)
+// -> supprime le double calcul redondant de ta.atr, code plus rapide.
+atrGlobal = ta.atr(atrLen)
+// Filtre anti-bruit : ignore les micro-FVG plus petits qu'une fraction d'ATR
+// (gaps insignifiants qui generaient des zones/entrees de faible qualite).
+fvgMinAtr = input.float(0.10, "FVG - taille minimum (x ATR)", minval=0.0, step=0.05, group=grpSMC, tooltip="Un Fair Value Gap n'est retenu que si son ecart depasse cette fraction de l'ATR. 0.10 = filtre uniquement le bruit (micro-gaps). 0 = desactive (tous les gaps comptent, comme avant). Ameliore la pertinence des OB/FVG sans supprimer les vrais gaps.")
+
 var float bullFvgTop = na
 var float bullFvgBot = na
 var bool  bullFvgActive = false
@@ -534,8 +541,8 @@ var float bearFvgBot = na
 var bool  bearFvgActive = false
 var box   bearFvgBox = na
 
-bullFVG = low > high[2]
-bearFVG = high < low[2]
+bullFVG = (low - high[2]) > math.max(fvgMinAtr * atrGlobal, 0)
+bearFVG = (low[2] - high) > math.max(fvgMinAtr * atrGlobal, 0)
 
 if bullFVG
     bullFvgTop := low
@@ -657,7 +664,7 @@ if liqSweepHigh
 // Detection sur pivots confirmes et conditions de cloture uniquement -> zero
 // repaint. Les toggles d'affichage ne desactivent JAMAIS la detection (meme
 // philosophie que le fix v4 sur les Order Blocks).
-leAtr = ta.atr(atrLen)
+leAtr = atrGlobal  // reutilise l'ATR global (plus de double calcul)
 
 // ---- Previous Day / Week High-Low (periodes cloturees uniquement) ----
 [lePdh, lePdl] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
@@ -1290,8 +1297,18 @@ deBearScore = math.min(100, math.max(0, deBearSmc + macroBearAdjP))
 deAPlusLevel = math.max(deScoreAPlus, deScoreMin)
 deBullHardOK = deBullSweepRecent and deBullStructRecent
 deBearHardOK = deBearSweepRecent and deBearStructRecent
-deBuyQualifies = deBullHardOK and deBullScore >= deScoreMin
-deSellQualifies = deBearHardOK and deBearScore >= deScoreMin
+// ---- TIMING D'ENTREE : eviter les entrees prematurees sur l'impulsion ----
+// Probleme : un signal pouvait se declencher sur la bougie meme de la cassure
+// (BOS/CHoCH), loin au-dessus/dessous de la zone -> on achete/vend le sommet de
+// l'impulsion, souvent suivi d'un retracement qui touche le stop. Solution : ne
+// valider que si le prix INTERAGIT avec une zone institutionnelle (retour dans
+// l'Order Block ou le FVG, ou position en discount/premium) -> on entre sur le
+// RETOUR en zone, pas sur l'extension. OFF = comportement d'origine.
+entryZoneGate = input.bool(true, "Exiger un retour en zone pour entrer (anti-entree prematuree)", group=grpDE, tooltip="ON : le signal n'est valide que si le prix est en interaction avec une zone (retour dans l'Order Block / le FVG, ou en discount pour un BUY / premium pour un SELL). Evite d'entrer sur la bougie d'impulsion apres un BOS/CHoCH. OFF = comportement d'origine exact. Ne change pas le score ; filtre uniquement le TIMING d'entree.")
+gateBuyZone = not entryZoneGate or deBullObTouch or deBullFvgTouch or smcInDiscount
+gateSellZone = not entryZoneGate or deBearObTouch or deBearFvgTouch or smcInPremium
+deBuyQualifies = deBullHardOK and deBullScore >= deScoreMin and gateBuyZone
+deSellQualifies = deBearHardOK and deBearScore >= deScoreMin and gateSellZone
 
 // Anti-spam conserve du moteur precedent : un seul signal par configuration
 // (reset sur nouvelle FVG / BOS / CHoCH) + cooldown en barres.
@@ -1485,7 +1502,7 @@ plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abo
 // swings, Order Blocks, FVG, bornes de range). Le mode (Conservateur / Equilibre
 // / Agressif) echelonne la distance des ancres. Resultat : des objectifs
 // realistes pour l'horizon de trading, valides par la structure et l'ATR.
-atrVal = ta.atr(atrLen)
+atrVal = atrGlobal  // reutilise l'ATR global (plus de double calcul)
 
 // Cherche la distance structurelle la plus proche d'une ancre, dans une fenetre
 // [anchor*lo, anchor*hi]. Si aucune structure ne tombe dans la fenetre, retourne

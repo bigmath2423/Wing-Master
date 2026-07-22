@@ -2,6 +2,31 @@
 indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
 
 // ============================================================
+// CARTE DE VALIDATION A/B  (backtests d'ablation - a valider avant de garder)
+// Chaque amelioration est INDEPENDANTE : la mettre a sa valeur "baseline" ci-dessous
+// restaure exactement le comportement d'origine. Tester une seule a la fois.
+//
+//   >>> BASELINE (comportement d'origine, tout desactive) :
+//       sweepQualityOn=false | fvgMinAtr=0 | entryZoneGate=false
+//       pePrecision=false | slSmartOn=false | gcOn=false
+//       pfVolSource="Tick (spot, actuel)" | newsAutoOn=false
+//       (dxyOn/macroOn/newsOn = filtres macro pre-existants, ON par defaut)
+//
+//   AFFECTENT LES SIGNAUX (quels trades sont pris) :
+//     - sweepQualityOn  : filtre les faux liquidity sweeps           (defaut ON)
+//     - fvgMinAtr        : taille minimale des FVG (0 = off)          (defaut 0.10)
+//     - entryZoneGate    : exige un retour en zone pour entrer        (defaut ON)
+//     - gcOn             : confirmation Gold Futures GC1!             (defaut OFF)
+//     - newsAutoOn       : blocage auto NFP (si newsMode=Bloquer)     (defaut OFF)
+//     - pfVolSource      : source volume Tick vs GC1! (si pfUseVolFilter ON)
+//   AFFECTENT L'EXECUTION (entree / stop, pas quels trades) - EMPILEMENT :
+//     - pePrecision      : entree limite + SL de precision           (defaut ON)
+//     - slSmartOn        : SL structurel anti-chasse (par-dessus pePrecision) (defaut ON)
+//       -> ablation propre : baseline < +pePrecision < +slSmartOn
+//   AFFICHAGE UNIQUEMENT (zero impact sur les trades, ne pas backtester) :
+//     - pzoOn (zones predictives) | azOn (zones d'anticipation)
+// ============================================================
+// ============================================================
 // XAU/USD - SMART MONEY CONCEPTS CONFLUENCE SIGNAL ENGINE
 // BOS / CHoCH + Fair Value Gaps + Order Blocks + Liquidity Sweeps + Momentum Oscillator
 // v3 : fix accumulation d'objets graphiques (v1/v2 laissaient tous les anciens

@@ -8,18 +8,16 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //
 //   >>> BASELINE (comportement d'origine, tout desactive) :
 //       sweepQualityOn=false | fvgMinAtr=0 | entryZoneGate=false
-//       pePrecision=false | slSmartOn=false | gcOn=false
-//       pfVolSource="Tick (spot, actuel)" | newsAutoOn=false | chopFilterOn=false
+//       pePrecision=false | slSmartOn=false
+//       newsAutoOn=false | chopFilterOn=false
 //       (dxyOn/macroOn/newsOn = filtres macro pre-existants, ON par defaut)
 //
 //   AFFECTENT LES SIGNAUX (quels trades sont pris) :
 //     - sweepQualityOn  : filtre les faux liquidity sweeps           (defaut ON)
 //     - fvgMinAtr        : taille minimale des FVG (0 = off)          (defaut 0.10)
 //     - entryZoneGate    : exige un retour en zone pour entrer        (defaut ON)
-//     - gcOn             : confirmation Gold Futures GC1!             (defaut OFF)
 //     - newsAutoOn       : blocage auto NFP (si newsMode=Bloquer)     (defaut OFF)
 //     - chopFilterOn     : anti-consolidation ADX (range = pas de trade) (defaut OFF)
-//     - pfVolSource      : source volume Tick vs GC1! (si pfUseVolFilter ON)
 //   AFFECTENT L'EXECUTION (entree / stop, pas quels trades) - EMPILEMENT :
 //     - pePrecision      : entree limite + SL de precision           (defaut ON)
 //     - slSmartOn        : SL structurel anti-chasse (par-dessus pePrecision) (defaut ON)
@@ -115,22 +113,23 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          (volume absent, VWAP na...) recoivent une note neutre partielle.
 //        - l'ancien marqueur "A+" (sweep -> BOS/CHoCH -> OB/FVG) est renomme
 //          "SMC+" pour ne pas le confondre avec le niveau A+ du score
-// v11 : FIX ALERTES SANS ABONNEMENT COMEX (module 13 inoffensif quand OFF) :
-//        - le symbole Gold Futures passe de input.symbol("COMEX:GC1!") a
-//          input.string("") : TradingView validait l'input.symbol des la
-//          CREATION de l'alerte (meme module desactive) et refusait l'alerte
-//          faute d'abonnement CME. Champ vide par defaut = aucune validation
-//          de symbole -> l'alerte se cree sans abonnement COMEX.
-//        - nouveau gcSymEff = (gcOn and gcSym != "") ? gcSym : syminfo.tickerid :
-//          quand le champ est vide (ou le module OFF) les deux request.security
-//          lisent le symbole du GRAPHIQUE (toujours souscrit) au lieu de GC1!.
-//        - volume : le volume reel GC1! n'est utilise que si la source volume
-//          est "Volume reel GC1! (COMEX)" ET le champ symbole est renseigne ;
-//          sinon repli sur le volume natif (comportement d'origine).
-//        - AUCUNE logique de trading modifiee : score /100, regles
-//          eliminatoires, seuils, entrees/SL/TP identiques. Un utilisateur avec
-//          l'abonnement COMEX qui saisit "COMEX:GC1!" retrouve le comportement
-//          d'avant. ignore_invalid_symbol=true et lookahead_off conserves.
+// v11 : RETRAIT COMPLET DU MODULE 13 (Gold Futures GC1! / COMEX) :
+//        - TradingView refusait la CREATION d'alerte tant que le script
+//          contenait une reference au symbole COMEX:GC1! (abonnement CME requis),
+//          meme le module desactive. Le module etant OFF par defaut, il est
+//          desormais ENTIEREMENT retire du code :
+//            * suppression des inputs gcOn / gcSym / gcRes / gcMode et de la
+//              requete request.security vers le Gold Futures ;
+//            * suppression des filtres gcBuyOk / gcSellOk sur les signaux ;
+//            * suppression de l'option "Volume reel GC1! (COMEX)" (input
+//              pfVolSource) et de la requete de volume GC1! -> le filtre volume
+//              utilise le volume natif du symbole affiche ;
+//            * suppression de la ligne "Gold GC1!" du tableau de bord.
+//        - AUCUNE logique de trading modifiee par rapport au baseline : le
+//          module etant OFF par defaut, aucune confirmation inter-marche
+//          n'etait active. Le score /100, les regles eliminatoires, les seuils
+//          et les entrees/SL/TP restent identiques. Plus aucune reference COMEX
+//          -> l'alerte se cree sans aucun abonnement aux donnees CME.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -244,7 +243,6 @@ wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
 grpPF = "⚙️ Expert — Module 5 - Filtres Pro"
 pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpE2)
 pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
-pfVolSource = input.string("Tick (spot, actuel)", "Source du volume (filtre)", options=["Tick (spot, actuel)", "Volume reel GC1! (COMEX)"], group=grpPF, tooltip="Tick (spot) : comportement actuel (volume tick du symbole affiche). Volume reel GC1! : utilise le vrai volume des futures COMEX (GC1!) pour valider les cassures. Repli automatique sur le tick spot si GC1! est indisponible. A/B testable sans toucher au reste.")
 pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
 pfShowFake = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
 pfMaxFakeLabels = 15  // verrouille (affichage)
@@ -470,35 +468,13 @@ f_msStructure() =>
 [msStructTrendMtf, msStructEvent] = request.security(syminfo.tickerid, msTfStructure, f_msStructure(), lookahead=barmerge.lookahead_off)
 [msExecTrend, msExecEvent] = request.security(syminfo.tickerid, msTfExec, f_msStructure(), lookahead=barmerge.lookahead_off)
 
-// ================= MODULE 13 : CONFIRMATION GOLD FUTURES (GC1! COMEX) =================
-// Confirmation INTER-MARCHE : le XAUUSD reste le marche PRINCIPAL - tous les
-// calculs SMC (BOS, CHoCH, FVG, Order Blocks, Premium/Discount, VWAP, score...)
-// restent bases sur le XAUUSD, INCHANGES. Le Gold Futures (GC1!) sert UNIQUEMENT
-// a confirmer la structure : on lit sa tendance avec EXACTEMENT la meme logique
-// (f_msStructure), via une seule requete security (tres leger, aucun retard).
-//   - BUY  valide seulement si le GC1! confirme aussi le haussier.
-//   - SELL valide seulement si le GC1! confirme aussi le baissier.
-// OFF -> l'indicateur fonctionne EXACTEMENT comme avant (pour comparer en backtest).
-// Mode Souple (defaut) : bloque seulement si le GC1! est en structure OPPOSEE
-// (evite de supprimer de bons trades quand le future est neutre). Mode Strict :
-// exige une structure de MEME sens.
-grpGC = "⚙️ Expert — Module 13 - Confirmation Gold Futures (GC1!)"
-gcOn   = input.bool(false, "Activer la confirmation Gold Futures (GC1!)", group=grpE3, tooltip="OFF = comportement d'origine exact (a utiliser pour comparer en backtest). ON = un BUY/SELL n'est valide que si le Gold Futures GC1! (COMEX) confirme la meme structure. Le XAUUSD reste le marche principal ; GC1! ne sert qu'a confirmer.")
-gcSym  = input.string("", "Symbole Gold Futures", group=grpGC, tooltip="Laisser VIDE = utiliser le symbole du graphique (aucune validation d'abonnement -> l'alerte se cree sans souci). Pour la vraie confirmation Gold Futures, saisir COMEX:GC1! (necessite un abonnement aux donnees CME). TradingView valide ce champ a la creation de l'alerte : un symbole COMEX ici sans abonnement empeche de creer l'alerte, meme module desactive.")
-gcRes  = input.string("Graphique", "Structure GC1! - unite de temps", options=["Graphique", "5", "15", "60", "240"], group=grpGC, tooltip="'Graphique' = meme unite de temps que le graphique (aligne avec l'execution). Sinon force une UT (H1 = 60 pour une confirmation plus stable, moins de faux blocages).")
-gcMode = input.string("Souple", "Mode de confirmation", options=["Souple", "Strict"], group=grpE3, tooltip="Souple (defaut) : bloque seulement si GC1! est en structure OPPOSEE (le neutre passe) -> ne supprime pas les bons trades. Strict : exige une structure de MEME sens (plus filtrant).")
-gcResEff = gcRes == "Graphique" ? timeframe.period : gcRes
-// Symbole effectif : si le module est ON et un symbole est saisi, on l'utilise ;
-// sinon on retombe sur le symbole du graphique (toujours souscrit) pour ne jamais
-// exiger un abonnement COMEX et laisser l'alerte se creer.
-gcSymEff = (gcOn and gcSym != "") ? gcSym : syminfo.tickerid
-[gcTrend, gcEvent] = request.security(gcSymEff, gcResEff, f_msStructure(), lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
-gcReady = gcOn and not na(gcTrend)
-gcBull = gcReady and gcTrend == 1
-gcBear = gcReady and gcTrend == -1
-// Confirmation par sens : si donnees indisponibles (na) -> on ne bloque pas.
-gcBuyOk  = not gcOn or not gcReady or (gcMode == "Strict" ? gcBull : not gcBear)
-gcSellOk = not gcOn or not gcReady or (gcMode == "Strict" ? gcBear : not gcBull)
+// ================= MODULE 13 : RETIRE =================
+// L'ancien module "Confirmation Gold Futures (GC1! COMEX)" a ete ENTIEREMENT
+// retire : la reference COMEX:GC1! (input.symbol puis input.string) declenchait
+// le refus de creation d'alerte de TradingView faute d'abonnement aux donnees
+// CME, meme module desactive. Le module etant OFF par defaut, sa suppression
+// laisse le comportement de trading strictement IDENTIQUE au baseline
+// (aucune confirmation inter-marche n'etait active par defaut).
 
 f_msTrendTxt(int t) =>
     t == 1 ? "Bullish" : t == -1 ? "Bearish" : "Neutral"
@@ -1140,14 +1116,10 @@ wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= w
 // la qualite sans jamais bloquer par manque de donnees.
 
 // ---- 1. VOLUME : confirmation des cassures / faux breakouts ----
-// Source du volume selectionnable : tick spot (comportement actuel) ou volume reel GC1! (COMEX).
-// GC1! demande sur le MEME timeframe avec lookahead_off : semantique identique au volume natif
-// (final a la cloture, live en intrabar) -> aucun repaint/look-ahead nouveau. Repli sur le tick
-// spot si le volume GC1! est indisponible (na) : on n'aveugle jamais le filtre par manque de donnee.
-gcVolRaw = request.security(gcSymEff, timeframe.period, volume, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
-// Le volume reel GC1! n'est retenu que si l'utilisateur l'a explicitement choisi
-// ET a renseigne le symbole (gcSym != "") ; sinon repli sur le volume natif.
-volSrc = (pfVolSource == "Volume reel GC1! (COMEX)" and gcSym != "" and not na(gcVolRaw)) ? gcVolRaw : volume
+// Volume natif du symbole affiche (tick spot). L'ancienne option "volume reel
+// GC1! (COMEX)" a ete retiree avec le module 13 pour ne plus exiger d'abonnement
+// aux donnees CME (elle empechait la creation d'alertes).
+volSrc = volume
 pfVolSma = ta.sma(volSrc, pfVolLen)
 pfVolDataOK = not na(volSrc) and not na(pfVolSma) and pfVolSma > 0
 pfVolRatio = pfVolDataOK ? volSrc / pfVolSma : na
@@ -1438,8 +1410,8 @@ if bearFVG or bearBOS or bearCHoCH
 // aveugler par manque de donnee). N'affecte NI le score NI les TP/SL : seulement l'emission.
 [chopDiPlus, chopDiMinus, chopAdx] = ta.dmi(chopAdxLen, chopAdxLen)
 chopOK = not chopFilterOn or na(chopAdx) or chopAdx >= chopAdxMin
-buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and gcBuyOk and chopOK
-sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and gcSellOk and chopOK
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and chopOK
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and chopOK
 
 if buySignal
     bullSignalFired := true
@@ -1953,8 +1925,6 @@ if barstate.islast and uiShowMain
     macroCol = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
     newsTxt = not newsOn ? "OFF" : newsRisk ? (newsBlockActive ? "ELEVE (bloque)" : "ELEVE") : "Normal"
     newsColU = not newsOn ? color.gray : newsRisk ? color.rgb(231, 76, 60) : color.rgb(46, 204, 113)
-    gcTxt = not gcOn ? "OFF" : not gcReady ? "n/a" : gcBull ? "Bull (+BUY)" : gcBear ? "Bear (+SELL)" : "Neutral"
-    gcColU = not gcOn or not gcReady ? color.gray : gcBull ? color.rgb(46, 204, 113) : gcBear ? color.rgb(231, 76, 60) : color.silver
     ecartTxt = manqueVal <= 0 ? "OK +" + str.tostring(-manqueVal) : "-" + str.tostring(manqueVal) + " pts"
     ecartCol = manqueVal <= 0 ? color.rgb(46, 204, 113) : uiAccent
     if uiFullPanel
@@ -2010,7 +1980,6 @@ if barstate.islast and uiShowMain
         f_pRow(4, 13, "DXY", dxyTxt, dxyColU)
         f_pRow(4, 14, "Yield 10-2Y", macroTxt, macroCol)
         f_pRow(4, 15, "News", newsTxt, newsColU)
-        f_pRow(4, 16, "Gold GC1!", gcTxt, gcColU)
     else
         // ===== MOBILE : compact 2 colonnes (essentiels) =====
         table.cell(mainPanel, 0, 0, "🎯 SIGNAL", text_color=uiValCol, bgcolor=uiHeadBg, text_size=uiTxtSize)

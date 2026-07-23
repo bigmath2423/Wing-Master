@@ -9,7 +9,7 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //   >>> BASELINE (comportement d'origine, tout desactive) :
 //       sweepQualityOn=false | fvgMinAtr=0 | entryZoneGate=false
 //       pePrecision=false | slSmartOn=false | gcOn=false
-//       pfVolSource="Tick (spot, actuel)" | newsAutoOn=false
+//       pfVolSource="Tick (spot, actuel)" | newsAutoOn=false | chopFilterOn=false
 //       (dxyOn/macroOn/newsOn = filtres macro pre-existants, ON par defaut)
 //
 //   AFFECTENT LES SIGNAUX (quels trades sont pris) :
@@ -18,6 +18,7 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //     - entryZoneGate    : exige un retour en zone pour entrer        (defaut ON)
 //     - gcOn             : confirmation Gold Futures GC1!             (defaut OFF)
 //     - newsAutoOn       : blocage auto NFP (si newsMode=Bloquer)     (defaut OFF)
+//     - chopFilterOn     : anti-consolidation ADX (range = pas de trade) (defaut OFF)
 //     - pfVolSource      : source volume Tick vs GC1! (si pfUseVolFilter ON)
 //   AFFECTENT L'EXECUTION (entree / stop, pas quels trades) - EMPILEMENT :
 //     - pePrecision      : entree limite + SL de precision           (defaut ON)
@@ -234,6 +235,9 @@ pfMaxFakeLabels = 15  // verrouille (affichage)
 pfShowVwap = input.bool(true, "Show session VWAP", group=grpPF)
 pfUseVwapFilter = input.bool(false, "VWAP filter: BUY above / SELL below only", group=grpE2)
 pfUseAtrFilter = input.bool(true, "ATR: block signals when volatility too low", group=grpE2)
+chopFilterOn = input.bool(false, "Anti-consolidation: bloquer les signaux en range / tendance faible (ADX)", group=grpE2, tooltip="Un desk ne trade pas dans le bruit d'un range. ON : aucun signal si l'ADX (force de tendance) est sous le seuil -> on evite les faux signaux en marche sans direction. Distinct du filtre ATR (qui mesure la volatilite, pas la directionnalite). OFF par defaut = comportement d'origine exact ; a activer puis comparer en backtest. N'affecte NI le score NI les TP/SL : filtre uniquement l'emission du signal, les deux sens.")
+chopAdxLen = input.int(14, "Anti-consolidation - longueur ADX", minval=2, group=grpPF, tooltip="Longueur de calcul du DI/ADX. 14 = standard institutionnel.")
+chopAdxMin = input.float(20.0, "Anti-consolidation - ADX minimum", minval=0.0, maxval=100.0, step=1.0, group=grpPF, tooltip="Seuil de force de tendance. ADX < seuil = consolidation -> signal bloque (si filtre ON). 20 = seuil classique tendance/range ; 25 = plus strict (moins de trades, plus propres).")
 pfAtrLen = input.int(50, "ATR average length", minval=2, group=grpPF)
 pfAtrMinMult = input.float(0.7, "Min ATR vs its average (x)", minval=0.1, step=0.05, group=grpPF)
 pfShowSessions = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
@@ -1405,8 +1409,15 @@ if bullFVG or bullBOS or bullCHoCH
 if bearFVG or bearBOS or bearCHoCH
     bearSignalFired := false
 
-buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and gcBuyOk
-sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and gcSellOk
+// ---- Filtre anti-consolidation (ADX) : bloque les signaux en range / tendance faible ----
+// Directionnel-neutre (la consolidation n'a pas de sens) : meme gate pour BUY et SELL.
+// ta.dmi sur le timeframe courant, valeur finale a la cloture (signaux emis en
+// once_per_bar_close) -> aucun repaint/look-ahead nouveau. na -> laisse passer (jamais
+// aveugler par manque de donnee). N'affecte NI le score NI les TP/SL : seulement l'emission.
+[chopDiPlus, chopDiMinus, chopAdx] = ta.dmi(chopAdxLen, chopAdxLen)
+chopOK = not chopFilterOn or na(chopAdx) or chopAdx >= chopAdxMin
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and gcBuyOk and chopOK
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and gcSellOk and chopOK
 
 if buySignal
     bullSignalFired := true
@@ -1770,7 +1781,7 @@ if buySignal
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deBuyAPlus
-        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode, alert.freq_once_per_bar_close)
+        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", "), alert.freq_once_per_bar_close)
 
 if sellSignal
     // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
@@ -1836,7 +1847,7 @@ if sellSignal
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deSellAPlus
-        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode, alert.freq_once_per_bar_close)
+        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", "), alert.freq_once_per_bar_close)
 
 // ---- Invalidation du suivi si le Stop Loss est touche ----
 if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))

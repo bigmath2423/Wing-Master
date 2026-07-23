@@ -115,6 +115,18 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          (volume absent, VWAP na...) recoivent une note neutre partielle.
 //        - l'ancien marqueur "A+" (sweep -> BOS/CHoCH -> OB/FVG) est renomme
 //          "SMC+" pour ne pas le confondre avec le niveau A+ du score
+// v11 : CORRECTIF ALERTES - Module 13 (Confirmation Gold Futures) inoffensif OFF :
+//        - gcSym passe de input.symbol("COMEX:GC1!") a input.string("") : par
+//          defaut aucun symbole payant n'est reference, donc TradingView ne
+//          bloque plus la creation d'alerte (COMEX:GC1! exige un abonnement CME).
+//        - symbole effectif gcSymEff = (gcOn and gcSym != "") ? gcSym :
+//          syminfo.tickerid, utilise dans les DEUX request.security (structure
+//          GC1! et volume). Champ vide ou module OFF -> symbole du graphique.
+//        - le volume reel GC1! n'est pris que si pfVolSource = "Volume reel GC1!"
+//          ET gcSym renseigne ; sinon repli sur le volume natif (inchange).
+//        - aucune logique de trading modifiee : score, regles eliminatoires,
+//          seuils, entrees/SL/TP identiques. Un utilisateur abonne COMEX qui
+//          saisit COMEX:GC1! et active le module retrouve le comportement exact.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -468,11 +480,16 @@ f_msStructure() =>
 // exige une structure de MEME sens.
 grpGC = "⚙️ Expert — Module 13 - Confirmation Gold Futures (GC1!)"
 gcOn   = input.bool(false, "Activer la confirmation Gold Futures (GC1!)", group=grpE3, tooltip="OFF = comportement d'origine exact (a utiliser pour comparer en backtest). ON = un BUY/SELL n'est valide que si le Gold Futures GC1! (COMEX) confirme la meme structure. Le XAUUSD reste le marche principal ; GC1! ne sert qu'a confirmer.")
-gcSym  = input.symbol("COMEX:GC1!", "Symbole Gold Futures", group=grpGC)
+gcSym  = input.string("", "Symbole Gold Futures", group=grpGC, tooltip="Laisser VIDE = utiliser le symbole du graphique (recommande : aucun abonnement requis, et les alertes se creent sans probleme). COMEX:GC1! donne le vrai future COMEX mais NECESSITE un abonnement aux donnees CME -- sinon TradingView refuse de creer l'alerte. Ne renseigne COMEX:GC1! que si tu possedes cet abonnement.")
 gcRes  = input.string("Graphique", "Structure GC1! - unite de temps", options=["Graphique", "5", "15", "60", "240"], group=grpGC, tooltip="'Graphique' = meme unite de temps que le graphique (aligne avec l'execution). Sinon force une UT (H1 = 60 pour une confirmation plus stable, moins de faux blocages).")
 gcMode = input.string("Souple", "Mode de confirmation", options=["Souple", "Strict"], group=grpE3, tooltip="Souple (defaut) : bloque seulement si GC1! est en structure OPPOSEE (le neutre passe) -> ne supprime pas les bons trades. Strict : exige une structure de MEME sens (plus filtrant).")
 gcResEff = gcRes == "Graphique" ? timeframe.period : gcRes
-[gcTrend, gcEvent] = request.security(gcSym, gcResEff, f_msStructure(), lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+// Symbole effectif : COMEX:GC1! (ou autre) uniquement si le module est ON ET un symbole
+// est renseigne. Sinon on retombe sur le symbole du graphique -> aucune reference a un
+// symbole payant (COMEX) tant que l'utilisateur ne l'a pas saisi lui-meme : les alertes
+// se creent sans abonnement CME quand le module est OFF (defaut) ou le champ vide.
+gcSymEff = (gcOn and gcSym != "") ? gcSym : syminfo.tickerid
+[gcTrend, gcEvent] = request.security(gcSymEff, gcResEff, f_msStructure(), lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
 gcReady = gcOn and not na(gcTrend)
 gcBull = gcReady and gcTrend == 1
 gcBear = gcReady and gcTrend == -1
@@ -1124,8 +1141,8 @@ wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= w
 // GC1! demande sur le MEME timeframe avec lookahead_off : semantique identique au volume natif
 // (final a la cloture, live en intrabar) -> aucun repaint/look-ahead nouveau. Repli sur le tick
 // spot si le volume GC1! est indisponible (na) : on n'aveugle jamais le filtre par manque de donnee.
-gcVolRaw = request.security(gcSym, timeframe.period, volume, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
-volSrc = (pfVolSource == "Volume reel GC1! (COMEX)" and not na(gcVolRaw)) ? gcVolRaw : volume
+gcVolRaw = request.security(gcSymEff, timeframe.period, volume, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+volSrc = (pfVolSource == "Volume reel GC1! (COMEX)" and gcSym != "" and not na(gcVolRaw)) ? gcVolRaw : volume
 pfVolSma = ta.sma(volSrc, pfVolLen)
 pfVolDataOK = not na(volSrc) and not na(pfVolSma) and pfVolSma > 0
 pfVolRatio = pfVolDataOK ? volSrc / pfVolSma : na

@@ -1774,8 +1774,8 @@ if buySignal
     lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
-    if sendNotifications
-        alert("XAUUSD BUY " + (deBuyAPlus ? "A+ " : "") + "| Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", "), alert.freq_once_per_bar_close)
+    if sendNotifications and deBuyAPlus
+        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", "), alert.freq_once_per_bar_close)
 
 if sellSignal
     // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
@@ -1840,8 +1840,8 @@ if sellSignal
     lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
-    if sendNotifications
-        alert("XAUUSD SELL " + (deSellAPlus ? "A+ " : "") + "| Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", "), alert.freq_once_per_bar_close)
+    if sendNotifications and deSellAPlus
+        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", "), alert.freq_once_per_bar_close)
 
 // ---- Invalidation du suivi si le Stop Loss est touche ----
 if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))

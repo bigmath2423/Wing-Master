@@ -178,6 +178,15 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 // ============================================================
 
 // ================= INPUTS =================
+// ================= ⓪ AMELIORATIONS (audit) — interrupteurs A/B =================
+// Chaque amelioration issue de l'audit est INDEPENDANTE et reversible. Mettre TOUS
+// les toggles de ce groupe a leur valeur "baseline" (indiquee) reproduit EXACTEMENT
+// le comportement de xauusd_smc_v14_baseline.pine. Tester une amelioration a la fois.
+grpAudit = "⓪ AMELIORATIONS (audit) — interrupteurs A/B"
+// B1 : corrige le faux BOS/CHoCH declenche quand le niveau de swing vient de changer
+//      (ta.crossover sur un niveau MOBILE). Baseline = false.
+fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable)", group=grpAudit, tooltip="ON : une cassure n'est validee que si le niveau de swing casse etait DEJA en place a la barre precedente (niveau stable). Elimine les faux BOS/CHoCH provoques par la simple mise a jour d'un pivot sous le prix. OFF (false) = comportement d'origine exact (baseline).")
+
 // ================= GROUPES ESSENTIELS (en haut) =================
 grpE1 = "① ESSENTIEL — Signaux & Seuils"
 grpE2 = "② ESSENTIEL — Filtres & Execution"
@@ -397,8 +406,17 @@ bearCHoCH = false
 // Pine v6 : les ta.* sont sorties des conditions `and` (evaluation paresseuse
 // en v6 -> une ta.* dans un operande conditionnel ne s'executerait pas a chaque
 // barre). Resultat strictement identique a la version v5.
-crossUpSwingHigh = ta.crossover(close, swingHighVal)
-crossDnSwingLow = ta.crossunder(close, swingLowVal)
+// --- B1 : ta.crossover est TOUJOURS evalue (etat maintenu a chaque barre) ; la
+//     garde de STABILITE du niveau ne fait que valider/invalider le resultat.
+//     Un vrai break = le prix franchit un niveau qui etait DEJA en place a la barre
+//     precedente. Si le niveau vient de changer (nouveau pivot sous le prix), le
+//     "crossover" est un artefact de mise a jour du niveau, pas une cassure reelle.
+crossUpRaw = ta.crossover(close, swingHighVal)
+crossDnRaw = ta.crossunder(close, swingLowVal)
+bhStable = swingHighVal == swingHighVal[1]
+blStable = swingLowVal == swingLowVal[1]
+crossUpSwingHigh = crossUpRaw and (not fixBreakOn or bhStable)
+crossDnSwingLow = crossDnRaw and (not fixBreakOn or blStable)
 
 if not na(swingHighVal) and crossUpSwingHigh
     if structTrend == "bearish"

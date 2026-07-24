@@ -28,9 +28,9 @@ Tous les toggles d'amélioration sont regroupés dans le groupe d'inputs
 |----|--------------|--------|--------|----------------|----------------------|--------|
 | B1 | Faux BOS/CHoCH (crossover sur niveau mobile) | `fixBreakOn` | ON | Oui | Faible (peut manquer de rares breaks same-bar) | ✅ fait |
 | B2 | `showLiq` ne doit plus gater la détection de sweep | `fixSweepGateOn` | ON | Oui (marginal) | Très faible | ✅ fait |
-| B3 | Buffer exec défait le snapping TP structurel | `fixTpSnapOn` | ON* | Non (exécution) | Faible (arbitrage hit-rate/RR) | ✅ fait |
-| S1 | Confiance affichee calibree (affichage seul) | `scoreRealistOn` | ON* | Non (affichage seul) | Nul | ✅ fait |
-| B1b | Faux BOS/CHoCH sur la structure MTF (f_msStructure) | `fixBreakMtfOn` | ON* | Oui (via score HTF) | Faible | ✅ fait |
+| B3 | Buffer exec défait le snapping TP structurel | `fixTpSnapOn` | OFF | Non (exécution) | Faible (arbitrage hit-rate/RR) | ✅ fait |
+| S1 | Confiance affichee calibree (affichage seul) | `scoreRealistOn` | OFF | Non (affichage seul) | Nul | ✅ fait |
+| B1b | Faux BOS/CHoCH sur la structure MTF (f_msStructure) | `fixBreakMtfOn` | OFF | Oui (via score HTF) | Faible | ✅ fait |
 | C1 | Signaux confirmés en clôture (anti-repaint intrabar) | `sigConfirmOn` | ON | Non en historique (backtest identique), améliore le réel | Nul (neutre en backtest) | ✅ fait |
 | B4 | Faux cross Wyckoff au démarrage d'un range | — | — | — | — | ✅ vérifié : non-bug (na → pas de cross) |
 | P1 | Nettoyage code mort (sous-ensemble sûr) | — | — | Non (inerte) | Nul | ✅ partiel (voir ci-dessous) |
@@ -110,6 +110,3 @@ différentes. À factoriser prudemment **après** vérification de compilation.
 | B5 | `smcRangeTop = math.max(swingHighVal, swingLowVal)` sémantiquement flou en fort trend. | Garde défensive, impact très faible ; laisser tel quel sauf anomalie constatée. |
 
 (Le tableau du haut est complété au fur et à mesure.)
-
-> *ON* = activé par choix utilisateur (défaut de conception était OFF). Pour revenir
-> à la baseline, remettre B1, B2, B3, S1, B1b, C1 sur OFF (le fichier gelé reste la référence).

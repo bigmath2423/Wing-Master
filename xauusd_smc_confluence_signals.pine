@@ -25,6 +25,7 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //       -> ablation propre : baseline < +pePrecision < +slSmartOn < +slExecBufOn
 //   AFFICHAGE UNIQUEMENT (zero impact sur les trades, ne pas backtester) :
 //     - pzoOn (zones predictives) | azOn (zones d'anticipation)
+//     - lwOn (avertissement "entree tardive" : info seule, ne bloque aucun signal)
 // ============================================================
 // ============================================================
 // XAU/USD - SMART MONEY CONCEPTS CONFLUENCE SIGNAL ENGINE
@@ -151,6 +152,23 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          slExecBufOn (ON par defaut), x ATR adaptatif (0.10), plancher spread
 //          (0.0, a regler selon le broker), plafond x ATR (0.5). slExecBufOn=OFF
 //          restaure le SL d'origine exact.
+// v13 : AVERTISSEMENT "ENTREE TARDIVE" (filtre secondaire, INFO seule) :
+//        - detecte les signaux techniquement valides mais potentiellement pris
+//          TROP TARD (prix deja en fin d'impulsion) et affiche un avertissement
+//          "⚠️ Trade a risque - Entree tardive". Ne bloque JAMAIS le trade, ne
+//          modifie NI le signal, NI le score, NI l'entree, NI les filtres.
+//        - INDEPENDANT du score : un signal a 85-90 % peut rester affiche ET
+//          recevoir l'avertissement s'il est sur-etendu.
+//        - trois axes (aucun ne touche au score) : sur-extension du mouvement en
+//          cours vs ATR ; distance a la derniere structure (plus bas/haut recent) ;
+//          achat en premium profond / vente en discount profond (position dans le
+//          range). Le signal est juge tardif si l'un des axes depasse son seuil.
+//        - affichage : plotshape "⚠️ Tardif" sur la fleche, ligne ajoutee dans
+//          l'etiquette de trade, ligne "Contexte" dans le tableau de bord, et
+//          mention " | ⚠️ ENTREE TARDIVE" dans l'alerte. OFF (lwOn) = rien affiche.
+//        - nouveaux inputs (groupe "Avertissement entree tardive") : lwOn (ON),
+//          fenetre d'impulsion (20), seuil sur-extension (4 ATR), seuil premium/
+//          discount (75 %). Reglages purement d'affichage, zero impact backtest.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -1610,6 +1628,44 @@ plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abo
 // realistes pour l'horizon de trading, valides par la structure et l'ATR.
 atrVal = atrGlobal  // reutilise l'ATR global (plus de double calcul)
 
+// ================= FILTRE SECONDAIRE : AVERTISSEMENT ENTREE TARDIVE =================
+// INFO UNIQUEMENT - ne bloque JAMAIS un trade et ne modifie NI le signal, NI le
+// score, NI l'entree, NI les filtres/confirmations. Detecte les entrees
+// techniquement valides mais potentiellement TARDIVES (prix deja en fin
+// d'impulsion) et affiche un avertissement INDEPENDANT du score de confiance :
+// un signal peut rester a 85-90 % ET recevoir l'avertissement s'il est sur-etendu.
+// Trois axes evalues (aucun ne touche au score) :
+//   1) Sur-extension vs ATR : distance parcourue depuis le debut de l'impulsion
+//      (plus bas/haut recent) rapportee a l'ATR.
+//   2) Distance a la derniere structure : le plus bas/haut recent sert de zone de
+//      reference ; une entree trop loin de cette zone = tardive (meme mesure ATR).
+//   3) Acheter trop haut / vendre trop bas : position dans le range premium/
+//      discount (BUY en premium profond, SELL en discount profond).
+grpLW = "⚙️ Expert — Avertissement entree tardive (info, ne bloque pas)"
+lwOn          = input.bool(true, "Avertir si entree tardive / sur-extension", group=grpE2, tooltip="INFO uniquement : n'annule JAMAIS un signal et ne touche NI au score, NI aux filtres, NI a l'entree. Affiche '⚠️ Trade a risque - Entree tardive' quand un signal valide arrive alors que le prix est deja en fin d'impulsion (sur-etendu, ou achat en premium profond / vente en discount profond).")
+lwImpulseLook = input.int(20, "Fenetre de l'impulsion (barres)", minval=3, group=grpLW, tooltip="Mesure l'extension du mouvement en cours : du plus bas (BUY) / plus haut (SELL) sur ces N dernieres barres jusqu'au prix actuel.")
+lwExtAtr      = input.float(4.0, "Sur-extension : mouvement > x ATR", minval=0.5, step=0.5, group=grpLW, tooltip="Si le prix a parcouru plus de X ATR depuis le debut de l'impulsion, l'entree est jugee tardive. Plus grand = moins d'avertissements.")
+lwPremiumPct  = input.float(75, "Achat/vente hors zone : > x % du range", minval=50, maxval=100, step=1, group=grpLW, tooltip="BUY juge tardif si l'entree est au-dela de ce % du range (premium profond) ; SELL si sous les (100 - x) % (discount profond). 100 = desactive cet axe (uniquement la sur-extension ATR).")
+
+// Bornes de l'impulsion recente (calculees a chaque barre pour la coherence).
+lwLowN  = ta.lowest(low, lwImpulseLook)
+lwHighN = ta.highest(high, lwImpulseLook)
+// Extension du mouvement en cours, en multiples d'ATR (proxy prix = close).
+lwBuyExt  = atrVal > 0 ? (close - lwLowN) / atrVal : 0.0
+lwSellExt = atrVal > 0 ? (lwHighN - close) / atrVal : 0.0
+// Position dans le range premium/discount (0 % = bas/discount, 100 % = haut/premium).
+lwRange   = smcRangeTop - smcRangeBot
+lwBuyPos  = not na(lwRange) and lwRange > 0 ? (close - smcRangeBot) / lwRange * 100.0 : na
+lwSellPos = not na(lwRange) and lwRange > 0 ? (smcRangeTop - close) / lwRange * 100.0 : na
+// Entree tardive = sur-extension ATR OU achat trop haut / vente trop bas. Independant du score.
+lwLateBuy  = lwOn and (lwBuyExt  >= lwExtAtr or (not na(lwBuyPos)  and lwBuyPos  >= lwPremiumPct))
+lwLateSell = lwOn and (lwSellExt >= lwExtAtr or (not na(lwSellPos) and lwSellPos >= lwPremiumPct))
+// Avertissement affiche uniquement AU MOMENT d'un signal - le trade reste pris.
+lwWarnBuy  = buySignal  and lwLateBuy
+lwWarnSell = sellSignal and lwLateSell
+plotshape(lwWarnBuy,  title="Entree tardive BUY",  location=location.belowbar, style=shape.labelup,   size=size.tiny, color=color.new(color.orange, 0), text="⚠️ Tardif", textcolor=color.black)
+plotshape(lwWarnSell, title="Entree tardive SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 0), text="⚠️ Tardif", textcolor=color.black)
+
 // Cherche la distance structurelle la plus proche d'une ancre, dans une fenetre
 // [anchor*lo, anchor*hi]. Si aucune structure ne tombe dans la fenetre, retourne
 // l'ancre elle-meme (basee sur l'ATR -> jamais un nombre de points fige).
@@ -1824,7 +1880,7 @@ if buySignal
     if showRiskLabels
         if not na(bullRiskLabel)
             label.delete(bullRiskLabel)
-        txt = "BUY  Entry " + f_px(entry) + "\nSL " + f_px(slLevel) + "  (" + f_pips(riskDist) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(t1 - entry) + "p  " + f_rr(t1 - entry, riskDist) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(t2 - entry) + "p  " + f_rr(t2 - entry, riskDist) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(t3 - entry) + "p  " + f_rr(t3 - entry, riskDist) + "R"
+        txt = "BUY  Entry " + f_px(entry) + "\nSL " + f_px(slLevel) + "  (" + f_pips(riskDist) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(t1 - entry) + "p  " + f_rr(t1 - entry, riskDist) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(t2 - entry) + "p  " + f_rr(t2 - entry, riskDist) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(t3 - entry) + "p  " + f_rr(t3 - entry, riskDist) + "R" + (lwLateBuy ? "\n⚠️ Trade a risque - Entree tardive" : "")
         bullRiskLabel := label.new(bar_index, low - atrVal * 2, txt, style=label.style_label_up, color=color.new(color.lime, 85), textcolor=color.lime, size=size.tiny)
     lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
     lnSL := f_tpLine(lnSL, slLevel, color.new(color.red, 0), line.style_solid)
@@ -1832,7 +1888,7 @@ if buySignal
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deBuyAPlus
-        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", "), alert.freq_once_per_bar_close)
+        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", ") + (lwLateBuy ? " | ⚠️ ENTREE TARDIVE (sur-extension)" : ""), alert.freq_once_per_bar_close)
 
 if sellSignal
     // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
@@ -1901,7 +1957,7 @@ if sellSignal
     if showRiskLabels
         if not na(bearRiskLabel)
             label.delete(bearRiskLabel)
-        txt = "SELL  Entry " + f_px(entry) + "\nSL " + f_px(slLevel2) + "  (" + f_pips(riskDist2) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(entry - t1) + "p  " + f_rr(entry - t1, riskDist2) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(entry - t2) + "p  " + f_rr(entry - t2, riskDist2) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(entry - t3) + "p  " + f_rr(entry - t3, riskDist2) + "R"
+        txt = "SELL  Entry " + f_px(entry) + "\nSL " + f_px(slLevel2) + "  (" + f_pips(riskDist2) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(entry - t1) + "p  " + f_rr(entry - t1, riskDist2) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(entry - t2) + "p  " + f_rr(entry - t2, riskDist2) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(entry - t3) + "p  " + f_rr(entry - t3, riskDist2) + "R" + (lwLateSell ? "\n⚠️ Trade a risque - Entree tardive" : "")
         bearRiskLabel := label.new(bar_index, high + atrVal * 2, txt, style=label.style_label_down, color=color.new(color.red, 85), textcolor=color.red, size=size.tiny)
     lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
     lnSL := f_tpLine(lnSL, slLevel2, color.new(color.red, 0), line.style_solid)
@@ -1909,7 +1965,7 @@ if sellSignal
     lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
     lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
     if sendNotifications and deSellAPlus
-        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", "), alert.freq_once_per_bar_close)
+        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", ") + (lwLateSell ? " | ⚠️ ENTREE TARDIVE (sur-extension)" : ""), alert.freq_once_per_bar_close)
 
 // ---- Invalidation du suivi si le Stop Loss est touche ----
 if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))
@@ -1993,6 +2049,9 @@ if barstate.islast and uiShowMain
     macroCol = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
     newsTxt = not newsOn ? "OFF" : newsRisk ? (newsBlockActive ? "ELEVE (bloque)" : "ELEVE") : "Normal"
     newsColU = not newsOn ? color.gray : newsRisk ? color.rgb(231, 76, 60) : color.rgb(46, 204, 113)
+    lwCtxLate = mainIsBuy ? lwLateBuy : lwLateSell
+    lwCtxTxt = not lwOn ? "OFF" : lwCtxLate ? "⚠️ Tardif" : "OK"
+    lwCtxCol = not lwOn ? color.gray : lwCtxLate ? color.orange : color.rgb(46, 204, 113)
     ecartTxt = manqueVal <= 0 ? "OK +" + str.tostring(-manqueVal) : "-" + str.tostring(manqueVal) + " pts"
     ecartCol = manqueVal <= 0 ? color.rgb(46, 204, 113) : uiAccent
     if uiFullPanel
@@ -2048,6 +2107,7 @@ if barstate.islast and uiShowMain
         f_pRow(4, 13, "DXY", dxyTxt, dxyColU)
         f_pRow(4, 14, "Yield 10-2Y", macroTxt, macroCol)
         f_pRow(4, 15, "News", newsTxt, newsColU)
+        f_pRow(4, 16, "Contexte", lwCtxTxt, lwCtxCol)
     else
         // ===== MOBILE : compact 2 colonnes (essentiels) =====
         table.cell(mainPanel, 0, 0, "🎯 SIGNAL", text_color=uiValCol, bgcolor=uiHeadBg, text_size=uiTxtSize)

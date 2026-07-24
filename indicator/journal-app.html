@@ -105,9 +105,10 @@
     </div>
     <div class="spacer"></div>
     <div class="btns">
-      <div class="field" style="min-width:110px"><label>Capital départ</label><input id="startBal" type="number" step="any" placeholder="10000"></div>
-      <div class="field" style="min-width:110px"><label>Objectif / mois</label><input id="goal" type="number" step="any" placeholder="500"></div>
-      <div class="field" style="min-width:64px"><label>Devise</label><input id="cur" maxlength="4" placeholder="$" style="width:60px"></div>
+      <div class="field" style="min-width:104px"><label>Capital départ</label><input id="startBal" type="number" step="any" placeholder="10000"></div>
+      <div class="field" style="min-width:104px"><label>Objectif / mois</label><input id="goal" type="number" step="any" placeholder="500"></div>
+      <div class="field" style="min-width:104px"><label title="Valeur d'1 lot pour 1$ de mouvement du prix. XAUUSD standard = 100 (1 lot = 100 oz).">Valeur lot ($/1$) ⓘ</label><input id="lotVal" type="number" step="any" placeholder="100"></div>
+      <div class="field" style="min-width:60px"><label>Devise</label><input id="cur" maxlength="4" placeholder="$" style="width:56px"></div>
       <button id="themeBtn" title="Thème">🌓</button>
       <button id="exportBtn">⬇️</button>
       <button id="importBtn">⬆️</button>
@@ -141,10 +142,13 @@
       <div class="field"><label>Date</label><input id="tDate" type="date"></div>
       <div class="field"><label>Sens</label><select id="tDir"><option>BUY</option><option>SELL</option></select></div>
       <div class="field"><label>Session</label><select id="tSess"><option>Londres</option><option>New York</option><option>Asie</option><option>Autre</option></select></div>
-      <div class="field"><label>Risque (argent)</label><input id="tRisk" type="number" step="any" placeholder="100"></div>
+      <div class="field"><label>Lot</label><input id="tLot" type="number" step="any" placeholder="0.10"></div>
+      <div class="field"><label>Entrée</label><input id="tEntry" type="number" step="any" placeholder="2000.0"></div>
+      <div class="field"><label>Stop Loss</label><input id="tSL" type="number" step="any" placeholder="1998.0"></div>
       <div class="field"><label>Résultat (R)</label><input id="tR" type="number" step="any" placeholder="2 / -1 / 0"></div>
+      <div class="field"><label>Risque (auto)</label><input id="tRisk" type="number" step="any" placeholder="auto"><div class="autopnl" id="autorisk"></div></div>
       <div class="field"><label>P&amp;L (auto)</label><input id="tPnl" type="number" step="any" placeholder="auto"><div class="autopnl" id="autopnl"></div></div>
-      <div class="field" style="flex:2;min-width:140px"><label>Note</label><input id="tNote" placeholder="setup…"></div>
+      <div class="field" style="flex:2;min-width:130px"><label>Note</label><input id="tNote" placeholder="setup…"></div>
       <div class="field"><label>&nbsp;</label><button class="primary" id="addBtn">Ajouter</button></div>
     </div>
   </section>
@@ -174,7 +178,7 @@
   <section class="card">
     <h2>📋 Trades <span id="tradeCount" style="color:var(--muted);font-weight:400"></span></h2>
     <div class="tablewrap"><table>
-      <thead><tr><th class="l">Date</th><th class="l">Sens</th><th class="l">Session</th><th>Risque</th><th>R</th><th>P&amp;L</th><th>Cumul</th><th class="l">Note</th><th></th></tr></thead>
+      <thead><tr><th class="l">Date</th><th class="l">Sens</th><th class="l">Session</th><th>Lot</th><th>Risque</th><th>R</th><th>P&amp;L</th><th>Cumul</th><th class="l">Note</th><th></th></tr></thead>
       <tbody id="tradeBody"></tbody>
     </table></div>
   </section>
@@ -193,9 +197,10 @@
     try{let s=JSON.parse(localStorage.getItem(KEY));if(s&&s.trades)return s;}catch(e){}
     // migration depuis v1
     try{let o=JSON.parse(localStorage.getItem('xau_smc_journal_v1'));if(o&&o.trades)return o;}catch(e){}
-    return{trades:[],startBal:'',cur:'$',goal:''};
+    return{trades:[],startBal:'',cur:'$',goal:'',lotVal:'100'};
   }
   function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+  const lotValue=()=>{const v=parseFloat(state.lotVal);return isFinite(v)&&v>0?v:100;};
   const money=v=>{const c=state.cur||'';const n=isFinite(v)?v:0;return (n<0?'-':'')+c+Math.abs(n).toLocaleString('fr-FR',{maximumFractionDigits:2});};
   const fR=v=>isFinite(v)?(v>0?'+':'')+v.toFixed(2)+'R':'—';
   const todayStr=()=>new Date().toISOString().slice(0,10);
@@ -331,12 +336,13 @@
     const list=sorted(filtered());
     document.getElementById('tradeCount').textContent=list.length?'('+list.length+')':'';
     const tb=document.getElementById('tradeBody');
-    if(!list.length){tb.innerHTML='<tr><td colspan="9" class="empty-msg">Ajoute ton premier trade ☝️</td></tr>';return;}
+    if(!list.length){tb.innerHTML='<tr><td colspan="10" class="empty-msg">Ajoute ton premier trade ☝️</td></tr>';return;}
     let cum=0;
     tb.innerHTML=list.map(t=>{cum+=+t.pnl;const r=+t.r;
       return '<tr><td class="l">'+t.date+'</td>'+
         '<td class="l"><span class="tag '+(t.dir==='BUY'?'buy':'sell')+'">'+t.dir+'</span></td>'+
         '<td class="l" style="color:var(--muted)">'+(t.session||'—')+'</td>'+
+        '<td>'+(t.lot?(+t.lot).toLocaleString('fr-FR',{maximumFractionDigits:2}):'—')+'</td>'+
         '<td>'+money(+t.risk||0)+'</td>'+
         '<td class="'+(r>0?'g':(r<0?'r':''))+'">'+fR(r)+'</td>'+
         '<td class="'+(t.pnl>0?'g':(t.pnl<0?'r':''))+'">'+money(+t.pnl)+'</td>'+
@@ -349,23 +355,38 @@
 
   function renderAll(){renderKpis();renderEquity();renderCal();renderMonths();renderTrades();}
 
-  function autoPnl(){
-    const risk=parseFloat(document.getElementById('tRisk').value),r=parseFloat(document.getElementById('tR').value);
-    const el=document.getElementById('tPnl'),info=document.getElementById('autopnl');
-    if(isFinite(risk)&&isFinite(r)){el.value=+(risk*r).toFixed(2);info.textContent='= risque × R';}else info.textContent='';
+  // Lot (+ entrée/SL) -> risque en argent ; puis risque × R -> P&L. Tout auto, corrigeable.
+  let riskManual=false;
+  function autoCompute(){
+    const lot=parseFloat(document.getElementById('tLot').value);
+    const entry=parseFloat(document.getElementById('tEntry').value);
+    const sl=parseFloat(document.getElementById('tSL').value);
+    const rInfo=document.getElementById('autorisk');
+    const riskEl=document.getElementById('tRisk');
+    if(!riskManual && isFinite(lot)&&isFinite(entry)&&isFinite(sl)&&entry!==sl){
+      const risk=+(lot*lotValue()*Math.abs(entry-sl)).toFixed(2);
+      riskEl.value=risk;rInfo.textContent='= lot × '+lotValue()+' × distance SL';
+    } else if(!riskManual){ rInfo.textContent=''; }
+    const risk=parseFloat(riskEl.value),r=parseFloat(document.getElementById('tR').value);
+    const pInfo=document.getElementById('autopnl'),pEl=document.getElementById('tPnl');
+    if(isFinite(risk)&&isFinite(r)){pEl.value=+(risk*r).toFixed(2);pInfo.textContent='= risque × R';}else pInfo.textContent='';
   }
-  document.getElementById('tRisk').addEventListener('input',autoPnl);
-  document.getElementById('tR').addEventListener('input',autoPnl);
+  ['tLot','tEntry','tSL','tR'].forEach(id=>document.getElementById(id).addEventListener('input',autoCompute));
+  document.getElementById('tRisk').addEventListener('input',()=>{riskManual=true;document.getElementById('autorisk').textContent='(manuel)';autoCompute();});
   document.getElementById('addBtn').addEventListener('click',()=>{
     const date=document.getElementById('tDate').value||todayStr();
     const r=parseFloat(document.getElementById('tR').value);
     if(!isFinite(r)){alert('Renseigne le résultat en R (ex : 2, -1, 0).');return;}
+    const lot=document.getElementById('tLot').value;
+    const entry=document.getElementById('tEntry').value;
+    const sl=document.getElementById('tSL').value;
     const risk=document.getElementById('tRisk').value;
     let pnl=parseFloat(document.getElementById('tPnl').value);
     if(!isFinite(pnl))pnl=isFinite(parseFloat(risk))?parseFloat(risk)*r:0;
-    state.trades.push({id:Date.now(),date,dir:document.getElementById('tDir').value,session:document.getElementById('tSess').value,risk:risk||0,r,pnl,note:document.getElementById('tNote').value.trim()});
+    state.trades.push({id:Date.now(),date,dir:document.getElementById('tDir').value,session:document.getElementById('tSess').value,lot:lot||'',entry:entry||'',sl:sl||'',risk:risk||0,r,pnl,note:document.getElementById('tNote').value.trim()});
     save();
-    document.getElementById('tR').value='';document.getElementById('tPnl').value='';document.getElementById('tNote').value='';document.getElementById('autopnl').textContent='';
+    ['tLot','tEntry','tSL','tR','tRisk','tPnl','tNote'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('autorisk').textContent='';document.getElementById('autopnl').textContent='';riskManual=false;
     const d=new Date(date+'T00:00:00');calDate=new Date(d.getFullYear(),d.getMonth(),1);renderAll();
   });
 
@@ -377,6 +398,7 @@
   // settings / io
   document.getElementById('startBal').addEventListener('input',e=>{state.startBal=e.target.value;save();renderKpis();renderEquity();});
   document.getElementById('goal').addEventListener('input',e=>{state.goal=e.target.value;save();renderGoal();});
+  document.getElementById('lotVal').addEventListener('input',e=>{state.lotVal=e.target.value;save();autoCompute();});
   document.getElementById('cur').addEventListener('input',e=>{state.cur=e.target.value;save();renderAll();});
   document.getElementById('calPrev').addEventListener('click',()=>{calDate.setMonth(calDate.getMonth()-1);renderCal();});
   document.getElementById('calNext').addEventListener('click',()=>{calDate.setMonth(calDate.getMonth()+1);renderCal();});
@@ -395,6 +417,7 @@
   function initFields(){
     document.getElementById('startBal').value=state.startBal||'';
     document.getElementById('goal').value=state.goal||'';
+    document.getElementById('lotVal').value=state.lotVal||'100';
     document.getElementById('cur').value=state.cur||'$';
     document.getElementById('tDate').value=todayStr();
   }

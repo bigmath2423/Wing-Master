@@ -30,10 +30,13 @@ Tous les toggles d'amélioration sont regroupés dans le groupe d'inputs
 | B2 | `showLiq` ne doit plus gater la détection de sweep | `fixSweepGateOn` | ON | Oui (marginal) | Très faible | ✅ fait |
 | B3 | Buffer exec défait le snapping TP structurel | `fixTpSnapOn` | OFF | Non (exécution) | Faible (arbitrage hit-rate/RR) | ✅ fait |
 | S1 | Confiance affichee calibree (affichage seul) | `scoreRealistOn` | OFF | Non (affichage seul) | Nul | ✅ fait |
-| P1 | Nettoyage code mort + security redondants | — | — | Non | Nul | à venir |
+| B1b | Faux BOS/CHoCH sur la structure MTF (f_msStructure) | `fixBreakMtfOn` | OFF | Oui (via score HTF) | Faible | ✅ fait |
+| B4 | Faux cross Wyckoff au démarrage d'un range | — | — | — | — | ✅ vérifié : non-bug (na → pas de cross) |
+| P1 | Nettoyage code mort (sous-ensemble sûr) | — | — | Non (inerte) | Nul | ✅ partiel (voir ci-dessous) |
 
-Statut actuel : **B1, B2, B3, S1 implémentés.** Tous à leur valeur baseline
-(`fixBreakOn=false`, `fixSweepGateOn=false`, `fixTpSnapOn=false`,
+Statut actuel : **B1, B2, B3, S1, B1b implémentés + P1 partiel.** Tous les toggles à leur valeur baseline
+(`fixBreakOn=false`, `fixSweepGateOn=false`, `fixTpSnapOn=false`, `scoreRealistOn=false`, `fixBreakMtfOn=false`) →
+comportement de trading identique à `xauusd_smc_v14_baseline.pine` (P1 ne retire que du code write-only inerte).
 `scoreRealistOn=false`) → le fichier de travail = `xauusd_smc_v14_baseline.pine`.
 
 ---
@@ -72,22 +75,28 @@ comme les toggles, en gardant la baseline comme référence.
 
 ---
 
-## P1 — Nettoyage (DOCUMENTÉ, non appliqué : à faire dans TradingView avec compilateur)
+## P1 — Nettoyage
 
-Code mort confirmé (variables **write-only**, jamais lues → suppression sûre, gain
-de lisibilité/perf marginal). Retirer dans TradingView puis re-compiler :
+### ✅ Appliqué (sous-ensemble sûr — code write-only inerte, aucun impact de trading)
 
-| Variable | Où | Action |
+| Variable | Où | Statut |
 |----------|----|--------|
-| `barsSinceLiqSweepLow` / `barsSinceLiqSweepHigh` | section LIQUIDITY SWEEPS | déclaration + `+= 1` + `:= 0` jamais lus → supprimer les 3 lignes de chaque |
-| `msSwingTrend` | fin Module 1 (swings) | ligne d'assignation jamais réutilisée → supprimer |
-| `oscVal` | Momentum Oscillator | assigné, jamais lu (l'oscillateur affiché utilise `rsiVal`/`stochK`) → supprimer |
-| `stochD` | Momentum Oscillator | `ta.sma(stochK, oscSmoothD)` jamais lu → supprimer |
+| `barsSinceLiqSweepLow` / `barsSinceLiqSweepHigh` | LIQUIDITY SWEEPS | **retiré** (décl + `+=1` + `:=0`, jamais lus) |
+| `msSwingTrend` | fin Module 1 (swings) | **retiré** (jamais consommé) |
 
-Redondance `request.security` (perf) : sur un chart M5, `msTfExec="5"` interroge le
-TF courant (redondant + déclenche l'avertissement `f_msTfWarn`). D1 est demandé 2×
-(Module 1 contexte via `msTfContext` et Module 10 `pzoD1C`) avec des EMA
-différentes. À factoriser prudemment, **après** avoir vérifié la compilation.
+> ⚠️ À re-compiler dans TradingView pour confirmation. Le fichier gelé conserve l'original.
+
+### ⏸️ Volontairement NON retiré (lié à une fonctionnalité utilisateur)
+
+| Variable | Raison |
+|----------|--------|
+| `rawK` / `stochK` / `stochD` / `oscVal` | Chaîne stochastique morte (jamais affichée), MAIS reliée à l'option d'input `oscType = "Stochastic"`. La retirer neutraliserait cette option UI. Consigne « ne pas supprimer de fonctionnalité non testée » → laissée intacte. À trancher : soit **reconnecter** `oscVal` au dashboard (réparer la feature), soit retirer l'option Stochastic + sa chaîne (−4 `ta.*`/barre). |
+
+### ⏸️ Redondance `request.security` (perf, non appliqué — risque de changement de comportement)
+
+Sur un chart M5, `msTfExec="5"` interroge le TF courant (redondant + déclenche
+`f_msTfWarn`). D1 est demandé 2× (`msTfContext` et `pzoD1C`) avec des EMA
+différentes. À factoriser prudemment **après** vérification de compilation.
 
 ---
 

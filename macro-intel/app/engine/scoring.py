@@ -98,9 +98,13 @@ def score_gold(
             "dxy": market.dxy or 0.0,
             "dxy_change_pct": dxy_chg,
             "us10y": market.us10y or 0.0,
+            "us10y_change_bps": market.us10y_change_bps or 0.0,
             "real_rate_10y": market.real_rate_10y or 0.0,
+            "real_rate_change_bps": market.real_rate_change_bps or 0.0,
             "breakeven_inflation": be or 0.0,
             "geo_risk_index": geo.risk_index,
+            "geo_tone": geo.tone,
+            "news_sentiment_gold": round(_avg_news_gold(news), 1),
         },
     )
 

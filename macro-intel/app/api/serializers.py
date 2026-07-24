@@ -50,8 +50,17 @@ def build_latest() -> MacroLatest:
         )
         for n in sorted(snap["news"], key=lambda x: x.severity, reverse=True)[:8]
     ]
+    gold_score = snap["scores"].get("gold")
+    gold_drivers = dict(gold_score.drivers) if gold_score else {}
+    sources = {
+        "market": snap["market"].source,
+        "geo": snap["geo"].source,
+        "news": str(len(snap["news"])),
+    }
     return MacroLatest(
         generated_at=snap["generated_at"] or dt.datetime.now(dt.timezone.utc),
         assets=assets,
         headlines=headlines,
+        gold_drivers=gold_drivers,
+        sources=sources,
     )

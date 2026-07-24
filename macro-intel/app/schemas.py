@@ -31,6 +31,9 @@ class MacroLatest(BaseModel):
     generated_at: dt.datetime
     assets: dict[str, MacroBias]
     headlines: list["Headline"] = []
+    # Valeurs brutes des drivers de l'or (pour synchroniser les curseurs live).
+    gold_drivers: dict[str, float] = {}
+    sources: dict[str, str] = {}
 
 
 class Headline(BaseModel):

@@ -27,7 +27,7 @@ Tous les toggles d'amélioration sont regroupés dans le groupe d'inputs
 | ID | Amélioration | Toggle | Défaut | Impact signaux | Risque de dégradation | Statut |
 |----|--------------|--------|--------|----------------|----------------------|--------|
 | B1 | Faux BOS/CHoCH (crossover sur niveau mobile) | `fixBreakOn` | ON | Oui | Faible (peut manquer de rares breaks same-bar) | ✅ fait |
-| B2 | `showLiq` ne doit plus gater la détection de sweep | `fixSweepGateOn` | — | Oui (marginal) | Très faible | à venir |
+| B2 | `showLiq` ne doit plus gater la détection de sweep | `fixSweepGateOn` | ON | Oui (marginal) | Très faible | ✅ fait |
 | B3 | Buffer d'exécution défait le snapping TP structurel | `fixTpSnapOn` | — | Non (exécution) | Faible | à venir |
 | S1 | Score de confiance recalibré (dégonflage des 40 pts pré-acquis) | `scoreRealistOn` | — | Non (affichage) | Nul | à venir |
 | P1 | Nettoyage code mort + security redondants | — | — | Non | Nul | à venir |

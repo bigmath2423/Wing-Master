@@ -186,6 +186,9 @@ grpAudit = "⓪ AMELIORATIONS (audit) — interrupteurs A/B"
 // B1 : corrige le faux BOS/CHoCH declenche quand le niveau de swing vient de changer
 //      (ta.crossover sur un niveau MOBILE). Baseline = false.
 fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable)", group=grpAudit, tooltip="ON : une cassure n'est validee que si le niveau de swing casse etait DEJA en place a la barre precedente (niveau stable). Elimine les faux BOS/CHoCH provoques par la simple mise a jour d'un pivot sous le prix. OFF (false) = comportement d'origine exact (baseline).")
+// B2 : le toggle d'AFFICHAGE showLiq ne doit plus gater la DETECTION des sweeps de
+//      swing (qui alimente le score et le verrou eliminatoire). Baseline = false.
+fixSweepGateOn = input.bool(true, "B2 · Detection des sweeps de swing independante de l'affichage", group=grpAudit, tooltip="ON : les sweeps de swing (liqSweepLow/High) sont TOUJOURS detectes pour le score et les verrous, meme si 'Mark liquidity sweeps' (affichage) est decoche. Seul le label a l'ecran reste controle par l'affichage. OFF (false) = comportement d'origine (decocher l'affichage desactivait aussi la detection).")
 
 // ================= GROUPES ESSENTIELS (en haut) =================
 grpE1 = "① ESSENTIEL — Signaux & Seuils"
@@ -751,22 +754,28 @@ var float sweptHighLevel = na
 var label sweepLowLabel = na
 var label sweepHighLabel = na
 
-liqSweepLow = showLiq and not na(swingLowVal) and low < swingLowVal and close > swingLowVal and (na(sweptLowLevel) or swingLowVal != sweptLowLevel)
-liqSweepHigh = showLiq and not na(swingHighVal) and high > swingHighVal and close < swingHighVal and (na(sweptHighLevel) or swingHighVal != sweptHighLevel)
+// B2 : detection brute (independante de l'affichage) puis gate d'affichage.
+// fixSweepGateOn=false -> on re-applique showLiq comme avant (baseline exacte).
+liqSweepLowRaw = not na(swingLowVal) and low < swingLowVal and close > swingLowVal and (na(sweptLowLevel) or swingLowVal != sweptLowLevel)
+liqSweepHighRaw = not na(swingHighVal) and high > swingHighVal and close < swingHighVal and (na(sweptHighLevel) or swingHighVal != sweptHighLevel)
+liqSweepLow = (fixSweepGateOn or showLiq) and liqSweepLowRaw
+liqSweepHigh = (fixSweepGateOn or showLiq) and liqSweepHighRaw
 
 if liqSweepLow
     barsSinceLiqSweepLow := 0
     sweptLowLevel := swingLowVal
-    if not na(sweepLowLabel)
-        label.delete(sweepLowLabel)
-    sweepLowLabel := label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(color.aqua,70), textcolor=color.aqua, size=size.tiny)
+    if showLiq
+        if not na(sweepLowLabel)
+            label.delete(sweepLowLabel)
+        sweepLowLabel := label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(color.aqua,70), textcolor=color.aqua, size=size.tiny)
 
 if liqSweepHigh
     barsSinceLiqSweepHigh := 0
     sweptHighLevel := swingHighVal
-    if not na(sweepHighLabel)
-        label.delete(sweepHighLabel)
-    sweepHighLabel := label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(color.fuchsia,70), textcolor=color.fuchsia, size=size.tiny)
+    if showLiq
+        if not na(sweepHighLabel)
+            label.delete(sweepHighLabel)
+        sweepHighLabel := label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(color.fuchsia,70), textcolor=color.fuchsia, size=size.tiny)
 
 // ================= MODULE 2 : LIQUIDITY ENGINE =================
 // Zones de liquidite (EQH/EQL + PDH/PDL/PWH/PWL) et sweeps de ces zones.

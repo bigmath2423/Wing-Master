@@ -189,6 +189,11 @@ fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable
 // B2 : le toggle d'AFFICHAGE showLiq ne doit plus gater la DETECTION des sweeps de
 //      swing (qui alimente le score et le verrou eliminatoire). Baseline = false.
 fixSweepGateOn = input.bool(true, "B2 · Detection des sweeps de swing independante de l'affichage", group=grpAudit, tooltip="ON : les sweeps de swing (liqSweepLow/High) sont TOUJOURS detectes pour le score et les verrous, meme si 'Mark liquidity sweeps' (affichage) est decoche. Seul le label a l'ecran reste controle par l'affichage. OFF (false) = comportement d'origine (decocher l'affichage desactivait aussi la detection).")
+// B3 : garder les TP sur leur niveau STRUCTUREL apres l'elargissement du SL par le
+//      buffer d'execution (au lieu de les re-projeter en multiples R purs, ce qui
+//      les eloigne de la liquidite visee). ARBITRAGE (hit-rate vs R:R) -> baseline
+//      = false (defaut OFF, incertain, a valider par backtest).
+fixTpSnapOn = input.bool(false, "B3 · Garder les TP sur la structure (ne pas rescaler apres buffer SL)", group=grpAudit, tooltip="ON : quand le buffer d'execution elargit le SL, les TP RESTENT sur les niveaux structurels calcules par le TP Engine (liquidite/swings) au lieu d'etre repousses pour conserver le meme R:R. Le R:R affiche baisse legerement mais les cibles restent sur la vraie structure (meilleur hit-rate potentiel). OFF (false) = comportement d'origine (R:R strictement conserve, TP repousses). Incertain : mesurer en backtest.")
 
 // ================= GROUPES ESSENTIELS (en haut) =================
 grpE1 = "① ESSENTIEL — Signaux & Seuils"
@@ -1904,9 +1909,11 @@ if buySignal
         float rr3 = (t3 - entry) / riskDist
         slLevel := slLevel - xbBuy
         riskDist := math.max(entry - slLevel, syminfo.mintick)
-        t1 := entry + rr1 * riskDist
-        t2 := entry + rr2 * riskDist
-        t3 := entry + rr3 * riskDist
+        // B3 OFF (baseline) : reprojection des TP -> R:R conserve. ON : TP inchanges (restent sur la structure).
+        if not fixTpSnapOn
+            t1 := entry + rr1 * riskDist
+            t2 := entry + rr2 * riskDist
+            t3 := entry + rr3 * riskDist
     tmEntry := entry
     tmSL := slLevel
     tmT1 := t1
@@ -1981,9 +1988,11 @@ if sellSignal
         float rr3 = (entry - t3) / riskDist2
         slLevel2 := slLevel2 + xbSell
         riskDist2 := math.max(slLevel2 - entry, syminfo.mintick)
-        t1 := entry - rr1 * riskDist2
-        t2 := entry - rr2 * riskDist2
-        t3 := entry - rr3 * riskDist2
+        // B3 OFF (baseline) : reprojection des TP -> R:R conserve. ON : TP inchanges (restent sur la structure).
+        if not fixTpSnapOn
+            t1 := entry - rr1 * riskDist2
+            t2 := entry - rr2 * riskDist2
+            t3 := entry - rr3 * riskDist2
     tmEntry := entry
     tmSL := slLevel2
     tmT1 := t1

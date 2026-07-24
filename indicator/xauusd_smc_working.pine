@@ -204,6 +204,12 @@ scoreFloorPts  = input.int(25, "S1 · Plancher structurel du score (pts garantis
 //       qui alimente le score via msCtxTrend/msCtxEvent. Toggle SEPARE car il touche
 //       le module de score. Baseline = false (defaut OFF, a valider par backtest).
 fixBreakMtfOn = input.bool(false, "B1b · Anti faux BOS/CHoCH sur la structure multi-timeframe", group=grpAudit, tooltip="Applique la garde de stabilite du niveau (comme B1) a la detection de cassure MTF (H1/M15/M5) utilisee par le tableau Market Structure et le score HTF. OFF (false) = comportement d'origine. Defaut OFF car il modifie une entree du score : a activer et backtester separement de B1.")
+// C1 : n'emet un signal (fleche, label, TP, alerte) que sur une barre CLOTUREE ->
+//      supprime le repaint intrabar de la fleche sur la barre en cours. Sur les
+//      barres historiques barstate.isconfirmed est toujours vrai -> BACKTEST IDENTIQUE.
+//      Seul le temps reel change (plus de fleche qui apparait/disparait avant cloture).
+//      Baseline (effet) = identique en historique. Defaut ON (ameliore le reel, neutre en backtest).
+sigConfirmOn = input.bool(true, "C1 · Signaux confirmes en cloture (anti-repaint intrabar)", group=grpAudit, tooltip="ON : un signal BUY/SELL n'apparait qu'une fois la barre CLOTUREE, jamais pendant sa formation -> la fleche ne peut plus apparaitre puis disparaitre en temps reel. Sur l'historique, aucun changement (les barres y sont deja cloturees) : le backtest est IDENTIQUE. OFF (false) = comportement d'origine (fleche evaluee a chaque tick sur la barre en cours).")
 
 // ================= GROUPES ESSENTIELS (en haut) =================
 grpE1 = "① ESSENTIEL — Signaux & Seuils"
@@ -1503,8 +1509,11 @@ if bearFVG or bearBOS or bearCHoCH
 // aveugler par manque de donnee). N'affecte NI le score NI les TP/SL : seulement l'emission.
 [chopDiPlus, chopDiMinus, chopAdx] = ta.dmi(chopAdxLen, chopAdxLen)
 chopOK = not chopFilterOn or na(chopAdx) or chopAdx >= chopAdxMin
-buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and chopOK
-sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and chopOK
+// C1 : gate de confirmation (barstate.isconfirmed). Historique -> toujours vrai (backtest identique) ;
+//      barre en cours -> le signal n'est retenu qu'a la cloture (pas de repaint de la fleche).
+sigConfirmOK = not sigConfirmOn or barstate.isconfirmed
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK
 
 if buySignal
     bullSignalFired := true

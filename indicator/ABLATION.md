@@ -31,6 +31,7 @@ Tous les toggles d'amélioration sont regroupés dans le groupe d'inputs
 | B3 | Buffer exec défait le snapping TP structurel | `fixTpSnapOn` | OFF | Non (exécution) | Faible (arbitrage hit-rate/RR) | ✅ fait |
 | S1 | Confiance affichee calibree (affichage seul) | `scoreRealistOn` | OFF | Non (affichage seul) | Nul | ✅ fait |
 | B1b | Faux BOS/CHoCH sur la structure MTF (f_msStructure) | `fixBreakMtfOn` | OFF | Oui (via score HTF) | Faible | ✅ fait |
+| C1 | Signaux confirmés en clôture (anti-repaint intrabar) | `sigConfirmOn` | ON | Non en historique (backtest identique), améliore le réel | Nul (neutre en backtest) | ✅ fait |
 | B4 | Faux cross Wyckoff au démarrage d'un range | — | — | — | — | ✅ vérifié : non-bug (na → pas de cross) |
 | P1 | Nettoyage code mort (sous-ensemble sûr) | — | — | Non (inerte) | Nul | ✅ partiel (voir ci-dessous) |
 

@@ -145,7 +145,9 @@
       <div class="field"><label>Lot</label><input id="tLot" type="number" step="any" placeholder="0.10"></div>
       <div class="field"><label>Entrée</label><input id="tEntry" type="number" step="any" placeholder="2000.0"></div>
       <div class="field"><label>Stop Loss</label><input id="tSL" type="number" step="any" placeholder="1998.0"></div>
-      <div class="field"><label>Résultat (R)</label><input id="tR" type="number" step="any" placeholder="2 / -1 / 0"></div>
+      <div class="field"><label>Take Profit</label><input id="tTP" type="number" step="any" placeholder="2004.0"><div class="autopnl" id="autorr"></div></div>
+      <div class="field"><label>Issue</label><select id="tIssue"><option>TP touché</option><option>SL touché</option><option>Break-even</option><option>Manuel (R)</option></select></div>
+      <div class="field"><label>Résultat (R)</label><input id="tR" type="number" step="any" placeholder="auto"></div>
       <div class="field"><label>Risque (auto)</label><input id="tRisk" type="number" step="any" placeholder="auto"><div class="autopnl" id="autorisk"></div></div>
       <div class="field"><label>P&amp;L (auto)</label><input id="tPnl" type="number" step="any" placeholder="auto"><div class="autopnl" id="autopnl"></div></div>
       <div class="field" style="flex:2;min-width:130px"><label>Note</label><input id="tNote" placeholder="setup…"></div>
@@ -355,23 +357,40 @@
 
   function renderAll(){renderKpis();renderEquity();renderCal();renderMonths();renderTrades();}
 
+  // Entrée/SL/TP -> R:R auto ; l'issue (TP/SL/BE) déduit le résultat en R.
   // Lot (+ entrée/SL) -> risque en argent ; puis risque × R -> P&L. Tout auto, corrigeable.
   let riskManual=false;
   function autoCompute(){
     const lot=parseFloat(document.getElementById('tLot').value);
     const entry=parseFloat(document.getElementById('tEntry').value);
     const sl=parseFloat(document.getElementById('tSL').value);
-    const rInfo=document.getElementById('autorisk');
-    const riskEl=document.getElementById('tRisk');
+    const tp=parseFloat(document.getElementById('tTP').value);
+    const issue=document.getElementById('tIssue').value;
+    // ---- R:R potentiel (récompense / risque) ----
+    let rr=NaN;
+    const rrInfo=document.getElementById('autorr');
+    if(isFinite(entry)&&isFinite(sl)&&isFinite(tp)&&entry!==sl){rr=Math.abs(tp-entry)/Math.abs(entry-sl);rrInfo.textContent='R:R = '+rr.toFixed(2);}
+    else rrInfo.textContent='';
+    // ---- Résultat en R déduit de l'issue ----
+    const rEl=document.getElementById('tR');
+    const manuel=issue==='Manuel (R)';
+    rEl.readOnly=!manuel;rEl.style.opacity=manuel?'1':'.7';
+    if(issue==='TP touché'){if(isFinite(rr))rEl.value=+rr.toFixed(2);}
+    else if(issue==='SL touché'){rEl.value=-1;}
+    else if(issue==='Break-even'){rEl.value=0;}
+    // Manuel -> on garde la valeur saisie
+    // ---- Risque en argent depuis le lot ----
+    const rInfo=document.getElementById('autorisk');const riskEl=document.getElementById('tRisk');
     if(!riskManual && isFinite(lot)&&isFinite(entry)&&isFinite(sl)&&entry!==sl){
-      const risk=+(lot*lotValue()*Math.abs(entry-sl)).toFixed(2);
-      riskEl.value=risk;rInfo.textContent='= lot × '+lotValue()+' × distance SL';
+      riskEl.value=+(lot*lotValue()*Math.abs(entry-sl)).toFixed(2);rInfo.textContent='= lot × '+lotValue()+' × distance SL';
     } else if(!riskManual){ rInfo.textContent=''; }
-    const risk=parseFloat(riskEl.value),r=parseFloat(document.getElementById('tR').value);
+    // ---- P&L = risque × R ----
+    const risk=parseFloat(riskEl.value),r=parseFloat(rEl.value);
     const pInfo=document.getElementById('autopnl'),pEl=document.getElementById('tPnl');
     if(isFinite(risk)&&isFinite(r)){pEl.value=+(risk*r).toFixed(2);pInfo.textContent='= risque × R';}else pInfo.textContent='';
   }
-  ['tLot','tEntry','tSL','tR'].forEach(id=>document.getElementById(id).addEventListener('input',autoCompute));
+  ['tLot','tEntry','tSL','tTP','tR'].forEach(id=>document.getElementById(id).addEventListener('input',autoCompute));
+  document.getElementById('tIssue').addEventListener('change',autoCompute);
   document.getElementById('tRisk').addEventListener('input',()=>{riskManual=true;document.getElementById('autorisk').textContent='(manuel)';autoCompute();});
   document.getElementById('addBtn').addEventListener('click',()=>{
     const date=document.getElementById('tDate').value||todayStr();
@@ -380,13 +399,17 @@
     const lot=document.getElementById('tLot').value;
     const entry=document.getElementById('tEntry').value;
     const sl=document.getElementById('tSL').value;
+    const tp=document.getElementById('tTP').value;
+    const issue=document.getElementById('tIssue').value;
     const risk=document.getElementById('tRisk').value;
     let pnl=parseFloat(document.getElementById('tPnl').value);
     if(!isFinite(pnl))pnl=isFinite(parseFloat(risk))?parseFloat(risk)*r:0;
-    state.trades.push({id:Date.now(),date,dir:document.getElementById('tDir').value,session:document.getElementById('tSess').value,lot:lot||'',entry:entry||'',sl:sl||'',risk:risk||0,r,pnl,note:document.getElementById('tNote').value.trim()});
+    state.trades.push({id:Date.now(),date,dir:document.getElementById('tDir').value,session:document.getElementById('tSess').value,lot:lot||'',entry:entry||'',sl:sl||'',tp:tp||'',issue,risk:risk||0,r,pnl,note:document.getElementById('tNote').value.trim()});
     save();
-    ['tLot','tEntry','tSL','tR','tRisk','tPnl','tNote'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('autorisk').textContent='';document.getElementById('autopnl').textContent='';riskManual=false;
+    ['tLot','tEntry','tSL','tTP','tR','tRisk','tPnl','tNote'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('tIssue').value='TP touché';
+    document.getElementById('autorr').textContent='';document.getElementById('autorisk').textContent='';document.getElementById('autopnl').textContent='';riskManual=false;
+    document.getElementById('tR').readOnly=true;
     const d=new Date(date+'T00:00:00');calDate=new Date(d.getFullYear(),d.getMonth(),1);renderAll();
   });
 
@@ -422,7 +445,7 @@
     document.getElementById('tDate').value=todayStr();
   }
   try{const th=localStorage.getItem(KEY+'_th');if(th)document.documentElement.setAttribute('data-theme',th);}catch(e){}
-  initFields();renderAll();
+  initFields();renderAll();autoCompute();
 })();
 </script>
 </body>

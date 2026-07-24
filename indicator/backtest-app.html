@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAUUSD SMC · Backtest A/B</title>
+<style>
+  :root{
+    --bg:#0d121a; --panel:#131b26; --panel2:#182231; --line:#26313f;
+    --txt:#e9eef4; --muted:#8c9cad; --accent:#d4af60; --accent2:#2ecc71;
+    --red:#e74c3c; --green:#2ecc71; --gray:#6b7a8c; --blue:#4aa3ff;
+    --input:#0f1621; --shadow:0 6px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#eef1f5; --panel:#ffffff; --panel2:#f4f6f9; --line:#dbe1e8;
+      --txt:#1a2430; --muted:#5d6b7a; --accent:#b8892f; --input:#ffffff; --shadow:0 6px 20px rgba(20,30,50,.08); }
+  }
+  :root[data-theme="dark"]{ --bg:#0d121a; --panel:#131b26; --panel2:#182231; --line:#26313f;
+    --txt:#e9eef4; --muted:#8c9cad; --accent:#d4af60; --input:#0f1621; --shadow:0 6px 24px rgba(0,0,0,.35); }
+  :root[data-theme="light"]{ --bg:#eef1f5; --panel:#ffffff; --panel2:#f4f6f9; --line:#dbe1e8;
+    --txt:#1a2430; --muted:#5d6b7a; --accent:#b8892f; --input:#ffffff; --shadow:0 6px 20px rgba(20,30,50,.08); }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand h1{margin:0;font-size:19px;letter-spacing:.3px}
+  .brand h1 .g{color:var(--accent)}
+  .brand p{margin:0;color:var(--muted);font-size:12.5px}
+  .spacer{flex:1}
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel2);
+    color:var(--txt);padding:7px 12px;border-radius:8px;transition:.15s;font-size:12.5px}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#1a1206;border-color:var(--accent);font-weight:600}
+  button.primary:hover{filter:brightness(1.08);color:#1a1206}
+  button.danger:hover{border-color:var(--red);color:var(--red)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px 16px 14px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .card > h2{margin:0 0 12px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;
+    color:var(--accent);display:flex;align-items:center;gap:8px}
+  .card > h2 .sub{font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
+
+  .grid-frame{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  input,select{font:inherit;background:var(--input);border:1px solid var(--line);color:var(--txt);
+    padding:7px 9px;border-radius:7px;width:100%;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  input[type=number]{text-align:right;font-variant-numeric:tabular-nums}
+
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tab{padding:8px 18px;border-radius:9px 9px 0 0;border:1px solid var(--line);border-bottom:none;
+    background:var(--panel2);color:var(--muted);cursor:pointer;font-weight:600;font-size:13px}
+  .tab.active{background:var(--panel);color:var(--accent);border-color:var(--accent);border-bottom:1px solid var(--panel)}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;min-width:820px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{background:var(--panel2);color:var(--muted);font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.3px;font-weight:600;position:sticky;top:0}
+  td.name,th.name{text-align:left}
+  tr:last-child td{border-bottom:none}
+  .rowlabel{font-weight:600}
+  .rowlabel small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
+  tr.baseline{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  tr.final{background:color-mix(in srgb,var(--blue) 9%,transparent)}
+  td input{width:64px;padding:5px 6px;font-size:12.5px}
+  .calc{color:var(--muted);font-variant-numeric:tabular-nums}
+  .calc.good{color:var(--green);font-weight:600}
+  .calc.bad{color:var(--red);font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .pill.keep{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
+  .pill.drop{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red)}
+  .pill.neu{background:color-mix(in srgb,var(--gray) 25%,transparent);color:var(--muted)}
+  .pill.ref{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+
+  .reco{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .reco .box{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .reco .box h3{margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .reco ul{margin:0;padding-left:18px}
+  .reco li{margin:3px 0}
+  .hint{font-size:12px;color:var(--muted);margin:10px 2px 0;line-height:1.5}
+  .hint b{color:var(--txt)}
+  details{margin-top:8px}
+  summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:50%}
+  @media(max-width:640px){ .reco{grid-template-columns:1fr} .brand h1{font-size:17px} }
+  @media print{ .btns,.tabs .tab:not(.active),.no-print{display:none} body{background:#fff} .card{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>XAUUSD <span class="g">SMC</span> · Journal de backtest A/B</h1>
+      <p>Saisis tes relevés → winrate, expectancy, profit factor et verdict calculés automatiquement.</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="btns no-print">
+      <button id="themeBtn" title="Thème clair / sombre">🌓 Thème</button>
+      <button id="printBtn">🖨️ Imprimer / PDF</button>
+      <button id="exportBtn">⬇️ Exporter</button>
+      <button id="importBtn">⬆️ Importer</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button id="resetBtn" class="danger">♻️ Réinitialiser</button>
+    </div>
+  </header>
+
+  <!-- CADRE DE TEST -->
+  <section class="card">
+    <h2>① Cadre de test <span class="sub">à figer avant de commencer — ne plus changer entre deux tests</span></h2>
+    <div class="grid-frame" id="frame">
+      <div class="field"><label>Symbole / broker</label><input data-f="symbol" placeholder="XAUUSD · IC Markets"></div>
+      <div class="field"><label>Période — du</label><input data-f="from" type="date"></div>
+      <div class="field"><label>au</label><input data-f="to" type="date"></div>
+      <div class="field"><label>Spread moyen</label><input data-f="spread" type="number" step="0.01" placeholder="0.20"></div>
+      <div class="field"><label>Slippage supposé</label><input data-f="slippage" type="number" step="0.01" placeholder="0.05"></div>
+      <div class="field"><label>Risque / trade (%)</label><input data-f="risk" type="number" step="0.1" placeholder="1"></div>
+      <div class="field"><label>Définition d'un gain</label>
+        <select data-f="winDef">
+          <option>TP1 touché avant le SL</option>
+          <option>TP2 touché avant le SL</option>
+          <option>Sortie 100% au TP1</option>
+        </select>
+      </div>
+      <div class="field"><label>Perte type (R, fixe)</label><input data-f="loss" type="number" step="0.1" value="1"></div>
+    </div>
+    <div class="hint"><b>Règle d'or :</b> ne change qu'UNE chose entre deux lignes (même période, même UT), sinon la comparaison ne vaut rien.</div>
+  </section>
+
+  <!-- TABLEAU A/B -->
+  <section class="card">
+    <h2>② Résultats par configuration <span class="sub">une ligne = un toggle activé seul vs baseline</span></h2>
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tf="M5">M5</div>
+      <div class="tab" data-tf="M15">M15</div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="name">Configuration</th>
+            <th title="Nombre de signaux BUY+SELL">Signaux</th>
+            <th title="Signaux gagnants (TP1 avant SL)">Gagnants</th>
+            <th title="R moyen par trade gagnant (1 = sortie au TP1)">R gain</th>
+            <th>Winrate</th>
+            <th title="R espéré par trade">Expectancy</th>
+            <th title="Profit factor = gains/pertes">PF</th>
+            <th title="Écart d'expectancy vs baseline (même UT)">Δ Exp.</th>
+            <th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent)"></span>Baseline (référence)</span>
+      <span><span class="dot" style="background:var(--green)"></span>Garder (Δ ≥ 0)</span>
+      <span><span class="dot" style="background:var(--red)"></span>Jeter (Δ &lt; 0)</span>
+      <span><span class="dot" style="background:var(--blue)"></span>Config finale (empilée)</span>
+    </div>
+    <details>
+      <summary>Comment sont calculés winrate / expectancy / PF ?</summary>
+      <div class="hint">
+        Perdants = Signaux − Gagnants · <b>Winrate</b> = Gagnants / Signaux ·
+        <b>Expectancy</b> = Winrate × R gain − (1−Winrate) × Perte type ·
+        <b>PF</b> = (Gagnants × R gain) / (Perdants × Perte type). Tu ne saisis que 3 nombres par ligne,
+        le reste est calculé. <b>S1</b> et <b>C1</b> devraient donner des chiffres <b>identiques à la baseline</b>
+        (affichage / neutre) — sinon c'est un signal à investiguer.
+      </div>
+    </details>
+  </section>
+
+  <!-- RECOMMANDATION -->
+  <section class="card">
+    <h2>③ Synthèse <span class="sub">basée sur l'onglet UT affiché</span></h2>
+    <div class="reco">
+      <div class="box"><h3>✅ À garder actif</h3><ul id="keepList"><li class="calc">Saisis des données…</li></ul></div>
+      <div class="box"><h3>⛔ À désactiver</h3><ul id="dropList"><li class="calc">—</li></ul></div>
+    </div>
+    <div class="hint" id="recoNote"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const CONFIGS=[
+    {key:'baseline',label:'Baseline',note:'tous les toggles OFF',cls:'baseline',kind:'ref'},
+    {key:'B1',label:'B1 · fixBreakOn',note:'anti faux BOS/CHoCH'},
+    {key:'B2',label:'B2 · fixSweepGateOn',note:'détection sweep'},
+    {key:'B1b',label:'B1b · fixBreakMtfOn',note:'anti faux break MTF'},
+    {key:'S1',label:'S1 · scoreRealistOn',note:'affichage seul (doit = baseline)',kind:'neutral'},
+    {key:'B3',label:'B3 · fixTpSnapOn',note:'TP structure vs R:R'},
+    {key:'C1',label:'C1 · sigConfirmOn',note:'anti-repaint (doit = baseline)',kind:'neutral'},
+    {key:'final',label:'Config finale',note:'gagnants empilés ensemble',cls:'final',kind:'final'}
+  ];
+  const TFs=['M5','M15'];
+  const KEY='xau_smc_backtest_v1';
+  let state=load();
+  let curTf='M5';
+
+  function blankRow(){return {signals:'',winners:'',rwin:''};}
+  function fresh(){
+    const rows={};
+    TFs.forEach(tf=>{rows[tf]={};CONFIGS.forEach(c=>rows[tf][c.key]=blankRow());});
+    return {frame:{loss:1},rows};
+  }
+  function load(){
+    try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.rows)return s;}catch(e){}
+    return fresh();
+  }
+  function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+
+  function num(v){const n=parseFloat(v);return isFinite(n)?n:NaN;}
+  function calc(r,loss){
+    const s=num(r.signals),w=num(r.winners);
+    let rwin=num(r.rwin); if(!isFinite(rwin))rwin=1;
+    const L=isFinite(num(loss))?num(loss):1;
+    if(!isFinite(s)||s<=0||!isFinite(w))return{wr:NaN,exp:NaN,pf:NaN};
+    const losers=Math.max(0,s-w);
+    const wr=w/s;
+    const exp=wr*rwin-(1-wr)*L;
+    const pf=losers>0?(w*rwin)/(losers*L):(w>0?Infinity:NaN);
+    return{wr,exp,pf};
+  }
+  const f2=x=>isFinite(x)?x.toFixed(2):'—';
+  const pct=x=>isFinite(x)?(x*100).toFixed(1)+'%':'—';
+  const pffmt=x=>x===Infinity?'∞':(isFinite(x)?x.toFixed(2):'—');
+
+  function render(){
+    // frame
+    document.querySelectorAll('[data-f]').forEach(el=>{
+      const k=el.getAttribute('data-f');
+      if(state.frame[k]!==undefined&&state.frame[k]!=='')el.value=state.frame[k];
+    });
+    const loss=state.frame.loss;
+    const base=calc(state.rows[curTf]['baseline'],loss);
+    const tb=document.getElementById('tbody');tb.innerHTML='';
+    CONFIGS.forEach(c=>{
+      const r=state.rows[curTf][c.key];const m=calc(r,loss);
+      const tr=document.createElement('tr');if(c.cls)tr.className=c.cls;
+      const dExp=(isFinite(m.exp)&&isFinite(base.exp))?(m.exp-base.exp):NaN;
+      let verdict='';
+      if(c.kind==='ref')verdict='<span class="pill ref">référence</span>';
+      else if(!isFinite(m.exp))verdict='<span class="pill neu">—</span>';
+      else if(c.kind==='neutral'){
+        const same=isFinite(dExp)&&Math.abs(dExp)<0.005;
+        verdict=same?'<span class="pill neu">neutre ✓</span>':'<span class="pill drop">≠ baseline ⚠</span>';
+      } else if(c.kind==='final')verdict='<span class="pill ref">finale</span>';
+      else if(dExp>=0.005)verdict='<span class="pill keep">garder</span>';
+      else if(dExp<=-0.005)verdict='<span class="pill drop">jeter</span>';
+      else verdict='<span class="pill neu">neutre</span>';
+      const dCls=!isFinite(dExp)?'calc':(dExp>0.005?'calc good':(dExp<-0.005?'calc bad':'calc'));
+      const dTxt=!isFinite(dExp)?'—':(dExp>0?'+':'')+dExp.toFixed(2);
+      tr.innerHTML=
+        '<td class="name"><span class="rowlabel">'+c.label+'<small>'+c.note+'</small></span></td>'+
+        '<td>'+inp(c.key,'signals',r.signals)+'</td>'+
+        '<td>'+inp(c.key,'winners',r.winners)+'</td>'+
+        '<td>'+inp(c.key,'rwin',r.rwin,'1')+'</td>'+
+        '<td class="calc">'+pct(m.wr)+'</td>'+
+        '<td class="'+(isFinite(m.exp)?(m.exp>0?'calc good':'calc bad'):'calc')+'">'+f2(m.exp)+'</td>'+
+        '<td class="calc">'+pffmt(m.pf)+'</td>'+
+        '<td class="'+dCls+'">'+dTxt+'</td>'+
+        '<td>'+verdict+'</td>';
+      tb.appendChild(tr);
+    });
+    bindInputs();
+    reco(base,loss);
+  }
+  function inp(row,field,val,ph){
+    return '<input type="number" step="any" data-row="'+row+'" data-field="'+field+'" value="'+(val===undefined?'':val)+'" placeholder="'+(ph||'')+'">';
+  }
+  function bindInputs(){
+    document.querySelectorAll('#tbody input').forEach(el=>{
+      el.addEventListener('input',()=>{
+        const row=el.getAttribute('data-row'),field=el.getAttribute('data-field');
+        state.rows[curTf][row][field]=el.value;save();render2();
+      });
+    });
+  }
+  // light re-render that keeps focus (only recompute calc cells + reco)
+  let raf=null;
+  function render2(){ if(raf)cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>{recompute();}); }
+  function recompute(){
+    const loss=state.frame.loss;
+    const base=calc(state.rows[curTf]['baseline'],loss);
+    const rows=document.querySelectorAll('#tbody tr');
+    CONFIGS.forEach((c,i)=>{
+      const r=state.rows[curTf][c.key];const m=calc(r,loss);
+      const tds=rows[i].querySelectorAll('td');
+      tds[4].textContent=pct(m.wr);
+      tds[5].textContent=f2(m.exp);tds[5].className=isFinite(m.exp)?(m.exp>0?'calc good':'calc bad'):'calc';
+      tds[6].textContent=pffmt(m.pf);
+      const dExp=(isFinite(m.exp)&&isFinite(base.exp))?(m.exp-base.exp):NaN;
+      tds[7].textContent=!isFinite(dExp)?'—':(dExp>0?'+':'')+dExp.toFixed(2);
+      tds[7].className=!isFinite(dExp)?'calc':(dExp>0.005?'calc good':(dExp<-0.005?'calc bad':'calc'));
+      let verdict='';
+      if(c.kind==='ref')verdict='<span class="pill ref">référence</span>';
+      else if(!isFinite(m.exp))verdict='<span class="pill neu">—</span>';
+      else if(c.kind==='neutral'){const same=isFinite(dExp)&&Math.abs(dExp)<0.005;
+        verdict=same?'<span class="pill neu">neutre ✓</span>':'<span class="pill drop">≠ baseline ⚠</span>';}
+      else if(c.kind==='final')verdict='<span class="pill ref">finale</span>';
+      else if(dExp>=0.005)verdict='<span class="pill keep">garder</span>';
+      else if(dExp<=-0.005)verdict='<span class="pill drop">jeter</span>';
+      else verdict='<span class="pill neu">neutre</span>';
+      tds[8].innerHTML=verdict;
+    });
+    reco(base,loss);
+  }
+  function reco(base,loss){
+    const keep=[],drop=[];
+    CONFIGS.forEach(c=>{
+      if(c.kind==='ref'||c.kind==='final')return;
+      const m=calc(state.rows[curTf][c.key],loss);
+      if(!isFinite(m.exp)||!isFinite(base.exp))return;
+      const d=m.exp-base.exp;
+      if(c.kind==='neutral'){ if(Math.abs(d)>=0.005)drop.push(c.label+' (⚠ devrait = baseline)'); return; }
+      if(d>=0.005)keep.push(c.label+' ('+(d>0?'+':'')+d.toFixed(2)+'R)');
+      else if(d<=-0.005)drop.push(c.label+' ('+d.toFixed(2)+'R)');
+    });
+    const kl=document.getElementById('keepList'),dl=document.getElementById('dropList');
+    kl.innerHTML=keep.length?keep.map(x=>'<li>'+x+'</li>').join(''):'<li class="calc">rien de concluant encore</li>';
+    dl.innerHTML=drop.length?drop.map(x=>'<li>'+x+'</li>').join(''):'<li class="calc">rien à écarter</li>';
+    const hasBase=isFinite(base.exp);
+    document.getElementById('recoNote').innerHTML=hasBase
+      ? 'Baseline '+curTf+' : expectancy <b>'+f2(base.exp)+' R/trade</b>. Les corrections de bugs (B1/B2/B1b) devraient être ≥ 0 ; <b>B3</b> est le seul arbitrage à surveiller. Valide chaque toggle seul avant d\'empiler dans « Config finale ».'
+      : 'Renseigne d\'abord la ligne <b>Baseline</b> ('+curTf+') pour activer les comparaisons.';
+  }
+
+  // events
+  document.querySelectorAll('[data-f]').forEach(el=>{
+    el.addEventListener('input',()=>{state.frame[el.getAttribute('data-f')]=el.value;save();recompute();});
+  });
+  document.getElementById('tabs').addEventListener('click',e=>{
+    const t=e.target.closest('.tab');if(!t)return;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');curTf=t.getAttribute('data-tf');render();
+  });
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    if(confirm('Effacer toutes les données saisies ?')){state=fresh();save();render();}
+  });
+  document.getElementById('exportBtn').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='backtest_xauusd_smc.json';a.click();
+  });
+  document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change',e=>{
+    const file=e.target.files[0];if(!file)return;const rd=new FileReader();
+    rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s&&s.rows){state=s;save();render();}else alert('Fichier invalide.');}catch(err){alert('Fichier illisible.');}};
+    rd.readAsText(file);
+  });
+  document.getElementById('printBtn').addEventListener('click',()=>window.print());
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const cur=document.documentElement.getAttribute('data-theme');
+    const next=cur==='light'?'dark':(cur==='dark'?'light':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',next);
+    try{localStorage.setItem(KEY+'_theme',next);}catch(e){}
+  });
+  try{const th=localStorage.getItem(KEY+'_theme');if(th)document.documentElement.setAttribute('data-theme',th);}catch(e){}
+
+  render();
+})();
+</script>
+</body>
+</html>

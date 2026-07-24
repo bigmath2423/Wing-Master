@@ -8,7 +8,7 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //
 //   >>> BASELINE (comportement d'origine, tout desactive) :
 //       sweepQualityOn=false | fvgMinAtr=0 | entryZoneGate=false
-//       pePrecision=false | slSmartOn=false
+//       pePrecision=false | slSmartOn=false | slExecBufOn=false
 //       newsAutoOn=false | chopFilterOn=false
 //       (dxyOn/macroOn/newsOn = filtres macro pre-existants, ON par defaut)
 //
@@ -21,7 +21,8 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //   AFFECTENT L'EXECUTION (entree / stop, pas quels trades) - EMPILEMENT :
 //     - pePrecision      : entree limite + SL de precision           (defaut ON)
 //     - slSmartOn        : SL structurel anti-chasse (par-dessus pePrecision) (defaut ON)
-//       -> ablation propre : baseline < +pePrecision < +slSmartOn
+//     - slExecBufOn      : buffer d'execution compte reel sur le SL (TP rescales, R:R identique) (defaut ON)
+//       -> ablation propre : baseline < +pePrecision < +slSmartOn < +slExecBufOn
 //   AFFICHAGE UNIQUEMENT (zero impact sur les trades, ne pas backtester) :
 //     - pzoOn (zones predictives) | azOn (zones d'anticipation)
 // ============================================================
@@ -130,6 +131,26 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          n'etait active. Le score /100, les regles eliminatoires, les seuils
 //          et les entrees/SL/TP restent identiques. Plus aucune reference COMEX
 //          -> l'alerte se cree sans aucun abonnement aux donnees CME.
+// v12 : BUFFER D'EXECUTION COMPTE REEL sur le STOP-LOSS (fiabilite en reel) :
+//        - probleme : en execution reelle, un SL trop proche de l'entree se fait
+//          sortir par le spread, le slippage ou une petite meche, avant que le
+//          trade parte au TP. Ajout d'un buffer INTELLIGENT et ADAPTATIF :
+//            buffer = max( ATR x mult (composante volatilite, plafonnee) ,
+//                          plancher spread/slippage fixe configurable )
+//          -> se resserre en marche calme, s'elargit en marche volatil, sans
+//          jamais descendre sous le cout d'execution reel du broker.
+//        - les TAKE-PROFITS sont AUTOMATIQUEMENT recalcules : le multiple R de
+//          chaque TP est memorise avant l'elargissement du SL puis reprojete sur
+//          le nouveau risque -> le ratio R:R reste EXACTEMENT identique (aucune
+//          degradation risque/rendement, seule la distance absolue augmente).
+//        - AUCUN signal touche : le buffer s'applique APRES le declenchement du
+//          signal, uniquement sur les niveaux d'execution (SL/TP). Le score /100,
+//          les regles eliminatoires, les seuils, les conditions d'entree et le
+//          prix d'entree sont STRICTEMENT inchanges.
+//        - nouveaux inputs (groupe "Buffer d'execution compte reel") :
+//          slExecBufOn (ON par defaut), x ATR adaptatif (0.10), plancher spread
+//          (0.0, a regler selon le broker), plafond x ATR (0.5). slExecBufOn=OFF
+//          restaure le SL d'origine exact.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -1711,6 +1732,29 @@ f_slSellSmart(float entry, float atr, float protHigh) =>
     float capped = math.min(raw, entry + atr * slMaxAtr)
     math.max(capped, entry + atr * slMinAtr)
 
+// ================= BUFFER D'EXECUTION COMPTE REEL (SL) =================
+// Adapte le stop aux conditions REELLES d'execution (spread, slippage, bruit,
+// petite meche) sans toucher aux signaux, au score ni a l'entree. Le SL est
+// legerement eloigne de l'entree, puis CHAQUE take-profit est recalcule pour
+// conserver EXACTEMENT le meme ratio R:R qu'avant l'ajustement (voir application
+// dans les blocs buySignal / sellSignal). Buffer ADAPTATIF a la volatilite :
+//   buffer = max( ATR x mult (composante volatilite, plafonnee) , plancher spread )
+// -> se resserre quand le marche est calme, s'elargit quand il bouge, sans
+// jamais descendre sous le cout d'execution reel du broker.
+grpXB = "⚙️ Expert — Buffer d'execution compte reel (SL)"
+slExecBufOn     = input.bool(true, "SL : buffer d'execution (compte reel)", group=grpE2, tooltip="Ajoute une petite marge au SL pour absorber le spread, le slippage et le bruit a l'execution reelle. Les TP sont recalcules pour garder EXACTEMENT le meme ratio R:R -> aucune degradation du risque/rendement. N'affecte NI les signaux, NI le score, NI l'entree. OFF = SL d'origine exact.")
+slExecBufAtr    = input.float(0.10, "Buffer execution — x ATR (adaptatif)", minval=0.0, step=0.05, group=grpXB, tooltip="Composante ADAPTATIVE : fraction de l'ATR ajoutee au SL (0.10 = 10 % de l'ATR). S'ajuste automatiquement a la volatilite. Reste faible pour ne pas trop elargir le risque absolu (le R:R, lui, est preserve).")
+slExecBufSpread = input.float(0.0, "Buffer execution — plancher spread/slippage (prix)", minval=0.0, step=0.01, group=grpXB, tooltip="Plancher FIXE en prix (ex : 0.20 = 20 cents sur l'or). Mets-y le spread + slippage typique de ton broker : le buffer ne descendra jamais sous cette valeur, meme en marche tres calme. 0 = uniquement la composante ATR.")
+slExecBufMaxAtr = input.float(0.5, "Buffer execution — plafond (x ATR)", minval=0.0, step=0.1, group=grpXB, tooltip="Plafonne la composante volatilite a cette fraction de l'ATR : le buffer n'elargit jamais trop le SL en forte volatilite (securite anti-derapage du risque). Le plancher spread reste toujours respecte.")
+
+// Buffer effectif (distance en prix), robuste si ATR indisponible (na -> 0, on
+// garde alors le seul plancher spread). Plafonne la composante volatilite,
+// puis applique le plancher spread comme minimum absolu.
+f_slExecBuf(float atr) =>
+    float a = na(atr) ? 0.0 : atr
+    float volc = a * math.min(slExecBufAtr, slExecBufMaxAtr)
+    slExecBufOn ? math.max(volc, slExecBufSpread) : 0.0
+
 if buySignal
     // ---- Entree de precision : meilleur niveau institutionnel sous le prix ----
     float peLvl = na
@@ -1754,6 +1798,19 @@ if buySignal
             if lv > entry
                 array.push(rawUp, lv)
     [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode, atrVal)
+    // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
+    // On memorise le multiple R de chaque TP AVANT d'elargir le stop, puis on
+    // reprojette les TP sur le nouveau risque -> R:R strictement conserve.
+    float xbBuy = f_slExecBuf(atrVal)
+    if not na(xbBuy) and xbBuy > 0
+        float rr1 = (t1 - entry) / riskDist
+        float rr2 = (t2 - entry) / riskDist
+        float rr3 = (t3 - entry) / riskDist
+        slLevel := slLevel - xbBuy
+        riskDist := math.max(entry - slLevel, syminfo.mintick)
+        t1 := entry + rr1 * riskDist
+        t2 := entry + rr2 * riskDist
+        t3 := entry + rr3 * riskDist
     tmEntry := entry
     tmSL := slLevel
     tmT1 := t1
@@ -1820,6 +1877,17 @@ if sellSignal
             if lv < entry
                 array.push(rawDn, lv)
     [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode, atrVal)
+    // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
+    float xbSell = f_slExecBuf(atrVal)
+    if not na(xbSell) and xbSell > 0
+        float rr1 = (entry - t1) / riskDist2
+        float rr2 = (entry - t2) / riskDist2
+        float rr3 = (entry - t3) / riskDist2
+        slLevel2 := slLevel2 + xbSell
+        riskDist2 := math.max(slLevel2 - entry, syminfo.mintick)
+        t1 := entry - rr1 * riskDist2
+        t2 := entry - rr2 * riskDist2
+        t3 := entry - rr3 * riskDist2
     tmEntry := entry
     tmSL := slLevel2
     tmT1 := t1

@@ -1,0 +1,54 @@
+//@version=5
+// ============================================================================
+//  MACRO-INTEL · Pont de signal (à AJOUTER à côté de votre indicateur)
+// ----------------------------------------------------------------------------
+//  Ce script N'INTERFÈRE PAS avec votre indicateur existant. Il se contente
+//  d'émettre une alerte JSON vers votre backend Macro-Intel quand VOTRE
+//  logique technique produit un signal. Le backend fusionne alors technique
+//  + macro et renvoie un verdict (renforcé / avertissement).
+//
+//  UTILISATION :
+//   1) Remplacez la variable `technicalScore` et les conditions `longSignal` /
+//      `shortSignal` par les sorties réelles de votre indicateur (SMC, VWAP,
+//      structure, liquidité...). Ici : placeholders neutres.
+//   2) Créez une alerte TradingView sur ce script, condition "alert() function
+//      calls only", et collez l'URL webhook :  http(s)://VOTRE_SERVEUR/tradingview/webhook
+//   3) Mettez votre secret dans l'input ci-dessous (= API_SHARED_SECRET).
+// ============================================================================
+indicator("Macro-Intel · Signal Bridge", overlay = true)
+
+// --- Paramètres ---
+secret       = input.string("change-me-please", "Secret partagé (API_SHARED_SECRET)")
+symbolOut    = input.string("XAUUSD",          "Symbole envoyé au backend")
+sendOnClose  = input.bool(true,                "Envoyer uniquement à la clôture de bougie")
+
+// --- ⚠️ REMPLACER par la sortie réelle de VOTRE indicateur ---------------
+// technicalScore : votre confiance technique 0..100 (SMC + Liquidité + VWAP + Structure)
+// longSignal / shortSignal : vos conditions d'entrée existantes.
+technicalScore = input.float(88.0, "Score technique (placeholder)", minval = 0, maxval = 100)
+longSignal     = ta.crossover(close, ta.vwap)     // <-- exemple, à remplacer
+shortSignal    = ta.crossunder(close, ta.vwap)    // <-- exemple, à remplacer
+// -------------------------------------------------------------------------
+
+canFire = not sendOnClose or barstate.isconfirmed
+
+// Construit le payload JSON attendu par POST /tradingview/webhook
+f_payload(_side) =>
+    '{' +
+      '"secret":"'          + secret        + '",' +
+      '"symbol":"'          + symbolOut      + '",' +
+      '"side":"'            + _side          + '",' +
+      '"technical_score":'  + str.tostring(technicalScore, "#.##") + ',' +
+      '"price":'            + str.tostring(close, "#.#####") + ',' +
+      '"timeframe":"'       + timeframe.period + '",' +
+      '"strategy":"SMC+VWAP+Structure"' +
+    '}'
+
+if longSignal and canFire
+    alert(f_payload("buy"), alert.freq_once_per_bar_close)
+
+if shortSignal and canFire
+    alert(f_payload("sell"), alert.freq_once_per_bar_close)
+
+plotshape(longSignal,  "Long",  shape.triangleup,   location.belowbar, color.new(color.green, 0), size = size.tiny)
+plotshape(shortSignal, "Short", shape.triangledown, location.abovebar, color.new(color.red, 0),   size = size.tiny)

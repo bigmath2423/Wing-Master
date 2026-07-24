@@ -1,0 +1,23 @@
+services:
+  macro-intel:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Pour PostgreSQL en prod, décommentez le service `db` et pointez
+    # DATABASE_URL vers postgresql+psycopg://macro:macro@db:5432/macro
+
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: macro
+  #     POSTGRES_PASSWORD: macro
+  #     POSTGRES_DB: macro
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   pgdata:

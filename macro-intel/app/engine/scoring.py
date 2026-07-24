@@ -13,12 +13,12 @@ signé par actif, avec le détail des facteurs.
 Chaque facteur est borné (cap) puis la somme est ramenée dans [-100, +100].
 Les logiques sont documentées inline (relation économique avec l'or).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from app.domain import GeoRiskReading, MarketReadings, NewsImpact
-
 
 # Bornes par facteur (pour éviter qu'un seul facteur domine tout le score).
 _CAPS = {
@@ -59,17 +59,17 @@ def score_gold(
     f: dict[str, float] = {}
 
     # 1) Géopolitique : risque élevé -> valeur refuge -> or haussier.
-    geo_component = geo.risk_index * 35.0                       # 0..35
+    geo_component = geo.risk_index * 35.0  # 0..35
     geo_news = sum(n.impact_gold for n in news if n.category == "geopolitics")
     f["geopolitics"] = _clamp(geo_component + 0.3 * geo_news, *_CAPS["geopolitics"])
 
     # 2) Dollar : DXY en hausse -> or baissier (relation inverse).
     dxy_chg = market.dxy_change_pct or 0.0
-    f["dollar"] = _clamp(-dxy_chg * 25.0, *_CAPS["dollar"])     # +1% DXY -> -25 (borné)
+    f["dollar"] = _clamp(-dxy_chg * 25.0, *_CAPS["dollar"])  # +1% DXY -> -25 (borné)
 
     # 3) Taux US : ce sont les TAUX RÉELS qui pilotent l'or.
     #    Taux réel en hausse -> coût d'opportunité de l'or -> baissier.
-    real_chg = market.real_rate_change_bps or 0.0              # en points de base
+    real_chg = market.real_rate_change_bps or 0.0  # en points de base
     nominal_chg = market.us10y_change_bps or 0.0
     rate_component = -(0.8 * real_chg + 0.2 * nominal_chg) * 1.2
     # Niveau absolu du taux réel : très bas/négatif = soutien structurel.
@@ -116,37 +116,27 @@ def score_btc(market: MarketReadings, geo: GeoRiskReading, news: list[NewsImpact
     # BTC : actif de risque + sensible à la liquidité (dollar/taux).
     f["dollar"] = _clamp(-dxy_chg * 18.0, -22.0, 22.0)
     f["us_rates"] = _clamp(-real_chg * 1.0, -25.0, 25.0)
-    f["risk_sentiment"] = _clamp(
-        sum(n.impact_btc for n in news) / max(len(news), 1), -30.0, 30.0
-    )
+    f["risk_sentiment"] = _clamp(sum(n.impact_btc for n in news) / max(len(news), 1), -30.0, 30.0)
     # Un choc géopolitique majeur peut peser (risk-off) mais BTC = refuge partiel.
     f["geopolitics"] = _clamp((geo.risk_index - 0.5) * -20.0, -15.0, 15.0)
     total = _clamp(sum(f.values()), -100.0, 100.0)
     return AssetScore("btc", round(total, 1), {k: round(v, 1) for k, v in f.items()})
 
 
-def score_commodities(
-    market: MarketReadings, geo: GeoRiskReading, news: list[NewsImpact]
-) -> AssetScore:
+def score_commodities(market: MarketReadings, geo: GeoRiskReading, news: list[NewsImpact]) -> AssetScore:
     f: dict[str, float] = {}
     dxy_chg = market.dxy_change_pct or 0.0
     # Matières premières cotées en dollars -> relation inverse au DXY.
     f["dollar"] = _clamp(-dxy_chg * 22.0, -25.0, 25.0)
     # Tensions géopolitiques -> primes de risque sur l'offre (énergie/métaux).
     f["geopolitics"] = _clamp(geo.risk_index * 30.0, -10.0, 30.0)
-    f["inflation"] = _clamp(
-        ((market.breakeven_inflation or 2.0) - 2.0) * 12.0, -15.0, 20.0
-    )
-    f["risk_sentiment"] = _clamp(
-        sum(n.impact_commodities for n in news) / max(len(news), 1), -20.0, 20.0
-    )
+    f["inflation"] = _clamp(((market.breakeven_inflation or 2.0) - 2.0) * 12.0, -15.0, 20.0)
+    f["risk_sentiment"] = _clamp(sum(n.impact_commodities for n in news) / max(len(news), 1), -20.0, 20.0)
     total = _clamp(sum(f.values()), -100.0, 100.0)
     return AssetScore("commodities", round(total, 1), {k: round(v, 1) for k, v in f.items()})
 
 
-def score_all(
-    market: MarketReadings, geo: GeoRiskReading, news: list[NewsImpact]
-) -> dict[str, AssetScore]:
+def score_all(market: MarketReadings, geo: GeoRiskReading, news: list[NewsImpact]) -> dict[str, AssetScore]:
     return {
         "gold": score_gold(market, geo, news),
         "btc": score_btc(market, geo, news),

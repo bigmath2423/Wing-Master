@@ -7,6 +7,7 @@ Deux modes :
 Convention d'impact : contribution signée -100..+100 par actif.
 Pour l'or, un contexte de peur / tension / dollar faible => positif.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,7 +34,7 @@ _LEXICON: dict[str, tuple[float, float, float, float]] = {
     # Inflation -> or + (couverture), dépend des taux réels
     "inflation surges": (25, 10, 15, 0.7),
     "hot cpi": (20, 5, 10, 0.6),
-    "rate cut": (30, 20, 10, 0.8),      # baisse de taux -> or +
+    "rate cut": (30, 20, 10, 0.8),  # baisse de taux -> or +
     "dovish": (25, 15, 8, 0.6),
     "rate hike": (-30, -20, -10, 0.8),  # hausse de taux -> or -
     "hawkish": (-25, -12, -8, 0.6),
@@ -77,7 +78,7 @@ def _rule_based(title: str, category: str) -> NewsImpact:
 _AI_PROMPT = (
     "Tu es un analyste macro. Pour ce titre de news, estime l'impact sur "
     "l'or (XAUUSD), le BTC et les matières premières. Réponds UNIQUEMENT en "
-    "JSON: {{\"gold\": int, \"btc\": int, \"commodities\": int, \"severity\": float}} "
+    'JSON: {{"gold": int, "btc": int, "commodities": int, "severity": float}} '
     "où gold/btc/commodities sont dans [-100,100] (positif = haussier) et "
     "severity dans [0,1]. Titre: {title}"
 )

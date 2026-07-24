@@ -5,6 +5,7 @@ Un seul job pilote le cycle complet ; sa cadence suit le plus court des
 intervalles configurés (marché) tout en évitant de marteler les sources
 lourdes (news/calendrier ont leur propre logique de fraîcheur en amont).
 """
+
 from __future__ import annotations
 
 import logging

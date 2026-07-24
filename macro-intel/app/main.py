@@ -6,6 +6,7 @@ Lancer en dev :
 Docs interactives : http://localhost:8000/docs
 Dashboard        : http://localhost:8000/
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,7 +34,14 @@ _DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Démarrage Macro-Intel...")
+    logger.info("Démarrage Macro-Intel (env=%s, IA=%s)...", settings.app_env, settings.ai_enabled)
+    if settings.app_env != "development" and settings.api_shared_secret == "change-me-please":
+        logger.warning(
+            "⚠️  SÉCURITÉ : API_SHARED_SECRET utilise la valeur par défaut en "
+            "environnement '%s'. Définissez un secret aléatoire dans .env avant "
+            "d'exposer le webhook publiquement.",
+            settings.app_env,
+        )
     init_db()
     try:
         run_pipeline()  # premier cycle synchrone pour avoir des données au boot

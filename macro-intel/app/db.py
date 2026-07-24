@@ -1,4 +1,5 @@
 """Moteur SQLAlchemy + session. SQLite en dev, PostgreSQL en prod."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator

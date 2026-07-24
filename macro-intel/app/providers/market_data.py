@@ -10,6 +10,7 @@ Séries FRED utilisées :
   DFII10  -> rendement réel 10 ans (TIPS)  == taux réel
   T10YIE  -> point mort d'inflation 10 ans (inflation anticipée)
 """
+
 from __future__ import annotations
 
 import logging

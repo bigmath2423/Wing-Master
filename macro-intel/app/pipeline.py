@@ -5,11 +5,15 @@ Expose :
   - STATE           : dernier snapshot en mémoire (servi par l'API).
   - symbol_to_asset : mappe un symbole TradingView vers un actif macro.
 """
+
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import logging
 import threading
+
+from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.domain import GeoRiskReading, MarketReadings, NewsImpact
@@ -79,7 +83,7 @@ def symbol_to_asset(symbol: str) -> str:
 
 
 def _count_upcoming_high_impact() -> int:
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     horizon = now + dt.timedelta(hours=48)
     count = 0
     for ev in fetch_calendar():
@@ -89,7 +93,7 @@ def _count_upcoming_high_impact() -> int:
         try:
             when = dt.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
             if when.tzinfo is None:
-                when = when.replace(tzinfo=dt.timezone.utc)
+                when = when.replace(tzinfo=dt.UTC)
         except (ValueError, TypeError):
             continue
         if now <= when <= horizon:
@@ -97,8 +101,12 @@ def _count_upcoming_high_impact() -> int:
     return count
 
 
-def _persist(scores: dict[str, scoring.AssetScore], biases: dict[str, BiasResult],
-             market: MarketReadings, news: list[NewsImpact]) -> None:
+def _persist(
+    scores: dict[str, scoring.AssetScore],
+    biases: dict[str, BiasResult],
+    market: MarketReadings,
+    news: list[NewsImpact],
+) -> None:
     session = SessionLocal()
     try:
         for key, val in {
@@ -122,19 +130,36 @@ def _persist(scores: dict[str, scoring.AssetScore], biases: dict[str, BiasResult
                 )
             )
 
+        # News : clé de dédup stable (sha1 du titre) pour ne pas ré-insérer
+        # les mêmes titres à chaque cycle. hash() n'est PAS stable entre process.
+        candidates = {}
         for n in news[:30]:
-            session.add(
-                NewsEvent(
-                    source=n.source,
-                    category=n.category,
-                    title=n.title[:500],
-                    url=n.url,
-                    impact={"gold": n.impact_gold, "btc": n.impact_btc,
-                            "commodities": n.impact_commodities},
-                    severity=n.severity,
-                    dedup_key=str(hash(n.title))[:64],
-                )
+            key = hashlib.sha1(n.title.encode("utf-8")).hexdigest()[:32]
+            candidates[key] = n  # dédoublonne aussi au sein du même lot
+        if candidates:
+            existing = set(
+                session.scalars(
+                    select(NewsEvent.dedup_key).where(NewsEvent.dedup_key.in_(candidates.keys()))
+                ).all()
             )
+            for key, n in candidates.items():
+                if key in existing:
+                    continue
+                session.add(
+                    NewsEvent(
+                        source=n.source,
+                        category=n.category,
+                        title=n.title[:500],
+                        url=n.url,
+                        impact={
+                            "gold": n.impact_gold,
+                            "btc": n.impact_btc,
+                            "commodities": n.impact_commodities,
+                        },
+                        severity=n.severity,
+                        dedup_key=key,
+                    )
+                )
         session.commit()
     except Exception as exc:
         logger.warning("Persistance partielle : %s", exc)
@@ -166,7 +191,7 @@ def run_pipeline() -> dict[str, BiasResult]:
         )
 
     STATE.update(
-        generated_at=dt.datetime.now(dt.timezone.utc),
+        generated_at=dt.datetime.now(dt.UTC),
         market=market,
         geo=geo,
         bias=biases,
@@ -178,7 +203,9 @@ def run_pipeline() -> dict[str, BiasResult]:
 
     logger.info(
         "Cycle terminé — GOLD %s (%s, conf %s%%, risque %s)",
-        biases["gold"].score, biases["gold"].bias,
-        biases["gold"].confidence, biases["gold"].risk_level,
+        biases["gold"].score,
+        biases["gold"].bias,
+        biases["gold"].confidence,
+        biases["gold"].risk_level,
     )
     return biases

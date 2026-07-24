@@ -8,6 +8,7 @@ Confiance = f(amplitude du score, cohérence des facteurs).
 Un score fort ET des facteurs alignés (même signe) => haute confiance.
 Un score moyen avec facteurs contradictoires => faible confiance.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -49,8 +50,8 @@ def _coherence(factors: dict[str, float]) -> float:
 
 
 def compute_confidence(score: float, factors: dict[str, float]) -> float:
-    magnitude = min(abs(score) / 100.0, 1.0)     # 0..1
-    coherence = _coherence(factors)              # 0..1
+    magnitude = min(abs(score) / 100.0, 1.0)  # 0..1
+    coherence = _coherence(factors)  # 0..1
     # Pondération : l'amplitude compte plus, la cohérence affine.
     raw = 100.0 * (0.65 * magnitude + 0.35 * coherence)
     # Plancher réaliste pour éviter des "0%" trompeurs sur signal faible.
@@ -60,8 +61,8 @@ def compute_confidence(score: float, factors: dict[str, float]) -> float:
 def compute_risk_level(geo_risk_index: float, upcoming_high_impact: int, dxy_change_pct: float) -> str:
     """Risque de contexte (volatilité événementielle), indépendant de la direction."""
     risk = 0.0
-    risk += geo_risk_index * 0.5                       # tension géopolitique
-    risk += min(upcoming_high_impact, 3) / 3.0 * 0.3   # événements macro imminents
+    risk += geo_risk_index * 0.5  # tension géopolitique
+    risk += min(upcoming_high_impact, 3) / 3.0 * 0.3  # événements macro imminents
     risk += min(abs(dxy_change_pct) / 1.0, 1.0) * 0.2  # nervosité du dollar
     if risk >= 0.6:
         return "high"

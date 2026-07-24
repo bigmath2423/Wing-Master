@@ -1,4 +1,5 @@
 """Discours & communiqués des banques centrales (Fed, BCE) via RSS officiels."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -29,7 +30,7 @@ def fetch_central_bank_events() -> list[dict]:
                     "title": f"[{bank}] {entry.get('title', '')}",
                     "url": entry.get("link", ""),
                     "source": bank,
-                    "ts": dt.datetime.now(dt.timezone.utc),
+                    "ts": dt.datetime.now(dt.UTC),
                     "category": "central_bank",
                 }
             )

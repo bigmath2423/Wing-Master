@@ -4,6 +4,7 @@ GDELT Doc 2.0 : on interroge le volume et le ton médiatique sur des thèmes
 de crise (guerre, sanctions, conflit). Un ton très négatif + un volume élevé
 => risque géopolitique élevé => haussier pour l'or (valeur refuge).
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,8 +44,8 @@ def fetch_geo_risk() -> GeoRiskReading:
     # Normalisation heuristique :
     #  - volume : plus il y a d'articles, plus la tension médiatique est forte.
     #  - tone   : plus il est négatif, plus la tension est élevée.
-    volume_factor = min(len(articles) / 50.0, 1.0)          # 0..1
-    tone_factor = min(max(-avg_tone / 6.0, 0.0), 1.0)        # ton -6 => 1.0
+    volume_factor = min(len(articles) / 50.0, 1.0)  # 0..1
+    tone_factor = min(max(-avg_tone / 6.0, 0.0), 1.0)  # ton -6 => 1.0
     risk_index = round(0.5 * volume_factor + 0.5 * tone_factor, 3)
 
     top = [a.get("title", "")[:120] for a in articles[:5] if a.get("title")]

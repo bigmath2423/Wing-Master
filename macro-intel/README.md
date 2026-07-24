@@ -124,20 +124,48 @@ macro-intel/
 │   ├── api/               # Routes (macro, tradingview, SSE)
 │   └── notify/            # Telegram / Discord
 ├── tradingview/           # Pine Script (signal_bridge, overlay) + guide
-├── dashboard/index.html   # Tableau de bord temps réel
-├── tests/                 # Tests du moteur (16 tests)
-├── Dockerfile / docker-compose.yml / run.sh
-└── requirements.txt / .env.example
+├── dashboard/index.html   # Tableau de bord temps réel (Simulateur + Live SSE)
+├── tests/                 # 29 tests (scoring, biais, fusion, API, pipeline)
+├── .github/workflows/     # CI (ruff + pytest)
+├── Dockerfile / docker-compose.yml / Makefile / run.sh
+├── pyproject.toml         # config ruff / pytest / mypy
+└── requirements.txt / .env.example / LICENSE
 ```
 
 ---
 
-## Tests
+## Endpoints principaux
+
+| Méthode | Endpoint | Rôle |
+|---|---|---|
+| `GET`  | `/` | Dashboard (Simulateur + Live) |
+| `GET`  | `/health` | Sonde de santé |
+| `GET`  | `/macro/latest` | Snapshot complet (scores, biais, drivers, headlines) |
+| `GET`  | `/macro/{asset}` | Biais d'un actif (`gold` / `btc` / `commodities`) |
+| `GET`  | `/macro/{asset}/pine` | Format compact `MACRO_SCORE / BIAS / RISK_LEVEL` |
+| `GET`  | `/macro/history/{asset}` | Historique des snapshots (graphiques / backtest) |
+| `GET`  | `/macro/stream/sse` | Flux temps réel (Server-Sent Events) |
+| `POST` | `/macro/refresh` | Force un cycle de rafraîchissement |
+| `POST` | `/tradingview/webhook` | Réception du signal technique + fusion |
+| `GET`  | `/docs` | Documentation OpenAPI interactive |
+
+---
+
+## Développement & qualité
 
 ```bash
-source .venv/bin/activate
-pytest -q          # 16 tests : scoring, biais, fusion
+make install     # venv + dépendances + outils
+make run         # lance l'API en rechargement auto
+make check       # lint (ruff) + tests (pytest) — identique à la CI
+make format      # formate le code
+make typecheck   # analyse de types (mypy)
 ```
+
+- **Lint & format** : `ruff` (config dans `pyproject.toml`).
+- **Tests** : `pytest` — 29 tests couvrant le moteur (scoring/biais/fusion) et
+  l'API (webhook, validation, historique, mapping symboles).
+- **CI** : GitHub Actions exécute `ruff check`, `ruff format --check` et
+  `pytest` à chaque push touchant `macro-intel/`.
 
 ---
 

@@ -4,9 +4,12 @@ Le backend le fusionne avec le contexte macro courant et renvoie un verdict
 (renforcé / avertissement / standard). Le score macro ne déclenche jamais
 un trade seul : il module uniquement un signal technique déjà émis.
 """
+
 from __future__ import annotations
 
 import hmac
+import logging
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 
@@ -16,6 +19,7 @@ from app.notify.notifier import notify
 from app.pipeline import STATE, symbol_to_asset
 from app.schemas import FusionResult, TradingViewSignal
 
+logger = logging.getLogger("macro.tradingview")
 router = APIRouter(prefix="/tradingview", tags=["tradingview"])
 
 
@@ -42,14 +46,24 @@ def tradingview_webhook(signal: TradingViewSignal):
     if result["verdict"] in ("reinforced", "warning"):
         notify(result["message"])
 
+    logger.info(
+        "Fusion %s %s : %s (%.0f%%)",
+        signal.symbol,
+        signal.side,
+        result["verdict"],
+        result["final_confidence"],
+    )
     return FusionResult(**result)
 
 
 @router.post("/simulate", response_model=FusionResult)
-def simulate(symbol: str, side: str, technical_score: float):
-    """Test rapide sans secret (à désactiver en prod) : simule une fusion."""
-    asset = symbol_to_asset(symbol)
-    macro_bias = STATE.snapshot()["bias"].get(asset)
+def simulate(symbol: str, side: Literal["buy", "sell"], technical_score: float):
+    """Test rapide sans secret : simule une fusion. Désactivé hors développement."""
+    if settings.app_env != "development":
+        raise HTTPException(status_code=403, detail="Endpoint réservé au développement")
+    if not 0 <= technical_score <= 100:
+        raise HTTPException(status_code=422, detail="technical_score doit être entre 0 et 100")
+    macro_bias = STATE.snapshot()["bias"].get(symbol_to_asset(symbol))
     if macro_bias is None:
         raise HTTPException(status_code=503, detail="Contexte macro pas encore prêt")
     return FusionResult(**fuse(symbol=symbol, side=side, technical_score=technical_score, macro=macro_bias))

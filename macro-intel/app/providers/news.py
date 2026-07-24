@@ -3,6 +3,7 @@
 Renvoie une liste de dicts bruts {title, url, source, ts, category}.
 La classification d'impact est faite en aval par engine.ai_classifier.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -15,7 +16,7 @@ logger = logging.getLogger("macro.providers.news")
 
 # Flux RSS gratuits (aucune clé requise).
 _RSS_FEEDS = [
-    ("https://www.investing.com/rss/news_285.rss", "macro"),      # Économie
+    ("https://www.investing.com/rss/news_285.rss", "macro"),  # Économie
     ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets"),
 ]
 
@@ -36,7 +37,7 @@ def _from_finnhub() -> list[dict]:
                 "title": item.get("headline", ""),
                 "url": item.get("url", ""),
                 "source": item.get("source", "finnhub"),
-                "ts": dt.datetime.fromtimestamp(item.get("datetime", 0), dt.timezone.utc),
+                "ts": dt.datetime.fromtimestamp(item.get("datetime", 0), dt.UTC),
                 "category": "macro",
             }
         )
@@ -60,7 +61,7 @@ def _from_rss() -> list[dict]:
                     "title": entry.get("title", ""),
                     "url": entry.get("link", ""),
                     "source": parsed.feed.get("title", "rss"),
-                    "ts": dt.datetime.now(dt.timezone.utc),
+                    "ts": dt.datetime.now(dt.UTC),
                     "category": category,
                 }
             )

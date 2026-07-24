@@ -6,6 +6,7 @@ Il ne fait que renforcer ou avertir un signal technique existant.
     Technique 88% + Macro +70 (aligné)  -> "Signal renforcé"
     Technique 90% + Macro -80 (conflit)  -> "Avertissement : contexte macro défavorable"
 """
+
 from __future__ import annotations
 
 from app.engine.bias import BiasResult
@@ -14,8 +15,8 @@ _ALIGNED, _CONFLICT, _NEUTRAL = "aligned", "conflict", "neutral"
 _REINFORCED, _WARNING, _STANDARD = "reinforced", "warning", "standard"
 
 # Seuils
-_STRONG_MACRO = 40.0     # |macro| au-dessus => macro "significatif"
-_NEUTRAL_MACRO = 15.0    # |macro| en dessous => macro neutre
+_STRONG_MACRO = 40.0  # |macro| au-dessus => macro "significatif"
+_NEUTRAL_MACRO = 15.0  # |macro| en dessous => macro neutre
 
 
 def _macro_direction(macro_score: float) -> int:
@@ -29,8 +30,8 @@ def _macro_direction(macro_score: float) -> int:
 def fuse(
     *,
     symbol: str,
-    side: str,                 # "buy" | "sell"
-    technical_score: float,    # 0..100
+    side: str,  # "buy" | "sell"
+    technical_score: float,  # 0..100
     macro: BiasResult,
 ) -> dict:
     trade_dir = 1 if side.lower() in ("buy", "long") else -1

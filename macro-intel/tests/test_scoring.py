@@ -1,12 +1,18 @@
 """Tests du moteur de scoring : cohérence des relations économiques de l'or."""
+
 from app.domain import GeoRiskReading, MarketReadings, NewsImpact
 from app.engine import scoring
 
 
 def _base_market(**kw):
     m = MarketReadings(
-        dxy=100, dxy_change_pct=0.0, us10y=4.2, us10y_change_bps=0.0,
-        real_rate_10y=1.5, real_rate_change_bps=0.0, breakeven_inflation=2.0,
+        dxy=100,
+        dxy_change_pct=0.0,
+        us10y=4.2,
+        us10y_change_bps=0.0,
+        real_rate_10y=1.5,
+        real_rate_change_bps=0.0,
+        breakeven_inflation=2.0,
     )
     for k, v in kw.items():
         setattr(m, k, v)
@@ -45,7 +51,6 @@ def test_higher_inflation_supports_gold():
 
 
 def test_news_impact_flows_through():
-    war = NewsImpact(title="War escalates", category="geopolitics",
-                     severity=0.9, impact_gold=35)
+    war = NewsImpact(title="War escalates", category="geopolitics", severity=0.9, impact_gold=35)
     s = scoring.score_gold(_base_market(), GeoRiskReading(risk_index=0.5), [war])
     assert s.factors["geopolitics"] > 0

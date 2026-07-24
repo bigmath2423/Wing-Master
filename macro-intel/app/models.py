@@ -1,4 +1,5 @@
 """Modèles ORM : historisation des données brutes et des snapshots macro."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -10,7 +11,7 @@ from app.db import Base
 
 
 def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 class MarketDatum(Base):
@@ -20,7 +21,7 @@ class MarketDatum(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ts: Mapped[dt.datetime] = mapped_column(default=_utcnow, index=True)
-    key: Mapped[str] = mapped_column(String(32), index=True)   # dxy, us10y, real_rate...
+    key: Mapped[str] = mapped_column(String(32), index=True)  # dxy, us10y, real_rate...
     value: Mapped[float] = mapped_column(Float)
     change: Mapped[float] = mapped_column(Float, default=0.0)  # variation vs point précédent
     source: Mapped[str] = mapped_column(String(32), default="unknown")
@@ -39,7 +40,7 @@ class NewsEvent(Base):
     url: Mapped[str] = mapped_column(Text, default="")
     # Impact classifié (par asset) : {"gold": +30, "btc": -10, "commodities": +5}
     impact: Mapped[dict] = mapped_column(JSON, default=dict)
-    severity: Mapped[float] = mapped_column(Float, default=0.0)   # 0..1
+    severity: Mapped[float] = mapped_column(Float, default=0.0)  # 0..1
     dedup_key: Mapped[str] = mapped_column(String(64), index=True, default="")
 
 
@@ -67,8 +68,8 @@ class MacroSnapshot(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ts: Mapped[dt.datetime] = mapped_column(default=_utcnow, index=True)
     asset: Mapped[str] = mapped_column(String(16), index=True)  # gold, btc, commodities
-    score: Mapped[float] = mapped_column(Float)                 # -100..+100
-    bias: Mapped[str] = mapped_column(String(16))               # bullish/bearish/neutral
-    confidence: Mapped[float] = mapped_column(Float)            # 0..100
-    risk_level: Mapped[str] = mapped_column(String(16))         # low/medium/high
-    factors: Mapped[dict] = mapped_column(JSON, default=dict)   # détail par facteur
+    score: Mapped[float] = mapped_column(Float)  # -100..+100
+    bias: Mapped[str] = mapped_column(String(16))  # bullish/bearish/neutral
+    confidence: Mapped[float] = mapped_column(Float)  # 0..100
+    risk_level: Mapped[str] = mapped_column(String(16))  # low/medium/high
+    factors: Mapped[dict] = mapped_column(JSON, default=dict)  # détail par facteur

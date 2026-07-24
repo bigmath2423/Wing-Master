@@ -1,9 +1,11 @@
 """Schémas Pydantic : contrats d'entrée/sortie de l'API."""
+
 from __future__ import annotations
 
 import datetime as dt
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Sorties macro ───────────────────────────────────────────────
@@ -25,17 +27,6 @@ class MacroBias(BaseModel):
     updated_at: dt.datetime
 
 
-class MacroLatest(BaseModel):
-    """Ce que le dashboard / TradingView consomme."""
-
-    generated_at: dt.datetime
-    assets: dict[str, MacroBias]
-    headlines: list["Headline"] = []
-    # Valeurs brutes des drivers de l'or (pour synchroniser les curseurs live).
-    gold_drivers: dict[str, float] = {}
-    sources: dict[str, str] = {}
-
-
 class Headline(BaseModel):
     ts: dt.datetime
     category: str
@@ -45,18 +36,36 @@ class Headline(BaseModel):
     url: str = ""
 
 
+class MacroLatest(BaseModel):
+    """Ce que le dashboard / TradingView consomme."""
+
+    generated_at: dt.datetime
+    assets: dict[str, MacroBias]
+    headlines: list[Headline] = []
+    # Valeurs brutes des drivers de l'or (pour synchroniser les curseurs live).
+    gold_drivers: dict[str, float] = {}
+    sources: dict[str, str] = {}
+
+
 # ── Entrée : webhook depuis l'indicateur TradingView ────────────
 class TradingViewSignal(BaseModel):
     """Payload envoyé par l'alerte Pine Script de votre indicateur."""
 
     secret: str = Field(..., description="Doit correspondre à API_SHARED_SECRET")
-    symbol: str = Field(..., examples=["XAUUSD"])
-    side: str = Field(..., description="buy | sell")
+    symbol: str = Field(..., min_length=1, examples=["XAUUSD"])
+    side: Literal["buy", "sell"] = Field(..., description="buy | sell")
     technical_score: float = Field(..., ge=0, le=100, description="Score technique 0..100")
     price: float | None = None
     timeframe: str | None = None
     strategy: str | None = "SMC+VWAP+Structure"
     note: str | None = None
+
+    @field_validator("side", mode="before")
+    @classmethod
+    def _normalize_side(cls, v: str) -> str:
+        """Tolère long/short/BUY/SELL depuis les alertes TradingView."""
+        s = str(v).strip().lower()
+        return {"long": "buy", "short": "sell"}.get(s, s)
 
 
 class FusionResult(BaseModel):
@@ -72,6 +81,3 @@ class FusionResult(BaseModel):
     verdict: str = Field(..., description="reinforced | warning | standard")
     final_confidence: float
     message: str
-
-
-MacroLatest.model_rebuild()

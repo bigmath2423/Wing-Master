@@ -1,4 +1,5 @@
 """Tests du moteur de biais : direction, confiance, niveau de risque."""
+
 from app.engine import bias as B
 from app.engine.scoring import AssetScore
 

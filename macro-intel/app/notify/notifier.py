@@ -1,4 +1,5 @@
 """Envoi des verdicts de fusion vers Telegram / Discord (ou log si non configuré)."""
+
 from __future__ import annotations
 
 import logging

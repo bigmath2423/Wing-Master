@@ -1,4 +1,5 @@
 """Configuration centralisée (12-factor : tout vient de l'environnement)."""
+
 from __future__ import annotations
 
 from functools import lru_cache

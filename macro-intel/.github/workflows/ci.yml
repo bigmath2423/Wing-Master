@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - "macro-intel/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "macro-intel/**"
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: macro-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+
+      - name: Lint (ruff)
+        run: |
+          ruff check app tests
+          ruff format --check app tests
+
+      - name: Tests (pytest)
+        run: pytest

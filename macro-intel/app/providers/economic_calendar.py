@@ -3,6 +3,7 @@
 FMP (Financial Modeling Prep) si clé, sinon liste de secours des rendez-vous
 récurrents à forte importance pour cadrer le risque événementiel.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -25,7 +26,7 @@ def _importance(event_name: str) -> int:
 def _from_fmp() -> list[dict]:
     if not settings.fmp_api_key:
         return []
-    today = dt.date.today()
+    today = dt.datetime.now(dt.UTC).date()
     data = http_get_json(
         "https://financialmodelingprep.com/api/v3/economic_calendar",
         params={
@@ -55,7 +56,7 @@ def _from_fmp() -> list[dict]:
 
 def _fallback() -> list[dict]:
     """Rendez-vous macro récurrents (approximatifs) si aucune source."""
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     return [
         {
             "event_time": (now + dt.timedelta(days=3)).isoformat(),

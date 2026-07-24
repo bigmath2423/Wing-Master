@@ -1,4 +1,5 @@
 """Conversion de l'état interne vers les schémas d'API publics."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -27,7 +28,7 @@ def _asset_bias(asset: str) -> MacroBias | None:
             inflation=f.get("inflation", 0.0),
             risk_sentiment=f.get("risk_sentiment", 0.0),
         ),
-        updated_at=snap["generated_at"] or dt.datetime.now(dt.timezone.utc),
+        updated_at=snap["generated_at"] or dt.datetime.now(dt.UTC),
     )
 
 
@@ -58,7 +59,7 @@ def build_latest() -> MacroLatest:
         "news": str(len(snap["news"])),
     }
     return MacroLatest(
-        generated_at=snap["generated_at"] or dt.datetime.now(dt.timezone.utc),
+        generated_at=snap["generated_at"] or dt.datetime.now(dt.UTC),
         assets=assets,
         headlines=headlines,
         gold_drivers=gold_drivers,

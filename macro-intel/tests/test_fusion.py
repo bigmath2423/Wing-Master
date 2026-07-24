@@ -1,4 +1,5 @@
 """Tests de la fusion technique + macro (règle : macro ne trade jamais seul)."""
+
 from app.engine.bias import BiasResult
 from app.engine.fusion import fuse
 

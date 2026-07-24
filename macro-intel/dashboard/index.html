@@ -337,7 +337,8 @@ const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
 let side = "buy";
 let mode = "sim";        // 'sim' | 'live'
 let liveData = null;     // dernier payload backend
-let liveTimer = null;
+let liveTimer = null;    // repli polling
+let es = null;           // flux Server-Sent Events
 
 /* ---------- Modèle de scoring (identique au backend) ---------- */
 function readInputs() {
@@ -500,20 +501,18 @@ function applyDriversToSliders(dr){
 async function connectLive(){
   setStatus("off","connexion…");
   try{
+    // 1) Vérifie l'accessibilité + première synchro (drivers, curseurs).
     const r=await fetch("macro/latest",{cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const data=await r.json();
     if(!data.assets || !data.assets.gold) throw new Error("payload");
-    liveData=data; mode="live";
+    mode="live";
     $("mode-live").setAttribute("aria-pressed","true"); $("mode-sim").setAttribute("aria-pressed","false");
     $("controls").classList.add("locked");
-    applyDriversToSliders(data.gold_drivers||{});
-    const src=(data.sources&&data.sources.market)||"backend";
-    setStatus("on","live · source "+src);
-    const u=$("upd"); u.className="live"; u.querySelector("span").textContent="MAJ "+new Date(data.generated_at).toLocaleTimeString("fr-FR");
-    update();
-    if(liveTimer) clearInterval(liveTimer);
-    liveTimer=setInterval(refreshLive, 15000);
+    applyLive(data);
+    setStatus("on","live · connexion flux…");
+    // 2) Bascule sur le flux temps réel (SSE), repli polling si indisponible.
+    startStream();
   }catch(e){
     mode="sim";
     $("mode-sim").setAttribute("aria-pressed","true"); $("mode-live").setAttribute("aria-pressed","false");
@@ -522,16 +521,43 @@ async function connectLive(){
     update();
   }
 }
-async function refreshLive(){
-  try{
-    const r=await fetch("macro/latest",{cache:"no-store"}); if(!r.ok) return;
-    const data=await r.json(); if(!data.assets||!data.assets.gold) return;
-    liveData=data; applyDriversToSliders(data.gold_drivers||{});
-    const u=$("upd"); u.querySelector("span").textContent="MAJ "+new Date(data.generated_at).toLocaleTimeString("fr-FR");
-    update();
-  }catch(e){/* silencieux */}
+
+/* Applique un payload backend à l'UI (commun SSE + polling). */
+function applyLive(data){
+  if(!data || !data.assets || !data.assets.gold) return;
+  liveData=data;
+  applyDriversToSliders(data.gold_drivers||{});
+  const u=$("upd"); u.className="live";
+  u.querySelector("span").textContent="MAJ "+new Date(data.generated_at).toLocaleTimeString("fr-FR");
+  update();
 }
-function stopLive(){ if(liveTimer){ clearInterval(liveTimer); liveTimer=null; }
+
+/* Flux temps réel via Server-Sent Events, repli automatique sur polling. */
+function startStream(){
+  stopStream();
+  if("EventSource" in window){
+    let streamOk=false;
+    es=new EventSource("macro/stream/sse");
+    es.onmessage=(ev)=>{ streamOk=true; try{ applyLive(JSON.parse(ev.data)); setStatus("on","live · flux SSE"); }catch(_){} };
+    es.onerror=()=>{ // jamais connecté -> polling ; sinon laisse le navigateur reconnecter seul
+      if(!streamOk){ stopStream(); startPolling(); } };
+  } else {
+    startPolling();
+  }
+}
+function startPolling(){
+  if(liveTimer) clearInterval(liveTimer);
+  liveTimer=setInterval(refreshLive, 15000);
+  setStatus("on","live · polling 15s");
+}
+async function refreshLive(){
+  try{ const r=await fetch("macro/latest",{cache:"no-store"}); if(!r.ok) return;
+    applyLive(await r.json()); }catch(e){/* silencieux */}
+}
+function stopStream(){ if(es){ es.close(); es=null; } }
+function stopLive(){
+  stopStream();
+  if(liveTimer){ clearInterval(liveTimer); liveTimer=null; }
   const u=$("upd"); u.className="live off"; u.querySelector("span").textContent=""; liveData=null; }
 function setStatus(state,txt){ const s=$("status"); s.className="live "+(state==="on"?"":"off"); $("status-txt").textContent=txt; }
 

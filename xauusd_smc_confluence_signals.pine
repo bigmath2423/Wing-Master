@@ -167,8 +167,13 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 //          l'etiquette de trade, ligne "Contexte" dans le tableau de bord, et
 //          mention " | ⚠️ ENTREE TARDIVE" dans l'alerte. OFF (lwOn) = rien affiche.
 //        - nouveaux inputs (groupe "Avertissement entree tardive") : lwOn (ON),
-//          fenetre d'impulsion (20), seuil sur-extension (4 ATR), seuil premium/
-//          discount (75 %). Reglages purement d'affichage, zero impact backtest.
+//          fenetre d'impulsion, seuil sur-extension (ATR), seuil premium/discount.
+//        - CALIBRAGE AUTO PAR TIMEFRAME (lwAutoTf, ON par defaut) : les 3 seuils
+//          s'adaptent a l'UT du graphique (presets calibres or) -> M1: 30/3.5/80,
+//          M5: 25/4.0/78, M15: 20/4.5/75, M30: 18/5.0/73, H1: 15/5.5/70
+//          (fenetre barres / sur-extension ATR / premium %). UT hors liste =
+//          preset le plus proche. OFF = valeurs manuelles. Purement d'affichage,
+//          zero impact backtest.
 // A tester en demo / backtest avant tout usage en reel.
 // ============================================================
 
@@ -1643,13 +1648,21 @@ atrVal = atrGlobal  // reutilise l'ATR global (plus de double calcul)
 //      discount (BUY en premium profond, SELL en discount profond).
 grpLW = "⚙️ Expert — Avertissement entree tardive (info, ne bloque pas)"
 lwOn          = input.bool(true, "Avertir si entree tardive / sur-extension", group=grpE2, tooltip="INFO uniquement : n'annule JAMAIS un signal et ne touche NI au score, NI aux filtres, NI a l'entree. Affiche '⚠️ Trade a risque - Entree tardive' quand un signal valide arrive alors que le prix est deja en fin d'impulsion (sur-etendu, ou achat en premium profond / vente en discount profond).")
-lwImpulseLook = input.int(20, "Fenetre de l'impulsion (barres)", minval=3, group=grpLW, tooltip="Mesure l'extension du mouvement en cours : du plus bas (BUY) / plus haut (SELL) sur ces N dernieres barres jusqu'au prix actuel.")
-lwExtAtr      = input.float(4.0, "Sur-extension : mouvement > x ATR", minval=0.5, step=0.5, group=grpLW, tooltip="Si le prix a parcouru plus de X ATR depuis le debut de l'impulsion, l'entree est jugee tardive. Plus grand = moins d'avertissements.")
-lwPremiumPct  = input.float(75, "Achat/vente hors zone : > x % du range", minval=50, maxval=100, step=1, group=grpLW, tooltip="BUY juge tardif si l'entree est au-dela de ce % du range (premium profond) ; SELL si sous les (100 - x) % (discount profond). 100 = desactive cet axe (uniquement la sur-extension ATR).")
+lwImpulseLook = input.int(20, "Fenetre de l'impulsion (barres)", minval=3, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. Mesure l'extension du mouvement en cours : du plus bas (BUY) / plus haut (SELL) sur ces N dernieres barres jusqu'au prix actuel.")
+lwExtAtr      = input.float(4.0, "Sur-extension : mouvement > x ATR", minval=0.5, step=0.5, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. Si le prix a parcouru plus de X ATR depuis le debut de l'impulsion, l'entree est jugee tardive. Plus grand = moins d'avertissements.")
+lwPremiumPct  = input.float(75, "Achat/vente hors zone : > x % du range", minval=50, maxval=100, step=1, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. BUY juge tardif si l'entree est au-dela de ce % du range (premium profond) ; SELL si sous les (100 - x) % (discount profond). 100 = desactive cet axe (uniquement la sur-extension ATR).")
+lwAutoTf      = input.bool(true, "Calibrage auto par timeframe (M1/M5/M15/M30/H1)", group=grpLW, tooltip="ON : les 3 seuils sont choisis AUTOMATIQUEMENT selon l'unite de temps du graphique (presets calibres pour l'or) -> M1: 30/3.5/80, M5: 25/4.0/78, M15: 20/4.5/75, M30: 18/5.0/73, H1: 15/5.5/70 (fenetre barres / sur-extension ATR / premium %). Les UT hors liste prennent le preset le plus proche (sous-M1 -> M1, au-dessus H1 -> H1). OFF : utilise tes valeurs manuelles ci-dessus.")
+
+// Presets par timeframe (calibres or). tfSec est 'simple' (constant par graphique)
+// -> lwLookEff reste un entier simple, compatible avec ta.lowest/ta.highest.
+lwTfSec  = timeframe.in_seconds(timeframe.period)
+lwLookEff = lwAutoTf ? (lwTfSec <= 60 ? 30 : lwTfSec <= 300 ? 25 : lwTfSec <= 900 ? 20 : lwTfSec <= 1800 ? 18 : 15) : lwImpulseLook
+lwExtEff  = lwAutoTf ? (lwTfSec <= 60 ? 3.5 : lwTfSec <= 300 ? 4.0 : lwTfSec <= 900 ? 4.5 : lwTfSec <= 1800 ? 5.0 : 5.5) : lwExtAtr
+lwPremEff = lwAutoTf ? (lwTfSec <= 60 ? 80.0 : lwTfSec <= 300 ? 78.0 : lwTfSec <= 900 ? 75.0 : lwTfSec <= 1800 ? 73.0 : 70.0) : lwPremiumPct
 
 // Bornes de l'impulsion recente (calculees a chaque barre pour la coherence).
-lwLowN  = ta.lowest(low, lwImpulseLook)
-lwHighN = ta.highest(high, lwImpulseLook)
+lwLowN  = ta.lowest(low, lwLookEff)
+lwHighN = ta.highest(high, lwLookEff)
 // Extension du mouvement en cours, en multiples d'ATR (proxy prix = close).
 lwBuyExt  = atrVal > 0 ? (close - lwLowN) / atrVal : 0.0
 lwSellExt = atrVal > 0 ? (lwHighN - close) / atrVal : 0.0
@@ -1658,8 +1671,8 @@ lwRange   = smcRangeTop - smcRangeBot
 lwBuyPos  = not na(lwRange) and lwRange > 0 ? (close - smcRangeBot) / lwRange * 100.0 : na
 lwSellPos = not na(lwRange) and lwRange > 0 ? (smcRangeTop - close) / lwRange * 100.0 : na
 // Entree tardive = sur-extension ATR OU achat trop haut / vente trop bas. Independant du score.
-lwLateBuy  = lwOn and (lwBuyExt  >= lwExtAtr or (not na(lwBuyPos)  and lwBuyPos  >= lwPremiumPct))
-lwLateSell = lwOn and (lwSellExt >= lwExtAtr or (not na(lwSellPos) and lwSellPos >= lwPremiumPct))
+lwLateBuy  = lwOn and (lwBuyExt  >= lwExtEff or (not na(lwBuyPos)  and lwBuyPos  >= lwPremEff))
+lwLateSell = lwOn and (lwSellExt >= lwExtEff or (not na(lwSellPos) and lwSellPos >= lwPremEff))
 // Avertissement affiche uniquement AU MOMENT d'un signal - le trade reste pris.
 lwWarnBuy  = buySignal  and lwLateBuy
 lwWarnSell = sellSignal and lwLateSell

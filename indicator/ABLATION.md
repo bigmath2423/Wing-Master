@@ -150,3 +150,32 @@ Meilleur / pire trade · **Courbe de capital** (onglet « Performance »).
   (spread or ≈ 0.20-0.50) avant toute conclusion, sinon le résultat est optimiste.
 - Les ordres s'exécutent à **l'ouverture de la barre suivante** (`process_orders_on_close=false`),
   ce qui est le comportement réaliste.
+
+---
+
+## 💱 Calibrage broker réel — FXCess (spread mesuré 0,90 $ sur XAUUSD)
+
+Valeurs pré-réglées **par défaut** dans `xauusd_smc_working.pine` et
+`xauusd_smc_STRATEGY.pine` pour ne rien avoir à configurer.
+
+| Réglage | Avant | Après | Pourquoi |
+|---------|-------|-------|----------|
+| `slExecBufSpread` | 0.0 | **1.00** | Spread réel 0,90 + marge slippage → le SL n'est jamais placé plus près que le coût d'exécution |
+| `slMinAtr` | 0.5 | **1.2** | Un SL de 0,5 ATR (~1,4 $ en M5) est balayé par 0,90 de spread. 1.2 ATR ramène le spread sous ~15 % du risque en M15 |
+| `slippage` (stratégie) | 0 | **90 ticks** | 0,90 $ = 90 ticks (tick 0,01). Modélisation prudente : spread + slippage |
+
+> Le site FXCess affiche 0,42 (vitrine, marché calme) ; le **réel mesuré est 0,90**.
+> C'est la valeur retenue. Tous ces réglages restent des **inputs** modifiables :
+> remettre 0.0 / 0.5 / 0 restaure l'ancien comportement.
+
+### ⚠️ Conséquence majeure — coût du spread = spread ÷ distance du SL
+
+| UT | ATR typique | SL à 1.2 ATR | Poids du spread 0,90 |
+|----|-------------|--------------|----------------------|
+| M5 | ~2,5-3 $ | ~3,3 $ | ~27 % du risque ⚠️ |
+| M15 | ~5-6 $ | ~6,6 $ | ~14 % du risque 🟡 |
+| H1 | ~10-13 $ | ~13 $ | ~7 % du risque ✅ |
+
+**M5 reste déconseillé avec ce spread** (même avec le SL élargi). M15 est le
+minimum praticable, H1 le plus confortable. Le levier le plus puissant reste un
+**compte ECN** (spread ~0,25 + commission) qui diviserait ce coût par ~3.

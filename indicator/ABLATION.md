@@ -110,3 +110,43 @@ différentes. À factoriser prudemment **après** vérification de compilation.
 | B5 | `smcRangeTop = math.max(swingHighVal, swingLowVal)` sémantiquement flou en fort trend. | Garde défensive, impact très faible ; laisser tel quel sauf anomalie constatée. |
 
 (Le tableau du haut est complété au fur et à mesure.)
+
+---
+
+## 🧪 Version BACKTEST (`xauusd_smc_STRATEGY.pine`)
+
+Copie **strictement identique** de `xauusd_smc_working.pine`, convertie en `strategy()`
+pour utiliser le **Strategy Tester** de TradingView.
+
+**Preuve de non-régression** : le `diff` entre le corps des deux fichiers ne contient
+**que la ligne 2** (`indicator(` → `strategy(`). Aucune ligne de logique, de score, de
+filtre ou de niveau n'a été touchée. Le moteur d'exécution ajouté en fin de fichier
+**lit** seulement `buySignal` / `sellSignal` / `tmEntry` / `tmSL` / `tmT1-T3`.
+
+### Réglages ajoutés (aucun filtre, uniquement de l'exécution)
+
+| Groupe | Réglage | Défaut |
+|--------|---------|--------|
+| Compte | Capital de départ | 10 000 |
+| Compte | Commission (% par ordre) | 0.0 |
+| Compte | Slippage (ticks) | 0 |
+| Exécution | Type d'entrée (Marché / Limite) | Marché |
+| Exécution | Validité ordre limite (barres) | 10 |
+| Exécution | Sorties (3 paliers / TP1 seul / TP Final seul) | 3 paliers |
+| Exécution | % position TP1 / TP2 | 40 / 30 |
+| Position | Mode de taille (Risque % / Fixe) | Risque % |
+| Position | Risque par trade | 1 % |
+| Position | Inversion sur signal opposé | ON |
+
+### Métriques fournies par le Strategy Tester
+Win rate · Nombre de trades · Profit net · **Profit factor** · **Drawdown maximal** ·
+Meilleur / pire trade · **Courbe de capital** (onglet « Performance »).
+
+### ⚠️ À savoir pour lire les résultats
+- **Entrée « Marché »** = tous les signaux sont mesurés → mesure honnête de l'indicateur.
+  **« Limite »** = plus fidèle au plan de trade, mais des ordres ne seront jamais remplis
+  (moins de trades, résultats plus flatteurs). Compare les deux.
+- **Commission et slippage à 0 par défaut** : renseigne le coût réel de ton broker
+  (spread or ≈ 0.20-0.50) avant toute conclusion, sinon le résultat est optimiste.
+- Les ordres s'exécutent à **l'ouverture de la barre suivante** (`process_orders_on_close=false`),
+  ce qui est le comportement réaliste.

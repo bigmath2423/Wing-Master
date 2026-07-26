@@ -179,3 +179,34 @@ Valeurs pré-réglées **par défaut** dans `xauusd_smc_working.pine` et
 **M5 reste déconseillé avec ce spread** (même avec le SL élargi). M15 est le
 minimum praticable, H1 le plus confortable. Le levier le plus puissant reste un
 **compte ECN** (spread ~0,25 + commission) qui diviserait ce coût par ~3.
+
+---
+
+## 💰 Rentabilité face au spread — analyse de seuil (TCA)
+
+Formule exacte du **win rate d'équilibre** avec un coût fixe :
+
+```
+W_équilibre = (1 + S/D) / (R + 1)
+   S = coût aller-retour (spread)   D = distance du SL   R = multiple R:R
+```
+
+Avec **S = 0,90** (FXCess Classic) et un SL à 1.2 ATR :
+
+| UT | SL | spread/risque | Win rate requis (R:R 2) | Win rate requis (R:R 3) |
+|----|----|---------------|-------------------------|-------------------------|
+| M5 | 3,3 $ | 27 % | **42,4 %** (+9,1 pt) | **31,8 %** (+6,8 pt) |
+| M15 | 6,6 $ | 14 % | **37,9 %** (+4,5 pt) | **28,4 %** (+3,4 pt) |
+| H1 | 13,2 $ | 7 % | **35,6 %** (+2,3 pt) | **26,7 %** (+1,7 pt) |
+
+Avec un **compte ECN (0,25)** : M5 tombe à 35,9 % / 26,9 % — soit le confort du H1.
+
+### Conclusion opérationnelle
+Le levier le plus puissant n'est **pas** d'augmenter le win rate (très difficile),
+mais d'**augmenter le R:R** : passer de R:R 2 à R:R 3 réduit l'exigence de ~10 points
+de win rate. D'où les réglages recommandés ci-dessous.
+
+### Filtre économique (stratégie uniquement, `btCostGate`, défaut OFF)
+Refuse les trades dont le R:R **net de spread** est sous le seuil (`btMinNetR`, 1.5).
+Cible pondérée = TP1×%1 + TP2×%2 + TP3×reste. N'ajoute aucun critère de marché :
+c'est un filtre de rentabilité, pas de signal. À valider en A/B comme les autres.

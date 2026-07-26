@@ -2718,6 +2718,24 @@ btFixedQty  = input.float(1.0, "Taille fixe (unites / oz)", minval=0.01, step=0.
 btMaxQty    = input.float(0.0, "Taille maximum (0 = illimitee)", minval=0.0, step=0.1, group=grpBT2, tooltip="Plafond de securite sur la quantite calculee. 0 = aucun plafond.")
 btAllowRev  = input.bool(true, "Autoriser l'inversion sur signal oppose", group=grpBT2, tooltip="ON (standard) : un signal oppose ferme la position en cours et ouvre dans l'autre sens. OFF : le signal oppose est ignore tant que la position est ouverte.")
 
+// ---- FILTRE ECONOMIQUE (Transaction Cost Analysis) ----
+// Refuse les trades dont le R:R, UNE FOIS LE SPREAD PAYE, ne justifie pas le risque.
+// N'ajoute AUCUN critere de marche : c'est un filtre de RENTABILITE, pas de signal.
+// OFF par defaut (a valider en backtest A/B comme tout le reste).
+btCostGate  = input.bool(false, "Filtre economique : refuser les trades a R:R net insuffisant", group=grpBT, tooltip="Calcule le R:R REEL apres deduction du spread (cible ponderee des 3 TP) et refuse le trade s'il est sous le seuil. Un signal parfait avec une cible trop proche est economiquement perdant : ce filtre l'elimine. OFF = tous les signaux sont pris (mesure brute).")
+btMinNetR   = input.float(1.5, "R:R net minimum apres spread", minval=0.1, step=0.1, group=grpBT, tooltip="Seuil de rentabilite. 1.5 = on n'entre que si la cible ponderee rapporte au moins 1,5x le risque APRES avoir paye le spread.")
+btSpreadEst = input.float(0.90, "Cout aller-retour estime (prix)", minval=0.0, step=0.05, group=grpBT, tooltip="Spread + slippage moyen paye sur un aller-retour. FXCess Classic XAUUSD mesure = 0.90. Compte ECN : mettre ~0.25 + commission.")
+
+// Cible ponderee reellement visee (selon la repartition des paliers de sortie)
+f_btBlendTp(float t1, float t2, float t3) =>
+    float w3 = 100.0 - btTp1Pct - btTp2Pct
+    (t1 * btTp1Pct + t2 * btTp2Pct + t3 * w3) / 100.0
+// R:R net = (gain attendu - cout) / (risque + cout)
+f_btNetR(float entry, float risk, float blend, bool isBuy) =>
+    float reward = (isBuy ? blend - entry : entry - blend) - btSpreadEst
+    float rr     = risk + btSpreadEst
+    rr > 0 ? reward / rr : 0.0
+
 // ---- Taille de position : risque en argent / distance de stop ----
 f_btQty(float riskDist) =>
     float q = btFixedQty
@@ -2740,7 +2758,9 @@ if buySignal and not na(tmEntry) and not na(tmSL) and tmSL < tmEntry
     float rd = tmEntry - tmSL
     float q  = f_btQty(rd)
     bool okRev = btAllowRev or strategy.position_size >= 0
-    if q > 0 and okRev
+    float netRb = f_btNetR(tmEntry, rd, f_btBlendTp(tmT1, tmT2, tmT3), true)
+    bool econOK = not btCostGate or netRb >= btMinNetR
+    if q > 0 and okRev and econOK
         if btIsLimit
             strategy.entry("BUY", strategy.long, qty=q, limit=tmEntry)
             btPendBuy := bar_index
@@ -2760,7 +2780,9 @@ if sellSignal and not na(tmEntry) and not na(tmSL) and tmSL > tmEntry
     float rd2 = tmSL - tmEntry
     float q2  = f_btQty(rd2)
     bool okRev2 = btAllowRev or strategy.position_size <= 0
-    if q2 > 0 and okRev2
+    float netRs = f_btNetR(tmEntry, rd2, f_btBlendTp(tmT1, tmT2, tmT3), false)
+    bool econOK2 = not btCostGate or netRs >= btMinNetR
+    if q2 > 0 and okRev2 and econOK2
         if btIsLimit
             strategy.entry("SELL", strategy.short, qty=q2, limit=tmEntry)
             btPendSell := bar_index

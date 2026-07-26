@@ -7,6 +7,12 @@ avertit un signal technique existant.
 
 > Cible : **XAUUSD (or)**, **BTC**, **matières premières**.
 
+> 📚 **Vision plateforme (MacroLens)** — ce module est le **noyau** d'une
+> plateforme d'analyse macro professionnelle assistée par IA, spécifiée en tomes
+> dans [`docs/`](docs/README.md) : commencez par le
+> [Cahier des charges (Tome 0)](docs/TOME-00-cahier-des-charges.md) et
+> l'[Architecture (Tome 1)](docs/TOME-01-architecture.md).
+
 ---
 
 ## Ce que fait le système

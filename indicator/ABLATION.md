@@ -210,3 +210,22 @@ de win rate. D'où les réglages recommandés ci-dessous.
 Refuse les trades dont le R:R **net de spread** est sous le seuil (`btMinNetR`, 1.5).
 Cible pondérée = TP1×%1 + TP2×%2 + TP3×reste. N'ajoute aucun critère de marché :
 c'est un filtre de rentabilité, pas de signal. À valider en A/B comme les autres.
+
+### 📊 Tableau de résultats sur le graphique (stratégie)
+
+Panneau affiché directement sur le chart (`btPanelOn`, ON par défaut), lisant
+uniquement les compteurs natifs `strategy.*` — aucun impact sur les trades :
+
+Trades clôturés · Gagnants/Perdants · **Win rate** · **Profit net** (+ %) ·
+**Profit factor** · **Drawdown max** (+ %) · **Meilleur / pire trade** ·
+Gain moyen par trade · **Coût du spread réellement payé** ·
+**Profit AVANT spread** · Capital final.
+
+> Les deux dernières lignes sont les plus instructives : l'écart entre
+> « Profit net » et « Profit AVANT spread » **chiffre exactement ce que le broker
+> te coûte** sur la période testée.
+
+⚠️ Avec les sorties en 3 paliers, TradingView compte **chaque sortie partielle
+comme un trade clôturé** : le nombre de trades et le win rate sont donc calculés
+sur les partielles. Pour des stats « par trade complet », utiliser le mode
+« Sortie unique » le temps de la mesure.

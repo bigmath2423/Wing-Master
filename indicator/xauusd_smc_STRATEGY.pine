@@ -2810,3 +2810,70 @@ if not na(btPendSell)
     else if bar_index - btPendSell > btLimitBars
         strategy.cancel("SELL")
         btPendSell := na
+
+// ============================================================
+// ============= BACKTEST : TABLEAU DE RESULTATS SUR LE CHART =============
+// Lit UNIQUEMENT les compteurs natifs de la strategie (strategy.*). N'influence
+// aucun trade, aucun signal, aucun niveau : pur affichage.
+// ============================================================
+grpBTP = "🧪 BACKTEST — Tableau de resultats"
+btPanelOn  = input.bool(true, "Afficher le tableau de resultats sur le graphique", group=grpBTP)
+btPanelPos = input.string("Haut gauche", "Position du tableau", options=["Haut gauche","Haut droite","Milieu gauche","Bas gauche","Bas droite"], group=grpBTP, tooltip="A placer dans un coin LIBRE (le panneau principal est par defaut 'Milieu droite' et le tableau des zones en 'Bas gauche').")
+
+f_btPos(string p) => p == "Haut gauche" ? position.top_left : p == "Haut droite" ? position.top_right : p == "Milieu gauche" ? position.middle_left : p == "Bas droite" ? position.bottom_right : position.bottom_left
+// Fonction au niveau GLOBAL (Pine interdit une declaration dans un bloc if).
+f_btCell(table t, int r, string lbl, string val, color vc) =>
+    table.cell(t, 0, r, lbl, text_color=color.rgb(140, 156, 173), text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, r, val, text_color=vc, text_size=size.small, text_halign=text.align_right)
+
+// ---- Suivi incremental : meilleur / pire trade + cout du spread reellement paye ----
+var float btBest       = na
+var float btWorst      = na
+var float btSpreadPaid = 0.0
+var int   btSeen       = 0
+if strategy.closedtrades > btSeen
+    for i = btSeen to strategy.closedtrades - 1
+        float p  = strategy.closedtrades.profit(i)
+        float sz = math.abs(strategy.closedtrades.size(i))
+        btSpreadPaid += btSpreadEst * sz
+        btBest  := na(btBest)  or p > btBest  ? p : btBest
+        btWorst := na(btWorst) or p < btWorst ? p : btWorst
+    btSeen := strategy.closedtrades
+
+var table btTbl = na
+if btPanelOn and barstate.islast
+    if not na(btTbl)
+        table.delete(btTbl)
+    btTbl := table.new(f_btPos(btPanelPos), 2, 13, bgcolor=color.new(color.rgb(13, 18, 26), 8), border_width=1, border_color=color.new(color.rgb(70, 84, 102), 50), frame_width=1, frame_color=color.new(color.rgb(70, 84, 102), 35))
+    // --- metriques natives ---
+    int   nT   = strategy.closedtrades
+    int   nW   = strategy.wintrades
+    int   nL   = strategy.losstrades
+    float wr   = nT > 0 ? nW / math.max(1, nW + nL) * 100.0 : na
+    float gp   = strategy.grossprofit
+    float gl   = strategy.grossloss
+    float pf   = gl > 0 ? gp / gl : na
+    float np   = strategy.netprofit
+    float dd   = strategy.max_drawdown
+    float cap0 = strategy.initial_capital
+    float ddP  = cap0 > 0 ? dd / cap0 * 100.0 : na
+    float npP  = cap0 > 0 ? np / cap0 * 100.0 : na
+    float expc = nT > 0 ? np / nT : na
+    color cG   = color.rgb(46, 204, 113)
+    color cR   = color.rgb(231, 76, 60)
+    color cL   = color.rgb(140, 156, 173)
+    color cV   = color.rgb(233, 238, 244)
+    table.cell(btTbl, 0, 0, "📊 BACKTEST", text_color=color.rgb(212, 175, 96), bgcolor=color.new(color.rgb(18, 27, 44), 0), text_size=size.small)
+    table.cell(btTbl, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=color.new(color.rgb(18, 27, 44), 0), text_size=size.small)
+    f_btCell(btTbl, 1,  "Trades clotures", str.tostring(nT), cV)
+    f_btCell(btTbl, 2,  "Gagnants / Perdants", str.tostring(nW) + " / " + str.tostring(nL), cV)
+    f_btCell(btTbl, 3,  "Win rate", na(wr) ? "—" : str.tostring(wr, "#.#") + " %", na(wr) ? cL : (wr >= 50 ? cG : color.rgb(241, 196, 15)))
+    f_btCell(btTbl, 4,  "Profit net", f_px(np) + (na(npP) ? "" : "  (" + str.tostring(npP, "#.#") + " %)"), np > 0 ? cG : cR)
+    f_btCell(btTbl, 5,  "Profit factor", na(pf) ? "—" : str.tostring(pf, "#.##"), na(pf) ? cL : (pf >= 1.5 ? cG : pf >= 1.0 ? color.rgb(241, 196, 15) : cR))
+    f_btCell(btTbl, 6,  "Drawdown max", f_px(-dd) + (na(ddP) ? "" : "  (" + str.tostring(ddP, "#.#") + " %)"), cR)
+    f_btCell(btTbl, 7,  "Meilleur trade", na(btBest) ? "—" : f_px(btBest), cG)
+    f_btCell(btTbl, 8,  "Pire trade", na(btWorst) ? "—" : f_px(btWorst), cR)
+    f_btCell(btTbl, 9,  "Gain moyen / trade", na(expc) ? "—" : f_px(expc), na(expc) ? cL : (expc > 0 ? cG : cR))
+    f_btCell(btTbl, 10, "Cout spread paye", f_px(-btSpreadPaid), cR)
+    f_btCell(btTbl, 11, "Profit AVANT spread", f_px(np + btSpreadPaid), (np + btSpreadPaid) > 0 ? cG : cR)
+    f_btCell(btTbl, 12, "Capital final", f_px(cap0 + np), color.rgb(212, 175, 96))

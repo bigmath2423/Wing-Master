@@ -1,17 +1,39 @@
-# 🛰️ Macro-Intel
+# 🛰️ MacroLens
 
-**Couche d'intelligence macroéconomique & géopolitique** pour compléter un
-indicateur de trading TradingView. Module **100 % indépendant** : il n'ajoute
-qu'une couche d'information et **ne crée jamais un trade seul** — il renforce ou
-avertit un signal technique existant.
+**Plateforme d'analyse macroéconomique assistée par IA.** Elle centralise les
+informations, analyse les données économiques, **explique** les événements, en
+présente les **scénarios** possibles et met en avant ce qui compte — pour faire
+gagner plusieurs heures d'analyse par jour.
 
-> Cible : **XAUUSD (or)**, **BTC**, **matières premières**.
+> ⚠️ **Ce n'est pas un robot de trading.** MacroLens n'ouvre aucune position,
+> n'achète ni ne vend, et **n'émet jamais de signal d'achat ou de vente**.
+> La décision finale appartient toujours au trader. Cette règle n'est pas une
+> mention légale : c'est une contrainte technique implémentée
+> (`app/ai/guardrails.py`) et testée (`tests/test_guardrails.py`).
 
-> 📚 **Vision plateforme (MacroLens)** — ce module est le **noyau** d'une
-> plateforme d'analyse macro professionnelle assistée par IA, spécifiée en tomes
-> dans [`docs/`](docs/README.md) : commencez par le
-> [Cahier des charges (Tome 0)](docs/TOME-00-cahier-des-charges.md) et
-> l'[Architecture (Tome 1)](docs/TOME-01-architecture.md).
+Couverture : inflation, taux directeurs, banques centrales, NFP, CPI, PPI, PMI,
+PIB, chômage, minutes du FOMC, rendements obligataires, courbe des taux, DXY,
+VIX, COT, OPEP et stocks de pétrole, géopolitique, matières premières, Forex,
+indices, crypto et corrélations inter-marchés.
+
+## Démarrage en 30 secondes
+
+```bash
+cd macro-intel && make install && make run
+# Application  → http://localhost:8000/
+# API & docs   → http://localhost:8000/docs
+```
+
+Fonctionne **sans aucune clé API** (sources gratuites + repli honnêtement
+signalé). L'application `dashboard/app.html` s'ouvre aussi **directement dans un
+navigateur** : elle bascule alors en mode démonstration, clairement étiqueté.
+
+## Documentation
+
+📚 Spécification professionnelle complète en **13 tomes** dans
+[`docs/`](docs/README.md) — commencez par le
+[Cahier des charges (Tome 0)](docs/TOME-00-cahier-des-charges.md), puis
+l'[Architecture (Tome 1)](docs/TOME-01-architecture.md).
 
 ---
 

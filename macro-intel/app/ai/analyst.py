@@ -56,12 +56,33 @@ class EventAnalysis:
 
 # ── Priorisation ────────────────────────────────────────────────
 _CRITICAL_MARKERS = (
-    "fomc", "guerre", "war", "invasion", "krach", "défaut souverain", "sovereign default",
+    "fomc",
+    "guerre",
+    "war",
+    "invasion",
+    "krach",
+    "défaut souverain",
+    "sovereign default",
 )
 _HIGH_MARKERS = (
-    "cpi", "nfp", "nonfarm", "inflation", "taux directeur", "relève ses taux",
-    "baisse ses taux", "rate decision", "rate hike", "rate cut", "sanction",
-    "opep", "opec", "récession", "recession", "banque centrale", "fed ", "bce ",
+    "cpi",
+    "nfp",
+    "nonfarm",
+    "inflation",
+    "taux directeur",
+    "relève ses taux",
+    "baisse ses taux",
+    "rate decision",
+    "rate hike",
+    "rate cut",
+    "sanction",
+    "opep",
+    "opec",
+    "récession",
+    "recession",
+    "banque centrale",
+    "fed ",
+    "bce ",
 )
 
 

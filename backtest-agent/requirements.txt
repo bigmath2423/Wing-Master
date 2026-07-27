@@ -1,0 +1,9 @@
+# Coeur d'analyse (obligatoire)
+pandas>=2.0
+numpy>=1.24
+
+# Couche d'interprétation LLM (optionnelle — l'agent tourne sans)
+anthropic>=0.40 ; python_version >= "3.9"
+
+# Récepteur de webhook TradingView (optionnel)
+flask>=3.0

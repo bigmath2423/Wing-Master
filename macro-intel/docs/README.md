@@ -16,7 +16,7 @@ validé, et **aucun tome ne casse un module défini précédemment**.
 | **0** | [Cahier des charges & Vision](TOME-00-cahier-des-charges.md) | ✅ Rédigé | Principes, périmètre, garde-fous, glossaire — le contrat maître |
 | **1** | [Architecture globale & Fondations](TOME-01-architecture.md) | ✅ Rédigé | Macro-architecture, stack comparée, découpage en modules, sécurité transversale, migration depuis l'existant |
 | **2** | [Ingestion & Sources de données](TOME-02-ingestion-sources.md) | ✅ Rédigé | Connecteurs (FRED, BLS, banques centrales, DXY/VIX/yields/courbe, COT, OPEP/EIA, news, GDELT), contrat, normalisation, planification, résilience, coûts |
-| **3** | Modèle de données & Stockage | ⏳ À venir | Schéma détaillé, séries temporelles (TimescaleDB), référentiel d'événements, rétention, versioning |
+| **3** | [Modèle de données & Stockage](TOME-03-modele-donnees-stockage.md) | ✅ Rédigé | Schéma canonique, hypertables TimescaleDB, pgvector, migrations Alembic, compression, agrégats continus, rétention, repositories |
 | **4** | Moteur d'analyse macro & Corrélations | ⏳ À venir | Indicateurs, régimes de marché, courbe des taux, corrélations inter-marchés, nowcasting |
 | **5** | Couche Intelligence Artificielle | ⏳ À venir | Résumé/explication/scénarios/confiance/priorisation, RAG, garde-fous anti-signal, évaluation, coûts |
 | **6** | API & Services backend | ⏳ À venir | Contrats d'API, authentification, temps réel, quotas |

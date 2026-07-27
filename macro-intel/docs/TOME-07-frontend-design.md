@@ -36,10 +36,16 @@ Typographie : interface système + **monospace tabulaire** pour tous les chiffre
 La couleur sémantique est réservée à l'**état**, jamais à la décoration.
 
 ## 3. Architecture de l'interface
-Six onglets : **Synthèse** (régime, briefing, indicateurs clés, contexte par
-actif, sujets prioritaires) · **Indicateurs** (panorama, courbe, énergie, COT) ·
-**Marchés** (cours groupés) · **Événements** (analyses dépliables + analyse à la
-demande) · **Corrélations** (barres divergentes multi-fenêtres) · **Simulateur**.
+Sept onglets : **Synthèse** (régime, briefing, indicateurs clés, contexte par
+actif, risque événementiel, sujets prioritaires) · **Indicateurs** (panorama,
+courbe, énergie, COT) · **Calendrier** (prochain rendez-vous majeur, agenda
+groupé par jour, filtres d'impact) · **Marchés** (cours groupés) ·
+**Événements** (analyses dépliables + analyse à la demande) ·
+**Corrélations** (barres divergentes multi-fenêtres) · **Simulateur**.
+
+Le calendrier distingue visuellement les **dates confirmées** (source externe)
+des **dates reconstruites** (règles de publication) — l'utilisateur sait toujours
+ce qu'il regarde.
 
 Principes d'information : **synthèse avant détail**, état encodé dans la forme
 (pastilles, liseré de priorité, barres divergentes) autant que dans le chiffre.

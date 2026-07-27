@@ -8,6 +8,7 @@ garde-fous anti-signal.
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import json
 from dataclasses import asdict, is_dataclass
 
@@ -118,6 +119,7 @@ def build_dashboard() -> dict:
         "correlations": [_dump(c) for c in plat["correlations"]],
         "cot": [_dump(c) for c in plat["cot"]],
         "energy": _dump(plat["energy"]),
+        "calendar": _dump(plat["calendar"]),
         "sources": macro.sources,
         "data_quality": data_quality,
         "disclaimer": guardrails.DISCLAIMER,
@@ -167,6 +169,53 @@ def correlations(window: int | None = Query(None, ge=1, le=400)):
     if window:
         readings = [r for r in readings if r["window_days"] == window]
     return {"count": len(readings), "correlations": readings}
+
+
+@router.get("/calendar")
+def calendar(
+    importance: int | None = Query(None, ge=1, le=3, description="Filtre : 1 faible … 3 majeure"),
+    days: int | None = Query(None, ge=1, le=60, description="Fenêtre en jours"),
+):
+    """Calendrier économique à venir, avec thème macro et point d'attention.
+
+    Chaque entrée précise si sa date est **confirmée** par une source externe ou
+    **reconstruite** à partir des règles de publication (`estimated_date`).
+    """
+    summary = PLATFORM.read()["calendar"]
+    if summary is None:
+        raise HTTPException(status_code=503, detail="Calendrier pas encore chargé")
+
+    entries = [_dump(e) for e in summary.entries]
+    if importance is not None:
+        entries = [e for e in entries if e["importance"] >= importance]
+    if days is not None:
+        horizon = dt.datetime.now(dt.UTC) + dt.timedelta(days=days)
+        kept = []
+        for entry in entries:
+            try:
+                when = dt.datetime.fromisoformat(str(entry["event_time"]).replace("Z", "+00:00"))
+                if when.tzinfo is None:
+                    when = when.replace(tzinfo=dt.UTC)
+            except (ValueError, TypeError):
+                continue
+            if when <= horizon:
+                kept.append(entry)
+        entries = kept
+
+    return {
+        "count": len(entries),
+        "next_major": _dump(summary.next_major),
+        "high_impact_48h": summary.high_impact_48h,
+        "estimated": summary.estimated,
+        "source": summary.source,
+        "note": (
+            "Dates reconstruites à partir des règles de publication officielles : "
+            "à confirmer auprès d'une source officielle."
+            if summary.estimated
+            else "Dates confirmées par la source externe."
+        ),
+        "entries": entries,
+    }
 
 
 @router.get("/topics")

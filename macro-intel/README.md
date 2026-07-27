@@ -166,8 +166,15 @@ macro-intel/
 
 | Méthode | Endpoint | Rôle |
 |---|---|---|
-| `GET`  | `/` | Dashboard (Simulateur + Live) |
+| `GET`  | `/` | Application MacroLens |
+| `GET`  | `/simulateur` | Simulateur d'impact macro sur l'or |
 | `GET`  | `/health` | Sonde de santé |
+| `GET`  | `/v1/dashboard` | Charge utile complète de l'application |
+| `GET`  | `/v1/regime` · `/v1/briefing` | Régime dominant · synthèse de contexte |
+| `GET`  | `/v1/calendar` | **Calendrier économique** (filtres `importance`, `days`) |
+| `GET`  | `/v1/events` · `/v1/correlations` · `/v1/topics` | Événements analysés · corrélations · mécanismes |
+| `POST` | `/v1/explain?title=` | Analyse d'un événement à la demande |
+| `GET`  | `/v1/stream` | Flux temps réel de l'application (SSE) |
 | `GET`  | `/macro/latest` | Snapshot complet (scores, biais, drivers, headlines) |
 | `GET`  | `/macro/{asset}` | Biais d'un actif (`gold` / `btc` / `commodities`) |
 | `GET`  | `/macro/{asset}/pine` | Format compact `MACRO_SCORE / BIAS / RISK_LEVEL` |

@@ -214,6 +214,50 @@
   .grp { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent);
          background: var(--panel-2); font-weight: 700; }
 
+  /* ── Calendrier économique ────────────────────────────────── */
+  .cal-next {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .cal-next .when {
+    font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent);
+    white-space: nowrap;
+  }
+  .cal-next .what { flex: 1; min-width: 200px; }
+  .cal-next .what b { font-size: 14px; }
+  .cal-next .what div { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .cal-day { margin-top: 16px; }
+  .cal-day:first-child { margin-top: 0; }
+  .cal-day > h3 {
+    margin: 0 0 8px; font-size: 11px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 1.3px; color: var(--accent); padding-bottom: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cal-row {
+    display: grid; grid-template-columns: 58px 30px 1fr auto; gap: 12px; align-items: center;
+    padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
+  }
+  .cal-row:last-child { border-bottom: 0; }
+  .cal-row .h { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+  .cal-row .imp { display: flex; gap: 2px; }
+  .cal-row .imp i {
+    width: 5px; height: 12px; border-radius: 1px; background: var(--line); display: block;
+  }
+  .cal-row.i3 .imp i { background: var(--crit); }
+  .cal-row.i2 .imp i:nth-child(-n+2) { background: var(--warn); }
+  .cal-row.i1 .imp i:nth-child(1) { background: var(--muted); }
+  .cal-row .ev { font-size: 13px; }
+  .cal-row .ev .sub { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .cal-row .vals { display: flex; gap: 12px; font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+  .cal-row .vals span { color: var(--muted); }
+  .cal-row .vals b { color: var(--text); font-weight: 600; }
+  @media (max-width: 640px) {
+    .cal-row { grid-template-columns: 52px 26px 1fr; }
+    .cal-row .vals { grid-column: 1 / -1; padding-left: 90px; }
+  }
+
   /* ── Corrélations ─────────────────────────────────────────── */
   .corr { display: grid; gap: 9px; }
   .crow { display: grid; grid-template-columns: 1fr 120px 54px; align-items: center; gap: 12px; font-size: 12.5px; }
@@ -271,6 +315,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="synthese"     aria-selected="true">Synthèse</button>
     <button role="tab" data-tab="indicateurs"  aria-selected="false">Indicateurs</button>
+    <button role="tab" data-tab="calendrier"   aria-selected="false">Calendrier</button>
     <button role="tab" data-tab="marches"      aria-selected="false">Marchés</button>
     <button role="tab" data-tab="evenements"   aria-selected="false">Événements</button>
     <button role="tab" data-tab="correlations" aria-selected="false">Corrélations</button>
@@ -324,6 +369,14 @@
     </div>
 
     <div class="card">
+      <header>
+        <h2>Risque événementiel à venir</h2>
+        <span class="note" id="cal-mini-note"></span>
+      </header>
+      <div class="body"><div id="cal-mini"></div></div>
+    </div>
+
+    <div class="card">
       <header><h2>Sujets prioritaires</h2><span class="note" id="prio-count"></span></header>
       <div class="body"><div class="events" id="prio-events"></div></div>
     </div>
@@ -352,6 +405,28 @@
           <header><h2>Positionnement (COT)</h2></header>
           <div class="body"><div id="cot-list"></div></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CALENDRIER ══ -->
+  <section id="tab-calendrier" class="stack" hidden>
+    <div class="card">
+      <header><h2>Prochain rendez-vous majeur</h2><span class="note" id="cal-source"></span></header>
+      <div class="body"><div id="cal-next"></div></div>
+    </div>
+    <div class="card">
+      <header>
+        <h2>Calendrier économique</h2>
+        <span class="note" id="cal-count"></span>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:7px; margin-bottom:14px; flex-wrap:wrap" id="cal-filters">
+          <button class="btn" data-imp="0">Tous</button>
+          <button class="btn" data-imp="2">Impact moyen et fort</button>
+          <button class="btn" data-imp="3">Majeurs seulement</button>
+        </div>
+        <div id="cal-list"></div>
       </div>
     </div>
   </section>
@@ -485,7 +560,61 @@ const signed = (v, d = 2) => (v === null || v === undefined) ? "—" : (v > 0 ? 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const state = { data: null, mode: "demo", tab: "synthese", corrWindow: 30, es: null };
+const state = { data: null, mode: "demo", tab: "synthese", corrWindow: 30, calImp: 0, es: null };
+
+/* Calendrier de démonstration : dates calculées par rapport à maintenant, pour
+   que l'exemple reste cohérent quel que soit le jour d'ouverture du fichier. */
+function demoCalendar() {
+  // Les publications macro n'ont jamais lieu le week-end : on décale au jour
+  // ouvré suivant pour que l'exemple reste crédible quel que soit le jour.
+  const mk = (daysAhead, hour, minute, country, event, importance, topic, watch, extra = {}) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    d.setHours(hour, minute, 0, 0);
+    return {
+      event_time: d.toISOString(), country, event, importance, topic, watch,
+      actual: "", forecast: "", previous: "", estimated_date: true, source: "recurring",
+      ...extra
+    };
+  };
+  const W = {
+    inflation: "La composante sous-jacente (cœur) et les services comptent souvent plus que le chiffre global.",
+    rates: "Le communiqué, les projections et la conférence de presse pèsent souvent plus que la décision elle-même.",
+    employment: "Le salaire horaire moyen et le taux de participation nuancent le chiffre principal.",
+    growth: "La tendance sur plusieurs mois est plus informative qu'une publication isolée.",
+    energy: "L'écart aux attentes et la dynamique des stocks sur plusieurs semaines guident la lecture."
+  };
+  const entries = [
+    mk(1, 14, 30, "US", "Stocks de pétrole brut (EIA)", 2, "energy", W.energy,
+       { forecast: "-1 250 kb", previous: "-3 120 kb" }),
+    mk(1, 12, 30, "US", "Inscriptions hebdomadaires au chômage", 1, "employment", W.employment,
+       { forecast: "218 k", previous: "221 k" }),
+    mk(2, 12, 30, "US", "CPI — inflation des prix à la consommation (États-Unis)", 3, "inflation", W.inflation,
+       { forecast: "3,2 %", previous: "3,1 %" }),
+    mk(2, 14, 0, "EU", "BCE — décision de politique monétaire", 3, "rates", W.rates,
+       { forecast: "4,25 %", previous: "4,25 %" }),
+    mk(3, 12, 30, "US", "PPI — prix à la production (États-Unis)", 2, "inflation", W.inflation,
+       { forecast: "0,2 %", previous: "0,3 %" }),
+    mk(6, 18, 0, "US", "FOMC — décision de taux directeur et projections", 3, "rates", W.rates,
+       { forecast: "5,50 %", previous: "5,50 %" }),
+    mk(7, 14, 0, "US", "ISM services (PMI)", 2, "growth", W.growth,
+       { forecast: "52,1", previous: "51,4" }),
+    mk(9, 12, 30, "US", "NFP — créations d'emplois non agricoles (États-Unis)", 3, "employment", W.employment,
+       { forecast: "185 k", previous: "206 k" }),
+    mk(13, 12, 30, "US", "PIB — croissance trimestrielle (estimation)", 2, "growth", W.growth,
+       { forecast: "2,1 %", previous: "2,4 %" })
+  ];
+  entries.sort((a, b) => a.event_time.localeCompare(b.event_time));
+  return {
+    entries,
+    next_major: entries.find((e) => e.importance === 3),
+    high_impact_48h: entries.filter(
+      (e) => e.importance === 3 && new Date(e.event_time) - Date.now() < 48 * 3600e3).length,
+    estimated: true,
+    source: "recurring"
+  };
+}
 
 /* ── Jeu de démonstration (utilisé hors backend, clairement signalé) ── */
 const DEMO = {
@@ -589,6 +718,7 @@ const DEMO = {
     crude_inventories_kb: 457300, change_kb: -3120, period: "—", source: "demo",
     interpretation: "Les stocks de brut reculent nettement (-3 120 kb) : signe d'une demande supérieure à l'offre, historiquement associé à une tension sur les prix de l'énergie et à une pression inflationniste."
   },
+  calendar: demoCalendar(),
   data_quality: { degraded: false, market_source: "démonstration", geo_source: "démonstration", prices_available: 10, news_analysed: 3, note: "Jeu de démonstration." },
   sources: { market: "démonstration", geo: "démonstration", news: "3" }
 };
@@ -618,6 +748,7 @@ function render() {
   renderCurve(d);
   renderEnergyCot(d);
   renderMarkets(d);
+  renderCalendar(d);
   renderCorrelations(d);
   const q = d.data_quality || {};
   $("src-line").textContent =
@@ -816,6 +947,113 @@ function renderMarkets(d) {
   $("mk-count").textContent = prices.length ? `${prices.length} instruments` : "";
 }
 
+/* ── Calendrier économique ── */
+const TOPIC_FR = {
+  inflation: "Inflation", rates: "Politique monétaire", employment: "Emploi",
+  growth: "Croissance", energy: "Énergie", geopolitics: "Géopolitique"
+};
+
+function delayLabel(target, now) {
+  const ms = target - now;
+  if (ms < -3600e3) return "passé";
+  if (ms < 0) return "en cours";
+  const h = ms / 3600e3;
+  if (h < 1) return `dans ${Math.round(ms / 60e3)} min`;
+  if (h < 36) return `dans ${Math.round(h)} h`;
+  return `dans ${Math.round(h / 24)} j`;
+}
+
+function renderCalendar(d) {
+  const cal = d.calendar;
+  const nextBox = $("cal-next");
+  if (!cal) {
+    nextBox.innerHTML = `<p class="empty">Calendrier indisponible.</p>`;
+    $("cal-list").innerHTML = "";
+    return;
+  }
+  const now = new Date();
+
+  // Bandeau « prochain rendez-vous majeur »
+  if (cal.next_major) {
+    const when = new Date(cal.next_major.event_time);
+    nextBox.innerHTML = `<div class="cal-next">
+      <span class="when">${esc(delayLabel(when, now))}</span>
+      <div class="what">
+        <b>${esc(cal.next_major.event)}</b>
+        <div>${when.toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+          · ${esc(cal.next_major.country || "")}</div>
+      </div>
+      ${cal.next_major.topic ? `<span class="pill p-acc">${esc(TOPIC_FR[cal.next_major.topic] || cal.next_major.topic)}</span>` : ""}
+      ${cal.high_impact_48h ? `<span class="pill p-warn">${cal.high_impact_48h} majeur(s) sous 48 h</span>` : ""}
+    </div>
+    ${cal.next_major.watch ? `<p class="note" style="margin:11px 0 0">
+       <b style="color:var(--text-2)">À surveiller :</b> ${esc(cal.next_major.watch)}</p>` : ""}`;
+  } else {
+    nextBox.innerHTML = `<p class="empty">Aucun rendez-vous majeur identifié sur la période.</p>`;
+  }
+
+  // Étiquette de provenance : dates confirmées ou reconstruites.
+  $("cal-source").innerHTML = cal.estimated
+    ? `<span class="pill p-warn">dates estimées</span>`
+    : `<span class="pill p-up">dates confirmées · ${esc(cal.source || "")}</span>`;
+
+  // Filtres d'importance
+  $("cal-filters").querySelectorAll("button").forEach((b) => {
+    const active = Number(b.dataset.imp) === state.calImp;
+    b.style.borderColor = active ? "var(--accent)" : "";
+    b.style.color = active ? "var(--accent)" : "";
+  });
+
+  // Liste groupée par jour
+  const entries = (cal.entries || []).filter((e) => e.importance >= state.calImp);
+  const byDay = new Map();
+  entries.forEach((e) => {
+    const when = new Date(e.event_time);
+    const key = when.toDateString();
+    if (!byDay.has(key)) byDay.set(key, { date: when, rows: [] });
+    byDay.get(key).rows.push({ ...e, when });
+  });
+
+  $("cal-count").textContent = entries.length
+    ? `${entries.length} publication(s)${cal.estimated ? " · dates à confirmer" : ""}`
+    : "";
+
+  // Aperçu compact sur l'écran Synthèse : les 4 prochaines échéances notables.
+  const soon = (cal.entries || []).filter((e) => e.importance >= 2).slice(0, 4);
+  $("cal-mini-note").textContent = cal.estimated ? "dates estimées" : "dates confirmées";
+  $("cal-mini").innerHTML = soon.length ? soon.map((e) => {
+    const when = new Date(e.event_time);
+    return `<div class="cal-row i${e.importance}">
+      <span class="h">${esc(delayLabel(when, now))}</span>
+      <span class="imp"><i></i><i></i><i></i></span>
+      <span class="ev">${esc(e.event)}
+        <span class="sub">${when.toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          ${e.topic ? " · " + esc(TOPIC_FR[e.topic] || e.topic) : ""}</span>
+      </span>
+      <span class="vals">${e.forecast ? `<span>attendu <b>${esc(e.forecast)}</b></span>` : ""}</span>
+    </div>`;
+  }).join("") : `<p class="empty">Aucune publication notable à venir sur la période.</p>`;
+
+  $("cal-list").innerHTML = byDay.size ? [...byDay.values()].map((day) => {
+    const isToday = day.date.toDateString() === now.toDateString();
+    const title = day.date.toLocaleDateString("fr-FR",
+      { weekday: "long", day: "numeric", month: "long" });
+    const rows = day.rows.map((e) => `<div class="cal-row i${e.importance}">
+      <span class="h">${e.when.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span class="imp" title="importance ${e.importance}/3"><i></i><i></i><i></i></span>
+      <span class="ev">${esc(e.event)}
+        <span class="sub">${esc(e.country || "")}${e.topic ? " · " + esc(TOPIC_FR[e.topic] || e.topic) : ""}${e.watch ? " — " + esc(e.watch) : ""}</span>
+      </span>
+      <span class="vals">
+        ${e.actual ? `<span>publié <b>${esc(e.actual)}</b></span>` : ""}
+        ${e.forecast ? `<span>attendu <b>${esc(e.forecast)}</b></span>` : ""}
+        ${e.previous ? `<span>préc. <b>${esc(e.previous)}</b></span>` : ""}
+      </span>
+    </div>`).join("");
+    return `<div class="cal-day"><h3>${esc(title)}${isToday ? " · aujourd'hui" : ""}</h3>${rows}</div>`;
+  }).join("") : `<p class="empty">Aucune publication pour ce niveau d'impact.</p>`;
+}
+
 function renderCorrelations(d) {
   const all = d.correlations || [];
   const windows = [...new Set(all.map((c) => c.window_days))].sort((a, b) => a - b);
@@ -928,7 +1166,8 @@ function bindTabs() {
       state.tab = tab;
       document.querySelectorAll("nav.tabs button").forEach((b) =>
         b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
-      ["synthese", "indicateurs", "marches", "evenements", "correlations", "simulateur"].forEach((t) => {
+      ["synthese", "indicateurs", "calendrier", "marches", "evenements",
+       "correlations", "simulateur"].forEach((t) => {
         $("tab-" + t).hidden = t !== tab;
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -973,6 +1212,8 @@ async function boot() {
   bindTabs();
   simBind();
   $("btn-refresh").addEventListener("click", refresh);
+  $("cal-filters").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { state.calImp = Number(b.dataset.imp); renderCalendar(state.data); }));
   $("ask-btn").addEventListener("click", ask);
   $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
 

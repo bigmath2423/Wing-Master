@@ -28,6 +28,7 @@ from app.analysis.yield_curve import CurveReading, analyse_curve
 from app.pipeline import STATE
 from app.providers import market_extended
 from app.providers.cot import CotReading, fetch_cot
+from app.providers.economic_calendar import CalendarSummary, summarise_calendar
 from app.providers.energy import EnergyReading, fetch_energy
 
 logger = logging.getLogger("macro.platform")
@@ -54,6 +55,7 @@ class PlatformState:
         self.correlations: list[CorrelationReading] = []
         self.cot: list[CotReading] = []
         self.energy: EnergyReading | None = None
+        self.calendar: CalendarSummary | None = None
         self.extras: dict[str, float | None] = {}
         self.briefing: str = ""
 
@@ -73,6 +75,7 @@ class PlatformState:
                 "correlations": list(self.correlations),
                 "cot": list(self.cot),
                 "energy": self.energy,
+                "calendar": self.calendar,
                 "extras": dict(self.extras),
                 "briefing": self.briefing,
             }
@@ -97,11 +100,25 @@ def _growth_momentum(prices: dict[str, dict[str, float]]) -> float:
     return round(sum(signals) / len(signals), 3)
 
 
+def _format_delay(target: dt.datetime, now: dt.datetime) -> str:
+    """Délai lisible avant un rendez-vous (« dans 3 h », « dans 2 jours »)."""
+    delta = target - now
+    hours = delta.total_seconds() / 3600
+    if hours < 0:
+        return "imminent"
+    if hours < 1:
+        return f"dans {int(delta.total_seconds() // 60)} min"
+    if hours < 36:
+        return f"dans {int(hours)} h"
+    return f"dans {int(hours // 24)} jours"
+
+
 def build_briefing(
     regime: RegimeReading,
     curve: CurveReading,
     analyses: list[EventAnalysis],
     extras: dict[str, float | None],
+    calendar: CalendarSummary | None = None,
 ) -> str:
     """Rédige la synthèse d'ouverture — descriptive, sans aucune recommandation."""
     parts: list[str] = []
@@ -120,6 +137,25 @@ def build_briefing(
     if vix is not None:
         tone = "élevée" if vix >= 22 else "contenue" if vix <= 15 else "modérée"
         parts.append(f"La volatilité implicite est {tone} (VIX {vix:.1f}).")
+
+    # Risque événementiel : ce qui arrive pèse autant que ce qui vient de se passer.
+    if calendar is not None:
+        now = dt.datetime.now(dt.UTC)
+        if calendar.next_major is not None:
+            try:
+                when = dt.datetime.fromisoformat(calendar.next_major.event_time.replace("Z", "+00:00"))
+                if when.tzinfo is None:
+                    when = when.replace(tzinfo=dt.UTC)
+                delay = _format_delay(when, now)
+            except (ValueError, TypeError):
+                delay = "à venir"
+            estimate_note = " (date reconstruite, à confirmer)" if calendar.estimated else ""
+            parts.append(f"Prochain rendez-vous majeur : {calendar.next_major.event} {delay}{estimate_note}.")
+        if calendar.high_impact_48h:
+            parts.append(
+                f"{calendar.high_impact_48h} publication(s) à fort impact dans les 48 heures : "
+                "la volatilité événementielle est un facteur à intégrer."
+            )
 
     priorities = [a for a in analyses if a.priority in ("critical", "high")]
     if priorities:
@@ -205,7 +241,14 @@ def refresh_platform() -> dict:
         logger.warning("Énergie indisponible : %s", exc)
         energy = None
 
-    briefing = build_briefing(regime, curve, analyses, extras)
+    # 7) Calendrier économique (risque événementiel à venir)
+    try:
+        calendar = summarise_calendar()
+    except Exception as exc:
+        logger.warning("Calendrier indisponible : %s", exc)
+        calendar = None
+
+    briefing = build_briefing(regime, curve, analyses, extras, calendar)
 
     PLATFORM.update(
         generated_at=dt.datetime.now(dt.UTC),
@@ -216,6 +259,7 @@ def refresh_platform() -> dict:
         correlations=correlations,
         cot=cot,
         energy=energy,
+        calendar=calendar,
         extras=extras,
         briefing=briefing,
     )

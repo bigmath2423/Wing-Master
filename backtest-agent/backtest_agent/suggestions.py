@@ -82,6 +82,9 @@ def _ab_test_filter(df: pd.DataFrame, column: str, keep_modality: str,
             f"{'Conserver uniquement' if direction == 'keep' else 'Exclure'} "
             f"les trades où {column} = {keep_modality}."
         ),
+        # Spec réutilisable pour rejouer le filtre hors échantillon (walk-forward).
+        "filter_spec": {"column": column, "modality": str(keep_modality),
+                        "direction": direction},
         "variant_A_baseline": a,
         "variant_B_filtered": b,
         "expected_result": {

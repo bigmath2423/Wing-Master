@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .ingest import load_trades
 from .report import build_report
+from .walkforward import walk_forward, walkforward_markdown
 from . import llm
 
 
@@ -45,6 +46,27 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_walkforward(args: argparse.Namespace) -> int:
+    df = load_trades(args.input)
+    wf = walk_forward(df, split=args.split, min_oos_trades=args.min_oos)
+    md = walkforward_markdown(wf)
+    if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.output).write_text(md, encoding="utf-8")
+        print(f"[ok] Rapport walk-forward écrit dans {args.output}")
+    else:
+        print(md)
+    if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(
+            json.dumps(wf, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8")
+    if wf.get("available"):
+        print(f"[info] {wf['rules_confirmed']}/{wf['rules_evaluated']} règles "
+              "confirmées hors échantillon.", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="backtest-agent",
@@ -59,6 +81,17 @@ def main(argv: list[str] | None = None) -> int:
                    help="Forcer le mode déterministe (pas d'appel LLM).")
     p.add_argument("--model", help="Modèle Claude à utiliser (override).")
     p.set_defaults(func=_cmd_analyze)
+
+    w = sub.add_parser("walkforward",
+                       help="Valider les filtres hors échantillon (in/out-of-sample).")
+    w.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
+    w.add_argument("-o", "--output", help="Chemin de sortie du rapport Markdown.")
+    w.add_argument("--json", help="Chemin de sortie du détail JSON.")
+    w.add_argument("--split", type=float, default=0.7,
+                   help="Part in-sample (défaut 0.7 = 70%%).")
+    w.add_argument("--min-oos", type=int, default=10,
+                   help="Nb min de trades OOS pour juger une règle (défaut 10).")
+    w.set_defaults(func=_cmd_walkforward)
 
     args = parser.parse_args(argv)
     return args.func(args)

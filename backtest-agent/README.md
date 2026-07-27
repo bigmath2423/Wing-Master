@@ -209,12 +209,38 @@ Les tests A/B de l'agent te disent *quelles hypothèses valent la peine*. Pour
 4. **Seulement alors**, envisage de modifier l'indicateur (étape suivante, hors
    périmètre de cet agent d'analyse).
 
+### Walk-forward automatique (intégré)
+
+La commande `walkforward` fait tout : elle découpe le backtest
+chronologiquement, cherche des filtres sur l'**in-sample**, les **rejoue sur
+l'out-of-sample**, et rend un **verdict par règle** (`TIENT`, `REJETÉ`,
+`AMBIGU`, `NON TESTABLE`).
+
 ```bash
-# Exemple : analyser séparément deux périodes exportées
-python -m backtest_agent.cli analyze data/in_sample.csv  -o reports/is.md
-python -m backtest_agent.cli analyze data/out_sample.csv -o reports/oos.md
-# une piste n'est retenue que si elle tient sur les DEUX rapports.
+python -m backtest_agent.cli walkforward examples/sample_trades.csv \
+       --split 0.7 -o reports/walkforward.md --json reports/wf.json
 ```
+
+Exemple de sortie :
+
+```
+Règles testées : 4 — confirmées hors échantillon : 2
+
+## Règle #2 — TIENT (confirmé hors échantillon)
+- Règle : Exclure les trades où _hour = 22.
+- In-sample :     ΔPF 0.15, Δespérance 0.045 (199 trades, 0.95 conservés)
+- Out-of-sample : ΔPF 0.07, Δespérance 0.032 (88 trades, 0.98 conservés)
+```
+
+Une règle n'est marquée `TIENT` que si elle améliore **profit factor ET
+espérance** en IS **ET** en OOS, avec un échantillon OOS suffisant. C'est le
+garde-fou anti-sur-optimisation le plus important de l'agent.
+
+> Analyse manuelle équivalente si tu préfères deux fichiers séparés :
+> ```bash
+> python -m backtest_agent.cli analyze data/in_sample.csv  -o reports/is.md
+> python -m backtest_agent.cli analyze data/out_sample.csv -o reports/oos.md
+> ```
 
 ---
 

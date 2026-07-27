@@ -22,6 +22,7 @@
 | GET | `/v1/briefing` | Synthèse de contexte rédigée |
 | GET | `/v1/events?priority=` | Événements analysés (filtrable) |
 | GET | `/v1/correlations?window=` | Corrélations glissantes |
+| GET | `/v1/news?category=&limit=` | Fil d'actualité en direct (impact classifié) |
 | GET | `/v1/calendar?importance=&days=` | Calendrier économique à venir |
 | GET | `/v1/topics` | Base de mécanismes documentés |
 | POST | `/v1/explain?title=` | Analyse d'un événement à la demande |

@@ -19,6 +19,7 @@ from app.ai import guardrails
 from app.ai.analyst import analyse_event
 from app.ai.knowledge import TOPICS
 from app.api.serializers import build_latest
+from app.pipeline import STATE
 from app.platform_state import PLATFORM, refresh_platform
 from app.providers.market_extended import LABELS
 
@@ -42,6 +43,28 @@ def _dump(obj):
     if isinstance(obj, dict):
         return {k: _dump(v) for k, v in obj.items()}
     return obj
+
+
+def build_news_feed(limit: int = 40) -> list[dict]:
+    """Fil d'actualité en direct : dépêches classifiées, du plus récent au plus ancien."""
+    items = STATE.snapshot()["news"]
+    feed = [
+        {
+            "title": n.title,
+            "url": n.url,
+            "source": n.source,
+            "ts": n.ts.isoformat() if n.ts else None,
+            "category": n.category,
+            "severity": round(n.severity, 2),
+            "impact_gold": n.impact_gold,
+            "impact_btc": n.impact_btc,
+            "impact_commodities": n.impact_commodities,
+        }
+        for n in items
+        if n.title
+    ]
+    feed.sort(key=lambda n: n["ts"] or "", reverse=True)
+    return feed[:limit]
 
 
 def build_dashboard() -> dict:
@@ -120,6 +143,7 @@ def build_dashboard() -> dict:
         "cot": [_dump(c) for c in plat["cot"]],
         "energy": _dump(plat["energy"]),
         "calendar": _dump(plat["calendar"]),
+        "news": build_news_feed(),
         "sources": macro.sources,
         "data_quality": data_quality,
         "disclaimer": guardrails.DISCLAIMER,
@@ -169,6 +193,25 @@ def correlations(window: int | None = Query(None, ge=1, le=400)):
     if window:
         readings = [r for r in readings if r["window_days"] == window]
     return {"count": len(readings), "correlations": readings}
+
+
+@router.get("/news")
+def news(
+    category: str | None = Query(
+        None, pattern="^(macro|markets|geopolitics|central_bank)$", description="Filtre thématique"
+    ),
+    limit: int = Query(40, ge=1, le=100),
+):
+    """Fil d'actualité économique en direct, avec impact classifié par actif."""
+    feed = build_news_feed(limit=100)
+    if category:
+        feed = [n for n in feed if n["category"] == category]
+    return {
+        "count": len(feed[:limit]),
+        "generated_at": PLATFORM.read()["generated_at"],
+        "items": feed[:limit],
+        "disclaimer": guardrails.DISCLAIMER,
+    }
 
 
 @router.get("/calendar")

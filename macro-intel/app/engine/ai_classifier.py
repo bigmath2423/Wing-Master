@@ -10,6 +10,7 @@ Pour l'or, un contexte de peur / tension / dollar faible => positif.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 
@@ -120,4 +121,22 @@ def classify(title: str, category: str = "macro") -> NewsImpact:
 
 
 def classify_batch(news: list[dict]) -> list[NewsImpact]:
-    return [classify(n.get("title", ""), n.get("category", "macro")) for n in news if n.get("title")]
+    """Classifie un lot en **préservant** les métadonnées de la dépêche.
+
+    `classify()` ne reçoit que le titre et la catégorie ; on réinjecte ensuite
+    la source, l'URL et l'horodatage réel pour que le fil d'actualité reste
+    traçable et correctement daté.
+    """
+    out: list[NewsImpact] = []
+    for item in news:
+        title = str(item.get("title", "")).strip()
+        if not title:
+            continue
+        impact = classify(title, str(item.get("category", "macro")))
+        impact.source = str(item.get("source", "") or "")
+        impact.url = str(item.get("url", "") or "")
+        ts = item.get("ts")
+        if isinstance(ts, dt.datetime):
+            impact.ts = ts
+        out.append(impact)
+    return out

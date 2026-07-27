@@ -168,6 +168,25 @@ def _persist(
         session.close()
 
 
+def refresh_news() -> int:
+    """Rafraîchit **uniquement** le fil d'actualité, à cadence rapide.
+
+    Les scores restent calculés par le cycle complet (`run_pipeline`) : on évite
+    de recalculer tout le contexte macro à chaque dépêche, tout en gardant un fil
+    réellement vivant. Renvoie le nombre de dépêches retenues.
+    """
+    try:
+        raw = fetch_news() + fetch_central_bank_events()
+        news = classify_batch(raw)
+    except Exception as exc:
+        logger.warning("Rafraîchissement des news impossible : %s", exc)
+        return 0
+    if news:
+        STATE.update(news=news)
+        logger.info("Fil d'actualité rafraîchi : %d dépêches.", len(news))
+    return len(news)
+
+
 def run_pipeline() -> dict[str, BiasResult]:
     """Cycle complet. Renvoie le biais par actif et met à jour STATE."""
     logger.info("Cycle macro : collecte des données...")

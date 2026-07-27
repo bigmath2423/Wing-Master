@@ -171,6 +171,7 @@ macro-intel/
 | `GET`  | `/health` | Sonde de santé |
 | `GET`  | `/v1/dashboard` | Charge utile complète de l'application |
 | `GET`  | `/v1/regime` · `/v1/briefing` | Régime dominant · synthèse de contexte |
+| `GET`  | `/v1/news` | **Fil d'actualité en direct** (filtres `category`, `limit`) |
 | `GET`  | `/v1/calendar` | **Calendrier économique** (filtres `importance`, `days`) |
 | `GET`  | `/v1/events` · `/v1/correlations` · `/v1/topics` | Événements analysés · corrélations · mécanismes |
 | `POST` | `/v1/explain?title=` | Analyse d'un événement à la demande |

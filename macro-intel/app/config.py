@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Fréquences de rafraîchissement (secondes)
     refresh_market_seconds: int = 300
-    refresh_news_seconds: int = 600
+    refresh_news_seconds: int = 180
     refresh_calendar_seconds: int = 3600
 
     # Clés API (toutes optionnelles)

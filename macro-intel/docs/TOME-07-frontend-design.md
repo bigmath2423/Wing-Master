@@ -36,12 +36,17 @@ Typographie : interface système + **monospace tabulaire** pour tous les chiffre
 La couleur sémantique est réservée à l'**état**, jamais à la décoration.
 
 ## 3. Architecture de l'interface
-Sept onglets : **Synthèse** (régime, briefing, indicateurs clés, contexte par
-actif, risque événementiel, sujets prioritaires) · **Indicateurs** (panorama,
-courbe, énergie, COT) · **Calendrier** (prochain rendez-vous majeur, agenda
-groupé par jour, filtres d'impact) · **Marchés** (cours groupés) ·
+Huit onglets : **Synthèse** (régime, briefing, indicateurs clés, contexte par
+actif, dernières dépêches, risque événementiel, sujets prioritaires) ·
+**Indicateurs** (panorama, courbe, énergie, COT) · **Actualités** (fil en direct,
+filtres thématiques, recherche) · **Calendrier** (prochain rendez-vous majeur,
+agenda groupé par jour, filtres d'impact) · **Marchés** (cours groupés) ·
 **Événements** (analyses dépliables + analyse à la demande) ·
 **Corrélations** (barres divergentes multi-fenêtres) · **Simulateur**.
+
+Le fil d'actualité affiche l'ancienneté en forme compacte (date complète en
+infobulle), la source, la catégorie et l'**impact classifié par actif**. Les
+dépêches à la fois récentes et marquantes sont mises en avant.
 
 Le calendrier distingue visuellement les **dates confirmées** (source externe)
 des **dates reconstruites** (règles de publication) — l'utilisateur sait toujours

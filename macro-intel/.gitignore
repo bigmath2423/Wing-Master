@@ -10,3 +10,6 @@ env/
 .pytest_cache/
 .DS_Store
 *.log
+
+# Livre généré (regénérable via build_livre.py)
+livre/livre.html

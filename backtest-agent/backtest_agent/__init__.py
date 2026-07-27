@@ -18,6 +18,8 @@ from .losses import analyze_losses
 from .winners import analyze_winners
 from .suggestions import build_suggestions
 from .report import build_report
+from .walkforward import walk_forward
+from .proposals import build_proposals, generate_candidate_pine
 
 __all__ = [
     "load_trades",
@@ -27,6 +29,9 @@ __all__ = [
     "analyze_winners",
     "build_suggestions",
     "build_report",
+    "walk_forward",
+    "build_proposals",
+    "generate_candidate_pine",
 ]
 
 __version__ = "0.1.0"

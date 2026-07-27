@@ -54,6 +54,8 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/losses.py` | **Analyse des pertes** : conditions récurrentes avant les pertes (lift), hypothèses structurelles (stop trop serré, entrée tardive, volatilité). |
 | `backtest_agent/winners.py` | **Meilleurs trades** : combinaisons de filtres, meilleures sessions/heures, R:R — classées par **score robuste**, jamais par win rate. |
 | `backtest_agent/suggestions.py` | **Améliorations + tests A/B** : filtres/paramètres à tester, avec **risque de sur-optimisation** explicite. |
+| `backtest_agent/walkforward.py` | **Validation walk-forward** : split IS/OOS, rejoue les filtres hors échantillon, verdict par règle. |
+| `backtest_agent/proposals.py` | **Étape 2** : traduit les règles validées en **code Pine**, génère une stratégie candidate à re-backtester. |
 | `backtest_agent/prompts.py` | Le *system prompt* qui impose la posture de chercheur quant. |
 | `backtest_agent/llm.py` | Client Claude optionnel. |
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
@@ -244,11 +246,57 @@ garde-fou anti-sur-optimisation le plus important de l'agent.
 
 ---
 
-## 7. Roadmap (extensions possibles)
+## 7. Étape 2 — Proposer des modifications d'indicateur
+
+Une fois des règles **confirmées en walk-forward**, l'agent peut passer de
+l'analyse à la **proposition de code**. Il reste un chercheur : il ne propose
+**que** des règles au verdict `TIENT` (améliorent PF *et* espérance IS *et* OOS),
+et il ne les applique jamais tout seul — il génère un **fichier candidat à
+re-backtester**.
+
+```bash
+python -m backtest_agent.cli propose examples/sample_trades.csv \
+       -o reports/propositions.md \
+       --candidate reports/strategy_candidate.pine
+```
+
+Ce que ça produit :
+
+- **`propositions.md`** : pour chaque modification → hypothèse validée, preuve
+  chiffrée **in-sample ET out-of-sample**, code Pine exact, plan de rollback.
+- **`strategy_candidate.pine`** : une copie de ta stratégie où l'agent a inséré,
+  entre les marqueurs `AGENT_FILTERS`, les gardes d'entrée correspondantes :
+
+  ```pine
+  // <<< AGENT_FILTERS_BEGIN >>>
+  filter1 = not (hour(time) == 22)              // règle validée
+  filter2 = dayofweek == dayofweek.saturday     // règle validée
+  passFilters = filter1 and filter2
+  // <<< AGENT_FILTERS_END >>>
+  ```
+
+  Les entrées de la stratégie sont déjà conditionnées par `and passFilters`, donc
+  il suffit de **coller le fichier candidat dans TradingView et de relancer le
+  Strategy Tester** pour mesurer l'effet réel.
+
+**Traducteur condition → Pine.** L'agent sait convertir : conditions booléennes
+(OB, FVG, sweep, VWAP, structure), heures, sessions, jours de semaine, seuils de
+confiance, plages d'ATR. Toute condition qu'il ne peut pas traduire **de façon
+sûre** est marquée « à implémenter manuellement » plutôt que de générer du code
+faux.
+
+**S'il n'y a aucune règle validée**, l'agent le dit et **ne propose rien** — c'est
+le comportement voulu : ne rien changer vaut mieux que sur-optimiser.
+
+> ⚠️ Un fichier candidat n'est **pas** une amélioration prouvée. Il faut le
+> re-backtester (idéalement sur d'autres actifs et périodes) avant d'adopter la
+> moindre modification.
+
+## 8. Roadmap (extensions possibles)
 
 - Walk-forward automatisé multi-période intégré au CLI.
 - Détection de régimes de marché (tendance/range) via clustering.
 - Export du rapport en HTML/PDF.
 - Intégration Monte-Carlo sur l'ordre des trades (robustesse du drawdown).
-- Étape 2 du projet : agent *proposant* des modifications d'indicateur, une fois
-  les hypothèses validées ici.
+- Étape 3 : ré-backtest automatique des fichiers candidats (boucle fermée
+  analyse → proposition → validation) et comparaison multi-actifs.

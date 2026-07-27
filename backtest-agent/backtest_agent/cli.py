@@ -16,7 +16,13 @@ from pathlib import Path
 from .ingest import load_trades
 from .report import build_report
 from .walkforward import walk_forward, walkforward_markdown
+from .proposals import (
+    build_proposals, generate_candidate_pine, proposals_markdown,
+)
 from . import llm
+
+_DEFAULT_TEMPLATE = str(
+    Path(__file__).resolve().parent.parent / "tradingview" / "strategy_template.pine")
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
@@ -67,6 +73,29 @@ def _cmd_walkforward(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_propose(args: argparse.Namespace) -> int:
+    df = load_trades(args.input)
+    if args.candidate:
+        result = generate_candidate_pine(
+            df, template_path=args.template, out_path=args.candidate,
+            split=args.split, min_oos_trades=args.min_oos)
+    else:
+        result = build_proposals(df, split=args.split, min_oos_trades=args.min_oos)
+    md = proposals_markdown(result)
+    if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.output).write_text(md, encoding="utf-8")
+        print(f"[ok] Propositions écrites dans {args.output}")
+    else:
+        print(md)
+    if result.get("candidate_path"):
+        print(f"[ok] Stratégie candidate générée : {result['candidate_path']}")
+    if result.get("available"):
+        print(f"[info] {result['n_proposals']} proposition(s) issue(s) de règles "
+              "validées hors échantillon.", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="backtest-agent",
@@ -92,6 +121,21 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--min-oos", type=int, default=10,
                    help="Nb min de trades OOS pour juger une règle (défaut 10).")
     w.set_defaults(func=_cmd_walkforward)
+
+    pr = sub.add_parser(
+        "propose",
+        help="ÉTAPE 2 : proposer des modifs d'indicateur (règles validées seulement).")
+    pr.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
+    pr.add_argument("-o", "--output", help="Rapport de propositions (Markdown).")
+    pr.add_argument("--candidate",
+                    help="Chemin de sortie d'une stratégie .pine candidate.")
+    pr.add_argument("--template", default=_DEFAULT_TEMPLATE,
+                    help="Template .pine source (défaut : strategy_template.pine).")
+    pr.add_argument("--split", type=float, default=0.7,
+                    help="Part in-sample pour la validation (défaut 0.7).")
+    pr.add_argument("--min-oos", type=int, default=10,
+                    help="Nb min de trades OOS pour valider une règle (défaut 10).")
+    pr.set_defaults(func=_cmd_propose)
 
     args = parser.parse_args(argv)
     return args.func(args)

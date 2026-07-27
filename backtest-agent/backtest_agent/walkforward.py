@@ -92,6 +92,7 @@ def walk_forward(df: pd.DataFrame, split: float = 0.7,
         results.append({
             "rule": t["proposed_change"],
             "rationale": t["problem_detected"],
+            "filter_spec": spec,          # conservé pour l'étape 2 (propositions)
             "in_sample": is_res,
             "out_of_sample": oos_res,
             "verdict": _verdict(is_res, oos_res, min_oos_trades),

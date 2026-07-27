@@ -43,7 +43,11 @@ confidence     = math.round(50 + 50 * (atr / ta.highest(atr, 50)), 0) // 0..100
 // `backtest_agent.cli propose` à partir de règles VALIDÉES en walk-forward.
 // Par défaut passFilters=true (stratégie inchangée). Ne pas éditer à la main.
 // <<< AGENT_FILTERS_BEGIN >>>
-passFilters = true
+// Gardes générées depuis des règles validées en walk-forward.
+// Chaque ligne correspond à une hypothèse confirmée in + out-of-sample.
+filter1 = not (hour(time) == 22)  // Exclure les trades où _hour = 22.
+filter2 = dayofweek == dayofweek.saturday  // Conserver uniquement les trades où _dow = Saturday.
+passFilters = filter1 and filter2
 // <<< AGENT_FILTERS_END >>>
 
 // --- Gestion des positions --------------------------------------------------

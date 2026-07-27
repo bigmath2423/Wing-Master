@@ -17,6 +17,12 @@ class MarketReadings:
     real_rate_10y: float | None = None  # taux réel 10 ans (TIPS, %)
     real_rate_change_bps: float | None = None
     breakeven_inflation: float | None = None  # inflation anticipée 10Y (%)
+    # ── Extensions (Tome 2) : courbe des taux et volatilité ──────
+    us2y: float | None = None  # rendement nominal 2 ans (%)
+    us30y: float | None = None  # rendement nominal 30 ans (%)
+    curve_10y2y: float | None = None  # pente 10a-2a (points de %)
+    vix: float | None = None  # indice de volatilité
+    vix_change_pct: float | None = None
     source: str = "unknown"
     ts: dt.datetime = field(default_factory=lambda: dt.datetime.now(dt.UTC))
 

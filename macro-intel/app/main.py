@@ -17,10 +17,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api import routes_macro, routes_tradingview
+from app.api import routes_macro, routes_tradingview, routes_v1
 from app.config import settings
 from app.db import init_db
 from app.pipeline import run_pipeline
+from app.platform_state import refresh_platform
 from app.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(
@@ -29,7 +30,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("macro.main")
 
-_DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
+_DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "dashboard"
+_APP = _DASHBOARD_DIR / "app.html"  # application MacroLens
+_SIMULATOR = _DASHBOARD_DIR / "index.html"  # simulateur d'impact (conservé)
 
 
 @asynccontextmanager
@@ -47,15 +50,23 @@ async def lifespan(app: FastAPI):
         run_pipeline()  # premier cycle synchrone pour avoir des données au boot
     except Exception as exc:
         logger.warning("Premier cycle incomplet : %s", exc)
+    try:
+        refresh_platform()  # régime, analyses IA, corrélations, prix
+    except Exception as exc:
+        logger.warning("Première consolidation plateforme incomplète : %s", exc)
     start_scheduler()
     yield
     stop_scheduler()
 
 
 app = FastAPI(
-    title="Macro-Intel",
-    description="Couche d'intelligence macro pour indicateur TradingView (XAUUSD, BTC, matières premières).",
-    version="1.0.0",
+    title="MacroLens",
+    description=(
+        "Plateforme d'analyse macroéconomique assistée par IA. Centralise, analyse, "
+        "explique et met en scénarios le contexte macro et géopolitique. "
+        "**N'émet jamais de signal d'achat ou de vente** : la décision appartient au lecteur."
+    ),
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -66,17 +77,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(routes_v1.router)
 app.include_router(routes_macro.router)
 app.include_router(routes_tradingview.router)
 
 
 @app.get("/health", tags=["system"])
 def health():
-    return {"status": "ok", "env": settings.app_env, "ai": settings.ai_enabled}
+    return {
+        "status": "ok",
+        "env": settings.app_env,
+        "ai": settings.ai_enabled,
+        "version": app.version,
+    }
 
 
 @app.get("/", include_in_schema=False)
-def dashboard():
-    if _DASHBOARD.exists():
-        return FileResponse(_DASHBOARD)
-    return {"message": "Macro-Intel opérationnel. Voir /docs"}
+def home():
+    """Application MacroLens (poste d'analyse macro)."""
+    if _APP.exists():
+        return FileResponse(_APP)
+    return {"message": "MacroLens opérationnel. Voir /docs"}
+
+
+@app.get("/simulateur", include_in_schema=False)
+def simulator():
+    """Simulateur d'impact macro sur l'or (outil pédagogique conservé)."""
+    if _SIMULATOR.exists():
+        return FileResponse(_SIMULATOR)
+    return {"message": "Simulateur indisponible."}

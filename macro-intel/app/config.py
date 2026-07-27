@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # Clés API (toutes optionnelles)
     fred_api_key: str = ""
+    eia_api_key: str = ""
     finnhub_api_key: str = ""
     newsapi_key: str = ""
     fmp_api_key: str = ""

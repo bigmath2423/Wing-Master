@@ -388,8 +388,9 @@ function scoreColor(v){ return v>NEUTRAL_BAND?cssVar("--bull"):v<-NEUTRAL_BAND?c
 function pillClass(b){ return b==="bullish"?"p-bull":b==="bearish"?"p-bear":"p-neut"; }
 
 function setGauge(score){ const frac=(score+100)/200, ang=Math.PI*(1-frac), cx=100,cy=108,r=90;
-  const x=cx+r*Math.cos(ang), y=cy-r*Math.sin(ang), large=frac>0.5?1:0;
-  $("arc-fill").setAttribute("d",`M10 108 A90 90 0 ${large} 1 ${x.toFixed(2)} ${y.toFixed(2)}`);
+  // large-arc-flag à 0 : sur un demi-cercle la course ne dépasse jamais 180°.
+  const x=cx+r*Math.cos(ang), y=cy-r*Math.sin(ang);
+  $("arc-fill").setAttribute("d",`M10 108 A90 90 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`);
   $("arc-fill").setAttribute("stroke",scoreColor(score));
   $("needle").setAttribute("x2",(cx+74*Math.cos(ang)).toFixed(2));
   $("needle").setAttribute("y2",(cy-74*Math.sin(ang)).toFixed(2)); }

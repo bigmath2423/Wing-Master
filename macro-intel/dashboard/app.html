@@ -214,6 +214,27 @@
   .grp { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent);
          background: var(--panel-2); font-weight: 700; }
 
+  /* ── Réglage de l'API ─────────────────────────────────────── */
+  .api-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 14px 16px; margin-bottom: 18px;
+  }
+  .api-row { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+  .api-row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .api-row input {
+    flex: 1 1 280px; min-width: 200px; font: inherit; font-size: 12.5px;
+    font-family: var(--mono); color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px;
+  }
+  .api-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .api-hint { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
+  .api-hint code {
+    font-family: var(--mono); font-size: 11px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--accent);
+  }
+  .api-hint.ok { color: var(--up); }
+  .api-hint.ko { color: var(--down); }
+
   /* ── Fil d'actualité ──────────────────────────────────────── */
   .feed { display: grid; gap: 2px; }
   .nw {
@@ -342,7 +363,27 @@
       </div>
     </div>
     <span class="status demo" id="status"><i></i><span id="status-txt">initialisation…</span></span>
+    <button class="btn" id="btn-api">⚙ API</button>
     <button class="btn" id="btn-refresh">↻ Actualiser</button>
+  </div>
+
+  <!-- Réglage de la source de données : permet de pointer l'application vers
+       n'importe quelle API compatible, sans rééditer le fichier. -->
+  <div class="api-panel" id="api-panel" hidden>
+    <div class="api-row">
+      <label for="api-url">Adresse de l'API</label>
+      <input id="api-url" placeholder="https://mon-serveur.exemple/  (vide = même origine)"
+             autocomplete="off" spellcheck="false">
+      <button class="btn" id="api-save">Connecter</button>
+      <button class="btn" id="api-reset">Réinitialiser</button>
+    </div>
+    <p class="api-hint">
+      L'application interroge <code>&lt;adresse&gt;/v1/dashboard</code> et suit le flux
+      <code>&lt;adresse&gt;/v1/stream</code>. Laissez le champ vide si l'application est servie
+      par le backend lui-même. Pour une adresse externe, l'API doit autoriser votre origine
+      (CORS). Le réglage est conservé dans ce navigateur.
+    </p>
+    <p class="api-hint" id="api-state"></p>
   </div>
 
   <nav class="tabs" role="tablist">
@@ -630,6 +671,28 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 const state = {
   data: null, mode: "demo", tab: "synthese",
   corrWindow: 30, calImp: 0, newsCat: "", newsQuery: "", es: null
+};
+
+/* ════════ Source de données ════════
+   L'adresse de l'API est configurable et mémorisée dans le navigateur, ce qui
+   permet de brancher ce fichier sur n'importe quel backend compatible sans le
+   modifier. Vide = même origine (cas où le backend sert lui-même la page). */
+const API = {
+  KEY: "macrolens.api_base",
+  get base() {
+    try { return localStorage.getItem(this.KEY) || ""; } catch (_) { return ""; }
+  },
+  set base(value) {
+    try {
+      const clean = (value || "").trim().replace(/\/+$/, "");
+      if (clean) localStorage.setItem(this.KEY, clean);
+      else localStorage.removeItem(this.KEY);
+    } catch (_) { /* stockage indisponible : on reste sur la même origine */ }
+  },
+  url(path) {
+    const base = this.base;
+    return base ? `${base}/${path}` : path;
+  }
 };
 
 /* Fil d'actualité de démonstration : horodatages relatifs à maintenant, pour que
@@ -1398,10 +1461,10 @@ function setStatus(kind, text) {
 }
 
 async function loadLive() {
-  const res = await fetch("v1/dashboard", { cache: "no-store" });
+  const res = await fetch(API.url("v1/dashboard"), { cache: "no-store" });
   if (!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
-  if (!data || !data.regime) throw new Error("payload incomplet");
+  if (!data || !data.regime) throw new Error("réponse incomplète : clé « regime » absente");
   return data;
 }
 
@@ -1409,7 +1472,7 @@ function startStream() {
   if (state.es) { state.es.close(); state.es = null; }
   if (!("EventSource" in window)) return;
   let ok = false;
-  const es = new EventSource("v1/stream");
+  const es = new EventSource(API.url("v1/stream"));
   state.es = es;
   es.onmessage = (ev) => {
     ok = true;
@@ -1423,9 +1486,63 @@ function startStream() {
   es.onerror = () => { if (!ok) { es.close(); state.es = null; } };
 }
 
+/* ── Panneau de configuration de l'API ── */
+function setApiState(kind, message) {
+  const el = $("api-state");
+  el.className = "api-hint" + (kind ? " " + kind : "");
+  el.textContent = message;
+}
+
+function bindApiPanel() {
+  const panel = $("api-panel");
+  const input = $("api-url");
+  input.value = API.base;
+
+  $("btn-api").addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      input.value = API.base;
+      setApiState("", API.base
+        ? `Source actuelle : ${API.base}`
+        : "Source actuelle : même origine que cette page.");
+      input.focus();
+    }
+  });
+
+  const connect = async () => {
+    API.base = input.value;
+    setApiState("", "Connexion en cours…");
+    try {
+      state.data = await loadLive();
+      state.mode = "live";
+      setStatus("", API.base ? "données en direct · API externe" : "données en direct");
+      setApiState("ok", `Connecté à ${API.base || "la même origine"} — données chargées.`);
+      render();
+      startStream();
+    } catch (err) {
+      state.mode = "demo";
+      state.data = DEMO;
+      setStatus("demo", "mode démonstration");
+      setApiState("ko",
+        `Échec de la connexion : ${err.message}. Vérifiez l'adresse, que l'API expose ` +
+        `/v1/dashboard, et qu'elle autorise votre origine (CORS).`);
+      render();
+    }
+  };
+
+  $("api-save").addEventListener("click", connect);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  $("api-reset").addEventListener("click", () => {
+    API.base = "";
+    input.value = "";
+    setApiState("", "Réinitialisé : l'application utilisera la même origine que cette page.");
+  });
+}
+
 async function boot() {
   bindTabs();
   simBind();
+  bindApiPanel();
   $("btn-refresh").addEventListener("click", refresh);
   $("cal-filters").querySelectorAll("button").forEach((b) =>
     b.addEventListener("click", () => { state.calImp = Number(b.dataset.imp); renderCalendar(state.data); }));
@@ -1441,7 +1558,7 @@ async function boot() {
   try {
     state.data = await loadLive();
     state.mode = "live";
-    setStatus("", "données en direct");
+    setStatus("", API.base ? "données en direct · API externe" : "données en direct");
     render();
     startStream();
   } catch (_) {
@@ -1459,7 +1576,7 @@ async function refresh() {
   btn.textContent = "↻ Actualisation…";
   try {
     if (state.mode === "live") {
-      await fetch("v1/refresh", { method: "POST" });
+      await fetch(API.url("v1/refresh"), { method: "POST" });
       state.data = await loadLive();
     } else {
       state.data = await loadLive();
@@ -1484,7 +1601,7 @@ async function ask() {
   out.innerHTML = `<p class="empty">Analyse en cours…</p>`;
   if (state.mode === "live") {
     try {
-      const res = await fetch(`v1/explain?title=${encodeURIComponent(title)}`, { method: "POST" });
+      const res = await fetch(API.url(`v1/explain?title=${encodeURIComponent(title)}`), { method: "POST" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       out.innerHTML = eventCard(await res.json(), true);
       bindEventToggles();

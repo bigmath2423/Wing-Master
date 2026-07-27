@@ -28,6 +28,23 @@ Fonctionne **sans aucune clé API** (sources gratuites + repli honnêtement
 signalé). L'application `dashboard/app.html` s'ouvre aussi **directement dans un
 navigateur** : elle bascule alors en mode démonstration, clairement étiqueté.
 
+### Brancher l'application sur une API distante
+
+Le fichier `dashboard/app.html` est autonome et peut pointer vers **n'importe
+quel backend compatible**, sans être modifié :
+
+1. ouvrez le fichier dans un navigateur ;
+2. cliquez sur **⚙ API** en haut à droite ;
+3. saisissez l'adresse de votre serveur (ex. `https://macro.mon-domaine.fr`) et
+   validez avec **Connecter**.
+
+L'adresse est mémorisée dans le navigateur. Champ vide = même origine que la page.
+
+L'API doit exposer `GET /v1/dashboard` (charge utile complète) et, pour le temps
+réel, `GET /v1/stream` (Server-Sent Events). En cas d'appel depuis une origine
+différente, elle doit autoriser cette origine (**CORS**) — c'est déjà le cas du
+backend fourni.
+
 ## Documentation
 
 📚 Spécification professionnelle complète en **13 tomes** dans

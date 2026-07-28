@@ -160,6 +160,7 @@ def build_proposals(df, split: float = 0.7, min_oos_trades: int = 10,
         proposal = {
             "hypothesis": r["rationale"],
             "rule": r["rule"],
+            "filter_spec": spec,   # réutilisé par l'étape 3 (validation combinée)
             "validation": {
                 "verdict": r["verdict"],
                 "in_sample": r["in_sample"],

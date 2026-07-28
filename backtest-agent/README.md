@@ -56,6 +56,8 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/suggestions.py` | **Améliorations + tests A/B** : filtres/paramètres à tester, avec **risque de sur-optimisation** explicite. |
 | `backtest_agent/walkforward.py` | **Validation walk-forward** : split IS/OOS, rejoue les filtres hors échantillon, verdict par règle. |
 | `backtest_agent/proposals.py` | **Étape 2** : traduit les règles validées en **code Pine**, génère une stratégie candidate à re-backtester. |
+| `backtest_agent/robustness.py` | Monte-Carlo sur l'ordre des trades, cohérence par segment (actif / période). |
+| `backtest_agent/validate.py` | **Étape 3** : valide la pile de filtres combinée, compare deux re-backtests réels. |
 | `backtest_agent/prompts.py` | Le *system prompt* qui impose la posture de chercheur quant. |
 | `backtest_agent/llm.py` | Client Claude optionnel. |
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
@@ -292,11 +294,78 @@ le comportement voulu : ne rien changer vaut mieux que sur-optimiser.
 > re-backtester (idéalement sur d'autres actifs et périodes) avant d'adopter la
 > moindre modification.
 
-## 8. Roadmap (extensions possibles)
+## 8. Étape 3 — Boucle fermée : valider avant d'adopter
+
+**Limite assumée d'emblée :** on ne peut **pas exécuter du Pine localement**
+(TradingView est une plateforme fermée). La boucle se ferme donc en deux temps.
+
+### A. `validate` — tester la pile de filtres **combinée**
+
+L'étape 2 valide chaque règle **individuellement**. Or des règles saines prises
+séparément peuvent très mal se combiner : elles retirent souvent les mêmes trades
+et l'empilement vide l'échantillon. `validate` teste la pile **entière** :
+
+```bash
+python -m backtest_agent.cli validate examples/sample_trades.csv \
+       -o reports/validation.md --json reports/validation.json
+```
+
+Ce qu'il contrôle :
+
+| Contrôle | Question posée |
+|---|---|
+| **Effet combiné** | La pile complète améliore-t-elle vraiment PF + espérance ? |
+| **Contribution marginale** | Que perd-on en retirant *ce* filtre de la pile ? |
+| **Cohérence par actif** | L'effet tient-il sur tous les symboles, ou un seul ? |
+| **Cohérence par période** | L'effet tient-il sur toutes les tranches de temps ? |
+| **Monte-Carlo** | Le drawdown observé est-il de la chance d'ordonnancement ? |
+
+Verdict : **`ADOPTER`** / **`PRUDENCE`** / **`REJETER`**, avec chaque motif explicité.
+
+**Exemple réel sur le jeu de démo** — les 2 propositions de l'étape 2 semblaient
+excellentes isolément (PF +3.6 !), mais la validation combinée les **rejette** :
+
+```
+## Verdict : ❌ REJETER
+- ❌ La pile de filtres supprime 87% des trades : stratégie dénaturée.
+- ⚠️ 1 segment(s) par période ne conservent AUCUN trade après filtrage (P1).
+```
+
+C'est le comportement voulu : **refuser un beau chiffre obtenu en jetant les
+données**. Un agent qui « améliore » aurait adopté ; celui-ci refuse.
+
+### B. `compare` — comparer deux **vrais** re-backtests
+
+C'est l'étape qui ferme réellement la boucle. Tu re-backtestes le `.pine`
+candidat sur TradingView, tu exportes, et tu compares les deux exports réels :
+
+```bash
+python -m backtest_agent.cli compare baseline_export.csv candidat_export.csv \
+       -o reports/comparaison.md
+```
+
+Ici les deux jeux viennent du Strategy Tester, donc le **chaînage des positions
+est correct des deux côtés** — ce qu'un simple rejeu ne peut pas simuler.
+
+> ⚠️ `validate` rejoue les filtres sur les trades **existants**. Or un filtre
+> change aussi **quels trades existent** (une position non prise libère le
+> créneau pour une autre). Seul `compare` sur deux vrais exports est exempt de
+> ce biais.
+
+### Le cycle complet
+
+```
+analyze  →  walkforward  →  propose  →  validate  →  [re-backtest TradingView]  →  compare
+   │            │              │            │                                        │
+ lire les    valider       traduire en   tester la                              trancher sur
+ données     hors          Pine les      pile combinée                          des données
+             échantillon   règles OK     + robustesse                           réelles
+```
+
+## 9. Roadmap (extensions possibles)
 
 - Walk-forward automatisé multi-période intégré au CLI.
 - Détection de régimes de marché (tendance/range) via clustering.
 - Export du rapport en HTML/PDF.
-- Intégration Monte-Carlo sur l'ordre des trades (robustesse du drawdown).
-- Étape 3 : ré-backtest automatique des fichiers candidats (boucle fermée
-  analyse → proposition → validation) et comparaison multi-actifs.
+- Optimisation de paramètres par walk-forward glissant (fenêtres roulantes).
+- Automatisation de l'aller-retour TradingView (l'export reste manuel aujourd'hui).

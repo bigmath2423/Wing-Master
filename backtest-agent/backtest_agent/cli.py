@@ -19,6 +19,9 @@ from .walkforward import walk_forward, walkforward_markdown
 from .proposals import (
     build_proposals, generate_candidate_pine, proposals_markdown,
 )
+from .validate import (
+    validate_candidate, compare_backtests, validation_markdown, comparison_markdown,
+)
 from . import llm
 
 _DEFAULT_TEMPLATE = str(
@@ -96,6 +99,44 @@ def _cmd_propose(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write(path: str | None, text: str, label: str) -> None:
+    if path:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(text, encoding="utf-8")
+        print(f"[ok] {label} écrit dans {path}")
+    else:
+        print(text)
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    df = load_trades(args.input)
+    res = validate_candidate(df, split=args.split, min_oos_trades=args.min_oos,
+                             n_sims=args.sims, n_periods=args.periods)
+    _write(args.output, validation_markdown(res), "Rapport de validation")
+    if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(
+            json.dumps(res, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8")
+    if res.get("verdict"):
+        print(f"[info] Verdict : {res['verdict']['verdict']}", file=sys.stderr)
+    return 0
+
+
+def _cmd_compare(args: argparse.Namespace) -> int:
+    baseline = load_trades(args.baseline)
+    candidate = load_trades(args.candidate)
+    res = compare_backtests(baseline, candidate)
+    _write(args.output, comparison_markdown(res), "Rapport de comparaison")
+    if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(
+            json.dumps(res, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8")
+    print(f"[info] Verdict : {res['verdict']['verdict']}", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="backtest-agent",
@@ -136,6 +177,32 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--min-oos", type=int, default=10,
                     help="Nb min de trades OOS pour valider une règle (défaut 10).")
     pr.set_defaults(func=_cmd_propose)
+
+    v = sub.add_parser(
+        "validate",
+        help="ÉTAPE 3 : valider la pile de filtres combinée (multi-actifs, "
+             "multi-périodes, Monte-Carlo).")
+    v.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
+    v.add_argument("-o", "--output", help="Rapport de validation (Markdown).")
+    v.add_argument("--json", help="Détail JSON.")
+    v.add_argument("--split", type=float, default=0.7,
+                   help="Part in-sample pour dériver les règles (défaut 0.7).")
+    v.add_argument("--min-oos", type=int, default=10,
+                   help="Nb min de trades OOS pour valider une règle (défaut 10).")
+    v.add_argument("--sims", type=int, default=2000,
+                   help="Nb de simulations Monte-Carlo (défaut 2000).")
+    v.add_argument("--periods", type=int, default=4,
+                   help="Nb de tranches chronologiques testées (défaut 4).")
+    v.set_defaults(func=_cmd_validate)
+
+    c = sub.add_parser(
+        "compare",
+        help="ÉTAPE 3 : comparer deux re-backtests réels (baseline vs candidat).")
+    c.add_argument("baseline", help="Export du backtest de référence.")
+    c.add_argument("candidate", help="Export du backtest de la stratégie candidate.")
+    c.add_argument("-o", "--output", help="Rapport de comparaison (Markdown).")
+    c.add_argument("--json", help="Détail JSON.")
+    c.set_defaults(func=_cmd_compare)
 
     args = parser.parse_args(argv)
     return args.func(args)

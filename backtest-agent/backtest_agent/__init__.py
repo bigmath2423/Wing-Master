@@ -20,6 +20,8 @@ from .suggestions import build_suggestions
 from .report import build_report
 from .walkforward import walk_forward
 from .proposals import build_proposals, generate_candidate_pine
+from .validate import validate_candidate, compare_backtests
+from .robustness import monte_carlo_drawdown
 
 __all__ = [
     "load_trades",
@@ -32,6 +34,9 @@ __all__ = [
     "walk_forward",
     "build_proposals",
     "generate_candidate_pine",
+    "validate_candidate",
+    "compare_backtests",
+    "monte_carlo_drawdown",
 ]
 
 __version__ = "0.1.0"

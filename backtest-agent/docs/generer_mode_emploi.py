@@ -4,9 +4,9 @@
     python3 docs/generer_mode_emploi.py
 
 Le PDF est un binaire : sans ce script il serait impossible à mettre à jour.
-Pensez à le régénérer quand la version, les commandes ou les seuils changent
-(notamment quand la PR #5 sera fusionnée : `rolling` passera sur main et la
-mention « deux versions coexistent » deviendra caduque).
+Pensez à le régénérer quand la version, la liste des commandes ou les seuils
+changent — sinon le mode d'emploi donnera des instructions périmées, ce qui est
+pire qu'une documentation absente.
 """
 
 from pathlib import Path
@@ -172,7 +172,7 @@ story.append(p(
     "sur votre système. Vérifiez que tout est en place :", "p"))
 story.extend(bloc_code([
     "backtest-agent --version",
-    "# → backtest-agent 0.3.0",
+    "# → backtest-agent 0.4.0",
 ]))
 
 story.append(p("Si vous préférez ne rien installer", "h2"))
@@ -197,14 +197,20 @@ story.extend(tableau(
     [58 * mm, 105 * mm],
     ["cellule_code", "cellule"]))
 
-story.extend(encadre(
-    "Deux versions coexistent aujourd'hui",
-    "La branche <font face='Courier'>main</font> installe la <b>version 0.3.0</b> "
-    "(6 commandes). Le walk-forward glissant — la commande "
-    "<font face='Courier'>rolling</font> — attend d'être fusionné dans la "
-    "<b>pull request #5</b>. Pour l'avoir dès maintenant :<br/><br/>"
-    "<font face='Courier-Bold'>git checkout claude/backtest-analysis-agent-ygluig</font><br/>"
-    "<font face='Courier-Bold'>pip install -e .</font>&nbsp;&nbsp;→ version 0.4.0, 7 commandes"))
+
+# KeepTogether : sans cela le titre peut rester orphelin en bas de page,
+# séparé du texte qu'il annonce.
+story.append(KeepTogether([
+    p("Mettre à jour plus tard", "h2"),
+    p("L'installation en mode <font face='Courier-Bold'>-e</font> pointe vers votre "
+      "copie du dépôt : une mise à jour se résume à récupérer les nouveautés. "
+      "Relancez <font face='Courier-Bold'>pip install -e .</font> seulement si les "
+      "dépendances ont changé.", "p"),
+    *bloc_code([
+        "git pull",
+        "backtest-agent --version",
+    ]),
+]))
 
 story.append(p("Vérifier que l'installation fonctionne", "h2"))
 story.append(p(
@@ -277,7 +283,7 @@ story.extend(tableau(
       "périodes, et la robustesse du drawdown (Monte-Carlo)."],
      ["rolling",
       "Walk-forward <b>glissant</b> : rejoue la validation sur plusieurs fenêtres "
-      "successives. La vérification la plus sévère. <i>(version 0.4.0)</i>"],
+      "successives. La vérification la plus sévère."],
      ["compare",
       "Compare deux exports réels : votre backtest d'origine contre le candidat."],
      ["pipeline",

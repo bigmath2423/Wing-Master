@@ -15,22 +15,24 @@ recommande quoi tester.
 ## 1. Architecture
 
 ```
-                         ┌──────────────────────────────────────────┐
-   TradingView           │            BACKTEST ANALYSIS AGENT         │
-   ┌───────────┐         │                                            │
-   │ Indicateur│         │  ingest.py     → normalise CSV/JSON        │
-   │     ↓     │  CSV /  │  metrics.py    → analyse globale           │
-   │ Stratégie │ ───────▶│  losses.py     → analyse des pertes        │
-   │ (Pine)    │  JSON   │  winners.py    → analyse des gains         │
-   └───────────┘         │  suggestions.py→ pistes + tests A/B        │
-        │                │  features.py   → segmentation (buckets)    │
-        │ alertes        │        │                                   │
-        ▼                │        ▼                                   │
-   webhook_server.py ───▶│  report.py ──┬─▶ payload JSON (chiffres)   │
-   (forward live)        │              │                             │
-                         │   llm.py ────┴─▶ rapport narratif (Claude) │
-                         │        (posture « chercheur quant »)       │
-                         └──────────────────────────────────────────┘
+                    ┌─────────────────────────────────────────────────┐
+  TradingView       │           BACKTEST ANALYSIS AGENT               │
+  ┌───────────┐     │                                                 │
+  │ Indicateur│     │  ANALYSER      ingest → metrics → losses        │
+  │     ↓     │ CSV │                       → winners → suggestions   │
+  │ Stratégie │────▶│                                                 │
+  │  (Pine)   │JSON │  VALIDER       walkforward  (split unique)      │
+  └───────────┘     │                rolling      (fenêtres glissantes)│
+       │            │                robustness   (Monte-Carlo)       │
+       │ alertes    │                                                 │
+       ▼            │  PROPOSER      proposals → strategy_candidate.pine
+  webhook_server ──▶│                                                 │
+  (suivi forward)   │  TRANCHER      validate → compare               │
+                    │                                                 │
+                    │  report.py ──┬─▶ payload JSON (chiffres)        │
+                    │   llm.py ────┴─▶ rapport narratif (Claude)      │
+                    │        (posture « chercheur quant »)            │
+                    └─────────────────────────────────────────────────┘
 ```
 
 **Deux couches, séparées volontairement :**
@@ -58,12 +60,13 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/proposals.py` | **Étape 2** : traduit les règles validées en **code Pine**, génère une stratégie candidate à re-backtester. |
 | `backtest_agent/robustness.py` | Monte-Carlo sur l'ordre des trades, cohérence par segment (actif / période). |
 | `backtest_agent/validate.py` | **Étape 3** : valide la pile de filtres combinée, compare deux re-backtests réels. |
+| `backtest_agent/rolling.py` | **Walk-forward glissant** : fenêtres successives, stabilité des règles, WFE, optimisation de seuil. |
 | `backtest_agent/prompts.py` | Le *system prompt* qui impose la posture de chercheur quant. |
 | `backtest_agent/llm.py` | Client Claude optionnel. |
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
-| `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `pipeline`). |
-| `tests/` | 74 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `pipeline`). |
+| `tests/` | 109 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -87,7 +90,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 74 tests
+pytest                        # 109 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,
@@ -108,15 +111,19 @@ backtest-agent pipeline examples/sample_trades.csv -o reports/
 ```
 
 Ça produit dans `reports/` : `1_analyse.md`, `2_walkforward.md`,
-`3_propositions.md`, `4_validation.md` et `strategy_candidate.pine`, puis
-affiche un récapitulatif :
+`3_propositions.md`, `4_validation.md`, `5_walkforward_glissant.md` et
+`strategy_candidate.pine`, puis affiche un récapitulatif :
 
 ```
-  Trades analysés          : 300
-  Règles confirmées (OOS)  : 2
-  Propositions générées    : 2
-  Verdict final            : REJETER
+  Trades analysés           : 400
+  Règles confirmées (OOS)   : 2
+  Propositions générées     : 2
+  Règles robustes (glissant): 0
+  Verdict final             : REJETER
 ```
+
+> Les deux dernières lignes se lisent ensemble : le walk-forward simple confirme
+> 2 règles, le glissant n'en retient aucune. C'est le glissant qui a raison.
 
 Ou commande par commande :
 
@@ -393,17 +400,83 @@ est correct des deux côtés** — ce qu'un simple rejeu ne peut pas simuler.
 ### Le cycle complet
 
 ```
-analyze  →  walkforward  →  propose  →  validate  →  [re-backtest TradingView]  →  compare
-   │            │              │            │                                        │
- lire les    valider       traduire en   tester la                              trancher sur
- données     hors          Pine les      pile combinée                          des données
-             échantillon   règles OK     + robustesse                           réelles
+analyze → walkforward → propose → validate → rolling → [re-backtest TV] → compare
+   │          │            │          │          │                           │
+ lire les  valider      traduire   tester la  vérifier                   trancher sur
+ données   hors         en Pine    pile       la tenue                   des données
+           échantillon  les règles combinée   dans le temps              réelles
 ```
 
-## 9. Roadmap (extensions possibles)
+## 9. Walk-forward glissant — la validation la plus sévère
+
+Le walk-forward simple (§6) coupe **une fois**. Il ne répond donc pas à la vraie
+question : *l'effet survit-il au passage du temps et au changement de régime ?*
+La commande `rolling` rejoue le cycle « chercher puis vérifier » sur **plusieurs
+fenêtres successives**.
+
+```bash
+backtest-agent rolling trades.csv -o reports/glissant.md
+backtest-agent rolling trades.csv --anchored          # fenêtre qui grandit
+backtest-agent rolling trades.csv --folds 8 --train-window 4
+```
+
+Deux modes :
+
+| Mode | Fenêtre d'apprentissage | Quand l'utiliser |
+|---|---|---|
+| `rolling` (défaut) | taille **fixe** qui glisse | marchés qui changent de régime |
+| `--anchored` | **grandit** depuis le début | effet supposé stationnaire |
+
+### Ce qu'il apporte qu'un split unique ne peut pas donner
+
+**1. La stabilité prime sur le score.** Une règle n'est `ROBUSTE` que si elle
+franchit **quatre** exigences cumulatives — chacune bouche un trou par lequel du
+bruit passait :
+
+| Exigence | Pourquoi |
+|---|---|
+| ≥ 3 fenêtres | « 2 fois sur 2 » arrive une fois sur quatre au hasard |
+| effet moyen > 0 | évidence de base |
+| **t ≥ 2** | l'effet doit dépasser sa propre dispersion |
+| **taille d'effet ≥ 0,15** | et peser assez face à la volatilité d'un trade |
+
+Sans le dernier critère, un gain de 0,07R sur des trades d'écart-type 1,0R
+passait pour « robuste » alors qu'il est économiquement nul.
+
+**2. La walk-forward efficiency (WFE)** — quelle part de l'avantage trouvé en
+apprentissage survit réellement :
+
+```
+- Avantage moyen en apprentissage : 0.3872
+- Avantage moyen hors échantillon : 0.008
+- WFE = 0.021
+
+> Moins de 30% de l'avantage survit : forte sur-optimisation.
+```
+
+**Démonstration concrète.** Sur le jeu de démo, la règle « Saturday » avait été
+confirmée `TIENT` par le walk-forward simple. Le glissant la classe **`REJETÉE`**
+(0/4 fenêtres). Le split unique produisait un faux positif ; le glissant le
+rattrape.
+
+### Optimiser un seuil en walk-forward
+
+```bash
+backtest-agent rolling trades.csv --threshold confidence
+```
+
+Choisit le meilleur seuil sur chaque fenêtre d'apprentissage, puis mesure ce
+qu'il donne sur la suivante. **Le diagnostic utile n'est pas le gain moyen mais
+la stabilité du seuil** : s'il saute d'une fenêtre à l'autre, il s'ajuste au
+bruit et aucune valeur ne mérite d'être figée dans l'indicateur.
+
+> ⚠️ On ne peut optimiser ici que des **seuils de filtrage** (confiance, plage
+> d'ATR…). Un paramètre qui change *quels trades existent* — un multiplicateur
+> de stop, par exemple — exige un vrai re-backtest TradingView.
+
+## 10. Roadmap (extensions possibles)
 
 - Walk-forward automatisé multi-période intégré au CLI.
 - Détection de régimes de marché (tendance/range) via clustering.
 - Export du rapport en HTML/PDF.
-- Optimisation de paramètres par walk-forward glissant (fenêtres roulantes).
 - Automatisation de l'aller-retour TradingView (l'export reste manuel aujourd'hui).

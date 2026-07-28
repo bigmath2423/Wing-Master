@@ -104,3 +104,36 @@ def test_aucune_proposition_quand_rien_nest_valide():
     verdict = res.get("verdict", {}).get("verdict", "")
     assert verdict in {"RIEN À VALIDER", "REJETER", "PRUDENCE"}, (
         f"Sur du bruit pur, l'agent ne doit pas conclure ADOPTER (obtenu: {verdict}).")
+
+
+def test_un_filtre_qui_supprime_toutes_les_pertes_nest_pas_jete():
+    """Régression : un profit factor indéfini (aucune perte) était confondu avec
+    « inexploitable », si bien que le MEILLEUR filtre possible — celui qui retire
+    tous les perdants — était silencieusement écarté."""
+    import pandas as pd
+    from datetime import datetime, timedelta
+    from backtest_agent.ingest import normalize
+    from backtest_agent.suggestions import build_suggestions, pf_delta, improved
+
+    start = datetime(2025, 1, 1, 9, 0)
+    rng = __import__("numpy").random.default_rng(4)
+    ts, rows = start, []
+    for i in range(200):
+        ts += timedelta(minutes=int(rng.integers(90, 600)))
+        rows.append({"datetime": ts.strftime("%Y-%m-%d %H:%M:%S"), "side": "buy",
+                     "profit": 1.5 if i % 2 == 0 else -1.0, "parfait": i % 2 == 0})
+    sugg = build_suggestions(normalize(pd.DataFrame(rows)))
+    noms = " ".join(t["proposed_change"] for t in sugg["ab_tests"])
+    assert "parfait" in noms, (
+        f"Le filtre parfait doit être proposé. Obtenu : {noms}")
+
+
+def test_un_profit_factor_indefini_nest_pas_traite_comme_zero():
+    """`None` veut dire « aucune perte » (le meilleur cas), surtout pas zéro."""
+    from backtest_agent.suggestions import pf_delta, improved
+    assert pf_delta(2.0, None) is None       # indéfini, pas -2.0
+    assert pf_delta(None, 2.0) is None
+    assert pf_delta(1.0, 3.0) == 2.0
+    # Une espérance en hausse avec un PF indéfini reste une amélioration.
+    assert improved({"expectancy_delta": 0.5, "pf_delta": None}) is True
+    assert improved({"expectancy_delta": -0.5, "pf_delta": None}) is False

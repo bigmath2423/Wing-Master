@@ -21,6 +21,9 @@ from .proposals import (
 from .validate import (
     validate_candidate, compare_backtests, validation_markdown, comparison_markdown,
 )
+from .rolling import (
+    rolling_walk_forward, optimize_threshold, rolling_markdown, threshold_markdown,
+)
 from . import llm, jsonutil
 
 _DEFAULT_TEMPLATE = str(
@@ -111,22 +114,45 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_rolling(args: argparse.Namespace) -> int:
+    df = load_trades(args.input)
+    if args.threshold:
+        res = optimize_threshold(df, column=args.threshold, n_folds=args.folds,
+                                 train_window=args.train_window,
+                                 anchored=args.anchored)
+        _write(args.output, threshold_markdown(res), "Optimisation de seuil")
+    else:
+        res = rolling_walk_forward(df, n_folds=args.folds,
+                                   train_window=args.train_window,
+                                   anchored=args.anchored)
+        _write(args.output, rolling_markdown(res), "Walk-forward glissant")
+    _write_json(args.json, res)
+    if res.get("available"):
+        if args.threshold:
+            print(f"[info] Verdict : {res['verdict']}", file=sys.stderr)
+        else:
+            print(f"[info] {len(res['robust_rules'])} règle(s) robuste(s) sur "
+                  f"{res['n_folds_usable']} fenêtres.", file=sys.stderr)
+    return 0
+
+
 def _cmd_pipeline(args: argparse.Namespace) -> int:
-    """Exécute le cycle complet : analyse → walk-forward → propositions → validation."""
+    """Cycle complet : analyse → walk-forward → propositions → validation
+    combinée → walk-forward glissant."""
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     df = load_trades(args.input)
 
-    print(f"[1/4] Analyse de {len(df)} trades…", file=sys.stderr)
+    print(f"[1/5] Analyse de {len(df)} trades…", file=sys.stderr)
     report = build_report(df, use_llm=not args.no_llm, model=args.model)
     _write(str(outdir / "1_analyse.md"), report["markdown"], "Analyse")
     _write_json(str(outdir / "1_analyse.json"), report["payload"])
 
-    print("[2/4] Validation walk-forward…", file=sys.stderr)
+    print("[2/5] Validation walk-forward…", file=sys.stderr)
     wf = walk_forward(df, split=args.split, min_oos_trades=args.min_oos)
     _write(str(outdir / "2_walkforward.md"), walkforward_markdown(wf), "Walk-forward")
 
-    print("[3/4] Propositions de modification…", file=sys.stderr)
+    print("[3/5] Propositions de modification…", file=sys.stderr)
     candidate = str(outdir / "strategy_candidate.pine")
     proposals = generate_candidate_pine(
         df, template_path=args.template, out_path=candidate,
@@ -134,20 +160,28 @@ def _cmd_pipeline(args: argparse.Namespace) -> int:
     _write(str(outdir / "3_propositions.md"), proposals_markdown(proposals),
            "Propositions")
 
-    print("[4/4] Validation de la pile combinée…", file=sys.stderr)
+    print("[4/5] Validation de la pile combinée…", file=sys.stderr)
     validation = validate_candidate(df, split=args.split, min_oos_trades=args.min_oos,
                                     n_sims=args.sims, n_periods=args.periods)
     _write(str(outdir / "4_validation.md"), validation_markdown(validation),
            "Validation")
 
+    print("[5/5] Walk-forward glissant…", file=sys.stderr)
+    rolling = rolling_walk_forward(df, n_folds=args.folds,
+                                   train_window=args.train_window)
+    _write(str(outdir / "5_walkforward_glissant.md"), rolling_markdown(rolling),
+           "Walk-forward glissant")
+
     verdict = validation.get("verdict", {}).get("verdict", "INDÉTERMINÉ")
     n_conf = wf.get("rules_confirmed", 0) if wf.get("available") else 0
+    n_robustes = len(rolling.get("robust_rules", [])) if rolling.get("available") else "—"
     summary = [
         "",
         "=" * 62,
         f"  Trades analysés          : {len(df)}",
         f"  Règles confirmées (OOS)  : {n_conf}",
         f"  Propositions générées    : {proposals.get('n_proposals', 0)}",
+        f"  Règles robustes (glissant): {n_robustes}",
         f"  Verdict final            : {verdict}",
         "=" * 62,
         f"  Rapports : {outdir}/",
@@ -162,9 +196,12 @@ def _cmd_pipeline(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import __version__
     parser = argparse.ArgumentParser(
         prog="backtest-agent",
         description="Agent d'analyse quantitative de backtests de trading.")
+    parser.add_argument("--version", action="version",
+                        version=f"backtest-agent {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("analyze", help="Analyser un fichier de backtest.")
@@ -229,6 +266,24 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--json", help="Détail JSON.")
     c.set_defaults(func=_cmd_compare)
 
+    rl = sub.add_parser(
+        "rolling",
+        help="Walk-forward GLISSANT : rejoue chercher/vérifier sur plusieurs "
+             "fenêtres successives (validation la plus sévère).")
+    rl.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
+    rl.add_argument("-o", "--output", help="Rapport Markdown.")
+    rl.add_argument("--json", help="Détail JSON.")
+    rl.add_argument("--folds", type=int, default=5,
+                    help="Nombre de fenêtres de test (défaut 5).")
+    rl.add_argument("--train-window", type=int, default=3,
+                    help="Nombre de tranches d'apprentissage (défaut 3).")
+    rl.add_argument("--anchored", action="store_true",
+                    help="Fenêtre d'apprentissage qui grandit au lieu de glisser.")
+    rl.add_argument("--threshold", metavar="COLONNE",
+                    help="Optimiser un seuil numérique (ex: confidence, atr) "
+                         "en walk-forward au lieu d'évaluer les règles.")
+    rl.set_defaults(func=_cmd_rolling)
+
     pl = sub.add_parser(
         "pipeline",
         help="Cycle complet : analyse → walk-forward → propositions → validation.")
@@ -241,6 +296,10 @@ def main(argv: list[str] | None = None) -> int:
     pl.add_argument("--min-oos", type=int, default=10)
     pl.add_argument("--sims", type=int, default=2000)
     pl.add_argument("--periods", type=int, default=4)
+    pl.add_argument("--folds", type=int, default=5,
+                    help="Fenêtres du walk-forward glissant (défaut 5).")
+    pl.add_argument("--train-window", type=int, default=3,
+                    help="Tranches d'apprentissage du glissant (défaut 3).")
     pl.add_argument("--no-llm", action="store_true",
                     help="Forcer le mode déterministe.")
     pl.add_argument("--model", help="Modèle Claude à utiliser (override).")

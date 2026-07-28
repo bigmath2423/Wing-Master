@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from .features import _pnl_series
-from .suggestions import _subset_metrics
+from .suggestions import _subset_metrics, pf_delta
 
 
 def monte_carlo_drawdown(pnl: pd.Series, n_sims: int = 2000,
@@ -89,8 +89,7 @@ def segment_metrics(df: pd.DataFrame, mask: pd.Series, by: str,
         sub_mask = mask.loc[idx]
         base = _subset_metrics(sub_pnl)
         filt = _subset_metrics(sub_pnl[sub_mask.values]) if sub_mask.any() else {"n": 0}
-        if filt.get("n", 0) == 0 or filt.get("profit_factor") is None \
-                or base.get("profit_factor") is None:
+        if filt.get("n", 0) == 0:
             rows.append({"segment": str(seg), "n_baseline": base["n"],
                          "n_filtered": filt.get("n", 0), "applicable": False})
             continue
@@ -102,8 +101,7 @@ def segment_metrics(df: pd.DataFrame, mask: pd.Series, by: str,
             "baseline_expectancy": base["expectancy"],
             "filtered_expectancy": filt["expectancy"],
             "expectancy_delta": round(filt["expectancy"] - base["expectancy"], 4),
-            "pf_delta": round((filt["profit_factor"] or 0)
-                              - (base["profit_factor"] or 0), 4),
+            "pf_delta": pf_delta(base["profit_factor"], filt["profit_factor"]),
             "improved": bool(filt["expectancy"] > base["expectancy"]),
         })
     return sorted(rows, key=lambda r: r.get("segment", ""))

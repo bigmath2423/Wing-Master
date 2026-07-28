@@ -22,6 +22,7 @@ from .walkforward import walk_forward
 from .proposals import build_proposals, generate_candidate_pine
 from .validate import validate_candidate, compare_backtests
 from .robustness import monte_carlo_drawdown
+from .rolling import rolling_walk_forward, optimize_threshold
 
 __all__ = [
     "load_trades",
@@ -37,6 +38,15 @@ __all__ = [
     "validate_candidate",
     "compare_backtests",
     "monte_carlo_drawdown",
+    "rolling_walk_forward",
+    "optimize_threshold",
 ]
 
-__version__ = "0.1.0"
+# Source unique de vérité : la version vit dans pyproject.toml et se lit ici via
+# les métadonnées du paquet. La dupliquer en dur les ferait diverger — ce qui
+# était déjà arrivé (0.1.0 ici contre 0.3.0 dans pyproject).
+try:  # paquet installé
+    from importlib.metadata import PackageNotFoundError, version as _version
+    __version__ = _version("backtest-agent")
+except (ImportError, PackageNotFoundError):  # exécution depuis les sources
+    __version__ = "0.0.0+source"

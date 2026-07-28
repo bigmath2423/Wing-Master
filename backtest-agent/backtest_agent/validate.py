@@ -21,7 +21,7 @@ from __future__ import annotations
 import pandas as pd
 
 from .features import bucketize, _pnl_series
-from .suggestions import _subset_metrics
+from .suggestions import _subset_metrics, pf_delta
 from .walkforward import _apply_spec
 from .proposals import build_proposals
 from .metrics import global_metrics
@@ -59,7 +59,7 @@ def _verdict(combined: dict, segments: dict, mc_base: dict, mc_filt: dict) -> di
     if combined["expectancy_delta"] <= 0:
         reasons.append("L'espérance ne s'améliore pas une fois les filtres combinés.")
         blocking = True
-    if combined["pf_delta"] <= 0:
+    if combined["pf_delta"] is not None and combined["pf_delta"] <= 0:
         reasons.append("Le profit factor ne s'améliore pas une fois les filtres combinés.")
         blocking = True
 
@@ -125,7 +125,7 @@ def validate_candidate(df: pd.DataFrame, split: float = 0.7,
     base = _subset_metrics(pnl)
     filt = _subset_metrics(pnl[mask.values]) if mask.any() else {"n": 0}
 
-    if filt.get("n", 0) == 0 or filt.get("profit_factor") is None:
+    if filt.get("n", 0) == 0:
         return {"available": True, "n_filters": len(specs), "proposals": proposals,
                 "verdict": {"verdict": "REJETER",
                             "blocking_reasons": [
@@ -137,7 +137,7 @@ def validate_candidate(df: pd.DataFrame, split: float = 0.7,
         "baseline": base,
         "filtered": filt,
         "expectancy_delta": round(filt["expectancy"] - base["expectancy"], 4),
-        "pf_delta": round((filt["profit_factor"] or 0) - (base["profit_factor"] or 0), 4),
+        "pf_delta": pf_delta(base["profit_factor"], filt["profit_factor"]),
         "drawdown_delta": round(filt["max_drawdown"] - base["max_drawdown"], 4),
         "retained_ratio": round(filt["n"] / base["n"], 3) if base["n"] else 0.0,
         "trades_removed": base["n"] - filt["n"],
@@ -240,6 +240,12 @@ def compare_backtests(baseline: pd.DataFrame, candidate: pd.DataFrame) -> dict:
 # Rendu Markdown
 # --------------------------------------------------------------------------
 
+def _fmt_delta(x) -> str:
+    """« indéfini » n'est pas « zéro » : on l'affiche comme tel plutôt que de
+    laisser un format numérique planter sur None."""
+    return "indéfini (aucune perte)" if x is None else f"{x:+}"
+
+
 def _verdict_badge(v: dict) -> str:
     icon = {"ADOPTER": "✅", "ADOPTER (sous réserve de re-backtest réel)": "✅",
             "PRUDENCE": "⚠️", "REJETER": "❌", "RIEN À VALIDER": "⏸️"}
@@ -274,7 +280,7 @@ def validation_markdown(res: dict) -> str:
     lines.append(f"| Trades | {c['baseline']['n']} | {c['filtered']['n']} | "
                  f"-{c['trades_removed']} ({c['retained_ratio']:.0%} conservés) |")
     lines.append(f"| Profit factor | {c['baseline']['profit_factor']} | "
-                 f"{c['filtered']['profit_factor']} | {c['pf_delta']:+} |")
+                 f"{c['filtered']['profit_factor']} | {_fmt_delta(c['pf_delta'])} |")
     lines.append(f"| Espérance | {c['baseline']['expectancy']} | "
                  f"{c['filtered']['expectancy']} | {c['expectancy_delta']:+} |")
     lines.append(f"| Drawdown max | {c['baseline']['max_drawdown']} | "
@@ -311,7 +317,7 @@ def validation_markdown(res: dict) -> str:
             arrow = "✅" if r["improved"] else "❌"
             lines.append(f"| {arrow} {r['segment']} | {r['n_baseline']}→{r['n_filtered']} | "
                          f"{r['baseline_expectancy']} → {r['filtered_expectancy']} | "
-                         f"{r['pf_delta']:+} |")
+                         f"{_fmt_delta(r['pf_delta'])} |")
         lines.append("")
 
     mb, mf = res.get("monte_carlo_baseline", {}), res.get("monte_carlo_filtered", {})

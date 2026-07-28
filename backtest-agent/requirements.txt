@@ -1,9 +1,17 @@
+# Installation recommandée : pip install -e .   (voir pyproject.toml)
+# Ce fichier reste fourni pour les environnements qui l'exigent.
+
 # Coeur d'analyse (obligatoire)
 pandas>=2.0
 numpy>=1.24
 
 # Couche d'interprétation LLM (optionnelle — l'agent tourne sans)
-anthropic>=0.40 ; python_version >= "3.9"
+# pip install -e ".[llm]"
+anthropic>=0.40
 
 # Récepteur de webhook TradingView (optionnel)
+# pip install -e ".[webhook]"
 flask>=3.0
+
+# Tests (optionnel) — pip install -e ".[dev]"
+pytest>=7.4

@@ -64,9 +64,11 @@ class GlobalMetrics:
     n_losses: int
     n_breakeven: int
     win_rate: float
-    profit_factor: float
+    # None = indéfini (aucune perte enregistrée). On n'émet JAMAIS `inf` :
+    # `Infinity` n'est pas du JSON valide et casse les parseurs non-Python.
+    profit_factor: float | None
     expectancy: float           # PnL moyen par trade
-    payoff_ratio: float         # gain moyen / perte moyenne (valeur absolue)
+    payoff_ratio: float | None  # gain moyen / perte moyenne (valeur absolue)
     avg_win: float
     avg_loss: float
     gross_profit: float
@@ -128,9 +130,9 @@ def global_metrics(df: pd.DataFrame) -> GlobalMetrics:
         n_losses=int((results == "LOSS").sum()),
         n_breakeven=int((results == "BE").sum()),
         win_rate=round(float((results == "WIN").mean()), 4),
-        profit_factor=round(profit_factor, 4) if np.isfinite(profit_factor) else float("inf"),
+        profit_factor=round(profit_factor, 4) if np.isfinite(profit_factor) else None,
         expectancy=round(float(pnl.mean()), 4),
-        payoff_ratio=round(payoff, 4) if np.isfinite(payoff) else float("inf"),
+        payoff_ratio=round(payoff, 4) if np.isfinite(payoff) else None,
         avg_win=round(avg_win, 4),
         avg_loss=round(avg_loss, 4),
         gross_profit=round(gross_profit, 4),

@@ -8,6 +8,7 @@ Deux sorties :
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -49,6 +50,11 @@ def _fmt_pct(x) -> str:
         return str(x)
 
 
+def _fmt_ratio(x) -> str:
+    """None signifie « indéfini » (division par zéro : aucune perte)."""
+    return "∞ (aucune perte enregistrée)" if x is None else str(x)
+
+
 def _deterministic_markdown(payload: dict) -> str:
     m = payload["global_metrics"]
     meta = payload["meta"]
@@ -68,9 +74,9 @@ def _deterministic_markdown(payload: dict) -> str:
                  f"({m['n_wins']} gagnants / {m['n_losses']} perdants / "
                  f"{m['n_breakeven']} nuls)")
     lines.append(f"- Taux de réussite : **{_fmt_pct(m['win_rate'])}**")
-    lines.append(f"- Profit factor : **{m['profit_factor']}**")
+    lines.append(f"- Profit factor : **{_fmt_ratio(m['profit_factor'])}**")
     lines.append(f"- Espérance / trade : **{m['expectancy']} {unit}**")
-    lines.append(f"- Ratio gain/perte (payoff) : **{m['payoff_ratio']}** "
+    lines.append(f"- Ratio gain/perte (payoff) : **{_fmt_ratio(m['payoff_ratio'])}** "
                  f"(gain moyen {m['avg_win']} / perte moyenne {m['avg_loss']})")
     lines.append(f"- Drawdown max : **{m['max_drawdown_abs']} {unit}** "
                  f"({_fmt_pct(m['max_drawdown_rel'])} relatif)")
@@ -169,11 +175,12 @@ def build_report(df: pd.DataFrame, use_llm: bool = True,
             payload["meta"]["llm_error"] = str(exc)
 
     if narrative:
-        markdown = narrative + "\n\n---\n\n<details><summary>Statistiques brutes "
-        markdown += "(déterministes)</summary>\n\n```json\n"
-        import json
-        markdown += json.dumps(payload, indent=2, ensure_ascii=False, default=str)
-        markdown += "\n```\n</details>\n"
+        raw = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+        markdown = (
+            f"{narrative}\n\n---\n\n"
+            "<details><summary>Statistiques brutes (déterministes)</summary>\n\n"
+            f"```json\n{raw}\n```\n</details>\n"
+        )
     else:
         markdown = _deterministic_markdown(payload)
 

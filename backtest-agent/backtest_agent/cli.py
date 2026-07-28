@@ -9,7 +9,6 @@ Exemples :
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -22,29 +21,36 @@ from .proposals import (
 from .validate import (
     validate_candidate, compare_backtests, validation_markdown, comparison_markdown,
 )
-from . import llm
+from . import llm, jsonutil
 
 _DEFAULT_TEMPLATE = str(
     Path(__file__).resolve().parent.parent / "tradingview" / "strategy_template.pine")
+
+
+def _write(path: str | None, text: str, label: str) -> None:
+    """Écrit un rapport Markdown, ou l'affiche si aucun chemin n'est donné."""
+    if path:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(text, encoding="utf-8")
+        print(f"[ok] {label} écrit dans {path}")
+    else:
+        print(text)
+
+
+def _write_json(path: str | None, obj: object, label: str = "JSON") -> None:
+    if not path:
+        return
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(jsonutil.dumps(obj), encoding="utf-8")
+    print(f"[ok] {label} écrit dans {path}", file=sys.stderr)
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
     df = load_trades(args.input)
     result = build_report(df, use_llm=not args.no_llm, model=args.model)
 
-    if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(result["markdown"], encoding="utf-8")
-        print(f"[ok] Rapport écrit dans {args.output}")
-    else:
-        print(result["markdown"])
-
-    if args.json:
-        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json).write_text(
-            json.dumps(result["payload"], indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8")
-        print(f"[ok] Statistiques JSON écrites dans {args.json}", file=sys.stderr)
+    _write(args.output, result["markdown"], "Rapport")
+    _write_json(args.json, result["payload"], "Statistiques JSON")
 
     mode = "LLM (analyste)" if result["llm_used"] else "déterministe"
     print(f"[info] Mode d'analyse : {mode}", file=sys.stderr)
@@ -58,18 +64,8 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
 def _cmd_walkforward(args: argparse.Namespace) -> int:
     df = load_trades(args.input)
     wf = walk_forward(df, split=args.split, min_oos_trades=args.min_oos)
-    md = walkforward_markdown(wf)
-    if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(md, encoding="utf-8")
-        print(f"[ok] Rapport walk-forward écrit dans {args.output}")
-    else:
-        print(md)
-    if args.json:
-        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json).write_text(
-            json.dumps(wf, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8")
+    _write(args.output, walkforward_markdown(wf), "Rapport walk-forward")
+    _write_json(args.json, wf)
     if wf.get("available"):
         print(f"[info] {wf['rules_confirmed']}/{wf['rules_evaluated']} règles "
               "confirmées hors échantillon.", file=sys.stderr)
@@ -84,13 +80,8 @@ def _cmd_propose(args: argparse.Namespace) -> int:
             split=args.split, min_oos_trades=args.min_oos)
     else:
         result = build_proposals(df, split=args.split, min_oos_trades=args.min_oos)
-    md = proposals_markdown(result)
-    if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(md, encoding="utf-8")
-        print(f"[ok] Propositions écrites dans {args.output}")
-    else:
-        print(md)
+    _write(args.output, proposals_markdown(result), "Propositions")
+    _write_json(getattr(args, "json", None), result)
     if result.get("candidate_path"):
         print(f"[ok] Stratégie candidate générée : {result['candidate_path']}")
     if result.get("available"):
@@ -99,25 +90,12 @@ def _cmd_propose(args: argparse.Namespace) -> int:
     return 0
 
 
-def _write(path: str | None, text: str, label: str) -> None:
-    if path:
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-        Path(path).write_text(text, encoding="utf-8")
-        print(f"[ok] {label} écrit dans {path}")
-    else:
-        print(text)
-
-
 def _cmd_validate(args: argparse.Namespace) -> int:
     df = load_trades(args.input)
     res = validate_candidate(df, split=args.split, min_oos_trades=args.min_oos,
                              n_sims=args.sims, n_periods=args.periods)
     _write(args.output, validation_markdown(res), "Rapport de validation")
-    if args.json:
-        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json).write_text(
-            json.dumps(res, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8")
+    _write_json(args.json, res)
     if res.get("verdict"):
         print(f"[info] Verdict : {res['verdict']['verdict']}", file=sys.stderr)
     return 0
@@ -128,12 +106,58 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     candidate = load_trades(args.candidate)
     res = compare_backtests(baseline, candidate)
     _write(args.output, comparison_markdown(res), "Rapport de comparaison")
-    if args.json:
-        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json).write_text(
-            json.dumps(res, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8")
+    _write_json(args.json, res)
     print(f"[info] Verdict : {res['verdict']['verdict']}", file=sys.stderr)
+    return 0
+
+
+def _cmd_pipeline(args: argparse.Namespace) -> int:
+    """Exécute le cycle complet : analyse → walk-forward → propositions → validation."""
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    df = load_trades(args.input)
+
+    print(f"[1/4] Analyse de {len(df)} trades…", file=sys.stderr)
+    report = build_report(df, use_llm=not args.no_llm, model=args.model)
+    _write(str(outdir / "1_analyse.md"), report["markdown"], "Analyse")
+    _write_json(str(outdir / "1_analyse.json"), report["payload"])
+
+    print("[2/4] Validation walk-forward…", file=sys.stderr)
+    wf = walk_forward(df, split=args.split, min_oos_trades=args.min_oos)
+    _write(str(outdir / "2_walkforward.md"), walkforward_markdown(wf), "Walk-forward")
+
+    print("[3/4] Propositions de modification…", file=sys.stderr)
+    candidate = str(outdir / "strategy_candidate.pine")
+    proposals = generate_candidate_pine(
+        df, template_path=args.template, out_path=candidate,
+        split=args.split, min_oos_trades=args.min_oos)
+    _write(str(outdir / "3_propositions.md"), proposals_markdown(proposals),
+           "Propositions")
+
+    print("[4/4] Validation de la pile combinée…", file=sys.stderr)
+    validation = validate_candidate(df, split=args.split, min_oos_trades=args.min_oos,
+                                    n_sims=args.sims, n_periods=args.periods)
+    _write(str(outdir / "4_validation.md"), validation_markdown(validation),
+           "Validation")
+
+    verdict = validation.get("verdict", {}).get("verdict", "INDÉTERMINÉ")
+    n_conf = wf.get("rules_confirmed", 0) if wf.get("available") else 0
+    summary = [
+        "",
+        "=" * 62,
+        f"  Trades analysés          : {len(df)}",
+        f"  Règles confirmées (OOS)  : {n_conf}",
+        f"  Propositions générées    : {proposals.get('n_proposals', 0)}",
+        f"  Verdict final            : {verdict}",
+        "=" * 62,
+        f"  Rapports : {outdir}/",
+        "",
+        "  Prochaine étape : re-backtester strategy_candidate.pine sur",
+        "  TradingView, exporter, puis :",
+        f"    backtest-agent compare {args.input} <export_candidat.csv>",
+        "",
+    ]
+    print("\n".join(summary), file=sys.stderr)
     return 0
 
 
@@ -168,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         help="ÉTAPE 2 : proposer des modifs d'indicateur (règles validées seulement).")
     pr.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
     pr.add_argument("-o", "--output", help="Rapport de propositions (Markdown).")
+    pr.add_argument("--json", help="Détail JSON.")
     pr.add_argument("--candidate",
                     help="Chemin de sortie d'une stratégie .pine candidate.")
     pr.add_argument("--template", default=_DEFAULT_TEMPLATE,
@@ -204,8 +229,36 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--json", help="Détail JSON.")
     c.set_defaults(func=_cmd_compare)
 
+    pl = sub.add_parser(
+        "pipeline",
+        help="Cycle complet : analyse → walk-forward → propositions → validation.")
+    pl.add_argument("input", help="Chemin du fichier de backtest (CSV/JSON).")
+    pl.add_argument("-o", "--outdir", default="reports",
+                    help="Dossier de sortie (défaut : reports/).")
+    pl.add_argument("--template", default=_DEFAULT_TEMPLATE,
+                    help="Template .pine source.")
+    pl.add_argument("--split", type=float, default=0.7)
+    pl.add_argument("--min-oos", type=int, default=10)
+    pl.add_argument("--sims", type=int, default=2000)
+    pl.add_argument("--periods", type=int, default=4)
+    pl.add_argument("--no-llm", action="store_true",
+                    help="Forcer le mode déterministe.")
+    pl.add_argument("--model", help="Modèle Claude à utiliser (override).")
+    pl.set_defaults(func=_cmd_pipeline)
+
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except FileNotFoundError as exc:
+        print(f"[erreur] Fichier introuvable : {exc.filename}", file=sys.stderr)
+        return 2
+    except ValueError as exc:
+        # Erreurs métier attendues (format inconnu, colonnes manquantes, fichier vide).
+        print(f"[erreur] {exc}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("\n[interrompu]", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":

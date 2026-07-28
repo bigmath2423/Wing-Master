@@ -1,6 +1,12 @@
 __pycache__/
 *.pyc
-data/
-reports/*.md
-reports/*.json
+.pytest_cache/
+*.egg-info/
+build/
+dist/
 .env
+
+# Données et sorties générées (reproductibles via le CLI).
+data/
+reports/*
+!reports/.gitkeep

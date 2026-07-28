@@ -61,7 +61,9 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/prompts.py` | Le *system prompt* qui impose la posture de chercheur quant. |
 | `backtest_agent/llm.py` | Client Claude optionnel. |
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
-| `backtest_agent/cli.py` | Ligne de commande. |
+| `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
+| `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `pipeline`). |
+| `tests/` | 74 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -71,30 +73,66 @@ par-dessus les mêmes chiffres.
 
 ```bash
 cd backtest-agent
-pip install -r requirements.txt        # pandas + numpy suffisent pour le coeur
+pip install -e .              # installe la commande `backtest-agent`
 ```
 
-La couche LLM (`anthropic`) et le webhook (`flask`) sont optionnels.
+Extras optionnels — l'agent est pleinement fonctionnel sans eux :
+
+```bash
+pip install -e ".[llm]"       # couche d'interprétation Claude
+pip install -e ".[webhook]"   # récepteur d'alertes TradingView
+pip install -e ".[dev]"       # pytest
+```
+
+### Vérifier que tout marche
+
+```bash
+pytest                        # 74 tests
+```
+
+La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,
+la validation, le CLI **et la discipline anti-sur-optimisation elle-même**
+(cf. `tests/test_discipline.py` : on vérifie par le code qu'une « pépite » sur
+5 trades ne peut pas primer sur un effet stable sur 150, et que sur du bruit pur
+l'agent ne conclut jamais `ADOPTER`).
 
 ---
 
 ## 3. Utilisation en 30 secondes
 
+Le plus simple — **tout le cycle en une commande** :
+
 ```bash
-# 1) Générer un jeu de données de démonstration (structuré exprès)
-python examples/generate_sample.py -n 300
-
-# 2) Analyser (mode déterministe, sans IA)
-python -m backtest_agent.cli analyze examples/sample_trades.csv \
-       -o reports/rapport.md --json reports/stats.json --no-llm
-
-# 3) Avec la couche analyste Claude
-export ANTHROPIC_API_KEY=sk-...
-python -m backtest_agent.cli analyze examples/sample_trades.csv -o reports/rapport.md
+python examples/generate_sample.py -n 300      # jeu de démo
+backtest-agent pipeline examples/sample_trades.csv -o reports/
 ```
 
-Le rapport `reports/rapport.md` contient les 5 sections demandées : analyse
-globale, analyse des pertes, meilleurs trades, suggestions, plan de tests A/B.
+Ça produit dans `reports/` : `1_analyse.md`, `2_walkforward.md`,
+`3_propositions.md`, `4_validation.md` et `strategy_candidate.pine`, puis
+affiche un récapitulatif :
+
+```
+  Trades analysés          : 300
+  Règles confirmées (OOS)  : 2
+  Propositions générées    : 2
+  Verdict final            : REJETER
+```
+
+Ou commande par commande :
+
+```bash
+backtest-agent analyze examples/sample_trades.csv -o reports/rapport.md --no-llm
+
+# avec la couche analyste Claude
+export ANTHROPIC_API_KEY=sk-...
+backtest-agent analyze examples/sample_trades.csv -o reports/rapport.md
+```
+
+> Toutes les commandes s'utilisent aussi via `python -m backtest_agent.cli …`
+> si tu préfères ne rien installer.
+
+Le rapport contient les 5 sections demandées : analyse globale, analyse des
+pertes, meilleurs trades, suggestions, plan de tests A/B.
 
 ---
 

@@ -1,0 +1,47 @@
+name: backtest-agent tests
+
+on:
+  # Sur les branches de travail, c'est le déclencheur `pull_request` qui couvre
+  # les tests. Limiter `push` à main évite de lancer la matrice deux fois par PR.
+  push:
+    branches: ["main"]
+    paths:
+      - "backtest-agent/**"
+      - ".github/workflows/backtest-agent-tests.yml"
+  pull_request:
+    paths:
+      - "backtest-agent/**"
+      - ".github/workflows/backtest-agent-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    defaults:
+      run:
+        working-directory: backtest-agent
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Smoke test the CLI end-to-end
+        run: |
+          python examples/generate_sample.py -n 200 -o /tmp/trades.csv
+          backtest-agent pipeline /tmp/trades.csv -o /tmp/reports --no-llm --sims 200
+          test -f /tmp/reports/4_validation.md

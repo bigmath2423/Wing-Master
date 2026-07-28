@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backtest-agent"
+version = "0.3.0"
+description = "Agent d'analyse quantitative de backtests de trading (posture chercheur quant)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# Couche d'interprétation « analyste » (l'agent tourne sans).
+llm = ["anthropic>=0.40"]
+# Récepteur de webhook TradingView.
+webhook = ["flask>=3.0"]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+backtest-agent = "backtest_agent.cli:main"
+
+[tool.setuptools]
+packages = ["backtest_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -15,22 +15,24 @@ recommande quoi tester.
 ## 1. Architecture
 
 ```
-                         ┌──────────────────────────────────────────┐
-   TradingView           │            BACKTEST ANALYSIS AGENT         │
-   ┌───────────┐         │                                            │
-   │ Indicateur│         │  ingest.py     → normalise CSV/JSON        │
-   │     ↓     │  CSV /  │  metrics.py    → analyse globale           │
-   │ Stratégie │ ───────▶│  losses.py     → analyse des pertes        │
-   │ (Pine)    │  JSON   │  winners.py    → analyse des gains         │
-   └───────────┘         │  suggestions.py→ pistes + tests A/B        │
-        │                │  features.py   → segmentation (buckets)    │
-        │ alertes        │        │                                   │
-        ▼                │        ▼                                   │
-   webhook_server.py ───▶│  report.py ──┬─▶ payload JSON (chiffres)   │
-   (forward live)        │              │                             │
-                         │   llm.py ────┴─▶ rapport narratif (Claude) │
-                         │        (posture « chercheur quant »)       │
-                         └──────────────────────────────────────────┘
+                    ┌─────────────────────────────────────────────────┐
+  TradingView       │           BACKTEST ANALYSIS AGENT               │
+  ┌───────────┐     │                                                 │
+  │ Indicateur│     │  ANALYSER      ingest → metrics → losses        │
+  │     ↓     │ CSV │                       → winners → suggestions   │
+  │ Stratégie │────▶│                                                 │
+  │  (Pine)   │JSON │  VALIDER       walkforward  (split unique)      │
+  └───────────┘     │                rolling      (fenêtres glissantes)│
+       │            │                robustness   (Monte-Carlo)       │
+       │ alertes    │                                                 │
+       ▼            │  PROPOSER      proposals → strategy_candidate.pine
+  webhook_server ──▶│                                                 │
+  (suivi forward)   │  TRANCHER      validate → compare               │
+                    │                                                 │
+                    │  report.py ──┬─▶ payload JSON (chiffres)        │
+                    │   llm.py ────┴─▶ rapport narratif (Claude)      │
+                    │        (posture « chercheur quant »)            │
+                    └─────────────────────────────────────────────────┘
 ```
 
 **Deux couches, séparées volontairement :**
@@ -64,7 +66,7 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
 | `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `pipeline`). |
-| `tests/` | 99 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `tests/` | 109 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -88,7 +90,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 99 tests
+pytest                        # 109 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,

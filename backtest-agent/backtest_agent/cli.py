@@ -196,9 +196,12 @@ def _cmd_pipeline(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import __version__
     parser = argparse.ArgumentParser(
         prog="backtest-agent",
         description="Agent d'analyse quantitative de backtests de trading.")
+    parser.add_argument("--version", action="version",
+                        version=f"backtest-agent {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("analyze", help="Analyser un fichier de backtest.")

@@ -60,6 +60,15 @@ def make_folds(n: int, n_folds: int = 5, train_window: int = 3,
     s'entraîne sur `train_window` tranches (ou sur tout le passé si `anchored`)
     et se teste sur la tranche suivante — jamais sur des données déjà vues.
     """
+    # Sans ces garde-fous, `train_window=0` produit une fenêtre d'apprentissage
+    # VIDE : l'agent « apprendrait » sur zéro trade et rendrait quand même un
+    # verdict, ce qui est pire que de refuser.
+    if n_folds < 1:
+        raise ValueError("n_folds doit valoir au moins 1.")
+    if train_window < 1:
+        raise ValueError("train_window doit valoir au moins 1 : une fenêtre "
+                         "d'apprentissage vide ne permet de rien apprendre.")
+
     total_chunks = n_folds + train_window
     chunk = n // total_chunks
     if chunk < MIN_CHUNK:
@@ -353,12 +362,34 @@ def optimize_threshold(df: pd.DataFrame, column: str, n_folds: int = 5,
         df = df.sort_values("datetime")
     df = df.reset_index(drop=True)
     if column not in df.columns:
-        return {"available": False, "reason": f"Colonne « {column} » absente."}
+        # L'ingestion renomme les colonnes vers le schéma interne (« conf » devient
+        # « confidence »…). Sans cette liste, l'utilisateur croit à tort que sa
+        # colonne a disparu.
+        # On ne propose que des colonnes réellement SEUILLABLES : les booléens
+        # (ob, fvg…) et les dates passent `to_numeric` mais n'ont aucun sens ici.
+        numeriques = []
+        for c in df.columns:
+            if c == "datetime" or pd.api.types.is_bool_dtype(df[c]) \
+                    or pd.api.types.is_datetime64_any_dtype(df[c]):
+                continue
+            vals = pd.to_numeric(df[c], errors="coerce")
+            if vals.notna().sum() >= 2 and vals.nunique(dropna=True) >= 2:
+                numeriques.append(c)
+        return {"available": False,
+                "reason": (f"Colonne « {column} » absente après normalisation. "
+                           f"Colonnes numériques disponibles : "
+                           f"{', '.join(sorted(numeriques)) or 'aucune'}.")}
 
     values = pd.to_numeric(df[column], errors="coerce")
     if values.notna().sum() < MIN_CHUNK * 2:
         return {"available": False,
-                "reason": f"Trop peu de valeurs numériques dans « {column} »."}
+                "reason": (f"Trop peu de valeurs numériques exploitables dans "
+                           f"« {column} » ({int(values.notna().sum())}).")}
+    if values.nunique(dropna=True) < 2:
+        return {"available": False,
+                "reason": (f"La colonne « {column} » est constante "
+                           f"({values.dropna().iloc[0]}) : aucun seuil ne peut "
+                           "la découper.")}
 
     # Grille de seuils = quantiles, pour rester adapté à l'échelle des données.
     quantiles = np.linspace(0.1, 0.7, n_candidates)

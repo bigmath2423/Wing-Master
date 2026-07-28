@@ -42,3 +42,18 @@ thresholds:
   min_sample_winner: 8            # winners.MIN_SAMPLE
   min_sample_filter: 10           # suggestions.MIN_SAMPLE_FILTER
   min_retained_ratio: 0.25        # part min de trades conservés après filtre
+
+# Étape 3 — validation de la pile combinée (validate.py) :
+validation:
+  min_trades_after: 30            # échantillon résiduel minimal
+  min_retained: 0.25              # sous ce seuil, la stratégie est dénaturée
+  min_segment_agreement: 0.6      # part des segments devant s'améliorer
+
+# Walk-forward glissant (rolling.py) — 4 exigences CUMULATIVES pour « ROBUSTE ».
+# Chacune bouche un trou par lequel du bruit passait :
+rolling:
+  min_chunk: 15                   # taille minimale d'une fenêtre
+  min_fold_trades: 10             # sous ce seuil, une fenêtre OOS n'est pas jugée
+  min_folds_for_claim: 3          # « 2 fois sur 2 » arrive 1 fois sur 4 au hasard
+  min_t_stat: 2.0                 # l'effet doit dépasser sa propre dispersion
+  min_effect_size: 0.15           # ...et peser 15% de la volatilité d'un trade

@@ -212,3 +212,44 @@ def test_le_markdown_previent_que_le_decoupage_est_par_trade():
     df = _serie(600, lambda i: 1.0 if i % 2 else -0.5, bon=lambda i: i % 2 == 0)
     md = rolling_markdown(rolling_walk_forward(df, n_folds=5))
     assert "NUMÉRO DE TRADE" in md and "disjoints" in md
+
+
+# --- Garde-fous de configuration -------------------------------------------
+
+def test_une_fenetre_dapprentissage_vide_est_refusee():
+    """Régression : `train_window=0` produisait un apprentissage sur ZÉRO trade,
+    et l'agent rendait quand même un verdict — pire que de refuser."""
+    with pytest.raises(ValueError, match="train_window"):
+        make_folds(400, n_folds=5, train_window=0)
+
+
+def test_un_nombre_de_fenetres_nul_est_refuse():
+    with pytest.raises(ValueError, match="n_folds"):
+        make_folds(400, n_folds=0, train_window=3)
+
+
+def test_toute_fenetre_dapprentissage_contient_des_trades():
+    for anchored in (False, True):
+        for f in make_folds(400, n_folds=5, train_window=3, anchored=anchored):
+            assert f.train_end > f.train_start
+            assert f.test_end > f.test_start
+
+
+def test_le_message_liste_les_colonnes_quand_le_nom_a_ete_normalise(structured_df):
+    """L'ingestion renomme « conf » en « confidence » : sans la liste des
+    colonnes disponibles, l'utilisateur croit que sa donnée a disparu."""
+    res = optimize_threshold(structured_df, column="conf")
+    assert res["available"] is False
+    assert "disponibles" in res["reason"]
+    assert "confidence" in res["reason"]
+
+
+def test_une_colonne_constante_ne_peut_pas_etre_seuillee():
+    import pandas as pd
+    from datetime import datetime, timedelta
+    rows = [{"datetime": (datetime(2025, 1, 1) + timedelta(hours=5 * i)).strftime(
+        "%Y-%m-%d %H:%M:%S"), "side": "buy", "profit": float((-1) ** i),
+        "confidence": 0.5} for i in range(300)]
+    res = optimize_threshold(normalize(pd.DataFrame(rows)), column="confidence")
+    assert res["available"] is False
+    assert "constante" in res["reason"]

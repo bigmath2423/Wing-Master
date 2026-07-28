@@ -15,7 +15,9 @@ from __future__ import annotations
 import pandas as pd
 
 from .features import bucketize
-from .suggestions import build_suggestions, _subset_metrics, _pnl_series
+from .suggestions import (
+    build_suggestions, _subset_metrics, _pnl_series, pf_delta, improved,
+)
 
 
 def _apply_spec(df: pd.DataFrame, spec: dict) -> pd.Series:
@@ -35,14 +37,14 @@ def _evaluate_on(df: pd.DataFrame, spec: dict) -> dict:
     n_after = int(mask.sum())
     base = _subset_metrics(pnl)
     filt = _subset_metrics(pnl[mask.values]) if n_after > 0 else {"n": 0}
-    if filt.get("profit_factor") is None or base.get("profit_factor") is None:
+    if n_after == 0 or filt.get("n", 0) == 0:
         return {"applicable": False, "n_after": n_after}
     return {
         "applicable": n_after > 0,
         "n_after": n_after,
         "baseline_pf": base["profit_factor"],
         "filtered_pf": filt["profit_factor"],
-        "pf_delta": round((filt["profit_factor"] or 0) - (base["profit_factor"] or 0), 4),
+        "pf_delta": pf_delta(base["profit_factor"], filt["profit_factor"]),
         "baseline_expectancy": base["expectancy"],
         "filtered_expectancy": filt["expectancy"],
         "expectancy_delta": round(filt["expectancy"] - base["expectancy"], 4),
@@ -55,8 +57,8 @@ def _verdict(is_res: dict, oos_res: dict, min_oos_trades: int) -> str:
     échantillon OOS suffisant et sans effondrer le nombre de trades."""
     if not oos_res.get("applicable") or oos_res.get("n_after", 0) < min_oos_trades:
         return "NON TESTABLE (échantillon OOS insuffisant)"
-    is_good = is_res["expectancy_delta"] > 0 and is_res["pf_delta"] > 0
-    oos_good = oos_res["expectancy_delta"] > 0 and oos_res["pf_delta"] > 0
+    is_good = improved(is_res)
+    oos_good = improved(oos_res)
     if is_good and oos_good:
         return "TIENT (confirmé hors échantillon)"
     if is_good and not oos_good:

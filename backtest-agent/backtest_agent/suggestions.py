@@ -42,6 +42,29 @@ def _subset_metrics(pnl: pd.Series) -> dict:
     }
 
 
+def pf_delta(base_pf: float | None, filtered_pf: float | None) -> float | None:
+    """Écart de profit factor, ou None s'il est INDÉFINI d'un côté.
+
+    Un PF à None veut dire « aucune perte », donc un ratio indéfini. L'écrire
+    `(pf or 0)` le transformerait en zéro, c'est-à-dire en pire résultat
+    possible — exactement l'inverse de la réalité.
+    """
+    if base_pf is None or filtered_pf is None:
+        return None
+    return round(filtered_pf - base_pf, 4)
+
+
+def improved(res: dict | None) -> bool:
+    """Le filtre améliore-t-il vraiment ? L'espérance tranche (toujours définie) ;
+    le profit factor ne sert de garde-fou que lorsqu'il est calculable."""
+    if not res:
+        return False
+    if res.get("expectancy_delta", 0) <= 0:
+        return False
+    delta = res.get("pf_delta")
+    return delta is None or delta > 0
+
+
 def _overfit_risk(n_after: int, n_before: int, effect: float) -> str:
     """Estime le risque de sur-optimisation d'un filtre.
     Basé sur : taille d'échantillon restante, part de trades supprimés,
@@ -69,10 +92,15 @@ def _ab_test_filter(df: pd.DataFrame, column: str, keep_modality: str,
 
     a = _subset_metrics(pnl_all)
     b = _subset_metrics(pnl_all[mask.values])
-    if a.get("profit_factor") is None or b.get("profit_factor") is None:
+    if a.get("n", 0) == 0 or b.get("n", 0) == 0:
         return None
 
-    pf_delta = (b["profit_factor"] or 0) - (a["profit_factor"] or 0)
+    # Un profit factor à None signifie « aucune perte dans ce sous-ensemble »,
+    # donc un ratio indéfini — surtout PAS un mauvais résultat. Le confondre avec
+    # « inexploitable » ferait jeter le meilleur filtre possible : celui qui
+    # supprime tous les perdants. On garde alors l'espérance, toujours calculable.
+    a_pf, b_pf = a.get("profit_factor"), b.get("profit_factor")
+    pf_delta = (b_pf - a_pf) if (a_pf is not None and b_pf is not None) else None
     dd_delta = b["max_drawdown"] - a["max_drawdown"]  # >0 = drawdown amélioré
     exp_delta = b["expectancy"] - a["expectancy"]
 
@@ -88,13 +116,15 @@ def _ab_test_filter(df: pd.DataFrame, column: str, keep_modality: str,
         "variant_A_baseline": a,
         "variant_B_filtered": b,
         "expected_result": {
-            "profit_factor_delta": round(pf_delta, 4),
+            "profit_factor_delta": round(pf_delta, 4) if pf_delta is not None else None,
             "expectancy_delta": round(exp_delta, 4),
             "drawdown_delta": round(dd_delta, 4),
             "trades_removed": a["n"] - b["n"],
             "trades_retained_ratio": round(n_after / a["n"], 3),
+            "filtered_has_no_losses": b_pf is None,
         },
-        "overfitting_risk": _overfit_risk(n_after, a["n"], pf_delta),
+        "overfitting_risk": _overfit_risk(n_after, a["n"],
+                                          pf_delta if pf_delta is not None else exp_delta),
         "decision_rule": (
             "À retenir seulement si le PF s'améliore ET que le drawdown ne se "
             "dégrade pas ET qu'il reste assez de trades ET que l'effet tient "
@@ -179,9 +209,11 @@ def build_suggestions(df: pd.DataFrame, max_ab: int = 6) -> dict:
     # sur 14 trades ne passe jamais devant un effet stable sur 150 trades.
     def score(t):
         risk_factor = {"FAIBLE": 1.0, "MOYEN": 0.5, "ÉLEVÉ": 0.15}[t["overfitting_risk"]]
-        retained = t["expected_result"]["trades_retained_ratio"]
-        pf_delta = t["expected_result"]["profit_factor_delta"]
-        return pf_delta * retained * risk_factor
+        er = t["expected_result"]
+        # On classe sur le gain d'ESPÉRANCE, pas de profit factor : c'est ce qu'on
+        # gagne réellement par trade, c'est toujours défini (le PF ne l'est pas
+        # quand un sous-ensemble n'a aucune perte), et l'unité reste homogène.
+        return er["expectancy_delta"] * er["trades_retained_ratio"] * risk_factor
     ab_tests = sorted(ab_tests, key=score, reverse=True)[:max_ab]
 
     return {

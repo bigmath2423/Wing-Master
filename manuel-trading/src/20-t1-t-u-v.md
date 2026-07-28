@@ -1,4 +1,4 @@
-## T
+## T — TAKE PROFIT → TURTLE SOUP
 
 ### TAKE PROFIT (OBJECTIF)
 *Prix auquel la position est fermée avec un gain.*
@@ -168,7 +168,7 @@
 ➡ Faux cassage des 20 périodes ➡ Clôture au-dessus ➡ Entrée à contre-courant
 :::
 
-## U
+## U — UNICORN → UTAD
 
 ### UNICORN
 *Configuration ICT combinant un Breaker Block et un Fair Value Gap superposés.*
@@ -245,7 +245,7 @@
 ➡ Dernier faux record ➡ Fin de distribution ➡ Meilleure vente du cycle
 :::
 
-## V
+## V — VALUE AREA → VWAP
 
 ### VALUE AREA — VAH / VAL / POC
 *Zone contenant 70 % du volume échangé, et son point de contrôle.*

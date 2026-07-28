@@ -79,6 +79,28 @@ body{
 #plan a.actif{background:var(--fond-3); color:var(--or-clair); font-weight:600}
 .resultat-niveau-3 a{padding-left:1.1rem !important}
 
+/* ---------- sommaire imprimé ---------- */
+.sommaire{
+  max-width:var(--largeur); margin:0 auto; padding:3rem 0 1rem;
+  border-bottom:1px solid var(--trait);
+}
+.sommaire h2{
+  font-size:.72rem; letter-spacing:.28em; text-transform:uppercase; color:var(--or);
+  border:0; margin:0 0 1.6rem; padding:0;
+}
+.sommaire ol{list-style:none; margin:0; padding:0; counter-reset:tome}
+.sommaire .s-tome{margin:1.5rem 0 .4rem}
+.sommaire .s-tome a{
+  font-family:var(--sans); font-weight:700; font-size:.95rem; color:var(--encre);
+  text-decoration:none; display:block; border-bottom:1px solid var(--trait);
+  padding-bottom:.3rem;
+}
+.sommaire .s-chap a{
+  font-family:var(--sans); font-size:.82rem; color:var(--encre-2); text-decoration:none;
+  display:block; padding:.12rem 0 .12rem 1.1rem;
+}
+.sommaire a:hover{color:var(--or)}
+
 /* ---------- boutons flottants ---------- */
 .commandes{
   position:fixed; right:1rem; top:1rem; z-index:30; display:flex; gap:.4rem;
@@ -248,8 +270,12 @@ blockquote{
   #barre,.commandes,#haut{display:none !important}
   main{margin:0; padding:0}
   .page,.couverture{max-width:none}
+  .couverture{padding:38mm 0 0; border:0; page-break-after:always}
+  .couverture h1{font-size:30pt; page-break-before:avoid}
+  .couverture .accroche{font-size:11pt}
   h1{page-break-before:always; page-break-after:avoid}
-  .couverture + main h1:first-of-type{page-break-before:avoid}
+  .sommaire{page-break-before:always}
+  .sommaire + main h1:first-of-type{page-break-before:always}
   h2,h3,h4{page-break-after:avoid}
   .encadre,pre.schema,table,li{page-break-inside:avoid}
   a{color:#000; text-decoration:none}
@@ -278,31 +304,31 @@ blockquote{
 <li class="nav-chapitre"><a href="#les-conventions-du-livre">Les conventions du livre</a></li>
 <li class="nav-chapitre"><a href="#le-contrat-que-vous-signez-avec-vous-meme">Le contrat que vous signez avec vous-même</a></li>
 <li class="nav-tome"><a href="#tome-1-dictionnaire-du-trading">Tome 1 — Dictionnaire du Trading</a></li>
-<li class="nav-chapitre"><a href="#a">A</a></li>
-<li class="nav-chapitre"><a href="#b">B</a></li>
-<li class="nav-chapitre"><a href="#c">C</a></li>
-<li class="nav-chapitre"><a href="#d">D</a></li>
-<li class="nav-chapitre"><a href="#e">E</a></li>
-<li class="nav-chapitre"><a href="#f">F</a></li>
-<li class="nav-chapitre"><a href="#g">G</a></li>
-<li class="nav-chapitre"><a href="#h">H</a></li>
-<li class="nav-chapitre"><a href="#i">I</a></li>
-<li class="nav-chapitre"><a href="#j">J</a></li>
-<li class="nav-chapitre"><a href="#k">K</a></li>
-<li class="nav-chapitre"><a href="#l">L</a></li>
-<li class="nav-chapitre"><a href="#m">M</a></li>
-<li class="nav-chapitre"><a href="#n">N</a></li>
-<li class="nav-chapitre"><a href="#o">O</a></li>
-<li class="nav-chapitre"><a href="#p">P</a></li>
-<li class="nav-chapitre"><a href="#q">Q</a></li>
-<li class="nav-chapitre"><a href="#r">R</a></li>
-<li class="nav-chapitre"><a href="#s">S</a></li>
-<li class="nav-chapitre"><a href="#t">T</a></li>
-<li class="nav-chapitre"><a href="#u">U</a></li>
-<li class="nav-chapitre"><a href="#v">V</a></li>
-<li class="nav-chapitre"><a href="#w">W</a></li>
-<li class="nav-chapitre"><a href="#y">Y</a></li>
-<li class="nav-chapitre"><a href="#z">Z</a></li>
+<li class="nav-chapitre"><a href="#a-accumulation-atr">A — ACCUMULATION → ATR</a></li>
+<li class="nav-chapitre"><a href="#b-backtest-buy-side-liquidity">B — BACKTEST → BUY-SIDE LIQUIDITY</a></li>
+<li class="nav-chapitre"><a href="#c-carry-trade-cycle-de-marche">C — CARRY TRADE → CYCLE DE MARCHÉ</a></li>
+<li class="nav-chapitre"><a href="#d-daily-bias-dxy">D — DAILY BIAS → DXY</a></li>
+<li class="nav-chapitre"><a href="#e-effet-de-levier-exposition">E — EFFET DE LEVIER → EXPOSITION</a></li>
+<li class="nav-chapitre"><a href="#f-faux-cassage-fvg">F — FAUX CASSAGE → FVG</a></li>
+<li class="nav-chapitre"><a href="#g-gap-gestion-du-risque">G — GAP → GESTION DU RISQUE</a></li>
+<li class="nav-chapitre"><a href="#h-head-and-shoulders-higher-high-higher-low">H — HEAD AND SHOULDERS → HIGHER HIGH / HIGHER LOW</a></li>
+<li class="nav-chapitre"><a href="#i-iceberg-ipda">I — ICEBERG → IPDA</a></li>
+<li class="nav-chapitre"><a href="#j-journal-de-trading-judas-swing">J — JOURNAL DE TRADING → JUDAS SWING</a></li>
+<li class="nav-chapitre"><a href="#k-kelly-kill-zone">K — KELLY → KILL ZONE</a></li>
+<li class="nav-chapitre"><a href="#l-liquidation-lot-taille-de-position">L — LIQUIDATION → LOT / TAILLE DE POSITION</a></li>
+<li class="nav-chapitre"><a href="#m-macroeconomie-mss">M — MACROÉCONOMIE → MSS</a></li>
+<li class="nav-chapitre"><a href="#n-nfp-niveau-psychologique">N — NFP → NIVEAU PSYCHOLOGIQUE</a></li>
+<li class="nav-chapitre"><a href="#o-ohlc-overtrading">O — OHLC → OVERTRADING</a></li>
+<li class="nav-chapitre"><a href="#p-paper-trading-pullback">P — PAPER TRADING → PULLBACK</a></li>
+<li class="nav-chapitre"><a href="#q-qe-qt">Q — QE / QT</a></li>
+<li class="nav-chapitre"><a href="#r-range-risque-de-ruine">R — RANGE → RISQUE DE RUINE</a></li>
+<li class="nav-chapitre"><a href="#s-scalping-swing-trading">S — SCALPING → SWING TRADING</a></li>
+<li class="nav-chapitre"><a href="#t-take-profit-turtle-soup">T — TAKE PROFIT → TURTLE SOUP</a></li>
+<li class="nav-chapitre"><a href="#u-unicorn-utad">U — UNICORN → UTAD</a></li>
+<li class="nav-chapitre"><a href="#v-value-area-vwap">V — VALUE AREA → VWAP</a></li>
+<li class="nav-chapitre"><a href="#w-whipsaw-wyckoff">W — WHIPSAW → WYCKOFF</a></li>
+<li class="nav-chapitre"><a href="#y-yield-curve">Y — YIELD CURVE</a></li>
+<li class="nav-chapitre"><a href="#z-zone-neutre">Z — ZONE NEUTRE</a></li>
 <li class="nav-tome"><a href="#tome-2-les-concepts-expliques">Tome 2 — Les concepts expliqués</a></li>
 <li class="nav-chapitre"><a href="#chapitre-1-la-theorie-de-dow">Chapitre 1 — La théorie de Dow</a></li>
 <li class="nav-chapitre"><a href="#chapitre-2-wyckoff">Chapitre 2 — Wyckoff</a></li>
@@ -356,6 +382,38 @@ blockquote{
 <li class="nav-chapitre"><a href="#macro-et-contexte-regles-71-a-80">Macro et contexte — règles 71 à 80</a></li>
 <li class="nav-chapitre"><a href="#discipline-et-process-regles-81-a-90">Discipline et process — règles 81 à 90</a></li>
 <li class="nav-chapitre"><a href="#carriere-et-long-terme-regles-91-a-100">Carrière et long terme — règles 91 à 100</a></li>
+<li class="nav-tome"><a href="#tome-6-les-erreurs-a-eviter">Tome 6 — Les erreurs à éviter</a></li>
+<li class="nav-chapitre"><a href="#erreurs-d-analyse">Erreurs d&#x27;analyse</a></li>
+<li class="nav-chapitre"><a href="#erreurs-d-entree">Erreurs d&#x27;entrée</a></li>
+<li class="nav-chapitre"><a href="#erreurs-de-sortie">Erreurs de sortie</a></li>
+<li class="nav-chapitre"><a href="#erreurs-de-gestion-du-risque">Erreurs de gestion du risque</a></li>
+<li class="nav-chapitre"><a href="#erreurs-psychologiques">Erreurs psychologiques</a></li>
+<li class="nav-chapitre"><a href="#erreurs-de-process">Erreurs de process</a></li>
+<li class="nav-chapitre"><a href="#erreurs-techniques-et-operationnelles">Erreurs techniques et opérationnelles</a></li>
+<li class="nav-tome"><a href="#tome-7-mon-aide-memoire">Tome 7 — Mon aide-mémoire</a></li>
+<li class="nav-chapitre"><a href="#structure">Structure</a></li>
+<li class="nav-chapitre"><a href="#wyckoff">Wyckoff</a></li>
+<li class="nav-chapitre"><a href="#zones-et-desequilibres">Zones et déséquilibres</a></li>
+<li class="nav-chapitre"><a href="#liquidite-2">Liquidité</a></li>
+<li class="nav-chapitre"><a href="#volume-et-flux">Volume et flux</a></li>
+<li class="nav-chapitre"><a href="#temps-et-sessions">Temps et sessions</a></li>
+<li class="nav-chapitre"><a href="#macro">Macro</a></li>
+<li class="nav-chapitre"><a href="#impact-par-actif">Impact par actif</a></li>
+<li class="nav-chapitre"><a href="#risque">Risque</a></li>
+<li class="nav-chapitre"><a href="#psychologie">Psychologie</a></li>
+<li class="nav-chapitre"><a href="#le-trade-parfait-en-une-carte">Le trade parfait, en une carte</a></li>
+<li class="nav-chapitre"><a href="#les-quatre-sequences-a-connaitre-par-c-ur">Les quatre séquences à connaître par cœur</a></li>
+<li class="nav-tome"><a href="#tome-8-mon-antiseche">Tome 8 — Mon antisèche</a></li>
+<li class="nav-chapitre"><a href="#page-1-les-quinze-mots-essentiels">Page 1 — Les quinze mots essentiels</a></li>
+<li class="nav-chapitre"><a href="#page-2-la-sequence-dans-l-ordre">Page 2 — La séquence, dans l&#x27;ordre</a></li>
+<li class="nav-chapitre"><a href="#page-3-structure">Page 3 — Structure</a></li>
+<li class="nav-chapitre"><a href="#page-4-zones">Page 4 — Zones</a></li>
+<li class="nav-chapitre"><a href="#page-5-liquidite-et-premium-discount">Page 5 — Liquidité et premium/discount</a></li>
+<li class="nav-chapitre"><a href="#page-6-temps">Page 6 — Temps</a></li>
+<li class="nav-chapitre"><a href="#page-7-risque">Page 7 — Risque</a></li>
+<li class="nav-chapitre"><a href="#page-8-macro">Page 8 — Macro</a></li>
+<li class="nav-chapitre"><a href="#page-9-erreurs-et-psychologie">Page 9 — Erreurs et psychologie</a></li>
+<li class="nav-chapitre"><a href="#page-10-routine-de-cinq-minutes">Page 10 — Routine de cinq minutes</a></li>
 </ul></nav>
 </aside>
 
@@ -366,8 +424,128 @@ blockquote{
   <p class="accroche">Dictionnaire, concepts, macroéconomie, checklists, règles d'or,
   erreurs, aide-mémoire et antisèche. Huit tomes, un seul livre : celui qu'on relit
   avant d'ouvrir une position.</p>
-  <p class="meta">Version 1.0 · 28/07/2026 · 339 entrées indexées</p>
+  <p class="meta">Version 1.0 · 28/07/2026 · 436 entrées indexées</p>
 </div>
+
+<div class="sommaire"><h2>Sommaire</h2><ol>
+<li class="s-tome"><a href="#preface-comment-utiliser-ce-manuel">Préface — Comment utiliser ce manuel</a></li>
+<li class="s-chap"><a href="#les-huit-tomes">Les huit tomes</a></li>
+<li class="s-chap"><a href="#le-code-couleur-des-encadres">Le code couleur des encadrés</a></li>
+<li class="s-chap"><a href="#trois-facons-de-s-en-servir">Trois façons de s&#x27;en servir</a></li>
+<li class="s-chap"><a href="#les-conventions-du-livre">Les conventions du livre</a></li>
+<li class="s-chap"><a href="#le-contrat-que-vous-signez-avec-vous-meme">Le contrat que vous signez avec vous-même</a></li>
+<li class="s-tome"><a href="#tome-1-dictionnaire-du-trading">Tome 1 — Dictionnaire du Trading</a></li>
+<li class="s-chap"><a href="#a-accumulation-atr">A — ACCUMULATION → ATR</a></li>
+<li class="s-chap"><a href="#b-backtest-buy-side-liquidity">B — BACKTEST → BUY-SIDE LIQUIDITY</a></li>
+<li class="s-chap"><a href="#c-carry-trade-cycle-de-marche">C — CARRY TRADE → CYCLE DE MARCHÉ</a></li>
+<li class="s-chap"><a href="#d-daily-bias-dxy">D — DAILY BIAS → DXY</a></li>
+<li class="s-chap"><a href="#e-effet-de-levier-exposition">E — EFFET DE LEVIER → EXPOSITION</a></li>
+<li class="s-chap"><a href="#f-faux-cassage-fvg">F — FAUX CASSAGE → FVG</a></li>
+<li class="s-chap"><a href="#g-gap-gestion-du-risque">G — GAP → GESTION DU RISQUE</a></li>
+<li class="s-chap"><a href="#h-head-and-shoulders-higher-high-higher-low">H — HEAD AND SHOULDERS → HIGHER HIGH / HIGHER LOW</a></li>
+<li class="s-chap"><a href="#i-iceberg-ipda">I — ICEBERG → IPDA</a></li>
+<li class="s-chap"><a href="#j-journal-de-trading-judas-swing">J — JOURNAL DE TRADING → JUDAS SWING</a></li>
+<li class="s-chap"><a href="#k-kelly-kill-zone">K — KELLY → KILL ZONE</a></li>
+<li class="s-chap"><a href="#l-liquidation-lot-taille-de-position">L — LIQUIDATION → LOT / TAILLE DE POSITION</a></li>
+<li class="s-chap"><a href="#m-macroeconomie-mss">M — MACROÉCONOMIE → MSS</a></li>
+<li class="s-chap"><a href="#n-nfp-niveau-psychologique">N — NFP → NIVEAU PSYCHOLOGIQUE</a></li>
+<li class="s-chap"><a href="#o-ohlc-overtrading">O — OHLC → OVERTRADING</a></li>
+<li class="s-chap"><a href="#p-paper-trading-pullback">P — PAPER TRADING → PULLBACK</a></li>
+<li class="s-chap"><a href="#q-qe-qt">Q — QE / QT</a></li>
+<li class="s-chap"><a href="#r-range-risque-de-ruine">R — RANGE → RISQUE DE RUINE</a></li>
+<li class="s-chap"><a href="#s-scalping-swing-trading">S — SCALPING → SWING TRADING</a></li>
+<li class="s-chap"><a href="#t-take-profit-turtle-soup">T — TAKE PROFIT → TURTLE SOUP</a></li>
+<li class="s-chap"><a href="#u-unicorn-utad">U — UNICORN → UTAD</a></li>
+<li class="s-chap"><a href="#v-value-area-vwap">V — VALUE AREA → VWAP</a></li>
+<li class="s-chap"><a href="#w-whipsaw-wyckoff">W — WHIPSAW → WYCKOFF</a></li>
+<li class="s-chap"><a href="#y-yield-curve">Y — YIELD CURVE</a></li>
+<li class="s-chap"><a href="#z-zone-neutre">Z — ZONE NEUTRE</a></li>
+<li class="s-tome"><a href="#tome-2-les-concepts-expliques">Tome 2 — Les concepts expliqués</a></li>
+<li class="s-chap"><a href="#chapitre-1-la-theorie-de-dow">Chapitre 1 — La théorie de Dow</a></li>
+<li class="s-chap"><a href="#chapitre-2-wyckoff">Chapitre 2 — Wyckoff</a></li>
+<li class="s-chap"><a href="#chapitre-3-ict">Chapitre 3 — ICT</a></li>
+<li class="s-chap"><a href="#chapitre-4-smc-smart-money-concepts">Chapitre 4 — SMC (Smart Money Concepts)</a></li>
+<li class="s-chap"><a href="#chapitre-5-price-action">Chapitre 5 — Price Action</a></li>
+<li class="s-chap"><a href="#chapitre-6-le-volume">Chapitre 6 — Le volume</a></li>
+<li class="s-chap"><a href="#chapitre-7-l-order-flow">Chapitre 7 — L&#x27;order flow</a></li>
+<li class="s-chap"><a href="#chapitre-8-la-liquidite">Chapitre 8 — La liquidité</a></li>
+<li class="s-chap"><a href="#chapitre-9-premium-discount">Chapitre 9 — Premium / Discount</a></li>
+<li class="s-chap"><a href="#chapitre-10-l-order-block">Chapitre 10 — L&#x27;Order Block</a></li>
+<li class="s-chap"><a href="#chapitre-11-le-breaker-block">Chapitre 11 — Le Breaker Block</a></li>
+<li class="s-chap"><a href="#chapitre-12-le-mitigation-block">Chapitre 12 — Le Mitigation Block</a></li>
+<li class="s-chap"><a href="#chapitre-13-le-fair-value-gap-fvg">Chapitre 13 — Le Fair Value Gap (FVG)</a></li>
+<li class="s-chap"><a href="#chapitre-14-l-ifvg-inverse-fair-value-gap">Chapitre 14 — L&#x27;IFVG (Inverse Fair Value Gap)</a></li>
+<li class="s-chap"><a href="#chapitre-15-le-bpr-balanced-price-range">Chapitre 15 — Le BPR (Balanced Price Range)</a></li>
+<li class="s-chap"><a href="#chapitre-16-le-bos-break-of-structure">Chapitre 16 — Le BOS (Break of Structure)</a></li>
+<li class="s-chap"><a href="#chapitre-17-le-choch-change-of-character">Chapitre 17 — Le CHoCH (Change of Character)</a></li>
+<li class="s-chap"><a href="#chapitre-18-le-mss-market-structure-shift">Chapitre 18 — Le MSS (Market Structure Shift)</a></li>
+<li class="s-chap"><a href="#chapitre-19-le-liquidity-sweep">Chapitre 19 — Le Liquidity Sweep</a></li>
+<li class="s-chap"><a href="#chapitre-20-la-structure-interne">Chapitre 20 — La structure interne</a></li>
+<li class="s-chap"><a href="#chapitre-21-la-structure-externe">Chapitre 21 — La structure externe</a></li>
+<li class="s-chap"><a href="#chapitre-22-kill-zones">Chapitre 22 — Kill Zones</a></li>
+<li class="s-chap"><a href="#chapitre-23-les-sessions">Chapitre 23 — Les sessions</a></li>
+<li class="s-chap"><a href="#chapitre-24-les-correlations">Chapitre 24 — Les corrélations</a></li>
+<li class="s-chap"><a href="#chapitre-25-la-macroeconomie">Chapitre 25 — La macroéconomie</a></li>
+<li class="s-chap"><a href="#chapitre-26-l-analyse-fondamentale">Chapitre 26 — L&#x27;analyse fondamentale</a></li>
+<li class="s-tome"><a href="#tome-3-macroeconomie">Tome 3 — Macroéconomie</a></li>
+<li class="s-chap"><a href="#la-chaine-de-causalite-a-memoriser-avant-tout-le-reste">La chaîne de causalité — à mémoriser avant tout le reste</a></li>
+<li class="s-chap"><a href="#les-seize-fiches">Les seize fiches</a></li>
+<li class="s-chap"><a href="#l-impact-par-actif">L&#x27;impact par actif</a></li>
+<li class="s-chap"><a href="#tableau-de-synthese-l-impact-croise">Tableau de synthèse — l&#x27;impact croisé</a></li>
+<li class="s-tome"><a href="#tome-4-checklists">Tome 4 — Checklists</a></li>
+<li class="s-chap"><a href="#checklist-1-daily-bias">Checklist 1 — Daily Bias</a></li>
+<li class="s-chap"><a href="#checklist-2-analyse-htf">Checklist 2 — Analyse HTF</a></li>
+<li class="s-chap"><a href="#checklist-3-liquidite">Checklist 3 — Liquidité</a></li>
+<li class="s-chap"><a href="#checklist-4-entree">Checklist 4 — Entrée</a></li>
+<li class="s-chap"><a href="#checklist-5-sortie">Checklist 5 — Sortie</a></li>
+<li class="s-chap"><a href="#checklist-6-gestion-du-risque">Checklist 6 — Gestion du risque</a></li>
+<li class="s-chap"><a href="#checklist-7-avant-d-appuyer-sur-buy-ou-sell">Checklist 7 — Avant d&#x27;appuyer sur BUY ou SELL</a></li>
+<li class="s-chap"><a href="#checklist-8-fin-de-journee">Checklist 8 — Fin de journée</a></li>
+<li class="s-chap"><a href="#checklist-9-journal-de-trading">Checklist 9 — Journal de trading</a></li>
+<li class="s-tome"><a href="#tome-5-les-100-regles-d-or">Tome 5 — Les 100 règles d&#x27;or</a></li>
+<li class="s-chap"><a href="#structure-et-tendance-regles-1-a-10">Structure et tendance — règles 1 à 10</a></li>
+<li class="s-chap"><a href="#liquidite-regles-11-a-20">Liquidité — règles 11 à 20</a></li>
+<li class="s-chap"><a href="#entrees-regles-21-a-30">Entrées — règles 21 à 30</a></li>
+<li class="s-chap"><a href="#sorties-regles-31-a-40">Sorties — règles 31 à 40</a></li>
+<li class="s-chap"><a href="#risque-et-taille-regles-41-a-50">Risque et taille — règles 41 à 50</a></li>
+<li class="s-chap"><a href="#temps-et-sessions-regles-51-a-60">Temps et sessions — règles 51 à 60</a></li>
+<li class="s-chap"><a href="#psychologie-regles-61-a-70">Psychologie — règles 61 à 70</a></li>
+<li class="s-chap"><a href="#macro-et-contexte-regles-71-a-80">Macro et contexte — règles 71 à 80</a></li>
+<li class="s-chap"><a href="#discipline-et-process-regles-81-a-90">Discipline et process — règles 81 à 90</a></li>
+<li class="s-chap"><a href="#carriere-et-long-terme-regles-91-a-100">Carrière et long terme — règles 91 à 100</a></li>
+<li class="s-tome"><a href="#tome-6-les-erreurs-a-eviter">Tome 6 — Les erreurs à éviter</a></li>
+<li class="s-chap"><a href="#erreurs-d-analyse">Erreurs d&#x27;analyse</a></li>
+<li class="s-chap"><a href="#erreurs-d-entree">Erreurs d&#x27;entrée</a></li>
+<li class="s-chap"><a href="#erreurs-de-sortie">Erreurs de sortie</a></li>
+<li class="s-chap"><a href="#erreurs-de-gestion-du-risque">Erreurs de gestion du risque</a></li>
+<li class="s-chap"><a href="#erreurs-psychologiques">Erreurs psychologiques</a></li>
+<li class="s-chap"><a href="#erreurs-de-process">Erreurs de process</a></li>
+<li class="s-chap"><a href="#erreurs-techniques-et-operationnelles">Erreurs techniques et opérationnelles</a></li>
+<li class="s-tome"><a href="#tome-7-mon-aide-memoire">Tome 7 — Mon aide-mémoire</a></li>
+<li class="s-chap"><a href="#structure">Structure</a></li>
+<li class="s-chap"><a href="#wyckoff">Wyckoff</a></li>
+<li class="s-chap"><a href="#zones-et-desequilibres">Zones et déséquilibres</a></li>
+<li class="s-chap"><a href="#liquidite-2">Liquidité</a></li>
+<li class="s-chap"><a href="#volume-et-flux">Volume et flux</a></li>
+<li class="s-chap"><a href="#temps-et-sessions">Temps et sessions</a></li>
+<li class="s-chap"><a href="#macro">Macro</a></li>
+<li class="s-chap"><a href="#impact-par-actif">Impact par actif</a></li>
+<li class="s-chap"><a href="#risque">Risque</a></li>
+<li class="s-chap"><a href="#psychologie">Psychologie</a></li>
+<li class="s-chap"><a href="#le-trade-parfait-en-une-carte">Le trade parfait, en une carte</a></li>
+<li class="s-chap"><a href="#les-quatre-sequences-a-connaitre-par-c-ur">Les quatre séquences à connaître par cœur</a></li>
+<li class="s-tome"><a href="#tome-8-mon-antiseche">Tome 8 — Mon antisèche</a></li>
+<li class="s-chap"><a href="#page-1-les-quinze-mots-essentiels">Page 1 — Les quinze mots essentiels</a></li>
+<li class="s-chap"><a href="#page-2-la-sequence-dans-l-ordre">Page 2 — La séquence, dans l&#x27;ordre</a></li>
+<li class="s-chap"><a href="#page-3-structure">Page 3 — Structure</a></li>
+<li class="s-chap"><a href="#page-4-zones">Page 4 — Zones</a></li>
+<li class="s-chap"><a href="#page-5-liquidite-et-premium-discount">Page 5 — Liquidité et premium/discount</a></li>
+<li class="s-chap"><a href="#page-6-temps">Page 6 — Temps</a></li>
+<li class="s-chap"><a href="#page-7-risque">Page 7 — Risque</a></li>
+<li class="s-chap"><a href="#page-8-macro">Page 8 — Macro</a></li>
+<li class="s-chap"><a href="#page-9-erreurs-et-psychologie">Page 9 — Erreurs et psychologie</a></li>
+<li class="s-chap"><a href="#page-10-routine-de-cinq-minutes">Page 10 — Routine de cinq minutes</a></li>
+</ol></div>
 
 <main><div class="page">
 <h1 id="preface-comment-utiliser-ce-manuel" data-tome="Préface">Préface — Comment utiliser ce manuel</h1>
@@ -505,7 +683,7 @@ définition simple, définition professionnelle, importance, reconnaissance, usa
 institutionnel, usage personnel, erreurs, pièges, exemple, schéma, mémo.</p>
 <aside class="encadre encadre--astuce"><p class="encadre-titre">Astuce</p><p>Cherchez avec la touche <code>/</code>. Tapez les trois premières lettres du terme : la
 navigation se filtre en direct, accents et casse ignorés.</p></aside>
-<h2 id="a">A</h2>
+<h2 id="a-accumulation-atr">A — ACCUMULATION → ATR</h2>
 <h3 id="accumulation">ACCUMULATION</h3>
 <p><em>Construction discrète d'une position acheteuse par les mains fortes, en range, après une baisse.</em></p>
 <ul>
@@ -671,7 +849,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
   Stop = niveau invalidé + (1,5 à 2 × ATR)
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Volatilité moyenne ➡ Stop calibré dessus ➡ Taille ajustée dessous ➡ Jamais l'inverse</p></aside>
-<h2 id="b">B</h2>
+<h2 id="b-backtest-buy-side-liquidity">B — BACKTEST → BUY-SIDE LIQUIDITY</h2>
 <h3 id="backtest">BACKTEST</h3>
 <p><em>Test d'une stratégie sur des données passées.</em></p>
 <ul>
@@ -852,7 +1030,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ▼▼   ▼▼   equal lows              ← sell stops (SSL)
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Ordres d'achat piégés au-dessus ➡ Le prix va les chercher ➡ Objectif, pas entrée</p></aside>
-<h2 id="c">C</h2>
+<h2 id="c-carry-trade-cycle-de-marche">C — CARRY TRADE → CYCLE DE MARCHÉ</h2>
 <h3 id="carry-trade">CARRY TRADE</h3>
 <p><em>Emprunter dans une devise à taux bas pour placer dans une devise à taux élevé.</em></p>
 <ul>
@@ -1030,7 +1208,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
   ACCUMULATION            (nouvelle accumulation)
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Accumulation ➡ Hausse ➡ Distribution ➡ Baisse ➡ Toujours dans cet ordre</p></aside>
-<h2 id="d">D</h2>
+<h2 id="d-daily-bias-dxy">D — DAILY BIAS → DXY</h2>
 <h3 id="daily-bias">DAILY BIAS</h3>
 <p><em>Direction attendue pour la journée, décidée avant l'ouverture.</em></p>
 <ul>
@@ -1203,7 +1381,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    Composition : EUR 57,6 % · JPY 13,6 % · GBP 11,9 % · autres 16,9 %
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Thermomètre du dollar ➡ Miroir de l'or ➡ Toujours vérifier avant d'entrer</p></aside>
-<h2 id="e">E</h2>
+<h2 id="e-effet-de-levier-exposition">E — EFFET DE LEVIER → EXPOSITION</h2>
 <h3 id="effet-de-levier">EFFET DE LEVIER</h3>
 <p><em>Multiplicateur permettant de contrôler une position supérieure au capital déposé.</em></p>
 <ul>
@@ -1319,7 +1497,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
   Toute ligne supplémentaire = refus automatique
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Le risque se compte au portefeuille ➡ Un facteur = une position ➡ 3 % plafond</p></aside>
-<h2 id="f">F</h2>
+<h2 id="f-faux-cassage-fvg">F — FAUX CASSAGE → FVG</h2>
 <h3 id="faux-cassage-fakeout">FAUX CASSAGE (FAKEOUT)</h3>
 <p><em>Franchissement d'un niveau immédiatement invalidé par le retour du prix.</em></p>
 <ul>
@@ -1515,7 +1693,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
   Entrée au retour dans la zone ▓ · milieu = point optimal
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Trois bougies ➡ Un trou ➡ Le prix revient le combler ➡ Entrée limite dans le trou</p></aside>
-<h2 id="g">G</h2>
+<h2 id="g-gap-gestion-du-risque">G — GAP → GESTION DU RISQUE</h2>
 <h3 id="gap">GAP</h3>
 <p><em>Trou de cotation entre la clôture d'une séance et l'ouverture de la suivante.</em></p>
 <ul>
@@ -1557,7 +1735,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
       5   %            −40,1 %             +67,0 %
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Le risque d'abord ➡ Le gain ensuite ➡ Jamais l'inverse ➡ Chiffres écrits, jamais négociés</p></aside>
-<h2 id="h">H</h2>
+<h2 id="h-head-and-shoulders-higher-high-higher-low">H — HEAD AND SHOULDERS → HIGHER HIGH / HIGHER LOW</h2>
 <h3 id="head-and-shoulders-epaule-tete-epaule">HEAD AND SHOULDERS (ÉPAULE-TÊTE-ÉPAULE)</h3>
 <p><em>Figure de retournement en trois sommets, celui du milieu étant le plus haut.</em></p>
 <ul>
@@ -1639,7 +1817,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
   ╱  HL
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Sommets plus hauts ➡ Creux plus hauts ➡ Tendance haussière ➡ Que des achats</p></aside>
-<h2 id="i">I</h2>
+<h2 id="i-iceberg-ipda">I — ICEBERG → IPDA</h2>
 <h3 id="iceberg-ordre">ICEBERG (ORDRE)</h3>
 <p><em>Ordre de grande taille dont seule une petite fraction est visible dans le carnet.</em></p>
 <ul>
@@ -1774,7 +1952,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── c'est tout le modèle ──
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Le prix cherche la liquidité ➡ Puis comble les trous ➡ Puis recommence</p></aside>
-<h2 id="j">J</h2>
+<h2 id="j-journal-de-trading-judas-swing">J — JOURNAL DE TRADING → JUDAS SWING</h2>
 <h3 id="journal-de-trading">JOURNAL DE TRADING</h3>
 <p><em>Registre de tous les trades, avec leur raison, leur exécution et leur émotion.</em></p>
 <ul>
@@ -1817,7 +1995,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
         │         ╲__╱▲▲▲ vrai mouvement
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Faux départ à l'ouverture ➡ Purge ➡ Le vrai mouvement part après ➡ Ne jamais suivre la première bougie</p></aside>
-<h2 id="k">K</h2>
+<h2 id="k-kelly-kill-zone">K — KELLY → KILL ZONE</h2>
 <h3 id="kelly-critere-de">KELLY (CRITÈRE DE)</h3>
 <p><em>Formule donnant la fraction de capital optimale pour maximiser la croissance à long terme.</em></p>
 <ul>
@@ -1857,7 +2035,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    17 h ──── 19 h  London Close ▓ retournements fréquents
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Deux fenêtres par jour ➡ Hors fenêtre, on observe ➡ L'heure fait partie du setup</p></aside>
-<h2 id="l">L</h2>
+<h2 id="l-liquidation-lot-taille-de-position">L — LIQUIDATION → LOT / TAILLE DE POSITION</h2>
 <h3 id="liquidation">LIQUIDATION</h3>
 <p><em>Fermeture forcée d'une position par le courtier faute de marge suffisante.</em></p>
 <ul>
@@ -1981,7 +2159,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── la taille est un résultat, jamais une décision ──
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Stop d'abord ➡ Risque ensuite ➡ La taille se calcule ➡ Elle ne se choisit pas</p></aside>
-<h2 id="m">M</h2>
+<h2 id="m-macroeconomie-mss">M — MACROÉCONOMIE → MSS</h2>
 <h3 id="macroeconomie">MACROÉCONOMIE</h3>
 <p><em>Étude des grandeurs globales : croissance, inflation, emploi, taux, monnaie.</em></p>
 <ul>
@@ -2152,7 +2330,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
                         ╲▼ nouveau biais baissier
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Purge ➡ Déplacement ➡ Cassure du dernier pivot ➡ Nouveau biais</p></aside>
-<h2 id="n">N</h2>
+<h2 id="n-nfp-niveau-psychologique">N — NFP → NIVEAU PSYCHOLOGIQUE</h2>
 <h3 id="nfp-non-farm-payrolls">NFP — NON-FARM PAYROLLS</h3>
 <p><em>Créations d'emplois non agricoles aux États-Unis.</em></p>
 <ul>
@@ -2191,7 +2369,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── viser avant, protéger après ──
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Les ronds attirent les ordres ➡ Objectif avant ➡ Stop bien au-delà</p></aside>
-<h2 id="o">O</h2>
+<h2 id="o-ohlc-overtrading">O — OHLC → OVERTRADING</h2>
 <h3 id="ohlc">OHLC</h3>
 <p><em>Ouverture, plus haut, plus bas, clôture d'une période.</em></p>
 <ul>
@@ -2311,7 +2489,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
       6 et +         −0,20 R    ← frais + fatigue + émotion
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Quota quotidien ➡ Quota hebdomadaire ➡ Atteint = fermeture de la plateforme</p></aside>
-<h2 id="p">P</h2>
+<h2 id="p-paper-trading-pullback">P — PAPER TRADING → PULLBACK</h2>
 <h3 id="paper-trading-compte-demo">PAPER TRADING (COMPTE DÉMO)</h3>
 <p><em>Trading simulé, sans argent réel.</em></p>
 <ul>
@@ -2464,7 +2642,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── entrer ici ─────────┘
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Corps étroits ➡ Volume en baisse ➡ C'est une pause ➡ On entre dedans</p></aside>
-<h2 id="q">Q</h2>
+<h2 id="q-qe-qt">Q — QE / QT</h2>
 <h3 id="qe-qt-assouplissement-et-resserrement-quantitatifs">QE / QT — ASSOUPLISSEMENT ET RESSERREMENT QUANTITATIFS</h3>
 <p><em>Création ou destruction de liquidité par le bilan de la banque centrale.</em></p>
 <ul>
@@ -2483,7 +2661,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    Échelle : trimestres et années, jamais la séance
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ QE = argent injecté = actifs en hausse ➡ QT = l'inverse ➡ Horizon long</p></aside>
-<h2 id="r">R</h2>
+<h2 id="r-range-risque-de-ruine">R — RANGE → RISQUE DE RUINE</h2>
 <h3 id="range">RANGE</h3>
 <p><em>Zone horizontale bornée par un support et une résistance.</em></p>
 <ul>
@@ -2599,7 +2777,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── la taille, pas la méthode, détermine la survie ──
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Survivre d'abord ➡ 1 % maximum ➡ La ruine vient de la taille, pas de la méthode</p></aside>
-<h2 id="s">S</h2>
+<h2 id="s-scalping-swing-trading">S — SCALPING → SWING TRADING</h2>
 <h3 id="scalping">SCALPING</h3>
 <p><em>Style consistant à prendre de très nombreux petits gains sur des durées courtes.</em></p>
 <ul>
@@ -2848,7 +3026,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    ── même risque en euros, charge mentale incomparable ──
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Grands mouvements ➡ Stops larges, tailles petites ➡ Peu de décisions</p></aside>
-<h2 id="t">T</h2>
+<h2 id="t-take-profit-turtle-soup">T — TAKE PROFIT → TURTLE SOUP</h2>
 <h3 id="take-profit-objectif">TAKE PROFIT (OBJECTIF)</h3>
 <p><em>Prix auquel la position est fermée avec un gain.</em></p>
 <ul>
@@ -2982,7 +3160,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    Stop sous la mèche · objectif au milieu du range
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Faux cassage des 20 périodes ➡ Clôture au-dessus ➡ Entrée à contre-courant</p></aside>
-<h2 id="u">U</h2>
+<h2 id="u-unicorn-utad">U — UNICORN → UTAD</h2>
 <h3 id="unicorn">UNICORN</h3>
 <p><em>Configuration ICT combinant un Breaker Block et un Fair Value Gap superposés.</em></p>
 <ul>
@@ -3043,7 +3221,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
                             ╲▼▼▼ Sign of Weakness
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Dernier faux record ➡ Fin de distribution ➡ Meilleure vente du cycle</p></aside>
-<h2 id="v">V</h2>
+<h2 id="v-value-area-vwap">V — VALUE AREA → VWAP</h2>
 <h3 id="value-area-vah-val-poc">VALUE AREA — VAH / VAL / POC</h3>
 <p><em>Zone contenant 70 % du volume échangé, et son point de contrôle.</em></p>
 <ul>
@@ -3140,7 +3318,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    Prix &lt; VWAP ─────────── vendeurs aux commandes
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Prix moyen payé ➡ Référence institutionnelle ➡ Au-dessus on achète, en dessous on vend</p></aside>
-<h2 id="w">W</h2>
+<h2 id="w-whipsaw-wyckoff">W — WHIPSAW → WYCKOFF</h2>
 <h3 id="whipsaw-sciage">WHIPSAW (SCIAGE)</h3>
 <p><em>Série de faux signaux qui déclenchent des entrées et des sorties immédiates.</em></p>
 <ul>
@@ -3200,7 +3378,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    SOS Sign of Strength            SOW  Sign of Weakness
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Trois lois ➡ Quatre phases ➡ L'ancêtre du SMC ➡ Situer, puis exécuter</p></aside>
-<h2 id="y">Y</h2>
+<h2 id="y-yield-curve">Y — YIELD CURVE</h2>
 <h3 id="yield-curve-courbe-des-taux">YIELD CURVE (COURBE DES TAUX)</h3>
 <p><em>Représentation des rendements obligataires selon leur échéance.</em></p>
 <ul>
@@ -3219,7 +3397,7 @@ navigation se filtre en direct, accents et casse ignorés.</p></aside>
    INVERSÉE     2a ▅▃▂▁ 30a   récession anticipée (12-18 mois)
 </code></pre>
 <aside class="encadre encadre--memo"><p class="encadre-titre">Mémo</p><p>➡ Inversion = récession anticipée ➡ Douze à dix-huit mois ➡ Cadre, pas signal</p></aside>
-<h2 id="z">Z</h2>
+<h2 id="z-zone-neutre">Z — ZONE NEUTRE</h2>
 <h3 id="zone-neutre">ZONE NEUTRE</h3>
 <p><em>Partie du graphique où aucune décision ne doit être prise.</em></p>
 <ul>
@@ -6609,9 +6787,1508 @@ et ne se négocie jamais en séance. <strong>Quatre</strong> : la discipline est
 pas une qualité morale — checklists, journal, limites écrites, horaires fixes.
 Tout le reste n'est que la déclinaison de ces quatre principes sur des
 situations particulières.</p></aside>
+<h1 id="tome-6-les-erreurs-a-eviter" data-tome="Tome 6">Tome 6 — Les erreurs à éviter</h1>
+<p>Soixante-cinq erreurs, classées par famille. Pour chacune : <strong>pourquoi elle
+arrive</strong>, <strong>comment l'éviter</strong>, <strong>comment la corriger</strong>, et le <strong>signe d'alerte</strong>
+qui permet de la repérer avant qu'elle ne coûte cher.</p>
+<aside class="encadre encadre--astuce"><p class="encadre-titre">Comment utiliser ce tome</p><p>Après chaque trade perdant hors plan, ouvrez ce tome et <strong>nommez l'erreur</strong>.
+Une erreur nommée entre dans le journal ; une erreur nommée deux fois devient
+une règle. C'est le mécanisme complet de la progression.</p></aside>
+<h2 id="erreurs-d-analyse">Erreurs d'analyse</h2>
+<h3 id="1-analyser-sans-marquer-la-structure">1. Analyser sans marquer la structure</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On veut aller vite, et la structure paraît « évidente ».</li>
+<li><strong>Éviter</strong> — Marquer les pivots est la première action, avant tout tracé.</li>
+<li><strong>Corriger</strong> — Trois à cinq pivots majeurs par écran, jamais plus.</li>
+<li><strong>Alerte</strong> — Vous hésitez sur la tendance en cours.</li>
+</ul>
+<h3 id="2-changer-d-unite-de-temps-jusqu-a-trouver-la-confirmation">2. Changer d'unité de temps jusqu'à trouver la confirmation</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On a déjà décidé, on cherche la validation (<em>timeframe shopping</em>).</li>
+<li><strong>Éviter</strong> — Fixer les trois unités à l'avance, une fois pour toutes.</li>
+<li><strong>Corriger</strong> — Écrire les unités dans le plan, et refuser tout signal d'une autre.</li>
+<li><strong>Alerte</strong> — Vous ouvrez le M1 avant d'entrer alors que vous tradez le H1.</li>
+</ul>
+<h3 id="3-confondre-structure-interne-et-externe">3. Confondre structure interne et externe</h3>
+<ul>
+<li><strong>Pourquoi</strong> — En basse unité de temps, une correction ressemble à une tendance complète.</li>
+<li><strong>Éviter</strong> — Rappel systématique : l'interne ne change jamais le biais.</li>
+<li><strong>Corriger</strong> — Avant tout retournement, vérifier le pivot <strong>externe</strong>.</li>
+<li><strong>Alerte</strong> — Vous vendez en pleine tendance haussière journalière.</li>
+</ul>
+<h3 id="4-redessiner-l-analyse-apres-coup">4. Redessiner l'analyse après coup</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le cerveau réécrit l'histoire pour se donner raison.</li>
+<li><strong>Éviter</strong> — Capture d'écran horodatée <strong>avant</strong> l'entrée.</li>
+<li><strong>Corriger</strong> — Comparer chaque semaine les captures d'avant et d'après.</li>
+<li><strong>Alerte</strong> — Vos analyses sont toujours justes en relecture.</li>
+</ul>
+<h3 id="5-surcharger-le-graphique">5. Surcharger le graphique</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'incertitude pousse à ajouter des outils.</li>
+<li><strong>Éviter</strong> — Structure + quatre lignes + deux zones. Rien d'autre.</li>
+<li><strong>Corriger</strong> — Supprimer un indicateur par semaine jusqu'au graphique nu.</li>
+<li><strong>Alerte</strong> — Vous mettez plus de trente secondes à décider.</li>
+</ul>
+<h3 id="6-marquer-des-zones-partout">6. Marquer des zones partout</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Chaque bougie opposée ressemble à un Order Block.</li>
+<li><strong>Éviter</strong> — Trois conditions obligatoires : liquidité, déplacement, cassure de structure.</li>
+<li><strong>Corriger</strong> — Maximum trois zones actives par unité de temps.</li>
+<li><strong>Alerte</strong> — Vous trouvez un setup toutes les quinze minutes.</li>
+</ul>
+<h3 id="7-ignorer-le-contexte-macro">7. Ignorer le contexte macro</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On se concentre sur le graphique et on oublie le calendrier.</li>
+<li><strong>Éviter</strong> — Vérifier le calendrier économique avant l'ouverture, chaque jour.</li>
+<li><strong>Corriger</strong> — Coller la liste des publications du jour à côté de l'écran.</li>
+<li><strong>Alerte</strong> — Vous êtes surpris par un mouvement de trois ATR.</li>
+</ul>
+<h3 id="8-prendre-une-figure-pour-un-signal">8. Prendre une figure pour un signal</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les figures sont rassurantes et faciles à nommer.</li>
+<li><strong>Éviter</strong> — Une figure sans niveau, sans liquidité et sans contexte ne vaut rien.</li>
+<li><strong>Corriger</strong> — Remplacer « je vois un triangle » par « où sont les ordres ».</li>
+<li><strong>Alerte</strong> — Vous parlez de votre analyse en noms de figures.</li>
+</ul>
+<h3 id="9-confondre-accumulation-et-distribution">9. Confondre accumulation et distribution</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les deux ranges se ressemblent visuellement.</li>
+<li><strong>Éviter</strong> — Toujours regarder <strong>ce qui précède</strong> le range.</li>
+<li><strong>Corriger</strong> — Range après baisse = accumulation probable ; après hausse = distribution.</li>
+<li><strong>Alerte</strong> — Vous achetez des ranges qui cassent systématiquement vers le bas.</li>
+</ul>
+<h3 id="10-analyser-avec-une-position-ouverte">10. Analyser avec une position ouverte</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La position déforme la lecture : on ne voit plus que ce qui la conforte.</li>
+<li><strong>Éviter</strong> — Faire l'analyse avant, et ne plus la refaire pendant.</li>
+<li><strong>Corriger</strong> — Si vous devez réanalyser, fermez d'abord la position.</li>
+<li><strong>Alerte</strong> — Votre analyse change à chaque bougie qui va contre vous.</li>
+</ul>
+<h2 id="erreurs-d-entree">Erreurs d'entrée</h2>
+<h3 id="11-entrer-sur-la-bougie-de-cassure">11. Entrer sur la bougie de cassure</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Peur de manquer le mouvement.</li>
+<li><strong>Éviter</strong> — Règle absolue : on n'entre jamais sur la cassure, seulement au retour.</li>
+<li><strong>Corriger</strong> — Ordre limite préparé à l'avance dans la zone de retest.</li>
+<li><strong>Alerte</strong> — Vos stops sautent juste après votre entrée, puis le prix repart.</li>
+</ul>
+<h3 id="12-entrer-au-marche-plutot-qu-en-limite">12. Entrer au marché plutôt qu'en limite</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Impatience, ou crainte de ne pas être servi.</li>
+<li><strong>Éviter</strong> — Limite pour entrer, stop pour sortir. Sans exception.</li>
+<li><strong>Corriger</strong> — Mesurer sur vingt trades l'écart entre prix limite et prix marché.</li>
+<li><strong>Alerte</strong> — Votre prix d'entrée est systématiquement moins bon que prévu.</li>
+</ul>
+<h3 id="13-entrer-au-milieu-du-range">13. Entrer au milieu du range</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le prix bouge et l'inaction est inconfortable.</li>
+<li><strong>Éviter</strong> — Marquer physiquement l'équilibre et le déclarer zone interdite.</li>
+<li><strong>Corriger</strong> — Un trade au milieu du range = une case « hors plan » dans le journal.</li>
+<li><strong>Alerte</strong> — Vous êtes stoppé dans les deux sens en une heure.</li>
+</ul>
+<h3 id="14-acheter-en-premium-vendre-en-discount">14. Acheter en premium, vendre en discount</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La zone paraît belle, on oublie de vérifier le côté de l'équilibre.</li>
+<li><strong>Éviter</strong> — Le filtre premium/discount passe <strong>avant</strong> l'examen de la zone.</li>
+<li><strong>Corriger</strong> — Ajouter le 50 % du dealing range sur chaque graphique.</li>
+<li><strong>Alerte</strong> — Vos entrées sont bonnes en direction mais mauvaises en prix.</li>
+</ul>
+<h3 id="15-ne-pas-attendre-l-inducement">15. Ne pas attendre l'inducement</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La zone est atteinte, on entre par crainte du départ sans nous.</li>
+<li><strong>Éviter</strong> — Repérer l'inducement <strong>avant</strong> de préparer l'ordre.</li>
+<li><strong>Corriger</strong> — Diviser l'entrée en deux : une partie après la purge seulement.</li>
+<li><strong>Alerte</strong> — Votre stop est touché de deux points avant que le prix parte.</li>
+</ul>
+<h3 id="16-reutiliser-une-zone-deja-testee">16. Réutiliser une zone déjà testée</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Elle a fonctionné une fois, on lui fait confiance.</li>
+<li><strong>Éviter</strong> — Une zone ne fonctionne qu'à la première mitigation.</li>
+<li><strong>Corriger</strong> — Barrer visuellement toute zone déjà touchée.</li>
+<li><strong>Alerte</strong> — Vous tradez le même Order Block trois fois de suite.</li>
+</ul>
+<h3 id="17-entrer-sans-changement-de-structure">17. Entrer sans changement de structure</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La purge seule paraît suffisante.</li>
+<li><strong>Éviter</strong> — Trois étapes obligatoires : purge, CHoCH, entrée.</li>
+<li><strong>Corriger</strong> — Attendre la clôture qui confirme la cassure du pivot.</li>
+<li><strong>Alerte</strong> — Vous attrapez des couteaux qui tombent.</li>
+</ul>
+<h3 id="18-poursuivre-un-mouvement-deja-parti">18. Poursuivre un mouvement déjà parti</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le mouvement est visible, donc rassurant.</li>
+<li><strong>Éviter</strong> — Vérifier l'ADR consommé : au-delà de 80 %, on ne suit plus.</li>
+<li><strong>Corriger</strong> — Attendre le premier retour dans le FVG créé.</li>
+<li><strong>Alerte</strong> — Vous entrez toujours sur la troisième ou quatrième bougie.</li>
+</ul>
+<h3 id="19-trader-sans-setup-identifiable">19. Trader sans setup identifiable</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Ennui, ou impression diffuse que « ça va monter ».</li>
+<li><strong>Éviter</strong> — Chaque trade doit porter le nom d'un setup listé dans le plan.</li>
+<li><strong>Corriger</strong> — Champ obligatoire « nom du setup » dans le journal.</li>
+<li><strong>Alerte</strong> — Vous ne pouvez pas expliquer votre trade en une phrase.</li>
+</ul>
+<h3 id="20-entrer-hors-des-fenetres-horaires">20. Entrer hors des fenêtres horaires</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La plateforme est ouverte, donc on trade.</li>
+<li><strong>Éviter</strong> — Règle horaire écrite, plateforme fermée en dehors.</li>
+<li><strong>Corriger</strong> — Mesurer l'espérance par tranche horaire dans le journal.</li>
+<li><strong>Alerte</strong> — Vos pertes se concentrent entre 11 h et 14 h 30.</li>
+</ul>
+<h2 id="erreurs-de-sortie">Erreurs de sortie</h2>
+<h3 id="21-ne-pas-avoir-decide-de-sa-sortie-avant-d-entrer">21. Ne pas avoir décidé de sa sortie avant d'entrer</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On se concentre sur l'entrée, qui est la partie excitante.</li>
+<li><strong>Éviter</strong> — Objectifs 1 et 2 notés avant l'exécution.</li>
+<li><strong>Corriger</strong> — Ordres take-profit placés dès l'ouverture de la position.</li>
+<li><strong>Alerte</strong> — Vous improvisez vos sorties en regardant le prix.</li>
+</ul>
+<h3 id="22-couper-ses-gains-trop-tot">22. Couper ses gains trop tôt</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Aversion à la perte : un gain latent paraît fragile.</li>
+<li><strong>Éviter</strong> — Solder la moitié à 1:2 et laisser courir le reste, mécaniquement.</li>
+<li><strong>Corriger</strong> — Comparer, sur trente trades, le résultat réel et le résultat si les objectifs avaient été tenus.</li>
+<li><strong>Alerte</strong> — Vos gains moyens sont plus petits que vos pertes moyennes.</li>
+</ul>
+<h3 id="23-laisser-courir-ses-pertes">23. Laisser courir ses pertes</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Refus d'acter l'erreur, espoir de retour.</li>
+<li><strong>Éviter</strong> — Stop placé à l'entrée et jamais déplacé.</li>
+<li><strong>Corriger</strong> — Interdire physiquement la modification de stop (ordre serveur).</li>
+<li><strong>Alerte</strong> — Vous avez déjà pensé « je le laisse respirer un peu ».</li>
+</ul>
+<h3 id="24-deplacer-son-stop-dans-le-sens-de-la-perte">24. Déplacer son stop dans le sens de la perte</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le stop approche, la douleur anticipée est immédiate.</li>
+<li><strong>Éviter</strong> — Le stop est technique : le déplacer, c'est changer d'analyse en pleine émotion.</li>
+<li><strong>Corriger</strong> — Une seule perte élargie efface souvent trois gains : chiffrez-le.</li>
+<li><strong>Alerte</strong> — Une perte de votre historique dépasse 2 R.</li>
+</ul>
+<h3 id="25-ne-pas-passer-a-l-equilibre">25. Ne pas passer à l'équilibre</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Espoir d'un mouvement plus grand.</li>
+<li><strong>Éviter</strong> — Règle automatique : objectif 1 atteint → moitié soldée, stop à l'équilibre.</li>
+<li><strong>Corriger</strong> — Automatiser la règle dans la plateforme.</li>
+<li><strong>Alerte</strong> — Des trades en gain de 1,8 R se terminent à −1 R.</li>
+</ul>
+<h3 id="26-sortir-par-peur-sans-signal">26. Sortir par peur, sans signal</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La volatilité intra-trade est inconfortable.</li>
+<li><strong>Éviter</strong> — Liste écrite des motifs de sortie anticipée légitimes.</li>
+<li><strong>Corriger</strong> — Réduire la taille : la peur est un signal de position trop grosse.</li>
+<li><strong>Alerte</strong> — Vous sortez à 0,4 R sur des trades qui atteignent leur objectif ensuite.</li>
+</ul>
+<h3 id="27-rallonger-son-objectif-en-cours-de-trade">27. Rallonger son objectif en cours de trade</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Cupidité déclenchée par un mouvement rapide.</li>
+<li><strong>Éviter</strong> — Objectif figé à l'entrée ; toute extension est un nouveau trade.</li>
+<li><strong>Corriger</strong> — Si vous voulez plus, utilisez le stop suiveur, pas l'objectif.</li>
+<li><strong>Alerte</strong> — Vos plus beaux trades finissent à l'équilibre.</li>
+</ul>
+<h3 id="28-oublier-de-gerer-une-position-en-fin-de-session">28. Oublier de gérer une position en fin de session</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On oublie que la liquidité disparaît le soir.</li>
+<li><strong>Éviter</strong> — Décision explicite à 17 h 30 : je garde ou je clôture.</li>
+<li><strong>Corriger</strong> — Alarme quotidienne à l'heure de clôture de Londres.</li>
+<li><strong>Alerte</strong> — Des positions intraday se retrouvent tenues toute la nuit.</li>
+</ul>
+<h2 id="erreurs-de-gestion-du-risque">Erreurs de gestion du risque</h2>
+<h3 id="29-risquer-trop-par-trade">29. Risquer trop par trade</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le compte est petit, on veut « accélérer ».</li>
+<li><strong>Éviter</strong> — 1 % maximum, écrit, appliqué sans exception.</li>
+<li><strong>Corriger</strong> — Recalculer chaque taille avant l'envoi de l'ordre.</li>
+<li><strong>Alerte</strong> — Une seule perte représente plus de 2 % du compte.</li>
+</ul>
+<h3 id="30-choisir-la-taille-avant-le-stop">30. Choisir la taille avant le stop</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On pense en lots, pas en risque.</li>
+<li><strong>Éviter</strong> — Stop technique d'abord, taille calculée ensuite.</li>
+<li><strong>Corriger</strong> — Utiliser une calculatrice de position à chaque trade.</li>
+<li><strong>Alerte</strong> — Vos tailles sont toujours des nombres ronds.</li>
+</ul>
+<h3 id="31-serrer-le-stop-pour-ameliorer-le-ratio">31. Serrer le stop pour « améliorer le ratio »</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On veut un beau ratio sans réduire la taille.</li>
+<li><strong>Éviter</strong> — Le ratio se gagne par l'entrée, jamais par le stop.</li>
+<li><strong>Corriger</strong> — Si le ratio est insuffisant, ne pas prendre le trade.</li>
+<li><strong>Alerte</strong> — Vos stops sont touchés puis le prix va à votre objectif.</li>
+</ul>
+<h3 id="32-multiplier-les-positions-correlees">32. Multiplier les positions corrélées</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Chaque position semble indépendante.</li>
+<li><strong>Éviter</strong> — Une position par facteur de risque.</li>
+<li><strong>Corriger</strong> — Tableau des facteurs (dollar, indices, taux, matières premières) tenu à jour.</li>
+<li><strong>Alerte</strong> — Toutes vos positions gagnent ou perdent en même temps.</li>
+</ul>
+<h3 id="33-depasser-l-exposition-maximale">33. Dépasser l'exposition maximale</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les occasions arrivent simultanément.</li>
+<li><strong>Éviter</strong> — Plafond de 3 %, refus automatique au-delà.</li>
+<li><strong>Corriger</strong> — Fermer la plus faible avant d'ouvrir une meilleure.</li>
+<li><strong>Alerte</strong> — Vous avez plus de trois positions ouvertes.</li>
+</ul>
+<h3 id="34-ignorer-les-limites-de-perte-journaliere">34. Ignorer les limites de perte journalière</h3>
+<ul>
+<li><strong>Pourquoi</strong> — « Encore un trade et je reviens à l'équilibre. »</li>
+<li><strong>Éviter</strong> — −3 R : plateforme fermée, sans discussion.</li>
+<li><strong>Corriger</strong> — Déconnexion physique du compte, mot de passe non mémorisé.</li>
+<li><strong>Alerte</strong> — Vos pires journées comptent plus de cinq trades.</li>
+</ul>
+<h3 id="35-augmenter-la-taille-apres-une-serie-de-gains">35. Augmenter la taille après une série de gains</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Excès de confiance : « je suis en forme ».</li>
+<li><strong>Éviter</strong> — Taille constante, indépendante de la série en cours.</li>
+<li><strong>Corriger</strong> — N'augmenter la taille qu'après cent trades et sur la base de l'espérance mesurée.</li>
+<li><strong>Alerte</strong> — Votre plus grosse perte suit vos trois plus beaux gains.</li>
+</ul>
+<h3 id="36-faire-une-martingale">36. Faire une martingale</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'idée séduisante que « ça finira bien par remonter ».</li>
+<li><strong>Éviter</strong> — Interdiction absolue de moyenner une position perdante.</li>
+<li><strong>Corriger</strong> — Si l'idée revient, revenir au tableau du risque de ruine.</li>
+<li><strong>Alerte</strong> — Vous ajoutez à une position en perte.</li>
+</ul>
+<h3 id="37-couvrir-au-lieu-de-couper">37. Couvrir au lieu de couper</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Refus psychologique d'acter la perte.</li>
+<li><strong>Éviter</strong> — En intraday, on coupe : la couverture ne fait que figer.</li>
+<li><strong>Corriger</strong> — Calculer le coût réel : perte figée + deux spreads + une décision impossible.</li>
+<li><strong>Alerte</strong> — Vous détenez deux positions opposées sur le même instrument.</li>
+</ul>
+<h3 id="38-utiliser-un-levier-qui-rend-liquidable-avant-le-stop">38. Utiliser un levier qui rend liquidable avant le stop</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le levier disponible est pris pour une autorisation.</li>
+<li><strong>Éviter</strong> — Vérifier que la marge utilisée reste très inférieure au capital.</li>
+<li><strong>Corriger</strong> — Recalculer le niveau de marge après chaque ouverture.</li>
+<li><strong>Alerte</strong> — Votre marge utilisée dépasse 30 % du compte.</li>
+</ul>
+<h2 id="erreurs-psychologiques">Erreurs psychologiques</h2>
+<h3 id="39-le-revenge-trading">39. Le revenge trading</h3>
+<ul>
+<li><strong>Pourquoi</strong> — La perte est vécue comme une injustice à réparer immédiatement.</li>
+<li><strong>Éviter</strong> — Pause obligatoire de trente minutes après tout stop.</li>
+<li><strong>Corriger</strong> — Chronomètre visible, plateforme fermée pendant la pause.</li>
+<li><strong>Alerte</strong> — Votre trade suivant une perte est plus gros que le précédent.</li>
+</ul>
+<h3 id="40-l-overtrading">40. L'overtrading</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Confusion entre activité et productivité.</li>
+<li><strong>Éviter</strong> — Quota : trois trades par jour, dix par semaine.</li>
+<li><strong>Corriger</strong> — Quota atteint = plateforme fermée, même en gain.</li>
+<li><strong>Alerte</strong> — Plus de cinq trades sur une journée.</li>
+</ul>
+<h3 id="41-le-fomo-peur-de-manquer">41. Le FOMO (peur de manquer)</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le mouvement est visible et donne l'impression d'une opportunité perdue.</li>
+<li><strong>Éviter</strong> — Se rappeler qu'un mouvement visible est un mouvement déjà consommé.</li>
+<li><strong>Corriger</strong> — Noter chaque trade FOMO et calculer son espérance : elle est négative.</li>
+<li><strong>Alerte</strong> — Vous entrez après trois bougies dans le même sens.</li>
+</ul>
+<h3 id="42-l-exces-de-confiance">42. L'excès de confiance</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Une série de gains est interprétée comme une compétence acquise.</li>
+<li><strong>Éviter</strong> — Taille constante quelle que soit la série.</li>
+<li><strong>Corriger</strong> — Relire les dix derniers trades perdants avant chaque montée en taille.</li>
+<li><strong>Alerte</strong> — Vous vous entendez dire « je le sens bien ».</li>
+</ul>
+<h3 id="43-le-biais-de-confirmation">43. Le biais de confirmation</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On cherche les arguments qui vont dans le sens de la position.</li>
+<li><strong>Éviter</strong> — Écrire, avant chaque entrée, le meilleur argument <strong>contre</strong> le trade.</li>
+<li><strong>Corriger</strong> — Si l'argument contraire est plus fort, ne pas prendre le trade.</li>
+<li><strong>Alerte</strong> — Vous ne trouvez jamais d'arguments contre vos idées.</li>
+</ul>
+<h3 id="44-l-ancrage-sur-un-prix">44. L'ancrage sur un prix</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Un prix vu une fois devient une référence irrationnelle.</li>
+<li><strong>Éviter</strong> — Raisonner en zones et en structures, pas en niveaux exacts.</li>
+<li><strong>Corriger</strong> — Se demander : « si je n'avais pas vu ce prix, quel serait mon avis ? »</li>
+<li><strong>Alerte</strong> — Vous attendez un retour exact à un prix précis depuis des jours.</li>
+</ul>
+<h3 id="45-trader-par-ennui">45. Trader par ennui</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'attente est plus difficile que l'action.</li>
+<li><strong>Éviter</strong> — Déclarer explicitement les zones et heures d'inaction.</li>
+<li><strong>Corriger</strong> — Prévoir une activité de remplacement pendant les heures mortes.</li>
+<li><strong>Alerte</strong> — Vos trades de milieu de journée sont majoritairement perdants.</li>
+</ul>
+<h3 id="46-trader-sous-pression-financiere">46. Trader sous pression financière</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Besoin d'un revenu à court terme.</li>
+<li><strong>Éviter</strong> — Ne jamais trader un capital dont on a besoin.</li>
+<li><strong>Corriger</strong> — Réduire la taille jusqu'à ce que le résultat cesse d'avoir un impact sur le quotidien.</li>
+<li><strong>Alerte</strong> — Vous calculez vos gains en factures à payer.</li>
+</ul>
+<h3 id="47-trader-fatigue-ou-contrarie">47. Trader fatigué ou contrarié</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'habitude prend le pas sur l'état réel.</li>
+<li><strong>Éviter</strong> — Auto-évaluation en trois questions avant d'ouvrir la plateforme.</li>
+<li><strong>Corriger</strong> — Un état sur trois défavorable = journée d'observation.</li>
+<li><strong>Alerte</strong> — Vos pires journées coïncident avec vos pires nuits.</li>
+</ul>
+<h3 id="48-ne-pas-accepter-d-avoir-tort">48. Ne pas accepter d'avoir tort</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'identité se confond avec l'analyse.</li>
+<li><strong>Éviter</strong> — Séparer l'idée de la personne : le stop n'est pas un échec, c'est une information.</li>
+<li><strong>Corriger</strong> — Formuler chaque trade comme une hypothèse, pas comme une conviction.</li>
+<li><strong>Alerte</strong> — Vous ressentez de la colère quand un stop est touché.</li>
+</ul>
+<h3 id="49-chercher-la-certitude">49. Chercher la certitude</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'incertitude est inconfortable.</li>
+<li><strong>Éviter</strong> — Accepter que chaque trade individuel soit imprévisible.</li>
+<li><strong>Corriger</strong> — Raisonner par séries de vingt trades, jamais trade par trade.</li>
+<li><strong>Alerte</strong> — Vous ajoutez des confirmations jusqu'à rater l'entrée.</li>
+</ul>
+<h3 id="50-se-comparer-aux-autres">50. Se comparer aux autres</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les réseaux sociaux exposent des résultats invérifiables et sélectionnés.</li>
+<li><strong>Éviter</strong> — Ne comparer qu'à ses propres statistiques du mois précédent.</li>
+<li><strong>Corriger</strong> — Se désabonner de tout compte qui affiche des résultats sans méthode.</li>
+<li><strong>Alerte</strong> — Vous augmentez la taille après avoir vu la performance d'un inconnu.</li>
+</ul>
+<h2 id="erreurs-de-process">Erreurs de process</h2>
+<h3 id="51-trader-sans-plan-ecrit">51. Trader sans plan écrit</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Le plan semble évident tant qu'il reste dans la tête.</li>
+<li><strong>Éviter</strong> — Une page : setups, horaires, risque, limites.</li>
+<li><strong>Corriger</strong> — Relire le plan à voix haute avant l'ouverture.</li>
+<li><strong>Alerte</strong> — Vous ne pouvez pas énoncer vos trois setups de mémoire.</li>
+</ul>
+<h3 id="52-ne-pas-tenir-de-journal">52. Ne pas tenir de journal</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Cela paraît fastidieux et sans effet immédiat.</li>
+<li><strong>Éviter</strong> — Deux minutes avant, deux minutes après. Pas davantage.</li>
+<li><strong>Corriger</strong> — Modèle préparé, champs limités, remplissage immédiat.</li>
+<li><strong>Alerte</strong> — Vous ne savez pas quel setup vous rapporte de l'argent.</li>
+</ul>
+<h3 id="53-tenir-un-journal-sans-le-relire">53. Tenir un journal sans le relire</h3>
+<ul>
+<li><strong>Pourquoi</strong> — L'écriture donne l'impression d'avoir fait le travail.</li>
+<li><strong>Éviter</strong> — Revue hebdomadaire de trente minutes, non négociable.</li>
+<li><strong>Corriger</strong> — Rendez-vous fixe dans l'agenda, comme une réunion.</li>
+<li><strong>Alerte</strong> — Vous répétez la même erreur depuis trois mois.</li>
+</ul>
+<h3 id="54-changer-de-methode-en-permanence">54. Changer de méthode en permanence</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Chaque perte donne envie d'essayer autre chose.</li>
+<li><strong>Éviter</strong> — Une méthode, cent trades, puis évaluation.</li>
+<li><strong>Corriger</strong> — Une seule règle modifiée à la fois, mesurée sur cent trades.</li>
+<li><strong>Alerte</strong> — Vous avez changé de stratégie plus de deux fois cette année.</li>
+</ul>
+<h3 id="55-sur-optimiser-un-backtest">55. Sur-optimiser un backtest</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On veut une courbe parfaite avant de commencer.</li>
+<li><strong>Éviter</strong> — Séparer échantillon d'entraînement et échantillon de test.</li>
+<li><strong>Corriger</strong> — Inclure frais et slippage ; tester sur plusieurs régimes de marché.</li>
+<li><strong>Alerte</strong> — Votre backtest est superbe et votre compte réel ne suit pas.</li>
+</ul>
+<h3 id="56-confondre-demo-et-reel">56. Confondre démo et réel</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les résultats en démo créent une confiance sans coût.</li>
+<li><strong>Éviter</strong> — Passage en réel à taille minimale après cent trades démo.</li>
+<li><strong>Corriger</strong> — Comparer les statistiques démo et réel : l'écart est la mesure de votre psychologie.</li>
+<li><strong>Alerte</strong> — Votre taux de réussite chute de plus de dix points en réel.</li>
+</ul>
+<h3 id="57-ne-pas-mesurer-en-r">57. Ne pas mesurer en R</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les euros parlent plus à l'émotion.</li>
+<li><strong>Éviter</strong> — Journal en R exclusivement.</li>
+<li><strong>Corriger</strong> — Convertir tout l'historique en R avant la prochaine revue.</li>
+<li><strong>Alerte</strong> — Vous jugez une journée sur son montant en euros.</li>
+</ul>
+<h3 id="58-negliger-les-frais">58. Négliger les frais</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Ils paraissent négligeables trade par trade.</li>
+<li><strong>Éviter</strong> — Calculer le coût total mensuel : spreads + commissions + swaps.</li>
+<li><strong>Corriger</strong> — Comparer ce total au résultat brut ; si le ratio dépasse 20 %, changer de style.</li>
+<li><strong>Alerte</strong> — Vous êtes proche de l'équilibre malgré une bonne analyse.</li>
+</ul>
+<h2 id="erreurs-techniques-et-operationnelles">Erreurs techniques et opérationnelles</h2>
+<h3 id="59-se-tromper-de-taille-erreur-de-doigt">59. Se tromper de taille (erreur de doigt)</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Saisie manuelle rapide, décimales mal placées.</li>
+<li><strong>Éviter</strong> — Relire la taille avant validation, systématiquement.</li>
+<li><strong>Corriger</strong> — Plafond de taille configuré chez le courtier.</li>
+<li><strong>Alerte</strong> — Vous avez déjà envoyé un ordre dix fois trop gros.</li>
+</ul>
+<h3 id="60-oublier-de-placer-le-stop">60. Oublier de placer le stop</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Entrée précipitée, intention de le placer « juste après ».</li>
+<li><strong>Éviter</strong> — Ordre d'entrée et stop envoyés ensemble (ordre OCO).</li>
+<li><strong>Corriger</strong> — Vérification obligatoire dans les cinq secondes suivant l'exécution.</li>
+<li><strong>Alerte</strong> — Vous avez déjà eu une position sans protection.</li>
+</ul>
+<h3 id="61-trader-un-instrument-dont-on-ignore-les-specifications">61. Trader un instrument dont on ignore les spécifications</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On applique les réflexes d'un autre marché.</li>
+<li><strong>Éviter</strong> — Connaître par cœur valeur du point, horaires, spread moyen, ATR.</li>
+<li><strong>Corriger</strong> — Fiche par instrument dans le plan de trading.</li>
+<li><strong>Alerte</strong> — Vous découvrez un swap ou une taille de contrat après coup.</li>
+</ul>
+<h3 id="62-ignorer-le-rollover-et-les-echeances">62. Ignorer le rollover et les échéances</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Les contrats à terme changent d'échéance sans prévenir.</li>
+<li><strong>Éviter</strong> — Vérifier le calendrier d'échéance avant tout swing.</li>
+<li><strong>Corriger</strong> — Noter les dates de roulement dans l'agenda.</li>
+<li><strong>Alerte</strong> — Vos niveaux ne correspondent plus au graphique.</li>
+</ul>
+<h3 id="63-subir-un-gap-de-week-end">63. Subir un gap de week-end</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Positions tenues sans réduction avant la clôture du vendredi.</li>
+<li><strong>Éviter</strong> — Réduire ou clôturer avant le week-end, surtout en période tendue.</li>
+<li><strong>Corriger</strong> — Vérifier que le courtier offre une protection contre solde négatif.</li>
+<li><strong>Alerte</strong> — Une perte a dépassé votre stop prévu.</li>
+</ul>
+<h3 id="64-dependre-d-une-connexion-ou-d-un-materiel-fragile">64. Dépendre d'une connexion ou d'un matériel fragile</h3>
+<ul>
+<li><strong>Pourquoi</strong> — On suppose que tout fonctionnera.</li>
+<li><strong>Éviter</strong> — Ordres stop côté serveur, jamais côté plateforme.</li>
+<li><strong>Corriger</strong> — Application mobile installée et testée, numéro du courtier enregistré.</li>
+<li><strong>Alerte</strong> — Vous avez déjà perdu l'accès pendant une position ouverte.</li>
+</ul>
+<h3 id="65-trader-avec-des-donnees-de-mauvaise-qualite">65. Trader avec des données de mauvaise qualité</h3>
+<ul>
+<li><strong>Pourquoi</strong> — Tous les flux ne se valent pas : les mèches diffèrent d'un courtier à l'autre.</li>
+<li><strong>Éviter</strong> — Analyser sur une source de référence (futures) et exécuter ailleurs si nécessaire.</li>
+<li><strong>Corriger</strong> — Comparer une fois par mois les extrêmes de votre flux et d'un flux de référence.</li>
+<li><strong>Alerte</strong> — Vos niveaux ne correspondent pas à ceux des autres.</li>
+</ul>
+<aside class="encadre encadre--retenir"><p class="encadre-titre">Les dix erreurs qui coûtent le plus cher</p><table>
+<thead>
+<tr>
+<th>Rang</th>
+<th>Erreur</th>
+<th>Coût typique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Déplacer son stop dans le sens de la perte</td>
+<td>Efface trois à cinq gains</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Revenge trading</td>
+<td>Détruit une semaine en une heure</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Risquer trop par trade</td>
+<td>Rend la ruine possible</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Multiplier les positions corrélées</td>
+<td>Triple le risque sans le savoir</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Entrer sur la bougie de cassure</td>
+<td>Détruit le ratio de chaque trade</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Couper ses gains trop tôt</td>
+<td>Rend l'espérance négative</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Acheter en premium, vendre en discount</td>
+<td>Inverse l'avantage</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Trader hors des fenêtres horaires</td>
+<td>Dilue les frais dans du bruit</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Ne pas tenir de journal</td>
+<td>Empêche toute progression</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Changer de méthode en permanence</td>
+<td>Annule tout apprentissage</td>
+</tr>
+</tbody>
+</table></aside>
+<aside class="encadre encadre--erreur"><p class="encadre-titre">Le mécanisme commun à toutes ces erreurs</p><p>Regardez la colonne « pourquoi ». Presque toutes ces erreurs viennent de trois
+sources : <strong>l'impatience</strong> (entrer trop tôt, trader hors fenêtre, poursuivre un
+mouvement), <strong>le refus de la perte</strong> (élargir un stop, couvrir, moyenner,
+revenge trading) et <strong>le besoin de certitude</strong> (empiler des confirmations,
+changer de méthode, chercher la stratégie parfaite). Corriger ces trois
+mécanismes corrige, d'un coup, la majorité des soixante-cinq erreurs.</p></aside>
+<aside class="encadre encadre--resume"><p class="encadre-titre">Tome 6 — le résumé en une page</p><p>Les erreurs de trading ne sont pas des accidents : ce sont des comportements
+récurrents, prévisibles et nommables. Elles se répartissent en sept familles —
+analyse, entrée, sortie, risque, psychologie, process, technique — mais elles
+proviennent de trois racines seulement : l'impatience, le refus d'acter une
+perte et le besoin de certitude.</p>
+<p>La méthode de correction est toujours la même, en trois temps. <strong>Nommer</strong>
+l'erreur immédiatement après le trade, en utilisant le vocabulaire de ce tome.
+<strong>Écrire</strong> la règle qui l'aurait empêchée, sous une forme mécanique et
+vérifiable. <strong>Automatiser</strong> cette règle autant que possible : ordre stop envoyé
+avec l'entrée, quota de trades, déconnexion à −3 R, alarme de fin de session.</p>
+<p>Ce qui distingue le trader régulier n'est pas l'absence d'erreurs — elles
+surviennent chez tout le monde — mais le fait qu'aucune ne se répète plus de
+deux fois. La première fois est une erreur ; la deuxième est une leçon ; la
+troisième est un choix.</p></aside>
+<h1 id="tome-7-mon-aide-memoire" data-tome="Tome 7">Tome 7 — Mon aide-mémoire</h1>
+<p>Fiches ultra-rapides. Une ligne, trois flèches, aucune explication. C'est le
+tome qu'on regarde <strong>pendant</strong> la séance, quand il faut décider en dix secondes.</p>
+<aside class="encadre encadre--astuce"><p class="encadre-titre">Astuce</p><p>Si une fiche ne vous suffit pas, l'entrée complète est dans le Tome 1 :
+tapez le terme dans la recherche (touche <code>/</code>).</p></aside>
+<h2 id="structure">Structure</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>BOS</strong></td>
+<td>➡ Cassure dans le sens de la tendance ➡ Continuation ➡ Entrer au retour</td>
+</tr>
+<tr>
+<td><strong>CHoCH</strong></td>
+<td>➡ Cassure du dernier pivot opposé ➡ Retournement possible ➡ Attendre la zone</td>
+</tr>
+<tr>
+<td><strong>MSS</strong></td>
+<td>➡ CHoCH + déplacement + FVG ➡ Changement de biais ➡ Retracer le range</td>
+</tr>
+<tr>
+<td><strong>HH / HL</strong></td>
+<td>➡ Sommets et creux montants ➡ Tendance haussière ➡ Achats uniquement</td>
+</tr>
+<tr>
+<td><strong>LH / LL</strong></td>
+<td>➡ Sommets et creux descendants ➡ Tendance baissière ➡ Ventes uniquement</td>
+</tr>
+<tr>
+<td><strong>Structure interne</strong></td>
+<td>➡ Oscillations dans une jambe ➡ Sert à l'entrée ➡ Jamais au biais</td>
+</tr>
+<tr>
+<td><strong>Structure externe</strong></td>
+<td>➡ Pivots majeurs ➡ Donne le biais ➡ Ses extrêmes sont les objectifs</td>
+</tr>
+<tr>
+<td><strong>Déplacement</strong></td>
+<td>➡ Bougies larges + FVG ➡ Preuve d'intention ➡ Valide la cassure</td>
+</tr>
+<tr>
+<td><strong>Range</strong></td>
+<td>➡ Deux bornes ➡ On trade les bords ➡ Jamais le milieu</td>
+</tr>
+<tr>
+<td><strong>Équilibre</strong></td>
+<td>➡ 50 % du range ➡ Zone morte ➡ Aucune position</td>
+</tr>
+</tbody>
+</table>
+<h2 id="wyckoff">Wyckoff</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SPRING</strong></td>
+<td>➡ Faux cassage bas ➡ Accumulation ➡ Achat</td>
+</tr>
+<tr>
+<td><strong>UPTHRUST</strong></td>
+<td>➡ Faux cassage haut ➡ Distribution ➡ Vente</td>
+</tr>
+<tr>
+<td><strong>UTAD</strong></td>
+<td>➡ Dernier faux record ➡ Fin de distribution ➡ Meilleure vente du cycle</td>
+</tr>
+<tr>
+<td><strong>ACCUMULATION</strong></td>
+<td>➡ Range après baisse ➡ Les gros achètent ➡ Attendre le Spring</td>
+</tr>
+<tr>
+<td><strong>DISTRIBUTION</strong></td>
+<td>➡ Range après hausse ➡ Les gros vendent ➡ Attendre l'UTAD</td>
+</tr>
+<tr>
+<td><strong>CLIMAX</strong></td>
+<td>➡ Volume record ➡ Capitulation ➡ Ne pas acheter, attendre le test</td>
+</tr>
+<tr>
+<td><strong>TEST</strong></td>
+<td>➡ Retour sur l'extrême ➡ Volume faible ➡ Feu vert, on entre</td>
+</tr>
+<tr>
+<td><strong>SOS / SOW</strong></td>
+<td>➡ Cassure avec volume ➡ Le balisage commence ➡ Suivre</td>
+</tr>
+<tr>
+<td><strong>Effort / résultat</strong></td>
+<td>➡ Gros volume, petit prix ➡ Absorption ➡ Retournement proche</td>
+</tr>
+<tr>
+<td><strong>Cause / effet</strong></td>
+<td>➡ Long range ➡ Grand mouvement ➡ Petit range, petit mouvement</td>
+</tr>
+</tbody>
+</table>
+<h2 id="zones-et-desequilibres">Zones et déséquilibres</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ORDER BLOCK</strong></td>
+<td>➡ Dernière bougie opposée ➡ Avant déplacement ➡ Entrée au premier retour</td>
+</tr>
+<tr>
+<td><strong>BREAKER</strong></td>
+<td>➡ Zone d'achat cassée ➡ Devient zone de vente ➡ Après CHoCH seulement</td>
+</tr>
+<tr>
+<td><strong>MITIGATION</strong></td>
+<td>➡ Dernier bloc opposé ➡ Pas de cassure de structure ➡ Continuation</td>
+</tr>
+<tr>
+<td><strong>REJECTION BLOCK</strong></td>
+<td>➡ Mèches répétées ➡ Offre ou demande réelle ➡ Retournement</td>
+</tr>
+<tr>
+<td><strong>FVG</strong></td>
+<td>➡ Trois bougies, un trou ➡ Le prix revient ➡ Entrée limite au milieu</td>
+</tr>
+<tr>
+<td><strong>IFVG</strong></td>
+<td>➡ FVG traversé en clôture ➡ Change de camp ➡ Un seul retest</td>
+</tr>
+<tr>
+<td><strong>BPR</strong></td>
+<td>➡ Deux FVG opposés superposés ➡ Zone commune ➡ Sens du dernier déplacement</td>
+</tr>
+<tr>
+<td><strong>OTE</strong></td>
+<td>➡ Retracement 62–79 % ➡ Avec OB ou FVG ➡ Après purge</td>
+</tr>
+<tr>
+<td><strong>FLIP ZONE</strong></td>
+<td>➡ Résistance cassée ➡ Devient support ➡ Entrée au retest</td>
+</tr>
+<tr>
+<td><strong>PD ARRAY</strong></td>
+<td>➡ Toutes les zones classées ➡ Premium = vendre ➡ Discount = acheter</td>
+</tr>
+</tbody>
+</table>
+<h2 id="liquidite-2">Liquidité</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LIQUIDITÉ</strong></td>
+<td>➡ Le prix va chercher les ordres ➡ Pas la valeur ➡ Deux questions avant d'entrer</td>
+</tr>
+<tr>
+<td><strong>BSL</strong></td>
+<td>➡ Stops au-dessus ➡ Cible haussière ➡ Jamais un abri</td>
+</tr>
+<tr>
+<td><strong>SSL</strong></td>
+<td>➡ Stops en dessous ➡ Cible baissière ➡ Jamais un abri</td>
+</tr>
+<tr>
+<td><strong>EQH / EQL</strong></td>
+<td>➡ Deux niveaux identiques ➡ Stops empilés ➡ Cible évidente</td>
+</tr>
+<tr>
+<td><strong>SWEEP</strong></td>
+<td>➡ Purge ➡ CHoCH ➡ Entrée — trois étapes, jamais deux</td>
+</tr>
+<tr>
+<td><strong>INDUCEMENT</strong></td>
+<td>➡ Faux point d'entrée devant le vrai ➡ Doit être pris ➡ On entre après</td>
+</tr>
+<tr>
+<td><strong>SFP</strong></td>
+<td>➡ Mèche au-delà ➡ Clôture en deçà ➡ Entrée à la clôture</td>
+</tr>
+<tr>
+<td><strong>TURTLE SOUP</strong></td>
+<td>➡ Faux cassage des 20 périodes ➡ Clôture inverse ➡ Contre-courant</td>
+</tr>
+<tr>
+<td><strong>JUDAS SWING</strong></td>
+<td>➡ Faux départ à l'ouverture ➡ Purge ➡ Le vrai mouvement suit</td>
+</tr>
+<tr>
+<td><strong>IRL / ERL</strong></td>
+<td>➡ Entrer en interne ➡ Sortir en externe ➡ Aller-retour permanent</td>
+</tr>
+</tbody>
+</table>
+<h2 id="volume-et-flux">Volume et flux</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>VOLUME</strong></td>
+<td>➡ Participation ➡ Effort contre résultat ➡ Jamais la direction</td>
+</tr>
+<tr>
+<td><strong>ABSORPTION</strong></td>
+<td>➡ Gros volume ➡ Prix immobile ➡ Suivre l'absorbeur</td>
+</tr>
+<tr>
+<td><strong>DELTA / CVD</strong></td>
+<td>➡ Agressivité nette ➡ Divergence avec le prix ➡ Essoufflement</td>
+</tr>
+<tr>
+<td><strong>ICEBERG</strong></td>
+<td>➡ Ordre caché ➡ Niveau qui ne cède pas ➡ Cassure violente ensuite</td>
+</tr>
+<tr>
+<td><strong>POC</strong></td>
+<td>➡ Prix le plus échangé ➡ Aimant ➡ Objectif naturel</td>
+</tr>
+<tr>
+<td><strong>VAH / VAL</strong></td>
+<td>➡ Bornes de la value area ➡ Hors zone = tendance ➡ Dedans = range</td>
+</tr>
+<tr>
+<td><strong>VWAP</strong></td>
+<td>➡ Prix moyen payé ➡ Référence institutionnelle ➡ Au-dessus on achète</td>
+</tr>
+<tr>
+<td><strong>OPEN INTEREST</strong></td>
+<td>➡ Stock de positions ➡ Croisé au prix ➡ Dit si le mouvement est solide</td>
+</tr>
+<tr>
+<td><strong>FUNDING</strong></td>
+<td>➡ Le camp majoritaire paie ➡ Extrême ➡ Purge en préparation</td>
+</tr>
+<tr>
+<td><strong>LIQUIDATION</strong></td>
+<td>➡ Fermeture forcée ➡ Cascade ➡ Aimant à prix</td>
+</tr>
+</tbody>
+</table>
+<h2 id="temps-et-sessions">Temps et sessions</h2>
+<table>
+<thead>
+<tr>
+<th>Repère</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ASIE 00 h – 09 h</strong></td>
+<td>➡ Range étroit ➡ Réservoir de liquidité ➡ On observe</td>
+</tr>
+<tr>
+<td><strong>LONDRES 09 h – 11 h</strong></td>
+<td>➡ Purge ➡ Direction du jour ➡ Meilleure fenêtre</td>
+</tr>
+<tr>
+<td><strong>MI-JOURNÉE 11 h – 14 h 30</strong></td>
+<td>➡ Faux signaux ➡ Zone interdite ➡ Plateforme fermée</td>
+</tr>
+<tr>
+<td><strong>NEW YORK 14 h 30 – 17 h</strong></td>
+<td>➡ Publications ➡ Extension ou retournement ➡ Seconde fenêtre</td>
+</tr>
+<tr>
+<td><strong>LONDON CLOSE 17 h – 19 h</strong></td>
+<td>➡ Retournements ➡ Prises de profit ➡ Gérer, pas ouvrir</td>
+</tr>
+<tr>
+<td><strong>PDH / PDL</strong></td>
+<td>➡ Extrêmes de la veille ➡ Cibles du jour ➡ À tracer chaque matin</td>
+</tr>
+<tr>
+<td><strong>OUVERTURE DU JOUR</strong></td>
+<td>➡ Repère de performance ➡ Au-dessus = biais acheteur ➡ En dessous = vendeur</td>
+</tr>
+<tr>
+<td><strong>KILL ZONE</strong></td>
+<td>➡ Deux fenêtres par jour ➡ Condition nécessaire ➡ Pas suffisante</td>
+</tr>
+</tbody>
+</table>
+<h2 id="macro">Macro</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CPI</strong></td>
+<td>➡ 14 h 30 ➡ Surprise contre consensus ➡ Trader 30 min après</td>
+</tr>
+<tr>
+<td><strong>NFP</strong></td>
+<td>➡ Premier vendredi ➡ Regarder les salaires ➡ Jamais pendant</td>
+</tr>
+<tr>
+<td><strong>FOMC</strong></td>
+<td>➡ 20 h puis 20 h 30 ➡ Deux vagues ➡ On observe, on trade demain</td>
+</tr>
+<tr>
+<td><strong>TAUX RÉELS</strong></td>
+<td>➡ Nominal − inflation ➡ Variable pivot ➡ Explique l'or</td>
+</tr>
+<tr>
+<td><strong>DXY</strong></td>
+<td>➡ Thermomètre du dollar ➡ Miroir de l'or ➡ Vérifier avant d'entrer</td>
+</tr>
+<tr>
+<td><strong>COURBE INVERSÉE</strong></td>
+<td>➡ 2 ans &gt; 10 ans ➡ Récession anticipée ➡ 12 à 18 mois</td>
+</tr>
+<tr>
+<td><strong>QE / QT</strong></td>
+<td>➡ Liquidité injectée ou retirée ➡ Horizon trimestres ➡ Jamais intraday</td>
+</tr>
+<tr>
+<td><strong>RÉCESSION</strong></td>
+<td>➡ Le marché a 6 mois d'avance ➡ Creux avant la fin ➡ Anticiper, pas constater</td>
+</tr>
+<tr>
+<td><strong>RISK-OFF</strong></td>
+<td>➡ JPY, CHF, USD, obligations ↑ ➡ Actions, crypto ↓ ➡ Corrélations à 1</td>
+</tr>
+<tr>
+<td><strong>SURPRISE</strong></td>
+<td>➡ Seul l'écart au consensus compte ➡ Pas le niveau ➡ Jamais le titre du journal</td>
+</tr>
+</tbody>
+</table>
+<h2 id="impact-par-actif">Impact par actif</h2>
+<table>
+<thead>
+<tr>
+<th>Actif</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OR</strong></td>
+<td>➡ Taux réels ↓ = or ↑ ➡ Dollar ↓ = or ↑ ➡ Pas l'inflation seule</td>
+</tr>
+<tr>
+<td><strong>ARGENT</strong></td>
+<td>➡ L'or amplifié ➡ Plus la demande industrielle ➡ Taille divisée par deux</td>
+</tr>
+<tr>
+<td><strong>BITCOIN</strong></td>
+<td>➡ Liquidité globale ➡ Actif à fort bêta ➡ Pas un refuge</td>
+</tr>
+<tr>
+<td><strong>INDICES</strong></td>
+<td>➡ Bénéfices / taux ➡ Nasdaq plus sensible ➡ Creux avant la reprise</td>
+</tr>
+<tr>
+<td><strong>PÉTROLE</strong></td>
+<td>➡ Offre OPEP + stocks ➡ Mercredi 16 h 30 ➡ Volatilité événementielle</td>
+</tr>
+<tr>
+<td><strong>FOREX</strong></td>
+<td>➡ Différentiel de politique monétaire ➡ Jamais un pays seul ➡ Deux économies comparées</td>
+</tr>
+</tbody>
+</table>
+<h2 id="risque">Risque</h2>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RISQUE / TRADE</strong></td>
+<td>➡ 1 % maximum ➡ Écrit ➡ Jamais négocié</td>
+</tr>
+<tr>
+<td><strong>TAILLE</strong></td>
+<td>➡ Stop d'abord ➡ Calcul ensuite ➡ Jamais un nombre rond choisi</td>
+</tr>
+<tr>
+<td><strong>R:R</strong></td>
+<td>➡ Minimum 1:2 ➡ Calculé avant ➡ Compense le taux de réussite</td>
+</tr>
+<tr>
+<td><strong>STOP LOSS</strong></td>
+<td>➡ Technique, pas monétaire ➡ Placé avant l'entrée ➡ Jamais élargi</td>
+</tr>
+<tr>
+<td><strong>EXPOSITION</strong></td>
+<td>➡ 3 % maximum ➡ Une position par facteur ➡ Corrélations comptées</td>
+</tr>
+<tr>
+<td><strong>LIMITE JOUR</strong></td>
+<td>➡ −3 R ➡ Plateforme fermée ➡ Sans discussion</td>
+</tr>
+<tr>
+<td><strong>LIMITE SEMAINE</strong></td>
+<td>➡ −6 R ➡ Semaine terminée ➡ Relire le journal</td>
+</tr>
+<tr>
+<td><strong>DRAWDOWN</strong></td>
+<td>➡ −50 % exige +100 % ➡ Se limite ➡ Ne se rattrape pas</td>
+</tr>
+<tr>
+<td><strong>APRÈS PERTE</strong></td>
+<td>➡ Taille ÷ 2 ➡ Trois gains ➡ Puis retour à la normale</td>
+</tr>
+<tr>
+<td><strong>DEUX STOPS</strong></td>
+<td>➡ Même instrument ➡ Journée terminée ➡ Sur cet instrument</td>
+</tr>
+</tbody>
+</table>
+<h2 id="psychologie">Psychologie</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Mémo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>APRÈS UNE PERTE</strong></td>
+<td>➡ Pause 30 minutes ➡ Aucune réentrée ➡ Le marché ne sait pas</td>
+</tr>
+<tr>
+<td><strong>APRÈS TROIS GAINS</strong></td>
+<td>➡ Danger maximal ➡ Taille inchangée ➡ L'excès de confiance coûte plus</td>
+</tr>
+<tr>
+<td><strong>ENVIE D'ENTRER</strong></td>
+<td>➡ Est-ce le plan ? ➡ Ou l'ennui ? ➡ Une seule bonne réponse</td>
+</tr>
+<tr>
+<td><strong>PEUR EN POSITION</strong></td>
+<td>➡ Position trop grosse ➡ Réduire ➡ Pas sortir par panique</td>
+</tr>
+<tr>
+<td><strong>FOMO</strong></td>
+<td>➡ Mouvement visible ➡ Mouvement consommé ➡ Attendre le retour</td>
+</tr>
+<tr>
+<td><strong>VOULOIR SE REFAIRE</strong></td>
+<td>➡ Signal d'arrêt ➡ Plateforme fermée ➡ Journal ouvert</td>
+</tr>
+<tr>
+<td><strong>CERTITUDE</strong></td>
+<td>➡ Elle n'existe pas ➡ Penser en séries de 20 ➡ Pas en trades</td>
+</tr>
+<tr>
+<td><strong>ENNUI</strong></td>
+<td>➡ Ne rien faire est une position ➡ Le marché revient demain ➡ Fermer l'écran</td>
+</tr>
+</tbody>
+</table>
+<h2 id="le-trade-parfait-en-une-carte">Le trade parfait, en une carte</h2>
+<pre class="schema"><code>   ╔══════════════════════════════════════════════════════════╗
+   ║  1  BIAIS HTF         D1/H4 · direction, cible, invalid. ║
+   ║  2  KILL ZONE         09-11 h ou 14 h 30-17 h            ║
+   ║  3  LIQUIDITÉ PRISE   PDH/PDL · EQH/EQL · range asiat.   ║
+   ║  4  CHoCH / MSS       avec déplacement + FVG             ║
+   ║  5  ZONE              OB ou FVG, en discount/premium     ║
+   ║  6  INDUCEMENT PRIS   le faux point d'entrée est purgé   ║
+   ║  7  ENTRÉE LIMITE     dans la zone, jamais au marché     ║
+   ║  8  STOP              au-delà de la mèche + marge        ║
+   ║  9  TAILLE            calculée : 1 % du capital          ║
+   ║ 10  OBJECTIFS         1:2 (moitié) puis liquidité HTF    ║
+   ╚══════════════════════════════════════════════════════════╝
+        Une case manquante = pas de trade.
+</code></pre>
+<h2 id="les-quatre-sequences-a-connaitre-par-c-ur">Les quatre séquences à connaître par cœur</h2>
+<pre class="schema"><code>   RETOURNEMENT
+   purge ──► CHoCH ──► retour dans la zone ──► entrée ──► liquidité opposée
+
+   CONTINUATION
+   BOS ──► retracement ──► mitigation block / FVG ──► entrée ──► extension
+
+   JOURNÉE TYPE
+   range asiatique ──► purge de Londres ──► expansion ──► NY étend ou renverse
+
+   APRÈS UNE NEWS
+   publication ──► faux mouvement ──► inversion ──► FVG ──► entrée (30 min après)
+</code></pre>
+<aside class="encadre encadre--retenir"><p class="encadre-titre">Les six phrases de l&#x27;aide-mémoire</p><ol>
+<li>Le prix va chercher les ordres, pas la valeur.</li>
+<li>Purge, changement de structure, entrée : trois étapes, jamais deux.</li>
+<li>En discount on achète, en premium on vend, au milieu on ne fait rien.</li>
+<li>On n'entre jamais sur la cassure, toujours au retour.</li>
+<li>Le stop se place avant l'entrée et ne s'élargit jamais.</li>
+<li>Ne rien faire est une position.</li>
+</ol></aside>
+<h1 id="tome-8-mon-antiseche" data-tome="Tome 8">Tome 8 — Mon antisèche</h1>
+<p>Dix pages. Aucune phrase inutile. Objectif : tout revoir en moins de cinq
+minutes, chaque matin, avant d'ouvrir la plateforme.</p>
+<h2 id="page-1-les-quinze-mots-essentiels">Page 1 — Les quinze mots essentiels</h2>
+<table>
+<thead>
+<tr>
+<th>Mot</th>
+<th>Une ligne</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Liquidité</strong></td>
+<td>Les ordres en attente au-delà des extrêmes ; la destination du prix</td>
+</tr>
+<tr>
+<td><strong>BSL / SSL</strong></td>
+<td>Stops au-dessus / en dessous ; cibles, jamais abris</td>
+</tr>
+<tr>
+<td><strong>Sweep</strong></td>
+<td>Purge de ces stops, suivie d'un retournement</td>
+</tr>
+<tr>
+<td><strong>Inducement</strong></td>
+<td>Faux point d'entrée placé devant la vraie zone</td>
+</tr>
+<tr>
+<td><strong>BOS</strong></td>
+<td>Cassure dans le sens de la tendance = continuation</td>
+</tr>
+<tr>
+<td><strong>CHoCH</strong></td>
+<td>Cassure du dernier pivot opposé = retournement possible</td>
+</tr>
+<tr>
+<td><strong>MSS</strong></td>
+<td>CHoCH + déplacement + FVG = changement de biais</td>
+</tr>
+<tr>
+<td><strong>Déplacement</strong></td>
+<td>Bougies larges laissant un déséquilibre = preuve d'intention</td>
+</tr>
+<tr>
+<td><strong>Order Block</strong></td>
+<td>Dernière bougie opposée avant le déplacement</td>
+</tr>
+<tr>
+<td><strong>FVG</strong></td>
+<td>Trou entre bougie 1 et bougie 3 ; le prix revient le combler</td>
+</tr>
+<tr>
+<td><strong>Breaker</strong></td>
+<td>Order Block cassé qui change de camp</td>
+</tr>
+<tr>
+<td><strong>Mitigation</strong></td>
+<td>Dernier bloc opposé, sans cassure de structure = continuation</td>
+</tr>
+<tr>
+<td><strong>Premium / Discount</strong></td>
+<td>Au-dessus / en dessous du 50 % du range</td>
+</tr>
+<tr>
+<td><strong>OTE</strong></td>
+<td>Retracement 62–79 % : la zone d'entrée optimale</td>
+</tr>
+<tr>
+<td><strong>Kill Zone</strong></td>
+<td>09 h–11 h et 14 h 30–17 h : les seules heures qui comptent</td>
+</tr>
+</tbody>
+</table>
+<h2 id="page-2-la-sequence-dans-l-ordre">Page 2 — La séquence, dans l'ordre</h2>
+<pre class="schema"><code>   1  BIAIS       D1/H4 : direction · cible · invalidation (écrit)
+   2  HEURE       suis-je dans une Kill Zone ?
+   3  LIQUIDITÉ   quelle liquidité vient d'être prise ?
+   4  STRUCTURE   CHoCH ou MSS, avec déplacement ?
+   5  ZONE        OB ou FVG, du bon côté de l'équilibre ?
+   6  INDUCEMENT  le faux point d'entrée a-t-il été purgé ?
+   7  ENTRÉE      ordre limite, jamais au marché
+   8  STOP        au-delà de la mèche + marge (spread + bruit)
+   9  TAILLE      (capital × 1 %) / (distance stop × valeur point)
+  10  OBJECTIFS   1:2 (moitié) puis liquidité HTF (stop suiveur)
+</code></pre>
+<p><strong>Une case manquante = pas de trade.</strong></p>
+<h2 id="page-3-structure">Page 3 — Structure</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>BOS</th>
+<th>CHoCH</th>
+<th>MSS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sens de la cassure</td>
+<td>Tendance</td>
+<td>Opposé</td>
+<td>Opposé</td>
+</tr>
+<tr>
+<td>Signification</td>
+<td>Continuation</td>
+<td>Retournement possible</td>
+<td>Changement de biais</td>
+</tr>
+<tr>
+<td>Déplacement requis</td>
+<td>Souhaitable</td>
+<td>Souhaitable</td>
+<td><strong>Obligatoire</strong></td>
+</tr>
+<tr>
+<td>FVG laissé</td>
+<td>Fréquent</td>
+<td>Fréquent</td>
+<td><strong>Obligatoire</strong></td>
+</tr>
+<tr>
+<td>Purge préalable</td>
+<td>Parfois</td>
+<td>Presque toujours</td>
+<td>Presque toujours</td>
+</tr>
+</tbody>
+</table>
+<pre class="schema"><code>   HAUSSIÈRE   HH ─ HL ─ HH ─ HL      → achats uniquement
+   BAISSIÈRE   LH ─ LL ─ LH ─ LL      → ventes uniquement
+   NEUTRE      chevauchements          → bords de range ou rien
+</code></pre>
+<ul>
+<li>Une <strong>mèche</strong> ne casse rien : seule une <strong>clôture</strong> casse.</li>
+<li>La structure <strong>interne</strong> ne change jamais le biais.</li>
+<li>La structure <strong>externe</strong> donne le biais et les objectifs.</li>
+</ul>
+<h2 id="page-4-zones">Page 4 — Zones</h2>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Condition</th>
+<th>Type de trade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Order Block</strong></td>
+<td>Liquidité + déplacement + cassure de structure</td>
+<td>Continuation ou retournement</td>
+</tr>
+<tr>
+<td><strong>FVG</strong></td>
+<td>3 bougies sans chevauchement</td>
+<td>Entrée limite au milieu</td>
+</tr>
+<tr>
+<td><strong>IFVG</strong></td>
+<td>FVG traversé <strong>en clôture</strong></td>
+<td>Retournement, un seul retest</td>
+</tr>
+<tr>
+<td><strong>Breaker</strong></td>
+<td>OB cassé <strong>avec</strong> cassure de structure</td>
+<td>Retournement</td>
+</tr>
+<tr>
+<td><strong>Mitigation</strong></td>
+<td>Dernier bloc opposé, <strong>sans</strong> cassure</td>
+<td>Continuation</td>
+</tr>
+<tr>
+<td><strong>BPR</strong></td>
+<td>Deux FVG opposés superposés</td>
+<td>Sens du dernier déplacement</td>
+</tr>
+<tr>
+<td><strong>Rejection block</strong></td>
+<td>Mèches répétées au même niveau</td>
+<td>Retournement</td>
+</tr>
+<tr>
+<td><strong>Unicorn</strong></td>
+<td>Breaker + FVG superposés, après MSS</td>
+<td>Taille pleine</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Règles communes :</strong> une seule mitigation par zone · stop au-delà, jamais
+dedans · toujours dans le sens du biais HTF · toujours du bon côté de
+l'équilibre.</p>
+<h2 id="page-5-liquidite-et-premium-discount">Page 5 — Liquidité et premium/discount</h2>
+<pre class="schema"><code>   ▲▲▲ BSL — equal highs, PDH, chiffres ronds  ──► cible haussière
+   ─────────────────────────────────────────
+        ░░░░ PREMIUM ░░░░   → ventes uniquement
+   ══════ ÉQUILIBRE 50 % ══════  → zone morte
+        ▓▓▓▓ DISCOUNT ▓▓▓▓  → achats uniquement
+   ─────────────────────────────────────────
+   ▼▼▼ SSL — equal lows, PDL, chiffres ronds   ──► cible baissière
+</code></pre>
+<p><strong>Les deux questions obligatoires avant chaque entrée :</strong>
+1. Quelle liquidité vient d'être <strong>prise</strong> ?
+2. Quelle liquidité est <strong>visée</strong> ?</p>
+<p><strong>Trois règles de placement :</strong> objectif <em>juste avant</em> un pool · stop <em>au-delà</em>
+d'un pool · jamais rien <em>dedans</em>.</p>
+<h2 id="page-6-temps">Page 6 — Temps</h2>
+<pre class="schema"><code>   00 h ─ 09 h   ASIE          range étroit · réservoir de liquidité
+   09 h ─ 11 h   LONDRES       ██ purge puis direction du jour
+   11 h ─ 14 h 30 MI-JOURNÉE   ░░ interdit
+   14 h 30 ─ 17 h NEW YORK     ██ publications · extension ou retournement
+   17 h ─ 19 h   LONDON CLOSE  ▓ retournements fréquents
+</code></pre>
+<p><strong>Les quatre lignes à tracer chaque matin :</strong> plus haut de la veille (PDH),
+plus bas de la veille (PDL), clôture de la veille, ouverture du jour.
+<strong>Plus deux :</strong> haut et bas du range asiatique.</p>
+<p><strong>Heures interdites :</strong> les 15 premières minutes d'une session · 11 h–14 h 30 ·
+les deux minutes entourant une publication majeure.</p>
+<h2 id="page-7-risque">Page 7 — Risque</h2>
+<pre class="schema"><code>   TAILLE = (capital × risque %) / (distance au stop × valeur du point)
+   Exemple : (10 000 × 1 %) / (25 pips × 10 €) = 100 / 250 = 0,40 lot
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Risque / trade</th>
+<th>10 pertes d'affilée</th>
+<th>Retour nécessaire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0,5 %</td>
+<td>−4,9 %</td>
+<td>+5,2 %</td>
+</tr>
+<tr>
+<td>1 %</td>
+<td>−9,6 %</td>
+<td>+10,6 %</td>
+</tr>
+<tr>
+<td>2 %</td>
+<td>−18,3 %</td>
+<td>+22,4 %</td>
+</tr>
+<tr>
+<td>5 %</td>
+<td>−40,1 %</td>
+<td>+67,0 %</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>R:R</th>
+<th>Taux de réussite pour l'équilibre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1:1</td>
+<td>50 %</td>
+</tr>
+<tr>
+<td>1:2</td>
+<td>33 %</td>
+</tr>
+<tr>
+<td>1:3</td>
+<td>25 %</td>
+</tr>
+<tr>
+<td>1:5</td>
+<td>17 %</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Limites non négociables :</strong> 1 % par trade · 3 % d'exposition totale · −3 R par
+jour · −6 R par semaine · 3 trades par jour · 2 stops sur un instrument = fini
+pour la journée.</p>
+<h2 id="page-8-macro">Page 8 — Macro</h2>
+<pre class="schema"><code>   Inflation ──► anticipations de taux ──► TAUX RÉELS ──► DOLLAR ──► tout le reste
+</code></pre>
+<pre class="schema schema--large"><code>                     │ Taux ↑ │ DXY ↑ │ Récession │ Risk-off
+─────────────────────┼────────┼───────┼───────────┼──────────
+ OR                  │   ↓    │   ↓   │     ↑     │    ↑
+ ARGENT              │   ↓    │   ↓   │    ↓↓     │    ↓
+ BITCOIN             │  ↓↓    │   ↓   │    ↓↓     │   ↓↓
+ INDICES             │   ↓    │   ↓   │  ↓ puis ↑ │   ↓↓
+ PÉTROLE             │   ↓    │   ↓   │    ↓↓     │    ↓
+ OBLIGATIONS         │  ↓↓    │   —   │    ↑↑     │    ↑
+ JPY / CHF           │   ↓    │   ↓   │     ↑     │   ↑↑
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Événement</th>
+<th>Heure (Paris)</th>
+<th>Volatilité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPI</td>
+<td>14 h 30</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>NFP</td>
+<td>14 h 30, 1er vendredi</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>FOMC</td>
+<td>20 h + 20 h 30</td>
+<td>★★★★</td>
+</tr>
+<tr>
+<td>BCE</td>
+<td>14 h 15 + 14 h 45</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Stocks pétroliers</td>
+<td>Mercredi 16 h 30</td>
+<td>★★</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Trois réflexes :</strong> seule la surprise compte · la même donnée change de signe
+selon le régime · on trade le FVG laissé, jamais l'annonce.</p>
+<h2 id="page-9-erreurs-et-psychologie">Page 9 — Erreurs et psychologie</h2>
+<p><strong>Les dix erreurs les plus coûteuses</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Erreur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Déplacer son stop dans le sens de la perte</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Revenge trading après une perte</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Risquer plus de 1 % par trade</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Multiplier les positions corrélées</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Entrer sur la bougie de cassure</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Couper ses gains trop tôt</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Acheter en premium, vendre en discount</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Trader hors des fenêtres horaires</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Ne pas tenir de journal</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Changer de méthode en permanence</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Les trois racines de toutes les erreurs :</strong> l'impatience · le refus d'acter
+une perte · le besoin de certitude.</p>
+<p><strong>Les quatre signaux d'arrêt immédiat</strong></p>
+<pre class="schema"><code>   ☐ −3 R sur la journée
+   ☐ Deux stops consécutifs sur le même instrument
+   ☐ Envie de « me refaire »
+   ☐ Je ne peux pas expliquer mon trade en une phrase
+</code></pre>
+<h2 id="page-10-routine-de-cinq-minutes">Page 10 — Routine de cinq minutes</h2>
+<pre class="schema"><code>   ┌─ 1 min ─ CONTEXTE ────────────────────────────────────┐
+   │ Structure W1 / D1 ? Premium ou discount ?             │
+   │ Prix au-dessus ou en dessous de la MM200 D1 ?         │
+   ├─ 1 min ─ LIQUIDITÉ ───────────────────────────────────┤
+   │ Prise hier ? Restante au-dessus ? En dessous ?        │
+   ├─ 1 min ─ NIVEAUX ─────────────────────────────────────┤
+   │ Tracer : PDH · PDL · clôture veille · ouverture jour  │
+   ├─ 1 min ─ CALENDRIER ──────────────────────────────────┤
+   │ Publication aujourd'hui ? À quelle heure ?            │
+   ├─ 1 min ─ DÉCISION ────────────────────────────────────┤
+   │ DIRECTION    : ..................                     │
+   │ CIBLE        : ..................                     │
+   │ INVALIDATION : ..................                     │
+   └───────────────────────────────────────────────────────┘
+        Si je ne peux pas écrire les trois lignes → observation.
+</code></pre>
+<p><strong>Les dix règles d'or, version courte</strong></p>
+<ol>
+<li>Le prix va chercher les ordres, pas la valeur.</li>
+<li>Quelle liquidité prise, quelle liquidité visée.</li>
+<li>Jamais au milieu du range.</li>
+<li>Jamais sur la bougie de cassure.</li>
+<li>Discount = achats, premium = ventes.</li>
+<li>Décider de sa sortie avant son entrée.</li>
+<li>1 % maximum par trade.</li>
+<li>−3 R sur la journée : on ferme.</li>
+<li>Ne rien faire est une position.</li>
+<li>Survivre est la condition préalable à gagner.</li>
+</ol>
+<aside class="encadre encadre--retenir"><p class="encadre-titre">Le mot de la fin</p><p>Ce manuel ne vous rendra pas rentable. Il vous évite seulement de perdre du
+temps à chercher ce que vous savez déjà, et de perdre de l'argent à réapprendre
+ce que vous avez déjà appris. Le reste — la patience, la répétition, le journal
+relu chaque dimanche — ne s'écrit pas dans un livre. Il se pratique.</p>
+<p>Bon trading, et surtout : bonne survie.</p></aside>
 </div></main>
 
-<script>window.__INDEX__ = [{"i":"preface-comment-utiliser-ce-manuel","t":"Préface — Comment utiliser ce manuel","n":1},{"i":"les-huit-tomes","t":"Les huit tomes","n":2},{"i":"le-code-couleur-des-encadres","t":"Le code couleur des encadrés","n":2},{"i":"trois-facons-de-s-en-servir","t":"Trois façons de s'en servir","n":2},{"i":"les-conventions-du-livre","t":"Les conventions du livre","n":2},{"i":"le-contrat-que-vous-signez-avec-vous-meme","t":"Le contrat que vous signez avec vous-même","n":2},{"i":"tome-1-dictionnaire-du-trading","t":"Tome 1 — Dictionnaire du Trading","n":1},{"i":"a","t":"A","n":2},{"i":"accumulation","t":"ACCUMULATION","n":3},{"i":"adr-average-daily-range","t":"ADR — AVERAGE DAILY RANGE","n":3},{"i":"algorithmique-trading","t":"ALGORITHMIQUE (TRADING)","n":3},{"i":"analyse-fondamentale","t":"ANALYSE FONDAMENTALE","n":3},{"i":"analyse-technique","t":"ANALYSE TECHNIQUE","n":3},{"i":"asian-range","t":"ASIAN RANGE","n":3},{"i":"ath-atl-all-time-high-low","t":"ATH / ATL — ALL TIME HIGH / LOW","n":3},{"i":"atr-average-true-range","t":"ATR — AVERAGE TRUE RANGE","n":3},{"i":"b","t":"B","n":2},{"i":"backtest","t":"BACKTEST","n":3},{"i":"bear-market-bull-market","t":"BEAR MARKET / BULL MARKET","n":3},{"i":"biais-cognitifs","t":"BIAIS COGNITIFS","n":3},{"i":"bid-ask-spread","t":"BID / ASK / SPREAD","n":3},{"i":"bos-break-of-structure","t":"BOS — BREAK OF STRUCTURE","n":3},{"i":"breaker-block","t":"BREAKER BLOCK","n":3},{"i":"breakout","t":"BREAKOUT","n":3},{"i":"bulle-speculative","t":"BULLE SPÉCULATIVE","n":3},{"i":"buy-side-liquidity-bsl","t":"BUY-SIDE LIQUIDITY (BSL)","n":3},{"i":"c","t":"C","n":2},{"i":"carry-trade","t":"CARRY TRADE","n":3},{"i":"chandelier-japonais","t":"CHANDELIER JAPONAIS","n":3},{"i":"choch-change-of-character","t":"CHoCH — CHANGE OF CHARACTER","n":3},{"i":"climax-buying-selling","t":"CLIMAX (BUYING / SELLING)","n":3},{"i":"confluence","t":"CONFLUENCE","n":3},{"i":"consolidation","t":"CONSOLIDATION","n":3},{"i":"correlation","t":"CORRÉLATION","n":3},{"i":"cpi-consumer-price-index","t":"CPI — CONSUMER PRICE INDEX","n":3},{"i":"cycle-de-marche","t":"CYCLE DE MARCHÉ","n":3},{"i":"d","t":"D","n":2},{"i":"daily-bias","t":"DAILY BIAS","n":3},{"i":"dark-pool","t":"DARK POOL","n":3},{"i":"dealing-range","t":"DEALING RANGE","n":3},{"i":"delta-order-flow","t":"DELTA (ORDER FLOW)","n":3},{"i":"deplacement-displacement","t":"DÉPLACEMENT (DISPLACEMENT)","n":3},{"i":"distribution","t":"DISTRIBUTION","n":3},{"i":"divergence","t":"DIVERGENCE","n":3},{"i":"drawdown","t":"DRAWDOWN","n":3},{"i":"dxy-indice-du-dollar","t":"DXY — INDICE DU DOLLAR","n":3},{"i":"e","t":"E","n":2},{"i":"effet-de-levier","t":"EFFET DE LEVIER","n":3},{"i":"engulfing-avalement","t":"ENGULFING (AVALEMENT)","n":3},{"i":"equal-highs-equal-lows-eqh-eql","t":"EQUAL HIGHS / EQUAL LOWS (EQH / EQL)","n":3},{"i":"equilibre-equilibrium","t":"ÉQUILIBRE (EQUILIBRIUM)","n":3},{"i":"expansion","t":"EXPANSION","n":3},{"i":"exposition","t":"EXPOSITION","n":3},{"i":"f","t":"F","n":2},{"i":"faux-cassage-fakeout","t":"FAUX CASSAGE (FAKEOUT)","n":3},{"i":"fed-reserve-federale","t":"FED — RÉSERVE FÉDÉRALE","n":3},{"i":"fibonacci","t":"FIBONACCI","n":3},{"i":"flip-zone","t":"FLIP ZONE","n":3},{"i":"fomc","t":"FOMC","n":3},{"i":"forex","t":"FOREX","n":3},{"i":"fractalite","t":"FRACTALITÉ","n":3},{"i":"funding-rate","t":"FUNDING RATE","n":3},{"i":"futures-contrats-a-terme","t":"FUTURES (CONTRATS À TERME)","n":3},{"i":"fvg-fair-value-gap","t":"FVG — FAIR VALUE GAP","n":3},{"i":"g","t":"G","n":2},{"i":"gap","t":"GAP","n":3},{"i":"gestion-du-risque","t":"GESTION DU RISQUE","n":3},{"i":"h","t":"H","n":2},{"i":"head-and-shoulders-epaule-tete-epaule","t":"HEAD AND SHOULDERS (ÉPAULE-TÊTE-ÉPAULE)","n":3},{"i":"hedging-couverture","t":"HEDGING (COUVERTURE)","n":3},{"i":"htf-ltf-unites-de-temps","t":"HTF / LTF — UNITÉS DE TEMPS","n":3},{"i":"higher-high-higher-low-hh-hl","t":"HIGHER HIGH / HIGHER LOW (HH / HL)","n":3},{"i":"i","t":"I","n":2},{"i":"iceberg-ordre","t":"ICEBERG (ORDRE)","n":3},{"i":"ifvg-inverse-fair-value-gap","t":"IFVG — INVERSE FAIR VALUE GAP","n":3},{"i":"imbalance-desequilibre","t":"IMBALANCE (DÉSÉQUILIBRE)","n":3},{"i":"inducement-incitation","t":"INDUCEMENT (INCITATION)","n":3},{"i":"inflation","t":"INFLATION","n":3},{"i":"internal-external-range-liquidity","t":"INTERNAL / EXTERNAL RANGE LIQUIDITY","n":3},{"i":"ipda","t":"IPDA","n":3},{"i":"j","t":"J","n":2},{"i":"journal-de-trading","t":"JOURNAL DE TRADING","n":3},{"i":"judas-swing","t":"JUDAS SWING","n":3},{"i":"k","t":"K","n":2},{"i":"kelly-critere-de","t":"KELLY (CRITÈRE DE)","n":3},{"i":"kill-zone","t":"KILL ZONE","n":3},{"i":"l","t":"L","n":2},{"i":"liquidation","t":"LIQUIDATION","n":3},{"i":"liquidite","t":"LIQUIDITÉ","n":3},{"i":"liquidity-pool","t":"LIQUIDITY POOL","n":3},{"i":"liquidity-sweep-purge-de-liquidite","t":"LIQUIDITY SWEEP (PURGE DE LIQUIDITÉ)","n":3},{"i":"liquidity-void","t":"LIQUIDITY VOID","n":3},{"i":"lot-taille-de-position","t":"LOT / TAILLE DE POSITION","n":3},{"i":"m","t":"M","n":2},{"i":"macroeconomie","t":"MACROÉCONOMIE","n":3},{"i":"marge-appel-de-marge","t":"MARGE / APPEL DE MARGE","n":3},{"i":"market-maker-teneur-de-marche","t":"MARKET MAKER (TENEUR DE MARCHÉ)","n":3},{"i":"market-structure-structure-de-marche","t":"MARKET STRUCTURE (STRUCTURE DE MARCHÉ)","n":3},{"i":"meche-wick-shadow","t":"MÈCHE (WICK / SHADOW)","n":3},{"i":"mitigation-block","t":"MITIGATION BLOCK","n":3},{"i":"momentum","t":"MOMENTUM","n":3},{"i":"moyenne-mobile","t":"MOYENNE MOBILE","n":3},{"i":"mss-market-structure-shift","t":"MSS — MARKET STRUCTURE SHIFT","n":3},{"i":"n","t":"N","n":2},{"i":"nfp-non-farm-payrolls","t":"NFP — NON-FARM PAYROLLS","n":3},{"i":"niveau-psychologique-chiffre-rond","t":"NIVEAU PSYCHOLOGIQUE (CHIFFRE ROND)","n":3},{"i":"o","t":"O","n":2},{"i":"ohlc","t":"OHLC","n":3},{"i":"open-interest","t":"OPEN INTEREST","n":3},{"i":"order-block-ob","t":"ORDER BLOCK (OB)","n":3},{"i":"order-flow","t":"ORDER FLOW","n":3},{"i":"ote-optimal-trade-entry","t":"OTE — OPTIMAL TRADE ENTRY","n":3},{"i":"overtrading","t":"OVERTRADING","n":3},{"i":"p","t":"P","n":2},{"i":"paper-trading-compte-demo","t":"PAPER TRADING (COMPTE DÉMO)","n":3},{"i":"pd-array-premium-discount-array","t":"PD ARRAY — PREMIUM/DISCOUNT ARRAY","n":3},{"i":"pip-point-tick","t":"PIP / POINT / TICK","n":3},{"i":"ppi-producer-price-index","t":"PPI — PRODUCER PRICE INDEX","n":3},{"i":"premium-discount","t":"PREMIUM / DISCOUNT","n":3},{"i":"price-action","t":"PRICE ACTION","n":3},{"i":"prop-firm-societe-de-financement","t":"PROP FIRM (SOCIÉTÉ DE FINANCEMENT)","n":3},{"i":"pullback-retracement","t":"PULLBACK (RETRACEMENT)","n":3},{"i":"q","t":"Q","n":2},{"i":"qe-qt-assouplissement-et-resserrement-quantitatifs","t":"QE / QT — ASSOUPLISSEMENT ET RESSERREMENT QUANTITATIFS","n":3},{"i":"r","t":"R","n":2},{"i":"range","t":"RANGE","n":3},{"i":"ratio-risque-rendement-r-r","t":"RATIO RISQUE / RENDEMENT (R:R)","n":3},{"i":"recession","t":"RÉCESSION","n":3},{"i":"rejection-block","t":"REJECTION BLOCK","n":3},{"i":"rendement-obligataire","t":"RENDEMENT OBLIGATAIRE","n":3},{"i":"risque-de-ruine","t":"RISQUE DE RUINE","n":3},{"i":"s","t":"S","n":2},{"i":"scalping","t":"SCALPING","n":3},{"i":"sell-side-liquidity-ssl","t":"SELL-SIDE LIQUIDITY (SSL)","n":3},{"i":"sentiment-de-marche","t":"SENTIMENT DE MARCHÉ","n":3},{"i":"session","t":"SESSION","n":3},{"i":"sfp-swing-failure-pattern","t":"SFP — SWING FAILURE PATTERN","n":3},{"i":"slippage","t":"SLIPPAGE","n":3},{"i":"smc-smart-money-concepts","t":"SMC — SMART MONEY CONCEPTS","n":3},{"i":"smt-divergence","t":"SMT DIVERGENCE","n":3},{"i":"spring","t":"SPRING","n":3},{"i":"stop-loss","t":"STOP LOSS","n":3},{"i":"support-resistance","t":"SUPPORT / RÉSISTANCE","n":3},{"i":"swap-points-de-rollover","t":"SWAP (POINTS DE ROLLOVER)","n":3},{"i":"swing-trading","t":"SWING TRADING","n":3},{"i":"t","t":"T","n":2},{"i":"take-profit-objectif","t":"TAKE PROFIT (OBJECTIF)","n":3},{"i":"taux-directeur","t":"TAUX DIRECTEUR","n":3},{"i":"tendance","t":"TENDANCE","n":3},{"i":"test-wyckoff","t":"TEST (WYCKOFF)","n":3},{"i":"trailing-stop-stop-suiveur","t":"TRAILING STOP (STOP SUIVEUR)","n":3},{"i":"trendline-ligne-de-tendance","t":"TRENDLINE (LIGNE DE TENDANCE)","n":3},{"i":"turtle-soup","t":"TURTLE SOUP","n":3},{"i":"u","t":"U","n":2},{"i":"unicorn","t":"UNICORN","n":3},{"i":"upthrust","t":"UPTHRUST","n":3},{"i":"utad-upthrust-after-distribution","t":"UTAD — UPTHRUST AFTER DISTRIBUTION","n":3},{"i":"v","t":"V","n":2},{"i":"value-area-vah-val-poc","t":"VALUE AREA — VAH / VAL / POC","n":3},{"i":"volatilite","t":"VOLATILITÉ","n":3},{"i":"volume","t":"VOLUME","n":3},{"i":"volume-profile","t":"VOLUME PROFILE","n":3},{"i":"vwap","t":"VWAP","n":3},{"i":"w","t":"W","n":2},{"i":"whipsaw-sciage","t":"WHIPSAW (SCIAGE)","n":3},{"i":"win-rate-taux-de-reussite","t":"WIN RATE (TAUX DE RÉUSSITE)","n":3},{"i":"wyckoff-methode","t":"WYCKOFF (MÉTHODE)","n":3},{"i":"y","t":"Y","n":2},{"i":"yield-curve-courbe-des-taux","t":"YIELD CURVE (COURBE DES TAUX)","n":3},{"i":"z","t":"Z","n":2},{"i":"zone-neutre","t":"ZONE NEUTRE","n":3},{"i":"tome-2-les-concepts-expliques","t":"Tome 2 — Les concepts expliqués","n":1},{"i":"chapitre-1-la-theorie-de-dow","t":"Chapitre 1 — La théorie de Dow","n":2},{"i":"les-six-principes","t":"Les six principes","n":3},{"i":"ce-qui-en-reste-aujourd-hui","t":"Ce qui en reste aujourd'hui","n":3},{"i":"chapitre-2-wyckoff","t":"Chapitre 2 — Wyckoff","n":2},{"i":"les-trois-lois","t":"Les trois lois","n":3},{"i":"l-operateur-composite","t":"L'opérateur composite","n":3},{"i":"le-schema-d-accumulation","t":"Le schéma d'accumulation","n":3},{"i":"comment-l-utiliser-aujourd-hui","t":"Comment l'utiliser aujourd'hui","n":3},{"i":"chapitre-3-ict","t":"Chapitre 3 — ICT","n":2},{"i":"les-trois-apports","t":"Les trois apports","n":3},{"i":"le-modele-amd","t":"Le modèle AMD","n":3},{"i":"la-sequence-d-execution-ict","t":"La séquence d'exécution ICT","n":3},{"i":"ce-qu-il-faut-en-garder-et-ce-qu-il-faut-ecarter","t":"Ce qu'il faut en garder — et ce qu'il faut écarter","n":3},{"i":"chapitre-4-smc-smart-money-concepts","t":"Chapitre 4 — SMC (Smart Money Concepts)","n":2},{"i":"les-quatre-piliers","t":"Les quatre piliers","n":3},{"i":"la-sequence-complete-dans-l-ordre","t":"La séquence complète, dans l'ordre","n":3},{"i":"les-trois-filtres-qui-eliminent-80-des-mauvais-trades","t":"Les trois filtres qui éliminent 80 % des mauvais trades","n":3},{"i":"les-limites-honnetes-du-smc","t":"Les limites honnêtes du SMC","n":3},{"i":"chapitre-5-price-action","t":"Chapitre 5 — Price Action","n":2},{"i":"les-trois-seules-lectures-necessaires","t":"Les trois seules lectures nécessaires","n":3},{"i":"impulsion-contre-correction","t":"Impulsion contre correction","n":3},{"i":"le-graphique-propre","t":"Le graphique propre","n":3},{"i":"chapitre-6-le-volume","t":"Chapitre 6 — Le volume","n":2},{"i":"la-loi-fondamentale-effort-contre-resultat","t":"La loi fondamentale : effort contre résultat","n":3},{"i":"les-quatre-situations-a-reconnaitre","t":"Les quatre situations à reconnaître","n":3},{"i":"le-cas-particulier-du-forex","t":"Le cas particulier du Forex","n":3},{"i":"chapitre-7-l-order-flow","t":"Chapitre 7 — L'order flow","n":2},{"i":"les-quatre-outils","t":"Les quatre outils","n":3},{"i":"la-configuration-a-connaitre-l-absorption","t":"La configuration à connaître : l'absorption","n":3},{"i":"la-divergence-prix-delta","t":"La divergence prix / delta","n":3},{"i":"ce-qui-est-realiste-pour-un-particulier","t":"Ce qui est réaliste pour un particulier","n":3},{"i":"chapitre-8-la-liquidite","t":"Chapitre 8 — La liquidité","n":2},{"i":"le-principe","t":"Le principe","n":3},{"i":"la-carte-de-la-liquidite","t":"La carte de la liquidité","n":3},{"i":"l-inducement-la-liquidite-qui-precede-la-vraie-zone","t":"L'inducement : la liquidité qui précède la vraie zone","n":3},{"i":"les-deux-questions-obligatoires","t":"Les deux questions obligatoires","n":3},{"i":"chapitre-9-premium-discount","t":"Chapitre 9 — Premium / Discount","n":2},{"i":"le-principe-2","t":"Le principe","n":3},{"i":"comment-tracer-le-range-correctement","t":"Comment tracer le range correctement","n":3},{"i":"le-tableau-de-decision","t":"Le tableau de décision","n":3},{"i":"le-cas-de-la-tendance-forte","t":"Le cas de la tendance forte","n":3},{"i":"chapitre-10-l-order-block","t":"Chapitre 10 — L'Order Block","n":2},{"i":"definition-rigoureuse","t":"Définition rigoureuse","n":3},{"i":"comment-le-delimiter","t":"Comment le délimiter","n":3},{"i":"regles-d-utilisation","t":"Règles d'utilisation","n":3},{"i":"chapitre-11-le-breaker-block","t":"Chapitre 11 — Le Breaker Block","n":2},{"i":"la-mecanique","t":"La mécanique","n":3},{"i":"pourquoi-c-est-puissant","t":"Pourquoi c'est puissant","n":3},{"i":"breaker-contre-mitigation-block","t":"Breaker contre mitigation block","n":3},{"i":"chapitre-12-le-mitigation-block","t":"Chapitre 12 — Le Mitigation Block","n":2},{"i":"la-mecanique-2","t":"La mécanique","n":3},{"i":"quand-l-utiliser","t":"Quand l'utiliser","n":3},{"i":"le-classement-des-zones-par-risque","t":"Le classement des zones par risque","n":3},{"i":"chapitre-13-le-fair-value-gap-fvg","t":"Chapitre 13 — Le Fair Value Gap (FVG)","n":2},{"i":"la-definition-en-trois-bougies","t":"La définition en trois bougies","n":3},{"i":"pourquoi-le-prix-y-revient","t":"Pourquoi le prix y revient","n":3},{"i":"les-niveaux-d-entree-dans-le-fvg","t":"Les niveaux d'entrée dans le FVG","n":3},{"i":"la-hierarchie-des-fvg","t":"La hiérarchie des FVG","n":3},{"i":"le-fvg-traverse","t":"Le FVG traversé","n":3},{"i":"chapitre-14-l-ifvg-inverse-fair-value-gap","t":"Chapitre 14 — L'IFVG (Inverse Fair Value Gap)","n":2},{"i":"le-principe-3","t":"Le principe","n":3},{"i":"la-regle-de-validation","t":"La règle de validation","n":3},{"i":"quand-l-ifvg-est-superieur-a-l-order-block","t":"Quand l'IFVG est supérieur à l'Order Block","n":3},{"i":"chapitre-15-le-bpr-balanced-price-range","t":"Chapitre 15 — Le BPR (Balanced Price Range)","n":2},{"i":"definition","t":"Définition","n":3},{"i":"pourquoi-c-est-reactif","t":"Pourquoi c'est réactif","n":3},{"i":"utilisation","t":"Utilisation","n":3},{"i":"frequence","t":"Fréquence","n":3},{"i":"chapitre-16-le-bos-break-of-structure","t":"Chapitre 16 — Le BOS (Break of Structure)","n":2},{"i":"definition-2","t":"Définition","n":3},{"i":"les-deux-criteres-de-validation","t":"Les deux critères de validation","n":3},{"i":"comment-le-trader","t":"Comment le trader","n":3},{"i":"chapitre-17-le-choch-change-of-character","t":"Chapitre 17 — Le CHoCH (Change of Character)","n":2},{"i":"definition-3","t":"Définition","n":3},{"i":"la-sequence-complete-du-retournement","t":"La séquence complète du retournement","n":3},{"i":"bos-ou-choch-le-tableau-qui-tranche","t":"BOS ou CHoCH ? Le tableau qui tranche","n":3},{"i":"chapitre-18-le-mss-market-structure-shift","t":"Chapitre 18 — Le MSS (Market Structure Shift)","n":2},{"i":"ce-qui-le-distingue-du-choch","t":"Ce qui le distingue du CHoCH","n":3},{"i":"la-sequence","t":"La séquence","n":3},{"i":"ce-qu-il-autorise","t":"Ce qu'il autorise","n":3},{"i":"chapitre-19-le-liquidity-sweep","t":"Chapitre 19 — Le Liquidity Sweep","n":2},{"i":"la-sequence-en-trois-temps-jamais-deux","t":"La séquence en trois temps — jamais deux","n":3},{"i":"les-criteres-de-qualite-d-une-purge","t":"Les critères de qualité d'une purge","n":3},{"i":"purge-simple-ou-double","t":"Purge simple ou double","n":3},{"i":"le-cas-ou-la-purge-n-est-pas-un-signal","t":"Le cas où la purge n'est pas un signal","n":3},{"i":"chapitre-20-la-structure-interne","t":"Chapitre 20 — La structure interne","n":2},{"i":"definition-4","t":"Définition","n":3},{"i":"a-quoi-elle-sert","t":"À quoi elle sert","n":3},{"i":"le-piege-majeur","t":"Le piège majeur","n":3},{"i":"la-regle-qui-evite-l-erreur","t":"La règle qui évite l'erreur","n":3},{"i":"chapitre-21-la-structure-externe","t":"Chapitre 21 — La structure externe","n":2},{"i":"definition-5","t":"Définition","n":3},{"i":"comment-marquer-proprement","t":"Comment marquer proprement","n":3},{"i":"le-lien-externe-interne","t":"Le lien externe / interne","n":3},{"i":"la-liquidite-externe","t":"La liquidité externe","n":3},{"i":"chapitre-22-kill-zones","t":"Chapitre 22 — Kill Zones","n":2},{"i":"les-fenetres-heures-de-paris","t":"Les fenêtres (heures de Paris)","n":3},{"i":"pourquoi-elles-fonctionnent","t":"Pourquoi elles fonctionnent","n":3},{"i":"la-discipline-horaire","t":"La discipline horaire","n":3},{"i":"chapitre-23-les-sessions","t":"Chapitre 23 — Les sessions","n":2},{"i":"la-personnalite-de-chaque-session","t":"La personnalité de chaque session","n":3},{"i":"le-schema-quotidien-le-plus-frequent","t":"Le schéma quotidien le plus fréquent","n":3},{"i":"les-reperes-a-tracer-chaque-jour","t":"Les repères à tracer chaque jour","n":3},{"i":"chapitre-24-les-correlations","t":"Chapitre 24 — Les corrélations","n":2},{"i":"le-principe-4","t":"Le principe","n":3},{"i":"la-carte-des-correlations-utiles","t":"La carte des corrélations utiles","n":3},{"i":"le-risque-par-facteur","t":"Le risque par facteur","n":3},{"i":"la-divergence-comme-signal-smt","t":"La divergence comme signal (SMT)","n":3},{"i":"le-piege-des-regimes","t":"Le piège des régimes","n":3},{"i":"chapitre-25-la-macroeconomie","t":"Chapitre 25 — La macroéconomie","n":2},{"i":"les-deux-variables-qui-commandent-tout","t":"Les deux variables qui commandent tout","n":3},{"i":"la-chaine-de-transmission","t":"La chaîne de transmission","n":3},{"i":"ce-qui-compte-reellement-la-surprise","t":"Ce qui compte réellement : la surprise","n":3},{"i":"la-regle-d-or-operationnelle","t":"La règle d'or opérationnelle","n":3},{"i":"chapitre-26-l-analyse-fondamentale","t":"Chapitre 26 — L'analyse fondamentale","n":2},{"i":"ce-qu-elle-est-et-ce-qu-elle-n-est-pas","t":"Ce qu'elle est, et ce qu'elle n'est pas","n":3},{"i":"par-classe-d-actifs","t":"Par classe d'actifs","n":3},{"i":"la-regle-du-consensus","t":"La règle du consensus","n":3},{"i":"comment-l-integrer-sans-se-disperser","t":"Comment l'intégrer sans se disperser","n":3},{"i":"tome-3-macroeconomie","t":"Tome 3 — Macroéconomie","n":1},{"i":"la-chaine-de-causalite-a-memoriser-avant-tout-le-reste","t":"La chaîne de causalité — à mémoriser avant tout le reste","n":2},{"i":"les-seize-fiches","t":"Les seize fiches","n":2},{"i":"1-inflation","t":"1. INFLATION","n":3},{"i":"2-cpi-indice-des-prix-a-la-consommation","t":"2. CPI — Indice des prix à la consommation","n":3},{"i":"3-ppi-indice-des-prix-a-la-production","t":"3. PPI — Indice des prix à la production","n":3},{"i":"4-nfp-emplois-non-agricoles","t":"4. NFP — Emplois non agricoles","n":3},{"i":"5-fomc","t":"5. FOMC","n":3},{"i":"6-fed","t":"6. FED","n":3},{"i":"7-bce-banque-centrale-europeenne","t":"7. BCE — Banque centrale européenne","n":3},{"i":"8-taux-directeurs","t":"8. TAUX DIRECTEURS","n":3},{"i":"9-dxy-indice-du-dollar","t":"9. DXY — Indice du dollar","n":3},{"i":"10-obligations","t":"10. OBLIGATIONS","n":3},{"i":"11-rendements-et-courbe-des-taux","t":"11. RENDEMENTS ET COURBE DES TAUX","n":3},{"i":"12-pib","t":"12. PIB","n":3},{"i":"13-chomage","t":"13. CHÔMAGE","n":3},{"i":"14-recession","t":"14. RÉCESSION","n":3},{"i":"15-guerre-et-geopolitique","t":"15. GUERRE ET GÉOPOLITIQUE","n":3},{"i":"16-crise-financiere","t":"16. CRISE FINANCIÈRE","n":3},{"i":"l-impact-par-actif","t":"L'impact par actif","n":2},{"i":"or-xauusd","t":"OR (XAUUSD)","n":3},{"i":"bitcoin","t":"BITCOIN","n":3},{"i":"indices-s-p-500-nasdaq-dax-cac","t":"INDICES (S&P 500, Nasdaq, DAX, CAC)","n":3},{"i":"forex-2","t":"FOREX","n":3},{"i":"petrole-wti-brent","t":"PÉTROLE (WTI, BRENT)","n":3},{"i":"argent-xagusd","t":"ARGENT (XAGUSD)","n":3},{"i":"tableau-de-synthese-l-impact-croise","t":"Tableau de synthèse — l'impact croisé","n":2},{"i":"tome-4-checklists","t":"Tome 4 — Checklists","n":1},{"i":"checklist-1-daily-bias","t":"Checklist 1 — Daily Bias","n":2},{"i":"checklist-2-analyse-htf","t":"Checklist 2 — Analyse HTF","n":2},{"i":"checklist-3-liquidite","t":"Checklist 3 — Liquidité","n":2},{"i":"checklist-4-entree","t":"Checklist 4 — Entrée","n":2},{"i":"checklist-5-sortie","t":"Checklist 5 — Sortie","n":2},{"i":"checklist-6-gestion-du-risque","t":"Checklist 6 — Gestion du risque","n":2},{"i":"checklist-7-avant-d-appuyer-sur-buy-ou-sell","t":"Checklist 7 — Avant d'appuyer sur BUY ou SELL","n":2},{"i":"checklist-8-fin-de-journee","t":"Checklist 8 — Fin de journée","n":2},{"i":"checklist-9-journal-de-trading","t":"Checklist 9 — Journal de trading","n":2},{"i":"tome-5-les-100-regles-d-or","t":"Tome 5 — Les 100 règles d'or","n":1},{"i":"structure-et-tendance-regles-1-a-10","t":"Structure et tendance — règles 1 à 10","n":2},{"i":"liquidite-regles-11-a-20","t":"Liquidité — règles 11 à 20","n":2},{"i":"entrees-regles-21-a-30","t":"Entrées — règles 21 à 30","n":2},{"i":"sorties-regles-31-a-40","t":"Sorties — règles 31 à 40","n":2},{"i":"risque-et-taille-regles-41-a-50","t":"Risque et taille — règles 41 à 50","n":2},{"i":"temps-et-sessions-regles-51-a-60","t":"Temps et sessions — règles 51 à 60","n":2},{"i":"psychologie-regles-61-a-70","t":"Psychologie — règles 61 à 70","n":2},{"i":"macro-et-contexte-regles-71-a-80","t":"Macro et contexte — règles 71 à 80","n":2},{"i":"discipline-et-process-regles-81-a-90","t":"Discipline et process — règles 81 à 90","n":2},{"i":"carriere-et-long-terme-regles-91-a-100","t":"Carrière et long terme — règles 91 à 100","n":2}];</script>
+<script>window.__INDEX__ = [{"i":"preface-comment-utiliser-ce-manuel","t":"Préface — Comment utiliser ce manuel","n":1},{"i":"les-huit-tomes","t":"Les huit tomes","n":2},{"i":"le-code-couleur-des-encadres","t":"Le code couleur des encadrés","n":2},{"i":"trois-facons-de-s-en-servir","t":"Trois façons de s'en servir","n":2},{"i":"les-conventions-du-livre","t":"Les conventions du livre","n":2},{"i":"le-contrat-que-vous-signez-avec-vous-meme","t":"Le contrat que vous signez avec vous-même","n":2},{"i":"tome-1-dictionnaire-du-trading","t":"Tome 1 — Dictionnaire du Trading","n":1},{"i":"a-accumulation-atr","t":"A — ACCUMULATION → ATR","n":2},{"i":"accumulation","t":"ACCUMULATION","n":3},{"i":"adr-average-daily-range","t":"ADR — AVERAGE DAILY RANGE","n":3},{"i":"algorithmique-trading","t":"ALGORITHMIQUE (TRADING)","n":3},{"i":"analyse-fondamentale","t":"ANALYSE FONDAMENTALE","n":3},{"i":"analyse-technique","t":"ANALYSE TECHNIQUE","n":3},{"i":"asian-range","t":"ASIAN RANGE","n":3},{"i":"ath-atl-all-time-high-low","t":"ATH / ATL — ALL TIME HIGH / LOW","n":3},{"i":"atr-average-true-range","t":"ATR — AVERAGE TRUE RANGE","n":3},{"i":"b-backtest-buy-side-liquidity","t":"B — BACKTEST → BUY-SIDE LIQUIDITY","n":2},{"i":"backtest","t":"BACKTEST","n":3},{"i":"bear-market-bull-market","t":"BEAR MARKET / BULL MARKET","n":3},{"i":"biais-cognitifs","t":"BIAIS COGNITIFS","n":3},{"i":"bid-ask-spread","t":"BID / ASK / SPREAD","n":3},{"i":"bos-break-of-structure","t":"BOS — BREAK OF STRUCTURE","n":3},{"i":"breaker-block","t":"BREAKER BLOCK","n":3},{"i":"breakout","t":"BREAKOUT","n":3},{"i":"bulle-speculative","t":"BULLE SPÉCULATIVE","n":3},{"i":"buy-side-liquidity-bsl","t":"BUY-SIDE LIQUIDITY (BSL)","n":3},{"i":"c-carry-trade-cycle-de-marche","t":"C — CARRY TRADE → CYCLE DE MARCHÉ","n":2},{"i":"carry-trade","t":"CARRY TRADE","n":3},{"i":"chandelier-japonais","t":"CHANDELIER JAPONAIS","n":3},{"i":"choch-change-of-character","t":"CHoCH — CHANGE OF CHARACTER","n":3},{"i":"climax-buying-selling","t":"CLIMAX (BUYING / SELLING)","n":3},{"i":"confluence","t":"CONFLUENCE","n":3},{"i":"consolidation","t":"CONSOLIDATION","n":3},{"i":"correlation","t":"CORRÉLATION","n":3},{"i":"cpi-consumer-price-index","t":"CPI — CONSUMER PRICE INDEX","n":3},{"i":"cycle-de-marche","t":"CYCLE DE MARCHÉ","n":3},{"i":"d-daily-bias-dxy","t":"D — DAILY BIAS → DXY","n":2},{"i":"daily-bias","t":"DAILY BIAS","n":3},{"i":"dark-pool","t":"DARK POOL","n":3},{"i":"dealing-range","t":"DEALING RANGE","n":3},{"i":"delta-order-flow","t":"DELTA (ORDER FLOW)","n":3},{"i":"deplacement-displacement","t":"DÉPLACEMENT (DISPLACEMENT)","n":3},{"i":"distribution","t":"DISTRIBUTION","n":3},{"i":"divergence","t":"DIVERGENCE","n":3},{"i":"drawdown","t":"DRAWDOWN","n":3},{"i":"dxy-indice-du-dollar","t":"DXY — INDICE DU DOLLAR","n":3},{"i":"e-effet-de-levier-exposition","t":"E — EFFET DE LEVIER → EXPOSITION","n":2},{"i":"effet-de-levier","t":"EFFET DE LEVIER","n":3},{"i":"engulfing-avalement","t":"ENGULFING (AVALEMENT)","n":3},{"i":"equal-highs-equal-lows-eqh-eql","t":"EQUAL HIGHS / EQUAL LOWS (EQH / EQL)","n":3},{"i":"equilibre-equilibrium","t":"ÉQUILIBRE (EQUILIBRIUM)","n":3},{"i":"expansion","t":"EXPANSION","n":3},{"i":"exposition","t":"EXPOSITION","n":3},{"i":"f-faux-cassage-fvg","t":"F — FAUX CASSAGE → FVG","n":2},{"i":"faux-cassage-fakeout","t":"FAUX CASSAGE (FAKEOUT)","n":3},{"i":"fed-reserve-federale","t":"FED — RÉSERVE FÉDÉRALE","n":3},{"i":"fibonacci","t":"FIBONACCI","n":3},{"i":"flip-zone","t":"FLIP ZONE","n":3},{"i":"fomc","t":"FOMC","n":3},{"i":"forex","t":"FOREX","n":3},{"i":"fractalite","t":"FRACTALITÉ","n":3},{"i":"funding-rate","t":"FUNDING RATE","n":3},{"i":"futures-contrats-a-terme","t":"FUTURES (CONTRATS À TERME)","n":3},{"i":"fvg-fair-value-gap","t":"FVG — FAIR VALUE GAP","n":3},{"i":"g-gap-gestion-du-risque","t":"G — GAP → GESTION DU RISQUE","n":2},{"i":"gap","t":"GAP","n":3},{"i":"gestion-du-risque","t":"GESTION DU RISQUE","n":3},{"i":"h-head-and-shoulders-higher-high-higher-low","t":"H — HEAD AND SHOULDERS → HIGHER HIGH / HIGHER LOW","n":2},{"i":"head-and-shoulders-epaule-tete-epaule","t":"HEAD AND SHOULDERS (ÉPAULE-TÊTE-ÉPAULE)","n":3},{"i":"hedging-couverture","t":"HEDGING (COUVERTURE)","n":3},{"i":"htf-ltf-unites-de-temps","t":"HTF / LTF — UNITÉS DE TEMPS","n":3},{"i":"higher-high-higher-low-hh-hl","t":"HIGHER HIGH / HIGHER LOW (HH / HL)","n":3},{"i":"i-iceberg-ipda","t":"I — ICEBERG → IPDA","n":2},{"i":"iceberg-ordre","t":"ICEBERG (ORDRE)","n":3},{"i":"ifvg-inverse-fair-value-gap","t":"IFVG — INVERSE FAIR VALUE GAP","n":3},{"i":"imbalance-desequilibre","t":"IMBALANCE (DÉSÉQUILIBRE)","n":3},{"i":"inducement-incitation","t":"INDUCEMENT (INCITATION)","n":3},{"i":"inflation","t":"INFLATION","n":3},{"i":"internal-external-range-liquidity","t":"INTERNAL / EXTERNAL RANGE LIQUIDITY","n":3},{"i":"ipda","t":"IPDA","n":3},{"i":"j-journal-de-trading-judas-swing","t":"J — JOURNAL DE TRADING → JUDAS SWING","n":2},{"i":"journal-de-trading","t":"JOURNAL DE TRADING","n":3},{"i":"judas-swing","t":"JUDAS SWING","n":3},{"i":"k-kelly-kill-zone","t":"K — KELLY → KILL ZONE","n":2},{"i":"kelly-critere-de","t":"KELLY (CRITÈRE DE)","n":3},{"i":"kill-zone","t":"KILL ZONE","n":3},{"i":"l-liquidation-lot-taille-de-position","t":"L — LIQUIDATION → LOT / TAILLE DE POSITION","n":2},{"i":"liquidation","t":"LIQUIDATION","n":3},{"i":"liquidite","t":"LIQUIDITÉ","n":3},{"i":"liquidity-pool","t":"LIQUIDITY POOL","n":3},{"i":"liquidity-sweep-purge-de-liquidite","t":"LIQUIDITY SWEEP (PURGE DE LIQUIDITÉ)","n":3},{"i":"liquidity-void","t":"LIQUIDITY VOID","n":3},{"i":"lot-taille-de-position","t":"LOT / TAILLE DE POSITION","n":3},{"i":"m-macroeconomie-mss","t":"M — MACROÉCONOMIE → MSS","n":2},{"i":"macroeconomie","t":"MACROÉCONOMIE","n":3},{"i":"marge-appel-de-marge","t":"MARGE / APPEL DE MARGE","n":3},{"i":"market-maker-teneur-de-marche","t":"MARKET MAKER (TENEUR DE MARCHÉ)","n":3},{"i":"market-structure-structure-de-marche","t":"MARKET STRUCTURE (STRUCTURE DE MARCHÉ)","n":3},{"i":"meche-wick-shadow","t":"MÈCHE (WICK / SHADOW)","n":3},{"i":"mitigation-block","t":"MITIGATION BLOCK","n":3},{"i":"momentum","t":"MOMENTUM","n":3},{"i":"moyenne-mobile","t":"MOYENNE MOBILE","n":3},{"i":"mss-market-structure-shift","t":"MSS — MARKET STRUCTURE SHIFT","n":3},{"i":"n-nfp-niveau-psychologique","t":"N — NFP → NIVEAU PSYCHOLOGIQUE","n":2},{"i":"nfp-non-farm-payrolls","t":"NFP — NON-FARM PAYROLLS","n":3},{"i":"niveau-psychologique-chiffre-rond","t":"NIVEAU PSYCHOLOGIQUE (CHIFFRE ROND)","n":3},{"i":"o-ohlc-overtrading","t":"O — OHLC → OVERTRADING","n":2},{"i":"ohlc","t":"OHLC","n":3},{"i":"open-interest","t":"OPEN INTEREST","n":3},{"i":"order-block-ob","t":"ORDER BLOCK (OB)","n":3},{"i":"order-flow","t":"ORDER FLOW","n":3},{"i":"ote-optimal-trade-entry","t":"OTE — OPTIMAL TRADE ENTRY","n":3},{"i":"overtrading","t":"OVERTRADING","n":3},{"i":"p-paper-trading-pullback","t":"P — PAPER TRADING → PULLBACK","n":2},{"i":"paper-trading-compte-demo","t":"PAPER TRADING (COMPTE DÉMO)","n":3},{"i":"pd-array-premium-discount-array","t":"PD ARRAY — PREMIUM/DISCOUNT ARRAY","n":3},{"i":"pip-point-tick","t":"PIP / POINT / TICK","n":3},{"i":"ppi-producer-price-index","t":"PPI — PRODUCER PRICE INDEX","n":3},{"i":"premium-discount","t":"PREMIUM / DISCOUNT","n":3},{"i":"price-action","t":"PRICE ACTION","n":3},{"i":"prop-firm-societe-de-financement","t":"PROP FIRM (SOCIÉTÉ DE FINANCEMENT)","n":3},{"i":"pullback-retracement","t":"PULLBACK (RETRACEMENT)","n":3},{"i":"q-qe-qt","t":"Q — QE / QT","n":2},{"i":"qe-qt-assouplissement-et-resserrement-quantitatifs","t":"QE / QT — ASSOUPLISSEMENT ET RESSERREMENT QUANTITATIFS","n":3},{"i":"r-range-risque-de-ruine","t":"R — RANGE → RISQUE DE RUINE","n":2},{"i":"range","t":"RANGE","n":3},{"i":"ratio-risque-rendement-r-r","t":"RATIO RISQUE / RENDEMENT (R:R)","n":3},{"i":"recession","t":"RÉCESSION","n":3},{"i":"rejection-block","t":"REJECTION BLOCK","n":3},{"i":"rendement-obligataire","t":"RENDEMENT OBLIGATAIRE","n":3},{"i":"risque-de-ruine","t":"RISQUE DE RUINE","n":3},{"i":"s-scalping-swing-trading","t":"S — SCALPING → SWING TRADING","n":2},{"i":"scalping","t":"SCALPING","n":3},{"i":"sell-side-liquidity-ssl","t":"SELL-SIDE LIQUIDITY (SSL)","n":3},{"i":"sentiment-de-marche","t":"SENTIMENT DE MARCHÉ","n":3},{"i":"session","t":"SESSION","n":3},{"i":"sfp-swing-failure-pattern","t":"SFP — SWING FAILURE PATTERN","n":3},{"i":"slippage","t":"SLIPPAGE","n":3},{"i":"smc-smart-money-concepts","t":"SMC — SMART MONEY CONCEPTS","n":3},{"i":"smt-divergence","t":"SMT DIVERGENCE","n":3},{"i":"spring","t":"SPRING","n":3},{"i":"stop-loss","t":"STOP LOSS","n":3},{"i":"support-resistance","t":"SUPPORT / RÉSISTANCE","n":3},{"i":"swap-points-de-rollover","t":"SWAP (POINTS DE ROLLOVER)","n":3},{"i":"swing-trading","t":"SWING TRADING","n":3},{"i":"t-take-profit-turtle-soup","t":"T — TAKE PROFIT → TURTLE SOUP","n":2},{"i":"take-profit-objectif","t":"TAKE PROFIT (OBJECTIF)","n":3},{"i":"taux-directeur","t":"TAUX DIRECTEUR","n":3},{"i":"tendance","t":"TENDANCE","n":3},{"i":"test-wyckoff","t":"TEST (WYCKOFF)","n":3},{"i":"trailing-stop-stop-suiveur","t":"TRAILING STOP (STOP SUIVEUR)","n":3},{"i":"trendline-ligne-de-tendance","t":"TRENDLINE (LIGNE DE TENDANCE)","n":3},{"i":"turtle-soup","t":"TURTLE SOUP","n":3},{"i":"u-unicorn-utad","t":"U — UNICORN → UTAD","n":2},{"i":"unicorn","t":"UNICORN","n":3},{"i":"upthrust","t":"UPTHRUST","n":3},{"i":"utad-upthrust-after-distribution","t":"UTAD — UPTHRUST AFTER DISTRIBUTION","n":3},{"i":"v-value-area-vwap","t":"V — VALUE AREA → VWAP","n":2},{"i":"value-area-vah-val-poc","t":"VALUE AREA — VAH / VAL / POC","n":3},{"i":"volatilite","t":"VOLATILITÉ","n":3},{"i":"volume","t":"VOLUME","n":3},{"i":"volume-profile","t":"VOLUME PROFILE","n":3},{"i":"vwap","t":"VWAP","n":3},{"i":"w-whipsaw-wyckoff","t":"W — WHIPSAW → WYCKOFF","n":2},{"i":"whipsaw-sciage","t":"WHIPSAW (SCIAGE)","n":3},{"i":"win-rate-taux-de-reussite","t":"WIN RATE (TAUX DE RÉUSSITE)","n":3},{"i":"wyckoff-methode","t":"WYCKOFF (MÉTHODE)","n":3},{"i":"y-yield-curve","t":"Y — YIELD CURVE","n":2},{"i":"yield-curve-courbe-des-taux","t":"YIELD CURVE (COURBE DES TAUX)","n":3},{"i":"z-zone-neutre","t":"Z — ZONE NEUTRE","n":2},{"i":"zone-neutre","t":"ZONE NEUTRE","n":3},{"i":"tome-2-les-concepts-expliques","t":"Tome 2 — Les concepts expliqués","n":1},{"i":"chapitre-1-la-theorie-de-dow","t":"Chapitre 1 — La théorie de Dow","n":2},{"i":"les-six-principes","t":"Les six principes","n":3},{"i":"ce-qui-en-reste-aujourd-hui","t":"Ce qui en reste aujourd'hui","n":3},{"i":"chapitre-2-wyckoff","t":"Chapitre 2 — Wyckoff","n":2},{"i":"les-trois-lois","t":"Les trois lois","n":3},{"i":"l-operateur-composite","t":"L'opérateur composite","n":3},{"i":"le-schema-d-accumulation","t":"Le schéma d'accumulation","n":3},{"i":"comment-l-utiliser-aujourd-hui","t":"Comment l'utiliser aujourd'hui","n":3},{"i":"chapitre-3-ict","t":"Chapitre 3 — ICT","n":2},{"i":"les-trois-apports","t":"Les trois apports","n":3},{"i":"le-modele-amd","t":"Le modèle AMD","n":3},{"i":"la-sequence-d-execution-ict","t":"La séquence d'exécution ICT","n":3},{"i":"ce-qu-il-faut-en-garder-et-ce-qu-il-faut-ecarter","t":"Ce qu'il faut en garder — et ce qu'il faut écarter","n":3},{"i":"chapitre-4-smc-smart-money-concepts","t":"Chapitre 4 — SMC (Smart Money Concepts)","n":2},{"i":"les-quatre-piliers","t":"Les quatre piliers","n":3},{"i":"la-sequence-complete-dans-l-ordre","t":"La séquence complète, dans l'ordre","n":3},{"i":"les-trois-filtres-qui-eliminent-80-des-mauvais-trades","t":"Les trois filtres qui éliminent 80 % des mauvais trades","n":3},{"i":"les-limites-honnetes-du-smc","t":"Les limites honnêtes du SMC","n":3},{"i":"chapitre-5-price-action","t":"Chapitre 5 — Price Action","n":2},{"i":"les-trois-seules-lectures-necessaires","t":"Les trois seules lectures nécessaires","n":3},{"i":"impulsion-contre-correction","t":"Impulsion contre correction","n":3},{"i":"le-graphique-propre","t":"Le graphique propre","n":3},{"i":"chapitre-6-le-volume","t":"Chapitre 6 — Le volume","n":2},{"i":"la-loi-fondamentale-effort-contre-resultat","t":"La loi fondamentale : effort contre résultat","n":3},{"i":"les-quatre-situations-a-reconnaitre","t":"Les quatre situations à reconnaître","n":3},{"i":"le-cas-particulier-du-forex","t":"Le cas particulier du Forex","n":3},{"i":"chapitre-7-l-order-flow","t":"Chapitre 7 — L'order flow","n":2},{"i":"les-quatre-outils","t":"Les quatre outils","n":3},{"i":"la-configuration-a-connaitre-l-absorption","t":"La configuration à connaître : l'absorption","n":3},{"i":"la-divergence-prix-delta","t":"La divergence prix / delta","n":3},{"i":"ce-qui-est-realiste-pour-un-particulier","t":"Ce qui est réaliste pour un particulier","n":3},{"i":"chapitre-8-la-liquidite","t":"Chapitre 8 — La liquidité","n":2},{"i":"le-principe","t":"Le principe","n":3},{"i":"la-carte-de-la-liquidite","t":"La carte de la liquidité","n":3},{"i":"l-inducement-la-liquidite-qui-precede-la-vraie-zone","t":"L'inducement : la liquidité qui précède la vraie zone","n":3},{"i":"les-deux-questions-obligatoires","t":"Les deux questions obligatoires","n":3},{"i":"chapitre-9-premium-discount","t":"Chapitre 9 — Premium / Discount","n":2},{"i":"le-principe-2","t":"Le principe","n":3},{"i":"comment-tracer-le-range-correctement","t":"Comment tracer le range correctement","n":3},{"i":"le-tableau-de-decision","t":"Le tableau de décision","n":3},{"i":"le-cas-de-la-tendance-forte","t":"Le cas de la tendance forte","n":3},{"i":"chapitre-10-l-order-block","t":"Chapitre 10 — L'Order Block","n":2},{"i":"definition-rigoureuse","t":"Définition rigoureuse","n":3},{"i":"comment-le-delimiter","t":"Comment le délimiter","n":3},{"i":"regles-d-utilisation","t":"Règles d'utilisation","n":3},{"i":"chapitre-11-le-breaker-block","t":"Chapitre 11 — Le Breaker Block","n":2},{"i":"la-mecanique","t":"La mécanique","n":3},{"i":"pourquoi-c-est-puissant","t":"Pourquoi c'est puissant","n":3},{"i":"breaker-contre-mitigation-block","t":"Breaker contre mitigation block","n":3},{"i":"chapitre-12-le-mitigation-block","t":"Chapitre 12 — Le Mitigation Block","n":2},{"i":"la-mecanique-2","t":"La mécanique","n":3},{"i":"quand-l-utiliser","t":"Quand l'utiliser","n":3},{"i":"le-classement-des-zones-par-risque","t":"Le classement des zones par risque","n":3},{"i":"chapitre-13-le-fair-value-gap-fvg","t":"Chapitre 13 — Le Fair Value Gap (FVG)","n":2},{"i":"la-definition-en-trois-bougies","t":"La définition en trois bougies","n":3},{"i":"pourquoi-le-prix-y-revient","t":"Pourquoi le prix y revient","n":3},{"i":"les-niveaux-d-entree-dans-le-fvg","t":"Les niveaux d'entrée dans le FVG","n":3},{"i":"la-hierarchie-des-fvg","t":"La hiérarchie des FVG","n":3},{"i":"le-fvg-traverse","t":"Le FVG traversé","n":3},{"i":"chapitre-14-l-ifvg-inverse-fair-value-gap","t":"Chapitre 14 — L'IFVG (Inverse Fair Value Gap)","n":2},{"i":"le-principe-3","t":"Le principe","n":3},{"i":"la-regle-de-validation","t":"La règle de validation","n":3},{"i":"quand-l-ifvg-est-superieur-a-l-order-block","t":"Quand l'IFVG est supérieur à l'Order Block","n":3},{"i":"chapitre-15-le-bpr-balanced-price-range","t":"Chapitre 15 — Le BPR (Balanced Price Range)","n":2},{"i":"definition","t":"Définition","n":3},{"i":"pourquoi-c-est-reactif","t":"Pourquoi c'est réactif","n":3},{"i":"utilisation","t":"Utilisation","n":3},{"i":"frequence","t":"Fréquence","n":3},{"i":"chapitre-16-le-bos-break-of-structure","t":"Chapitre 16 — Le BOS (Break of Structure)","n":2},{"i":"definition-2","t":"Définition","n":3},{"i":"les-deux-criteres-de-validation","t":"Les deux critères de validation","n":3},{"i":"comment-le-trader","t":"Comment le trader","n":3},{"i":"chapitre-17-le-choch-change-of-character","t":"Chapitre 17 — Le CHoCH (Change of Character)","n":2},{"i":"definition-3","t":"Définition","n":3},{"i":"la-sequence-complete-du-retournement","t":"La séquence complète du retournement","n":3},{"i":"bos-ou-choch-le-tableau-qui-tranche","t":"BOS ou CHoCH ? Le tableau qui tranche","n":3},{"i":"chapitre-18-le-mss-market-structure-shift","t":"Chapitre 18 — Le MSS (Market Structure Shift)","n":2},{"i":"ce-qui-le-distingue-du-choch","t":"Ce qui le distingue du CHoCH","n":3},{"i":"la-sequence","t":"La séquence","n":3},{"i":"ce-qu-il-autorise","t":"Ce qu'il autorise","n":3},{"i":"chapitre-19-le-liquidity-sweep","t":"Chapitre 19 — Le Liquidity Sweep","n":2},{"i":"la-sequence-en-trois-temps-jamais-deux","t":"La séquence en trois temps — jamais deux","n":3},{"i":"les-criteres-de-qualite-d-une-purge","t":"Les critères de qualité d'une purge","n":3},{"i":"purge-simple-ou-double","t":"Purge simple ou double","n":3},{"i":"le-cas-ou-la-purge-n-est-pas-un-signal","t":"Le cas où la purge n'est pas un signal","n":3},{"i":"chapitre-20-la-structure-interne","t":"Chapitre 20 — La structure interne","n":2},{"i":"definition-4","t":"Définition","n":3},{"i":"a-quoi-elle-sert","t":"À quoi elle sert","n":3},{"i":"le-piege-majeur","t":"Le piège majeur","n":3},{"i":"la-regle-qui-evite-l-erreur","t":"La règle qui évite l'erreur","n":3},{"i":"chapitre-21-la-structure-externe","t":"Chapitre 21 — La structure externe","n":2},{"i":"definition-5","t":"Définition","n":3},{"i":"comment-marquer-proprement","t":"Comment marquer proprement","n":3},{"i":"le-lien-externe-interne","t":"Le lien externe / interne","n":3},{"i":"la-liquidite-externe","t":"La liquidité externe","n":3},{"i":"chapitre-22-kill-zones","t":"Chapitre 22 — Kill Zones","n":2},{"i":"les-fenetres-heures-de-paris","t":"Les fenêtres (heures de Paris)","n":3},{"i":"pourquoi-elles-fonctionnent","t":"Pourquoi elles fonctionnent","n":3},{"i":"la-discipline-horaire","t":"La discipline horaire","n":3},{"i":"chapitre-23-les-sessions","t":"Chapitre 23 — Les sessions","n":2},{"i":"la-personnalite-de-chaque-session","t":"La personnalité de chaque session","n":3},{"i":"le-schema-quotidien-le-plus-frequent","t":"Le schéma quotidien le plus fréquent","n":3},{"i":"les-reperes-a-tracer-chaque-jour","t":"Les repères à tracer chaque jour","n":3},{"i":"chapitre-24-les-correlations","t":"Chapitre 24 — Les corrélations","n":2},{"i":"le-principe-4","t":"Le principe","n":3},{"i":"la-carte-des-correlations-utiles","t":"La carte des corrélations utiles","n":3},{"i":"le-risque-par-facteur","t":"Le risque par facteur","n":3},{"i":"la-divergence-comme-signal-smt","t":"La divergence comme signal (SMT)","n":3},{"i":"le-piege-des-regimes","t":"Le piège des régimes","n":3},{"i":"chapitre-25-la-macroeconomie","t":"Chapitre 25 — La macroéconomie","n":2},{"i":"les-deux-variables-qui-commandent-tout","t":"Les deux variables qui commandent tout","n":3},{"i":"la-chaine-de-transmission","t":"La chaîne de transmission","n":3},{"i":"ce-qui-compte-reellement-la-surprise","t":"Ce qui compte réellement : la surprise","n":3},{"i":"la-regle-d-or-operationnelle","t":"La règle d'or opérationnelle","n":3},{"i":"chapitre-26-l-analyse-fondamentale","t":"Chapitre 26 — L'analyse fondamentale","n":2},{"i":"ce-qu-elle-est-et-ce-qu-elle-n-est-pas","t":"Ce qu'elle est, et ce qu'elle n'est pas","n":3},{"i":"par-classe-d-actifs","t":"Par classe d'actifs","n":3},{"i":"la-regle-du-consensus","t":"La règle du consensus","n":3},{"i":"comment-l-integrer-sans-se-disperser","t":"Comment l'intégrer sans se disperser","n":3},{"i":"tome-3-macroeconomie","t":"Tome 3 — Macroéconomie","n":1},{"i":"la-chaine-de-causalite-a-memoriser-avant-tout-le-reste","t":"La chaîne de causalité — à mémoriser avant tout le reste","n":2},{"i":"les-seize-fiches","t":"Les seize fiches","n":2},{"i":"1-inflation","t":"1. INFLATION","n":3},{"i":"2-cpi-indice-des-prix-a-la-consommation","t":"2. CPI — Indice des prix à la consommation","n":3},{"i":"3-ppi-indice-des-prix-a-la-production","t":"3. PPI — Indice des prix à la production","n":3},{"i":"4-nfp-emplois-non-agricoles","t":"4. NFP — Emplois non agricoles","n":3},{"i":"5-fomc","t":"5. FOMC","n":3},{"i":"6-fed","t":"6. FED","n":3},{"i":"7-bce-banque-centrale-europeenne","t":"7. BCE — Banque centrale européenne","n":3},{"i":"8-taux-directeurs","t":"8. TAUX DIRECTEURS","n":3},{"i":"9-dxy-indice-du-dollar","t":"9. DXY — Indice du dollar","n":3},{"i":"10-obligations","t":"10. OBLIGATIONS","n":3},{"i":"11-rendements-et-courbe-des-taux","t":"11. RENDEMENTS ET COURBE DES TAUX","n":3},{"i":"12-pib","t":"12. PIB","n":3},{"i":"13-chomage","t":"13. CHÔMAGE","n":3},{"i":"14-recession","t":"14. RÉCESSION","n":3},{"i":"15-guerre-et-geopolitique","t":"15. GUERRE ET GÉOPOLITIQUE","n":3},{"i":"16-crise-financiere","t":"16. CRISE FINANCIÈRE","n":3},{"i":"l-impact-par-actif","t":"L'impact par actif","n":2},{"i":"or-xauusd","t":"OR (XAUUSD)","n":3},{"i":"bitcoin","t":"BITCOIN","n":3},{"i":"indices-s-p-500-nasdaq-dax-cac","t":"INDICES (S&P 500, Nasdaq, DAX, CAC)","n":3},{"i":"forex-2","t":"FOREX","n":3},{"i":"petrole-wti-brent","t":"PÉTROLE (WTI, BRENT)","n":3},{"i":"argent-xagusd","t":"ARGENT (XAGUSD)","n":3},{"i":"tableau-de-synthese-l-impact-croise","t":"Tableau de synthèse — l'impact croisé","n":2},{"i":"tome-4-checklists","t":"Tome 4 — Checklists","n":1},{"i":"checklist-1-daily-bias","t":"Checklist 1 — Daily Bias","n":2},{"i":"checklist-2-analyse-htf","t":"Checklist 2 — Analyse HTF","n":2},{"i":"checklist-3-liquidite","t":"Checklist 3 — Liquidité","n":2},{"i":"checklist-4-entree","t":"Checklist 4 — Entrée","n":2},{"i":"checklist-5-sortie","t":"Checklist 5 — Sortie","n":2},{"i":"checklist-6-gestion-du-risque","t":"Checklist 6 — Gestion du risque","n":2},{"i":"checklist-7-avant-d-appuyer-sur-buy-ou-sell","t":"Checklist 7 — Avant d'appuyer sur BUY ou SELL","n":2},{"i":"checklist-8-fin-de-journee","t":"Checklist 8 — Fin de journée","n":2},{"i":"checklist-9-journal-de-trading","t":"Checklist 9 — Journal de trading","n":2},{"i":"tome-5-les-100-regles-d-or","t":"Tome 5 — Les 100 règles d'or","n":1},{"i":"structure-et-tendance-regles-1-a-10","t":"Structure et tendance — règles 1 à 10","n":2},{"i":"liquidite-regles-11-a-20","t":"Liquidité — règles 11 à 20","n":2},{"i":"entrees-regles-21-a-30","t":"Entrées — règles 21 à 30","n":2},{"i":"sorties-regles-31-a-40","t":"Sorties — règles 31 à 40","n":2},{"i":"risque-et-taille-regles-41-a-50","t":"Risque et taille — règles 41 à 50","n":2},{"i":"temps-et-sessions-regles-51-a-60","t":"Temps et sessions — règles 51 à 60","n":2},{"i":"psychologie-regles-61-a-70","t":"Psychologie — règles 61 à 70","n":2},{"i":"macro-et-contexte-regles-71-a-80","t":"Macro et contexte — règles 71 à 80","n":2},{"i":"discipline-et-process-regles-81-a-90","t":"Discipline et process — règles 81 à 90","n":2},{"i":"carriere-et-long-terme-regles-91-a-100","t":"Carrière et long terme — règles 91 à 100","n":2},{"i":"tome-6-les-erreurs-a-eviter","t":"Tome 6 — Les erreurs à éviter","n":1},{"i":"erreurs-d-analyse","t":"Erreurs d'analyse","n":2},{"i":"1-analyser-sans-marquer-la-structure","t":"1. Analyser sans marquer la structure","n":3},{"i":"2-changer-d-unite-de-temps-jusqu-a-trouver-la-confirmation","t":"2. Changer d'unité de temps jusqu'à trouver la confirmation","n":3},{"i":"3-confondre-structure-interne-et-externe","t":"3. Confondre structure interne et externe","n":3},{"i":"4-redessiner-l-analyse-apres-coup","t":"4. Redessiner l'analyse après coup","n":3},{"i":"5-surcharger-le-graphique","t":"5. Surcharger le graphique","n":3},{"i":"6-marquer-des-zones-partout","t":"6. Marquer des zones partout","n":3},{"i":"7-ignorer-le-contexte-macro","t":"7. Ignorer le contexte macro","n":3},{"i":"8-prendre-une-figure-pour-un-signal","t":"8. Prendre une figure pour un signal","n":3},{"i":"9-confondre-accumulation-et-distribution","t":"9. Confondre accumulation et distribution","n":3},{"i":"10-analyser-avec-une-position-ouverte","t":"10. Analyser avec une position ouverte","n":3},{"i":"erreurs-d-entree","t":"Erreurs d'entrée","n":2},{"i":"11-entrer-sur-la-bougie-de-cassure","t":"11. Entrer sur la bougie de cassure","n":3},{"i":"12-entrer-au-marche-plutot-qu-en-limite","t":"12. Entrer au marché plutôt qu'en limite","n":3},{"i":"13-entrer-au-milieu-du-range","t":"13. Entrer au milieu du range","n":3},{"i":"14-acheter-en-premium-vendre-en-discount","t":"14. Acheter en premium, vendre en discount","n":3},{"i":"15-ne-pas-attendre-l-inducement","t":"15. Ne pas attendre l'inducement","n":3},{"i":"16-reutiliser-une-zone-deja-testee","t":"16. Réutiliser une zone déjà testée","n":3},{"i":"17-entrer-sans-changement-de-structure","t":"17. Entrer sans changement de structure","n":3},{"i":"18-poursuivre-un-mouvement-deja-parti","t":"18. Poursuivre un mouvement déjà parti","n":3},{"i":"19-trader-sans-setup-identifiable","t":"19. Trader sans setup identifiable","n":3},{"i":"20-entrer-hors-des-fenetres-horaires","t":"20. Entrer hors des fenêtres horaires","n":3},{"i":"erreurs-de-sortie","t":"Erreurs de sortie","n":2},{"i":"21-ne-pas-avoir-decide-de-sa-sortie-avant-d-entrer","t":"21. Ne pas avoir décidé de sa sortie avant d'entrer","n":3},{"i":"22-couper-ses-gains-trop-tot","t":"22. Couper ses gains trop tôt","n":3},{"i":"23-laisser-courir-ses-pertes","t":"23. Laisser courir ses pertes","n":3},{"i":"24-deplacer-son-stop-dans-le-sens-de-la-perte","t":"24. Déplacer son stop dans le sens de la perte","n":3},{"i":"25-ne-pas-passer-a-l-equilibre","t":"25. Ne pas passer à l'équilibre","n":3},{"i":"26-sortir-par-peur-sans-signal","t":"26. Sortir par peur, sans signal","n":3},{"i":"27-rallonger-son-objectif-en-cours-de-trade","t":"27. Rallonger son objectif en cours de trade","n":3},{"i":"28-oublier-de-gerer-une-position-en-fin-de-session","t":"28. Oublier de gérer une position en fin de session","n":3},{"i":"erreurs-de-gestion-du-risque","t":"Erreurs de gestion du risque","n":2},{"i":"29-risquer-trop-par-trade","t":"29. Risquer trop par trade","n":3},{"i":"30-choisir-la-taille-avant-le-stop","t":"30. Choisir la taille avant le stop","n":3},{"i":"31-serrer-le-stop-pour-ameliorer-le-ratio","t":"31. Serrer le stop pour « améliorer le ratio »","n":3},{"i":"32-multiplier-les-positions-correlees","t":"32. Multiplier les positions corrélées","n":3},{"i":"33-depasser-l-exposition-maximale","t":"33. Dépasser l'exposition maximale","n":3},{"i":"34-ignorer-les-limites-de-perte-journaliere","t":"34. Ignorer les limites de perte journalière","n":3},{"i":"35-augmenter-la-taille-apres-une-serie-de-gains","t":"35. Augmenter la taille après une série de gains","n":3},{"i":"36-faire-une-martingale","t":"36. Faire une martingale","n":3},{"i":"37-couvrir-au-lieu-de-couper","t":"37. Couvrir au lieu de couper","n":3},{"i":"38-utiliser-un-levier-qui-rend-liquidable-avant-le-stop","t":"38. Utiliser un levier qui rend liquidable avant le stop","n":3},{"i":"erreurs-psychologiques","t":"Erreurs psychologiques","n":2},{"i":"39-le-revenge-trading","t":"39. Le revenge trading","n":3},{"i":"40-l-overtrading","t":"40. L'overtrading","n":3},{"i":"41-le-fomo-peur-de-manquer","t":"41. Le FOMO (peur de manquer)","n":3},{"i":"42-l-exces-de-confiance","t":"42. L'excès de confiance","n":3},{"i":"43-le-biais-de-confirmation","t":"43. Le biais de confirmation","n":3},{"i":"44-l-ancrage-sur-un-prix","t":"44. L'ancrage sur un prix","n":3},{"i":"45-trader-par-ennui","t":"45. Trader par ennui","n":3},{"i":"46-trader-sous-pression-financiere","t":"46. Trader sous pression financière","n":3},{"i":"47-trader-fatigue-ou-contrarie","t":"47. Trader fatigué ou contrarié","n":3},{"i":"48-ne-pas-accepter-d-avoir-tort","t":"48. Ne pas accepter d'avoir tort","n":3},{"i":"49-chercher-la-certitude","t":"49. Chercher la certitude","n":3},{"i":"50-se-comparer-aux-autres","t":"50. Se comparer aux autres","n":3},{"i":"erreurs-de-process","t":"Erreurs de process","n":2},{"i":"51-trader-sans-plan-ecrit","t":"51. Trader sans plan écrit","n":3},{"i":"52-ne-pas-tenir-de-journal","t":"52. Ne pas tenir de journal","n":3},{"i":"53-tenir-un-journal-sans-le-relire","t":"53. Tenir un journal sans le relire","n":3},{"i":"54-changer-de-methode-en-permanence","t":"54. Changer de méthode en permanence","n":3},{"i":"55-sur-optimiser-un-backtest","t":"55. Sur-optimiser un backtest","n":3},{"i":"56-confondre-demo-et-reel","t":"56. Confondre démo et réel","n":3},{"i":"57-ne-pas-mesurer-en-r","t":"57. Ne pas mesurer en R","n":3},{"i":"58-negliger-les-frais","t":"58. Négliger les frais","n":3},{"i":"erreurs-techniques-et-operationnelles","t":"Erreurs techniques et opérationnelles","n":2},{"i":"59-se-tromper-de-taille-erreur-de-doigt","t":"59. Se tromper de taille (erreur de doigt)","n":3},{"i":"60-oublier-de-placer-le-stop","t":"60. Oublier de placer le stop","n":3},{"i":"61-trader-un-instrument-dont-on-ignore-les-specifications","t":"61. Trader un instrument dont on ignore les spécifications","n":3},{"i":"62-ignorer-le-rollover-et-les-echeances","t":"62. Ignorer le rollover et les échéances","n":3},{"i":"63-subir-un-gap-de-week-end","t":"63. Subir un gap de week-end","n":3},{"i":"64-dependre-d-une-connexion-ou-d-un-materiel-fragile","t":"64. Dépendre d'une connexion ou d'un matériel fragile","n":3},{"i":"65-trader-avec-des-donnees-de-mauvaise-qualite","t":"65. Trader avec des données de mauvaise qualité","n":3},{"i":"tome-7-mon-aide-memoire","t":"Tome 7 — Mon aide-mémoire","n":1},{"i":"structure","t":"Structure","n":2},{"i":"wyckoff","t":"Wyckoff","n":2},{"i":"zones-et-desequilibres","t":"Zones et déséquilibres","n":2},{"i":"liquidite-2","t":"Liquidité","n":2},{"i":"volume-et-flux","t":"Volume et flux","n":2},{"i":"temps-et-sessions","t":"Temps et sessions","n":2},{"i":"macro","t":"Macro","n":2},{"i":"impact-par-actif","t":"Impact par actif","n":2},{"i":"risque","t":"Risque","n":2},{"i":"psychologie","t":"Psychologie","n":2},{"i":"le-trade-parfait-en-une-carte","t":"Le trade parfait, en une carte","n":2},{"i":"les-quatre-sequences-a-connaitre-par-c-ur","t":"Les quatre séquences à connaître par cœur","n":2},{"i":"tome-8-mon-antiseche","t":"Tome 8 — Mon antisèche","n":1},{"i":"page-1-les-quinze-mots-essentiels","t":"Page 1 — Les quinze mots essentiels","n":2},{"i":"page-2-la-sequence-dans-l-ordre","t":"Page 2 — La séquence, dans l'ordre","n":2},{"i":"page-3-structure","t":"Page 3 — Structure","n":2},{"i":"page-4-zones","t":"Page 4 — Zones","n":2},{"i":"page-5-liquidite-et-premium-discount","t":"Page 5 — Liquidité et premium/discount","n":2},{"i":"page-6-temps","t":"Page 6 — Temps","n":2},{"i":"page-7-risque","t":"Page 7 — Risque","n":2},{"i":"page-8-macro","t":"Page 8 — Macro","n":2},{"i":"page-9-erreurs-et-psychologie","t":"Page 9 — Erreurs et psychologie","n":2},{"i":"page-10-routine-de-cinq-minutes","t":"Page 10 — Routine de cinq minutes","n":2}];</script>
 <script>
 (function(){
   var plan = document.getElementById('plan');

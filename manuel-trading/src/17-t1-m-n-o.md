@@ -1,4 +1,4 @@
-## M
+## M — MACROÉCONOMIE → MSS
 
 ### MACROÉCONOMIE
 *Étude des grandeurs globales : croissance, inflation, emploi, taux, monnaie.*
@@ -215,7 +215,7 @@
 ➡ Purge ➡ Déplacement ➡ Cassure du dernier pivot ➡ Nouveau biais
 :::
 
-## N
+## N — NFP → NIVEAU PSYCHOLOGIQUE
 
 ### NFP — NON-FARM PAYROLLS
 *Créations d'emplois non agricoles aux États-Unis.*
@@ -265,7 +265,7 @@
 ➡ Les ronds attirent les ordres ➡ Objectif avant ➡ Stop bien au-delà
 :::
 
-## O
+## O — OHLC → OVERTRADING
 
 ### OHLC
 *Ouverture, plus haut, plus bas, clôture d'une période.*

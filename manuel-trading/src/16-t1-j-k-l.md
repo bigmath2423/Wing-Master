@@ -1,4 +1,4 @@
-## J
+## J — JOURNAL DE TRADING → JUDAS SWING
 
 ### JOURNAL DE TRADING
 *Registre de tous les trades, avec leur raison, leur exécution et leur émotion.*
@@ -52,7 +52,7 @@
 ➡ Faux départ à l'ouverture ➡ Purge ➡ Le vrai mouvement part après ➡ Ne jamais suivre la première bougie
 :::
 
-## K
+## K — KELLY → KILL ZONE
 
 ### KELLY (CRITÈRE DE)
 *Formule donnant la fraction de capital optimale pour maximiser la croissance à long terme.*
@@ -103,7 +103,7 @@
 ➡ Deux fenêtres par jour ➡ Hors fenêtre, on observe ➡ L'heure fait partie du setup
 :::
 
-## L
+## L — LIQUIDATION → LOT / TAILLE DE POSITION
 
 ### LIQUIDATION
 *Fermeture forcée d'une position par le courtier faute de marge suffisante.*

@@ -211,6 +211,24 @@ def construire_nav(plan: list[dict]) -> str:
     return "\n".join(lignes)
 
 
+def construire_sommaire(plan: list[dict]) -> str:
+    """Table des matières visible dans le corps du livre (indispensable en PDF)."""
+    lignes = ['<div class="sommaire"><h2>Sommaire</h2><ol>']
+    for entree in plan:
+        if entree["n"] == 1:
+            lignes.append(
+                f'<li class="s-tome"><a href="#{entree["id"]}">'
+                f'{html.escape(entree["t"])}</a></li>'
+            )
+        elif entree["n"] == 2:
+            lignes.append(
+                f'<li class="s-chap"><a href="#{entree["id"]}">'
+                f'{html.escape(entree["t"])}</a></li>'
+            )
+    lignes.append("</ol></div>")
+    return "\n".join(lignes)
+
+
 def index_js(plan: list[dict]) -> str:
     import json
 
@@ -295,6 +313,28 @@ body{
 #plan .nav-chapitre > a{padding-left:1.1rem; border-left:1px solid var(--trait)}
 #plan a.actif{background:var(--fond-3); color:var(--or-clair); font-weight:600}
 .resultat-niveau-3 a{padding-left:1.1rem !important}
+
+/* ---------- sommaire imprimé ---------- */
+.sommaire{
+  max-width:var(--largeur); margin:0 auto; padding:3rem 0 1rem;
+  border-bottom:1px solid var(--trait);
+}
+.sommaire h2{
+  font-size:.72rem; letter-spacing:.28em; text-transform:uppercase; color:var(--or);
+  border:0; margin:0 0 1.6rem; padding:0;
+}
+.sommaire ol{list-style:none; margin:0; padding:0; counter-reset:tome}
+.sommaire .s-tome{margin:1.5rem 0 .4rem}
+.sommaire .s-tome a{
+  font-family:var(--sans); font-weight:700; font-size:.95rem; color:var(--encre);
+  text-decoration:none; display:block; border-bottom:1px solid var(--trait);
+  padding-bottom:.3rem;
+}
+.sommaire .s-chap a{
+  font-family:var(--sans); font-size:.82rem; color:var(--encre-2); text-decoration:none;
+  display:block; padding:.12rem 0 .12rem 1.1rem;
+}
+.sommaire a:hover{color:var(--or)}
 
 /* ---------- boutons flottants ---------- */
 .commandes{
@@ -465,8 +505,12 @@ blockquote{
   #barre,.commandes,#haut{display:none !important}
   main{margin:0; padding:0}
   .page,.couverture{max-width:none}
+  .couverture{padding:38mm 0 0; border:0; page-break-after:always}
+  .couverture h1{font-size:30pt; page-break-before:avoid}
+  .couverture .accroche{font-size:11pt}
   h1{page-break-before:always; page-break-after:avoid}
-  .couverture + main h1:first-of-type{page-break-before:avoid}
+  .sommaire{page-break-before:always}
+  .sommaire + main h1:first-of-type{page-break-before:always}
   h2,h3,h4{page-break-after:avoid}
   .encadre,pre.schema,table,li{page-break-inside:avoid}
   a{color:#000; text-decoration:none}
@@ -615,6 +659,8 @@ GABARIT = """<!doctype html>
   <p class="meta">Version {version} · {date} · {entrees} entrées indexées</p>
 </div>
 
+{sommaire}
+
 <main><div class="page">
 {corps}
 </div></main>
@@ -657,6 +703,7 @@ def main() -> int:
         css=CSS,
         js=JS,
         nav=construire_nav(plan),
+        sommaire=construire_sommaire(plan),
         corps=corps,
         index=index_js(plan),
         version=VERSION,

@@ -1,4 +1,4 @@
-## P
+## P — PAPER TRADING → PULLBACK
 
 ### PAPER TRADING (COMPTE DÉMO)
 *Trading simulé, sans argent réel.*
@@ -192,7 +192,7 @@
 ➡ Corps étroits ➡ Volume en baisse ➡ C'est une pause ➡ On entre dedans
 :::
 
-## Q
+## Q — QE / QT
 
 ### QE / QT — ASSOUPLISSEMENT ET RESSERREMENT QUANTITATIFS
 *Création ou destruction de liquidité par le bilan de la banque centrale.*
@@ -217,7 +217,7 @@
 ➡ QE = argent injecté = actifs en hausse ➡ QT = l'inverse ➡ Horizon long
 :::
 
-## R
+## R — RANGE → RISQUE DE RUINE
 
 ### RANGE
 *Zone horizontale bornée par un support et une résistance.*

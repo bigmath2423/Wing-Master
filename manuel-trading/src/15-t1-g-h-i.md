@@ -1,4 +1,4 @@
-## G
+## G — GAP → GESTION DU RISQUE
 
 ### GAP
 *Trou de cotation entre la clôture d'une séance et l'ouverture de la suivante.*
@@ -51,7 +51,7 @@
 ➡ Le risque d'abord ➡ Le gain ensuite ➡ Jamais l'inverse ➡ Chiffres écrits, jamais négociés
 :::
 
-## H
+## H — HEAD AND SHOULDERS → HIGHER HIGH / HIGHER LOW
 
 ### HEAD AND SHOULDERS (ÉPAULE-TÊTE-ÉPAULE)
 *Figure de retournement en trois sommets, celui du milieu étant le plus haut.*
@@ -154,7 +154,7 @@
 ➡ Sommets plus hauts ➡ Creux plus hauts ➡ Tendance haussière ➡ Que des achats
 :::
 
-## I
+## I — ICEBERG → IPDA
 
 ### ICEBERG (ORDRE)
 *Ordre de grande taille dont seule une petite fraction est visible dans le carnet.*

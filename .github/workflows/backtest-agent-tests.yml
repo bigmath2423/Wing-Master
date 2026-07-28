@@ -1,8 +1,10 @@
 name: backtest-agent tests
 
 on:
+  # Sur les branches de travail, c'est le déclencheur `pull_request` qui couvre
+  # les tests. Limiter `push` à main évite de lancer la matrice deux fois par PR.
   push:
-    branches: ["**"]
+    branches: ["main"]
     paths:
       - "backtest-agent/**"
       - ".github/workflows/backtest-agent-tests.yml"

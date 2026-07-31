@@ -153,24 +153,24 @@ Meilleur / pire trade · **Courbe de capital** (onglet « Performance »).
 
 ---
 
-## 💱 Calibrage broker réel — FXCess (spread mesuré 0,90 $ sur XAUUSD)
+## 💱 Calibrage broker réel — FXCess (spread mesuré 0,95 $ sur XAUUSD)
 
 Valeurs pré-réglées **par défaut** dans `xauusd_smc_working.pine` et
 `xauusd_smc_STRATEGY.pine` pour ne rien avoir à configurer.
 
 | Réglage | Avant | Après | Pourquoi |
 |---------|-------|-------|----------|
-| `slExecBufSpread` | 0.0 | **1.00** | Spread réel 0,90 + marge slippage → le SL n'est jamais placé plus près que le coût d'exécution |
+| `slExecBufSpread` | 0.0 | **1.10** | Spread réel 0,95 + marge slippage → le SL n'est jamais placé plus près que le coût d'exécution |
 | `slMinAtr` | 0.5 | **1.2** | Un SL de 0,5 ATR (~1,4 $ en M5) est balayé par 0,90 de spread. 1.2 ATR ramène le spread sous ~15 % du risque en M15 |
-| `slippage` (stratégie) | 0 | **90 ticks** | 0,90 $ = 90 ticks (tick 0,01). Modélisation prudente : spread + slippage |
+| `slippage` (stratégie) | 0 | **95 ticks** | 0,95 $ = 95 ticks (tick 0,01). Modélisation prudente : spread + slippage |
 
-> Le site FXCess affiche 0,42 (vitrine, marché calme) ; le **réel mesuré est 0,90**.
+> Le site FXCess affiche 0,42 (vitrine, marché calme) ; le **réel mesuré est 0,95**.
 > C'est la valeur retenue. Tous ces réglages restent des **inputs** modifiables :
 > remettre 0.0 / 0.5 / 0 restaure l'ancien comportement.
 
 ### ⚠️ Conséquence majeure — coût du spread = spread ÷ distance du SL
 
-| UT | ATR typique | SL à 1.2 ATR | Poids du spread 0,90 |
+| UT | ATR typique | SL à 1.2 ATR | Poids du spread 0,95 |
 |----|-------------|--------------|----------------------|
 | M5 | ~2,5-3 $ | ~3,3 $ | ~27 % du risque ⚠️ |
 | M15 | ~5-6 $ | ~6,6 $ | ~14 % du risque 🟡 |
@@ -191,7 +191,7 @@ W_équilibre = (1 + S/D) / (R + 1)
    S = coût aller-retour (spread)   D = distance du SL   R = multiple R:R
 ```
 
-Avec **S = 0,90** (FXCess Classic) et un SL à 1.2 ATR :
+Avec **S = 0,95** (FXCess Classic) et un SL à 1.2 ATR :
 
 | UT | SL | spread/risque | Win rate requis (R:R 2) | Win rate requis (R:R 3) |
 |----|----|---------------|-------------------------|-------------------------|
@@ -229,3 +229,21 @@ Gain moyen par trade · **Coût du spread réellement payé** ·
 comme un trade clôturé** : le nombre de trades et le win rate sont donc calculés
 sur les partielles. Pour des stats « par trade complet », utiliser le mode
 « Sortie unique » le temps de la mesure.
+
+### Mise à jour — spread broker confirmé à **0,95**
+
+| Réglage | Valeur |
+|---------|--------|
+| `slExecBufSpread` (indicateur + stratégie) | **1.10** (0,95 spread + 0,15 slippage) |
+| `slippage` (stratégie) | **95 ticks** |
+| `btSpreadEst` (filtre économique + coût affiché) | **0.95** |
+
+Seuils de rentabilité recalculés (SL à 1.2 ATR) :
+
+| UT | spread/risque | R:R 2 | R:R 3 | R:R 4 |
+|----|---------------|-------|-------|-------|
+| M5 | 29 % | 42,9 % | 32,2 % | **25,8 %** |
+| M15 | 14 % | 38,1 % | 28,6 % | **22,9 %** |
+| H1 | 7 % | 35,7 % | 26,8 % | **21,4 %** |
+
+Coût par aller-retour : 0,01 lot = 0,95 $ · 0,10 lot = 9,50 $ · 1 lot = 95 $.

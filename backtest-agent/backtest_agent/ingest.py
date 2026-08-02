@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import Iterable
 
@@ -46,7 +47,8 @@ KNOWN_CONDITION_HINTS = [
 ALIASES: dict[str, list[str]] = {
     "datetime": [
         "datetime", "date/time", "date_time", "time", "date", "opentime",
-        "entrytime", "entry_time", "dateheure", "date_heure", "timestamp",
+        "entrytime", "entry_time", "dateheure", "date_heure", "date et heure",
+        "timestamp",
     ],
     "symbol": ["symbol", "ticker", "actif", "asset", "instrument", "pair"],
     "timeframe": ["timeframe", "tf", "resolution", "interval", "ut"],
@@ -59,7 +61,8 @@ ALIASES: dict[str, list[str]] = {
                    "prixsortie", "prix_sortie"],
     "result": ["result", "outcome", "resultat", "issue", "status", "win"],
     "pnl": ["pnl", "profit", "netprofit", "net_profit", "gain", "gainperte",
-            "gain_perte", "p&l", "pl", "realizedpnl", "profitusd"],
+            "gain_perte", "p&l", "pl", "realizedpnl", "profitusd",
+            "p&l net usd", "pnl net", "net p&l"],
     "pnl_r": ["pnl_r", "r", "rr", "r_multiple", "rmultiple", "risque"],
     "duration_min": ["duration_min", "duration", "duree", "bars_held",
                      "barsheld", "holdingtime", "temps"],
@@ -69,7 +72,18 @@ ALIASES: dict[str, list[str]] = {
 
 
 def _clean_key(name: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", str(name).strip().lower())
+    """Normalise un nom de colonne pour la comparaison : minuscules, accents
+    repliés vers leur lettre ASCII (« Numéro » -> « numero », pas « numro »),
+    puis tout caractère non alphanumérique supprimé.
+
+    Sans le repli d'accents, la regex `[^a-z0-9]` supprime purement et
+    simplement les lettres accentuées au lieu de les convertir — « Durée »
+    devenait « dure » et « cumulé » devenait « cumul », cassant silencieusement
+    toute correspondance qui s'attendait à « duree »/« cumule ».
+    """
+    texte = unicodedata.normalize("NFKD", str(name).strip().lower())
+    texte = "".join(c for c in texte if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]", "", texte)
 
 
 def _build_reverse_map(columns: Iterable[str]) -> dict[str, str]:
@@ -164,9 +178,113 @@ def _derive_pnl_r(df: pd.DataFrame) -> pd.Series | None:
     return None
 
 
+_ENTRY_HINTS = ("entrer", "entry")
+_EXIT_HINTS = ("sortir", "exit")
+
+
+def _find_col(columns: Iterable[str], *substrings: str) -> str | None:
+    """Cherche la première colonne dont le nom nettoyé CONTIENT l'un des motifs.
+
+    Contrairement à `_build_reverse_map` (égalité exacte après nettoyage), cette
+    recherche est volontairement souple : elle sert uniquement à détecter le
+    format « deux lignes par trade » de TradingView, où les en-têtes portent des
+    suffixes de devise variables (« Prix USD », « P&L net USD »...).
+    """
+    for col in columns:
+        ckey = _clean_key(col)
+        if any(s in ckey for s in substrings):
+            return col
+    return None
+
+
+def _pivot_entry_exit_pairs(df: pd.DataFrame) -> pd.DataFrame | None:
+    """Reconnaît et fusionne le format « List of Trades » du Strategy Tester
+    TradingView quand il exporte DEUX lignes par trade — une d'entrée
+    (« Entrer long/short »), une de sortie (« Sortir du long/short »), reliées
+    par un numéro de trade commun — plutôt qu'une ligne unique par trade.
+
+    Sans cette fusion, chaque trade serait compté DEUX FOIS dans toutes les
+    statistiques (taux de réussite, profit factor, drawdown...) : une erreur
+    silencieuse qui fausserait tout le rapport sans qu'aucun message n'alerte
+    l'utilisateur. C'est précisément ce que ce paquet s'interdit de faire.
+
+    Retourne None si le fichier n'a pas cette forme (une ligne par trade déjà,
+    ou colonnes indispensables absentes) : `normalize()` poursuit alors sans
+    modification, comme avant.
+    """
+    id_col = _find_col(df.columns, "numerodetrade", "tradenumber", "trade")
+    type_col = _find_col(df.columns, "type")
+    if id_col is None or type_col is None:
+        return None
+
+    types = df[type_col].astype(str).str.lower()
+    motif_entree = "|".join(_ENTRY_HINTS)
+    motif_sortie = "|".join(_EXIT_HINTS)
+    est_entree = types.str.contains(motif_entree, regex=True)
+    est_sortie = types.str.contains(motif_sortie, regex=True)
+    if not est_entree.any() or not est_sortie.any():
+        return None  # pas le format à deux lignes : rien à fusionner
+
+    dt_col = _find_col(df.columns, "dateheure", "datetime", "date")
+    prix_col = _find_col(df.columns, "prix", "price")
+    # "P&L" perd son « & » au nettoyage (_clean_key) et devient "pl", pas "pnl" :
+    # "P&L net USD" -> "plnetusd". D'où "plnet" en plus de "pnlnet".
+    pnl_col = _find_col(df.columns, "plnet", "pnlnet", "profit", "pnl", "gain")
+    if dt_col is None or prix_col is None or pnl_col is None:
+        return None  # champs indispensables absents : on ne devine pas
+
+    signal_col = _find_col(df.columns, "signal")
+    duree_col = _find_col(df.columns, "duree", "duration", "bars")
+    commission_col = _find_col(df.columns, "commission")
+    retour_col = _find_col(df.columns, "retour", "return")
+    cum_pnl_col = _find_col(df.columns, "cumule", "cumulative", "cumprofit")
+    mfe_col = _find_col(df.columns, "excursionfavorable", "runup")
+    mae_col = _find_col(df.columns, "excursionadverse", "drawdown")
+
+    rows = []
+    for trade_id, groupe in df.groupby(id_col):
+        idx = groupe.index
+        entree = groupe[est_entree.loc[idx]]
+        sortie = groupe[est_sortie.loc[idx]]
+        if entree.empty or sortie.empty:
+            continue  # trade encore ouvert ou ligne incomplète : ignoré
+        e, s = entree.iloc[0], sortie.iloc[0]
+
+        direction = "SELL" if "short" in str(e[type_col]).lower() else "BUY"
+        row = {
+            "datetime": e[dt_col],
+            "direction": direction,
+            "entry_price": e[prix_col],
+            "exit_price": s[prix_col],
+            "pnl": s[pnl_col],
+            "trade_id": trade_id,
+        }
+        if signal_col is not None:
+            row["exit_signal"] = s[signal_col]
+        if duree_col is not None:
+            row["duration_bars"] = s[duree_col]
+        if commission_col is not None:
+            row["commission"] = s[commission_col]
+        if retour_col is not None:
+            row["return_pct"] = s[retour_col]
+        if cum_pnl_col is not None:
+            row["cum_pnl"] = s[cum_pnl_col]
+        if mfe_col is not None:
+            row["mfe"] = s[mfe_col]
+        if mae_col is not None:
+            row["mae"] = s[mae_col]
+        rows.append(row)
+
+    return pd.DataFrame(rows) if rows else None
+
+
 def normalize(df: pd.DataFrame) -> pd.DataFrame:
     """Transforme un DataFrame brut en schéma interne + attache la liste des
     colonnes de conditions dans df.attrs['conditions']."""
+    pivote = _pivot_entry_exit_pairs(df)
+    if pivote is not None:
+        df = pivote  # déjà en schéma canonique ; le renommage ci-dessous est un no-op
+
     reverse = _build_reverse_map(df.columns)
     renamed = df.rename(columns=reverse).copy()
 

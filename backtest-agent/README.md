@@ -67,7 +67,7 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
 | `backtest_agent/htmlview.py` | Convertisseur Markdown → HTML minimal (sans dépendance), pour afficher un rapport dans le navigateur. |
 | `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `view`, `pipeline`). |
-| `tests/` | 124 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `tests/` | 132 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -91,7 +91,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 124 tests
+pytest                        # 132 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,
@@ -215,7 +215,13 @@ C'est la source la plus fiable car elle contient le **résultat et le PnL réels
    python -m backtest_agent.cli analyze mon_export_tradingview.csv -o reports/rapport.md
    ```
 
-L'ingestion gère les noms de colonnes TradingView (FR/EN) automatiquement. Pour
+L'ingestion gère les noms de colonnes TradingView (FR/EN) automatiquement,
+**y compris le format « deux lignes par trade »** (une ligne « Entrer long/short »,
+une ligne « Sortir du long/short », reliées par un numéro de trade commun) que
+produit l'export standard du Strategy Tester : les deux lignes sont fusionnées
+en un seul trade avant tout calcul, pour ne jamais compter un trade deux fois.
+Le contexte supplémentaire (raison de sortie, commission, MFE/MAE, durée en
+barres) est conservé comme conditions analysables. Pour
 enrichir l'export avec tes conditions (OB, FVG…), ajoute-les dans la stratégie via
 `strategy.entry(..., comment=...)` ou des colonnes de plot exportables, ou utilise
 la Voie B en parallèle pour capturer le contexte.

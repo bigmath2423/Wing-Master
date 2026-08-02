@@ -100,3 +100,105 @@ def test_erreur_claire_sur_format_non_supporte(tmp_path):
 def test_erreur_claire_si_aucun_resultat_derivable():
     with pytest.raises(ValueError, match="Impossible de déterminer le résultat"):
         normalize(pd.DataFrame([{"time": "2025-01-01 10:00", "side": "buy"}]))
+
+
+# --- Repli des accents ------------------------------------------------------
+
+def test_clean_key_replie_les_accents_au_lieu_de_les_supprimer():
+    """Régression : la regex de nettoyage SUPPRIMAIT les lettres accentuées
+    plutôt que de les convertir, cassant silencieusement toute correspondance
+    censée reconnaître « Numéro », « Durée », « cumulé »..."""
+    from backtest_agent.ingest import _clean_key
+    assert _clean_key("Numéro de trade") == "numerodetrade"
+    assert _clean_key("Durée (barres)") == "dureebarres"
+    assert _clean_key("P&L cumulé USD") == "plcumuleusd"
+
+
+# --- Format TradingView « deux lignes par trade » ---------------------------
+
+def _export_tradingview_deux_lignes(n_trades: int = 3) -> pd.DataFrame:
+    """Reproduit la forme réelle du « List of Trades » du Strategy Tester :
+    une ligne d'entrée et une ligne de sortie par trade, numéro partagé."""
+    lignes = []
+    for i in range(1, n_trades + 1):
+        sens = "short" if i % 2 else "long"
+        entree, sortie = (100.0, 95.0) if sens == "short" else (100.0, 105.0)
+        pnl = (entree - sortie) if sens == "short" else (sortie - entree)
+        lignes.append({
+            "Numéro de trade": i, "Type": f"Entrer {sens}",
+            "Date et heure": f"2025-01-{i:02d} 10:00", "Signal": "SELL" if sens == "short" else "BUY",
+            "Prix USD": entree, "P&L net USD": pnl, "Durée (barres)": 10 + i,
+            "Commission USD": 0, "Retour %": 1.0,
+            "Excursion favorable USD": 2.0, "Excursion adverse USD": -1.0,
+            "P&L cumulé USD": pnl,
+        })
+        lignes.append({
+            "Numéro de trade": i, "Type": f"Sortir du {sens}",
+            "Date et heure": f"2025-01-{i:02d} 14:00", "Signal": "TP1",
+            "Prix USD": sortie, "P&L net USD": pnl, "Durée (barres)": 10 + i,
+            "Commission USD": 0, "Retour %": 1.0,
+            "Excursion favorable USD": 2.0, "Excursion adverse USD": -1.0,
+            "P&L cumulé USD": pnl,
+        })
+    return pd.DataFrame(lignes)
+
+
+def test_fusionne_les_paires_entree_sortie_tradingview():
+    df = normalize(_export_tradingview_deux_lignes(4))
+    assert len(df) == 4, "Deux lignes par trade doivent devenir UNE seule ligne."
+    assert set(df["direction"]) == {"BUY", "SELL"}
+    assert (df["result"].isin(["WIN", "LOSS"])).all()
+
+
+def test_ne_double_compte_pas_les_trades():
+    """La régression centrale : sans la fusion, chaque trade était compté deux
+    fois dans toutes les statistiques, en silence."""
+    df = normalize(_export_tradingview_deux_lignes(10))
+    assert len(df) == 10
+
+
+def test_prix_entree_et_sortie_corrects_apres_fusion():
+    df = normalize(_export_tradingview_deux_lignes(1))
+    # Trade 1 = short : entrée 100, sortie 95, gain (short gagnant).
+    row = df.iloc[0]
+    assert row["entry_price"] == pytest.approx(100.0)
+    assert row["exit_price"] == pytest.approx(95.0)
+    assert row["direction"] == "SELL"
+    assert row["result"] == "WIN"
+
+
+def test_conserve_le_contexte_supplementaire_comme_conditions():
+    df = normalize(_export_tradingview_deux_lignes(6))
+    assert "exit_signal" in df.columns
+    assert "duration_bars" in df.columns
+    assert "exit_signal" in df.attrs["conditions"]
+
+
+def test_trade_ouvert_sans_ligne_de_sortie_est_ignore_sans_planter():
+    """Un trade encore en cours (entrée sans sortie exportée) ne doit ni
+    planter ni être compté comme un trade complet."""
+    df_brut = _export_tradingview_deux_lignes(3)
+    # Supprime la ligne de sortie du dernier trade : position encore ouverte.
+    df_brut = df_brut[~((df_brut["Numéro de trade"] == 3)
+                        & (df_brut["Type"].str.startswith("Sortir")))]
+    df = normalize(df_brut)
+    assert len(df) == 2  # seuls les 2 trades complets sont conservés
+
+
+def test_format_a_une_ligne_par_trade_nest_pas_affecte():
+    """Garde-fou anti-régression : le format normal (une ligne = un trade) ne
+    doit JAMAIS être détecté à tort comme le format à deux lignes."""
+    df = normalize(pd.DataFrame([
+        {"datetime": "2025-01-01 10:00", "side": "buy", "profit": 1.0},
+        {"datetime": "2025-01-02 10:00", "side": "sell", "profit": -0.5},
+    ]))
+    assert len(df) == 2
+
+
+def test_pivot_retourne_none_sans_colonnes_indispensables():
+    from backtest_agent.ingest import _pivot_entry_exit_pairs
+    df = pd.DataFrame([
+        {"Numéro de trade": 1, "Type": "Entrer long"},
+        {"Numéro de trade": 1, "Type": "Sortir du long"},
+    ])
+    assert _pivot_entry_exit_pairs(df) is None

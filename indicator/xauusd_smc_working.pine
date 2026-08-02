@@ -185,6 +185,10 @@ indicator("XAUUSD SMC Confluence Signals", shorttitle="SMC Gold", overlay=true, 
 grpAudit = "⓪ AMELIORATIONS (audit) — interrupteurs A/B"
 // B1 : corrige le faux BOS/CHoCH declenche quand le niveau de swing vient de changer
 //      (ta.crossover sur un niveau MOBILE). Baseline = false.
+// AFFICHAGE : coupe TOUTES les couches decoratives d'un coup (zones predictives,
+// anticipation, sessions, swings, Wyckoff, breakers, EQH/EQL, PDH/PWH...). N'affecte
+// NI les signaux, NI le score, NI les SL/TP : uniquement ce qui est dessine.
+cleanChartOn = input.bool(false, "🧹 Graphique epure (masque toutes les couches d'affichage)", group=grpAudit, tooltip="ON : ne laisse que les bougies, les fleches BUY/SELL, les lignes Entry/SL/TP et le panneau principal. Tout le reste (sessions colorees, zones predictives, zones d'anticipation, labels de structure, Wyckoff, breakers, niveaux de liquidite) est masque. AUCUN impact sur les trades.")
 fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable)", group=grpAudit, tooltip="ON : une cassure n'est validee que si le niveau de swing casse etait DEJA en place a la barre precedente (niveau stable). Elimine les faux BOS/CHoCH provoques par la simple mise a jour d'un pivot sous le prix. OFF (false) = comportement d'origine exact (baseline).")
 // B2 : le toggle d'AFFICHAGE showLiq ne doit plus gater la DETECTION des sweeps de
 //      swing (qui alimente le score et le verrou eliminatoire). Baseline = false.
@@ -218,13 +222,16 @@ grpE3 = "③ ESSENTIEL — Macro & Confirmations"
 swingLen = input.int(10, "Swing detection length", minval=2, group=grpE1)
 
 grpFVG = "⚙️ Expert — Fair Value Gaps"
-showFVG = input.bool(true, "Show FVG zones", group=grpFVG)
+showFVG_raw = input.bool(true, "Show FVG zones", group=grpFVG)
+showFVG = showFVG_raw and not cleanChartOn
 
 grpOB = "⚙️ Expert — Order Blocks"
-showOB = input.bool(true, "Show Order Block zones", group=grpOB)
+showOB_raw = input.bool(true, "Show Order Block zones", group=grpOB)
+showOB = showOB_raw and not cleanChartOn
 
 grpLiq = "⚙️ Expert — Liquidity"
-showLiq = input.bool(true, "Mark liquidity sweeps", group=grpLiq)
+showLiq_raw = input.bool(true, "Mark liquidity sweeps", group=grpLiq)
+showLiq = showLiq_raw and not cleanChartOn
 
 grpTrend = "⚙️ Expert — Trend Filter"
 useTrendFilter = input.bool(true, "Require EMA trend alignment", group=grpE2)
@@ -273,24 +280,31 @@ uiShowMain = input.bool(true, "Afficher le panneau principal", group=grpUI)
 sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpE1)
 
 grpMS = "⚙️ Expert — Module 1 - Market Structure"
-msShowSwingLabels = input.bool(true, "Show HH / HL / LH / LL labels", group=grpMS)
+msShowSwingLabels_raw = input.bool(true, "Show HH / HL / LH / LL labels", group=grpMS)
+msShowSwingLabels = msShowSwingLabels_raw and not cleanChartOn
 msMaxSwingLabels = 30  // verrouille (affichage : nb de labels conserves)
-msKeepBreakHistory = input.bool(true, "Keep BOS / CHoCH history on chart", group=grpMS)
+msKeepBreakHistory_raw = input.bool(true, "Keep BOS / CHoCH history on chart", group=grpMS)
+msKeepBreakHistory = msKeepBreakHistory_raw and not cleanChartOn
 msMaxBreakMarks = 15  // VERROUILLE : buffer d'affichage BOS/CHoCH, aucun impact signal (Phase 2)
 msMtfSwingLen = input.int(10, "MTF swing length", minval=2, group=grpMS)
 msTfContext = input.timeframe("60", "Context timeframe (H1)", group=grpMS)
 msTfStructure = input.timeframe("15", "Structure timeframe (M15)", group=grpMS)
 msTfExec = input.timeframe("5", "Execution timeframe (M5)", group=grpMS)
-msShowPanel = input.bool(true, "Show multi-timeframe panel", group=grpMS)
+msShowPanel_raw = input.bool(true, "Show multi-timeframe panel", group=grpMS)
+msShowPanel = msShowPanel_raw and not cleanChartOn
 msPanelPos = input.string("bottom_right", "Panel position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpMS)
 
 grpLE = "⚙️ Expert — Module 2 - Liquidity Engine"
-leShowZones = input.bool(true, "Show EQH / EQL liquidity zones", group=grpLE)
+leShowZones_raw = input.bool(true, "Show EQH / EQL liquidity zones", group=grpLE)
+leShowZones = leShowZones_raw and not cleanChartOn
 leEqTolAtr = input.float(0.15, "Equal highs/lows tolerance (ATR x)", minval=0.01, step=0.05, group=grpLE)
 leMaxZones = 6  // verrouille (affichage)
-leShowDaily = input.bool(true, "Show previous day high / low (PDH / PDL)", group=grpLE)
-leShowWeekly = input.bool(true, "Show previous week high / low (PWH / PWL)", group=grpLE)
-leShowSweeps = input.bool(true, "Mark liquidity sweeps + type", group=grpLE)
+leShowDaily_raw = input.bool(true, "Show previous day high / low (PDH / PDL)", group=grpLE)
+leShowDaily = leShowDaily_raw and not cleanChartOn
+leShowWeekly_raw = input.bool(true, "Show previous week high / low (PWH / PWL)", group=grpLE)
+leShowWeekly = leShowWeekly_raw and not cleanChartOn
+leShowSweeps_raw = input.bool(true, "Mark liquidity sweeps + type", group=grpLE)
+leShowSweeps = leShowSweeps_raw and not cleanChartOn
 leMaxSweepLabels = 20  // verrouille (affichage)
 // TODO (Phase MOYEN, apres backtest) : leSweepWindow (15) et deSweepWindow (20)
 // couvrent le meme concept "sweep recent". A fusionner en UN seul parametre si
@@ -300,30 +314,39 @@ leUseBonus = input.bool(true, "Sweep before BOS/CHoCH = +1 confluence point", gr
 leRequireSweep = input.bool(false, "STRICT filter: signals only after sweep-backed break", group=grpE2)
 
 grpSMC = "⚙️ Expert — Module 3 - Smart Money Concepts"
-smcShowBreakers = input.bool(true, "Show Breaker Blocks", group=grpSMC)
-smcShowImb = input.bool(true, "Mark imbalance candles (displacement)", group=grpSMC)
+smcShowBreakers_raw = input.bool(true, "Show Breaker Blocks", group=grpSMC)
+smcShowBreakers = smcShowBreakers_raw and not cleanChartOn
+smcShowImb_raw = input.bool(true, "Mark imbalance candles (displacement)", group=grpSMC)
+smcShowImb = smcShowImb_raw and not cleanChartOn
 smcImbMult = input.float(1.5, "Imbalance body size (ATR x)", minval=0.5, step=0.1, group=grpSMC)
-smcShowPD = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
+smcShowPD_raw = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
+smcShowPD = smcShowPD_raw and not cleanChartOn
 smcUsePdFilter = input.bool(false, "Filter: BUY only in discount / SELL only in premium", group=grpE2)
-smcShowAPlus = input.bool(true, "Mark SMC+ setups (sweep -> BOS/CHoCH -> OB/FVG)", group=grpSMC)
+smcShowAPlus_raw = input.bool(true, "Mark SMC+ setups (sweep -> BOS/CHoCH -> OB/FVG)", group=grpSMC)
+smcShowAPlus = smcShowAPlus_raw and not cleanChartOn
 
 grpWY = "⚙️ Expert — Module 4 - Wyckoff"
 wyMinQuiet = input.int(20, "Bars without structure break to define a range", minval=5, group=grpWY)
-wyShowRange = input.bool(true, "Show Wyckoff range box + phase", group=grpWY)
-wyShowFigures = input.bool(true, "Mark Spring / Upthrust / SOS / SOW", group=grpWY)
+wyShowRange_raw = input.bool(true, "Show Wyckoff range box + phase", group=grpWY)
+wyShowRange = wyShowRange_raw and not cleanChartOn
+wyShowFigures_raw = input.bool(true, "Mark Spring / Upthrust / SOS / SOW", group=grpWY)
+wyShowFigures = wyShowFigures_raw and not cleanChartOn
 wyMaxFigLabels = 20  // verrouille (affichage)
 wyImpMult = input.float(1.0, "SOS/SOW displacement body (ATR x)", minval=0.1, step=0.1, group=grpWY)
 wyFigWindow = input.int(20, "Figure validity for strong setup (bars)", minval=2, group=grpWY)
 wyUseFilter = input.bool(true, "Use Wyckoff phase as context filter (block contrary signals)", group=grpE2)
-wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
+wyShowStrong_raw = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
+wyShowStrong = wyShowStrong_raw and not cleanChartOn
 
 grpPF = "⚙️ Expert — Module 5 - Filtres Pro"
 pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpE2)
 pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
 pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
-pfShowFake = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
+pfShowFake_raw = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
+pfShowFake = pfShowFake_raw and not cleanChartOn
 pfMaxFakeLabels = 15  // verrouille (affichage)
-pfShowVwap = input.bool(true, "Show session VWAP", group=grpPF)
+pfShowVwap_raw = input.bool(true, "Show session VWAP", group=grpPF)
+pfShowVwap = pfShowVwap_raw and not cleanChartOn
 pfUseVwapFilter = input.bool(false, "VWAP filter: BUY above / SELL below only", group=grpE2)
 pfUseAtrFilter = input.bool(true, "ATR: block signals when volatility too low", group=grpE2)
 chopFilterOn = input.bool(false, "Anti-consolidation: bloquer les signaux en range / tendance faible (ADX)", group=grpE2, tooltip="Un desk ne trade pas dans le bruit d'un range. ON : aucun signal si l'ADX (force de tendance) est sous le seuil -> on evite les faux signaux en marche sans direction. Distinct du filtre ATR (qui mesure la volatilite, pas la directionnalite). OFF par defaut = comportement d'origine exact ; a activer puis comparer en backtest. N'affecte NI le score NI les TP/SL : filtre uniquement l'emission du signal, les deux sens.")
@@ -331,7 +354,8 @@ chopAdxLen = input.int(14, "Anti-consolidation - longueur ADX", minval=2, group=
 chopAdxMin = input.float(20.0, "Anti-consolidation - ADX minimum", minval=0.0, maxval=100.0, step=1.0, group=grpPF, tooltip="Seuil de force de tendance. ADX < seuil = consolidation -> signal bloque (si filtre ON). 20 = seuil classique tendance/range ; 25 = plus strict (moins de trades, plus propres).")
 pfAtrLen = input.int(50, "ATR average length", minval=2, group=grpPF)
 pfAtrMinMult = input.float(0.7, "Min ATR vs its average (x)", minval=0.1, step=0.05, group=grpPF)
-pfShowSessions = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
+pfShowSessions_raw = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
+pfShowSessions = pfShowSessions_raw and not cleanChartOn
 pfSessMode = input.string("Off", "Session filter for signals", options=["Off", "London + New York", "Kill zones only"], group=grpE2)
 pfLdnSess = input.session("0800-1700", "London session (Europe/London)", group=grpPF)
 pfNySess = input.session("0800-1700", "New York session (America/New_York)", group=grpPF)
@@ -344,11 +368,13 @@ grpDE = "⚙️ Expert — Module 6 - Moteur de Decision (score /100)"
 deSweepWindow = input.int(20, "Sweep validity for decision (bars)", minval=1, group=grpE1, tooltip="Regle eliminatoire 1 : aucun signal si aucun sweep de liquidite (EQH/EQL/PDH/PDL/PWH/PWL/swing) dans les N dernieres barres.")
 deScoreMin = input.int(80, "Display threshold (signal shown, no alert)", minval=1, maxval=100, group=grpE1)
 deScoreAPlus = input.int(85, "A+ / alert threshold (signal + TradingView alert)", minval=1, maxval=100, group=grpE1, tooltip="Score minimum (sur 100) a partir duquel un signal declenche une alerte TradingView. Defaut 85 -> alertes pour tout score de 85 a 100. Ne modifie pas le calcul du score.")
-deShowReasons = input.bool(true, "Show detailed reasons on signal label", group=grpDE)
+deShowReasons_raw = input.bool(true, "Show detailed reasons on signal label", group=grpDE)
+deShowReasons = deShowReasons_raw and not cleanChartOn
 deMaxSignalLabels = 12  // verrouille (affichage)
 
 grpPZ = "⚙️ Expert — Module 7 - Zones Potentielles (pre-signal)"
-pzShow = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
+pzShow_raw = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
+pzShow = pzShow_raw and not cleanChartOn
 pzShowBC = input.bool(false, "Afficher aussi les zones B et C (moins fiables)", group=grpPZ, tooltip="Par defaut, seules les zones A+ et A (forte confluence) sont affichees. Activez pour voir aussi les zones B (correcte) et C (faible). Recommande : laisser desactive pour n'afficher que les meilleures zones.")
 pzMaxWidthAtr = input.float(0.4, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
 
@@ -490,7 +516,7 @@ if bullBOS or bullCHoCH
 if bearBOS or bearCHoCH
     barsSinceBearBreak := 0
 
-bgcolor(structTrend == "bullish" ? color.new(color.green, 95) : structTrend == "bearish" ? color.new(color.red, 95) : na, title="Trend background")
+bgcolor(cleanChartOn ? na : structTrend == "bullish" ? color.new(color.green, 95) : structTrend == "bearish" ? color.new(color.red, 95) : na, title="Trend background")
 
 // ================= MODULE 1 : SWINGS HH / HL / LH / LL =================
 // Les pivots ph/pl sont confirmes swingLen barres apres leur formation ->
@@ -2243,7 +2269,8 @@ if barstate.islast and uiShowMain
 // Chaque zone a son PROPRE score /100, independant du score des signaux.
 
 grpPZO = "⚙️ Expert — Module 10 - Zones institutionnelles predictives"
-pzoOn        = input.bool(true,  "Activer le moteur de zones predictives", group=grpPZO)
+pzoOn_raw        = input.bool(true,  "Activer le moteur de zones predictives", group=grpPZO)
+pzoOn        = pzoOn_raw and not cleanChartOn
 pzoMinScore  = input.int(84,     "Score minimum d'une zone (A+/A)", minval=50, maxval=99, group=grpPZO)
 pzoShowBC    = input.bool(false, "Afficher aussi les zones B / C", group=grpPZO)
 pzoMaxPerSide= input.int(4,      "Nombre max de zones par sens", minval=1, maxval=6, group=grpPZO)
@@ -2254,8 +2281,10 @@ pzoTp1R      = input.float(1.5,  "TP1 (x risque)", minval=0.5, step=0.1, group=g
 pzoTp2R      = input.float(3.0,  "TP2 (x risque)", minval=1.0, step=0.1, group=grpPZO)
 pzoTp3R      = input.float(5.0,  "TP Final (x risque)", minval=1.0, step=0.1, group=grpPZO)
 pzoEmaLen    = input.int(50,     "EMA de reference multi-timeframe", minval=10, group=grpPZO)
-pzoShowCard  = input.bool(true,  "Afficher la fiche detaillee sur chaque zone", group=grpPZO)
-pzoShowTable = input.bool(true,  "Afficher le tableau recapitulatif des zones", group=grpPZO)
+pzoShowCard_raw  = input.bool(true,  "Afficher la fiche detaillee sur chaque zone", group=grpPZO)
+pzoShowCard  = pzoShowCard_raw and not cleanChartOn
+pzoShowTable_raw = input.bool(true,  "Afficher le tableau recapitulatif des zones", group=grpPZO)
+pzoShowTable = pzoShowTable_raw and not cleanChartOn
 pzoTblPos    = input.string("Bas gauche", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO, tooltip="A placer dans un coin DIFFERENT du panneau principal (qui est par defaut 'Milieu droite'), sinon les deux tableaux se superposent au meme endroit.")
 // Duree de validite convertie en millisecondes (expiration basee sur le temps,
 // donc identique quel que soit le timeframe).
@@ -2576,14 +2605,16 @@ if barstate.islast
 // valide ou refuse le trade. Score independant base sur la source du niveau et
 // l'alignement multi-timeframe du Module 10.
 grpAZ = "⚙️ Expert — Module 11 - Zones d'anticipation HTF (tres en avance)"
-azOn       = input.bool(true,  "Activer les zones d'anticipation", group=grpAZ)
+azOn_raw       = input.bool(true,  "Activer les zones d'anticipation", group=grpAZ)
+azOn       = azOn_raw and not cleanChartOn
 azUseDaily = input.bool(true,  "Zones sur PDH / PDL (veille)", group=grpAZ)
 azUseWeekly= input.bool(true,  "Zones sur PWH / PWL (semaine)", group=grpAZ)
 azUseH4    = input.bool(true,  "Zones sur swings H4", group=grpAZ)
 azWidthAtr = input.float(0.15, "Demi-largeur de zone (x ATR)", minval=0.05, step=0.05, group=grpAZ, tooltip="Zone volontairement TRES fine autour du niveau exact (PDH/PDL/PWH/PWL/swing H4). Une ligne pointillee marque le prix d'entree exact au centre. Les zones a score eleve sont encore resserrees automatiquement.")
 azMinDist  = input.float(1.0,  "Distance minimum au prix (x ATR)", minval=0.0, step=0.25, group=grpAZ, tooltip="La zone ne s'affiche que si le niveau est au moins a cette distance du prix : on ne montre que ce qui est vraiment EN AVANCE. 0 = toujours montrer.")
 azSlAtr    = input.float(0.6,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpAZ)
-azShowCard = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
+azShowCard_raw = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
+azShowCard = azShowCard_raw and not cleanChartOn
 
 // ---- Swings H4 confirmes (pivots 5/5), memorises via fixnan ----
 azH4H = request.security(syminfo.tickerid, "240", fixnan(ta.pivothigh(high, 5, 5)), lookahead=barmerge.lookahead_off)

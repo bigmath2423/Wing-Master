@@ -257,3 +257,34 @@ erreur de compilation. Ils sont désormais **codés en dur** (10 000 / 0.0 / 95 
 Ce n'est pas une perte : TradingView expose nativement ces trois réglages dans
 l'onglet **Propriétés** de la stratégie (⚙️ à côté du nom sur le graphique), qui prime
 sur les valeurs du code. Capital, commission et slippage restent donc modifiables.
+
+---
+
+## 🧹 Graphique épuré (`cleanChartOn`, défaut OFF)
+
+Interrupteur maître dans le groupe ⓪ qui masque **27 couches d'affichage** d'un coup
+(sessions colorées, fond de tendance, zones prédictives/anticipation, labels de
+structure HH/LH/BOS/CHoCH, Wyckoff, breakers, imbalances, EQH/EQL, PDH/PDL/PWH/PWL,
+raisons détaillées, panneaux secondaires). Ne laisse que : bougies, flèches BUY/SELL,
+lignes Entry/SL/TP et panneau principal.
+
+**Aucun impact sur les signaux, le score ou les niveaux** — chaque couche est
+simplement `input AND not cleanChartOn`. Les toggles individuels restent utilisables.
+
+### Pourquoi le graphique paraissait « décalé »
+Les objets tracés loin du prix (niveaux hebdo/journaliers, zones prédictives à
+plusieurs centaines de points) **étirent l'échelle de prix** : TradingView compresse
+alors les bougies dans une bande étroite, et tout le reste s'entasse en bas. Les labels
+sont bien à leur prix — c'est l'échelle qui est écrasée.
+
+Deux correctifs : `cleanChartOn = ON`, et côté TradingView, clic droit sur l'échelle
+des prix → **« Mise à l'échelle du graphique des prix uniquement »**, qui fait ignorer
+les objets d'indicateur lors du calcul de l'échelle.
+
+## 🐛 Correctif — taille du tick sur TVC:GOLD
+
+TVC:GOLD cote avec **3 décimales** (4041,180) → 1 tick = **0.001**, pas 0.01.
+Le slippage passe donc de 95 à **950 ticks** pour représenter 0,95 $ de spread.
+
+> ⚠️ Vérifier sur le symbole réellement utilisé : si ton flux cote 2 décimales
+> (4041,18), il faut 95. Le réglage est modifiable dans l'onglet **Propriétés**.

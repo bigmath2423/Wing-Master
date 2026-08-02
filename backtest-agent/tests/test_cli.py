@@ -45,6 +45,22 @@ def test_validate_produit_un_verdict(structured_csv, tmp_path):
     assert "Verdict" in out.read_text(encoding="utf-8")
 
 
+def test_view_convertit_un_rapport_en_html_sans_ouvrir_de_navigateur(
+        structured_csv, tmp_path):
+    md = tmp_path / "r.md"
+    assert main(["analyze", structured_csv, "--no-llm", "-o", str(md)]) == 0
+    assert main(["view", str(md), "--no-open"]) == 0
+    html = md.with_suffix(".html")
+    assert html.exists()
+    assert "<h1>" in html.read_text(encoding="utf-8")
+
+
+def test_view_sur_fichier_introuvable_est_propre(capsys):
+    code = main(["view", "/chemin/inexistant.md", "--no-open"])
+    assert code == 2
+    assert "introuvable" in capsys.readouterr().err.lower()
+
+
 def test_compare_produit_un_tableau(structured_csv, tmp_path):
     out = tmp_path / "c.md"
     assert main(["compare", structured_csv, structured_csv, "-o", str(out)]) == 0

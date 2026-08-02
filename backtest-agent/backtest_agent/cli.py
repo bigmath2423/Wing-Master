@@ -24,6 +24,7 @@ from .validate import (
 from .rolling import (
     rolling_walk_forward, optimize_threshold, rolling_markdown, threshold_markdown,
 )
+from .htmlview import render_report
 from . import llm, jsonutil
 
 _DEFAULT_TEMPLATE = str(
@@ -133,6 +134,16 @@ def _cmd_rolling(args: argparse.Namespace) -> int:
         else:
             print(f"[info] {len(res['robust_rules'])} règle(s) robuste(s) sur "
                   f"{res['n_folds_usable']} fenêtres.", file=sys.stderr)
+    return 0
+
+
+def _cmd_view(args: argparse.Namespace) -> int:
+    md_path = Path(args.input)
+    if not md_path.exists():
+        print(f"[erreur] Fichier introuvable : {md_path}", file=sys.stderr)
+        return 2
+    html_path = render_report(md_path, open_browser=not args.no_open)
+    print(f"[ok] Page HTML générée : {html_path}")
     return 0
 
 
@@ -283,6 +294,14 @@ def main(argv: list[str] | None = None) -> int:
                     help="Optimiser un seuil numérique (ex: confidence, atr) "
                          "en walk-forward au lieu d'évaluer les règles.")
     rl.set_defaults(func=_cmd_rolling)
+
+    vw = sub.add_parser(
+        "view",
+        help="Afficher un rapport .md sous forme de page HTML dans le navigateur.")
+    vw.add_argument("input", help="Chemin du rapport Markdown à afficher.")
+    vw.add_argument("--no-open", action="store_true",
+                    help="Générer le HTML sans ouvrir le navigateur.")
+    vw.set_defaults(func=_cmd_view)
 
     pl = sub.add_parser(
         "pipeline",

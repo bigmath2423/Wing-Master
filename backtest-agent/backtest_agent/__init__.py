@@ -23,6 +23,7 @@ from .proposals import build_proposals, generate_candidate_pine
 from .validate import validate_candidate, compare_backtests
 from .robustness import monte_carlo_drawdown
 from .rolling import rolling_walk_forward, optimize_threshold
+from .htmlview import render_report
 
 __all__ = [
     "load_trades",
@@ -40,6 +41,7 @@ __all__ = [
     "monte_carlo_drawdown",
     "rolling_walk_forward",
     "optimize_threshold",
+    "render_report",
 ]
 
 # Source unique de vérité : la version vit dans pyproject.toml et se lit ici via

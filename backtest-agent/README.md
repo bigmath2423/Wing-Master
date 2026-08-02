@@ -65,8 +65,9 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/llm.py` | Client Claude optionnel. |
 | `backtest_agent/report.py` | Assemble le rapport (JSON + Markdown). |
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
-| `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `pipeline`). |
-| `tests/` | 109 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `backtest_agent/htmlview.py` | Convertisseur Markdown → HTML minimal (sans dépendance), pour afficher un rapport dans le navigateur. |
+| `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `view`, `pipeline`). |
+| `tests/` | 124 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -90,7 +91,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 109 tests
+pytest                        # 124 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,
@@ -140,6 +141,23 @@ backtest-agent analyze examples/sample_trades.csv -o reports/rapport.md
 
 Le rapport contient les 5 sections demandées : analyse globale, analyse des
 pertes, meilleurs trades, suggestions, plan de tests A/B.
+
+### Afficher un rapport en HTML (`view`)
+
+Tous les rapports sont écrits en Markdown brut — lisibles dans un éditeur de
+code, mais peu agréables dans le Bloc-notes (les `#`, `**`, `|` restent
+visibles au lieu d'être mis en forme). La commande `view` convertit n'importe
+quel rapport `.md` en page HTML stylée et l'ouvre dans le navigateur par défaut :
+
+```bash
+backtest-agent view reports/1_analyse.md
+```
+
+Aucune dépendance externe : le convertisseur (`backtest_agent/htmlview.py`)
+couvre exactement la syntaxe que les rapports du paquet utilisent (titres,
+gras, tableaux, listes, citations), sans installer de bibliothèque Markdown
+tierce. Utilise `--no-open` pour générer le `.html` sans ouvrir de fenêtre
+(utile en script ou en CI).
 
 ---
 

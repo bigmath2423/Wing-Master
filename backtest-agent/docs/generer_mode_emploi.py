@@ -172,7 +172,7 @@ story.append(p(
     "sur votre système. Vérifiez que tout est en place :", "p"))
 story.extend(bloc_code([
     "backtest-agent --version",
-    "# → backtest-agent 0.4.0",
+    "# → backtest-agent 0.5.0",
 ]))
 
 story.append(p("Si vous préférez ne rien installer", "h2"))
@@ -286,6 +286,9 @@ story.extend(tableau(
       "successives. La vérification la plus sévère."],
      ["compare",
       "Compare deux exports réels : votre backtest d'origine contre le candidat."],
+     ["view",
+      "Affiche un rapport <font face='Courier'>.md</font> en page HTML dans le "
+      "navigateur — plus lisible que le Bloc-notes (titres, tableaux, gras)."],
      ["pipeline",
       "Enchaîne tout ce qui précède en une seule commande."]],
     [30 * mm, 133 * mm],

@@ -1,0 +1,2951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLD MACRO — Le manuel de référence du trader XAUUSD</title>
+<meta name="description" content="Manuel professionnel de macroéconomie appliquée au trading de l'or : fiches indicateurs, Fed, graphiques indispensables, routine quotidienne, scénarios et checklists.">
+<meta name="color-scheme" content="dark light">
+<style>
+:root{
+  --fond:#0c1016; --fond-2:#141a23; --fond-3:#1c2430; --fond-4:#232d3b;
+  --encre:#eef1f6; --encre-2:#b4bdc9; --encre-3:#7c8797;
+  --trait:#212a36; --trait-2:#303c4c;
+  --or:#e0ae4a; --or-clair:#f6d68c; --or-fonce:#9c7420;
+  --vert:#45bd86; --rouge:#ec5f6a; --bleu:#5aa5ea; --violet:#ab8bee; --cyan:#45bece;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SFMono-Regular",Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;
+  --mesure:38rem;
+}
+html[data-theme="light"]{
+  --fond:#fffdf9; --fond-2:#f6f2ea; --fond-3:#efe9dd; --fond-4:#e6dfd0;
+  --encre:#15181d; --encre-2:#474e5a; --encre-3:#78818f;
+  --trait:#e3dccd; --trait-2:#cdc4b1;
+  --or:#8f6410; --or-clair:#74510b; --or-fonce:#74510b;
+  --vert:#17795a; --rouge:#b02b36; --bleu:#1a659f; --violet:#5b3fa8; --cyan:#0e6c76;
+}
+@media (prefers-color-scheme: light){
+  html:not([data-theme]){
+    --fond:#fffdf9; --fond-2:#f6f2ea; --fond-3:#efe9dd; --fond-4:#e6dfd0;
+    --encre:#15181d; --encre-2:#474e5a; --encre-3:#78818f;
+    --trait:#e3dccd; --trait-2:#cdc4b1;
+    --or:#8f6410; --or-clair:#74510b; --or-fonce:#74510b;
+    --vert:#17795a; --rouge:#b02b36; --bleu:#1a659f; --violet:#5b3fa8; --cyan:#0e6c76;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--fond); color:var(--encre);
+  font-family:var(--serif); font-size:19px; line-height:1.78;
+  -webkit-font-smoothing:antialiased; -webkit-text-size-adjust:100%;
+  text-rendering:optimizeLegibility;
+}
+
+/* ═══════════ barre latérale ═══════════ */
+#barre{
+  position:fixed; inset:0 auto 0 0; width:20rem; z-index:20;
+  background:var(--fond-2); border-right:1px solid var(--trait);
+  display:flex; flex-direction:column; transition:transform .2s ease;
+}
+#barre header{padding:1.15rem 1.15rem .85rem; border-bottom:1px solid var(--trait)}
+#barre .marque{
+  font-family:var(--sans); font-size:.68rem; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--or); font-weight:800; margin:0;
+}
+#barre .marque span{color:var(--encre-3); letter-spacing:.14em}
+#recherche{
+  width:100%; margin-top:.75rem; padding:.58rem .7rem; border-radius:9px;
+  border:1px solid var(--trait-2); background:var(--fond); color:var(--encre);
+  font-family:var(--sans); font-size:.85rem;
+}
+#recherche:focus{outline:2px solid var(--or); outline-offset:1px}
+#indice{font-family:var(--sans); font-size:.66rem; color:var(--encre-3); margin:.45rem 0 0}
+#plan{overflow-y:auto; padding:.75rem .55rem 3rem; flex:1}
+#plan ul{list-style:none; margin:0; padding:0}
+#plan a{
+  display:block; padding:.34rem .62rem; border-radius:7px; text-decoration:none;
+  color:var(--encre-2); font-family:var(--sans); font-size:.82rem; line-height:1.38;
+}
+#plan a:hover{background:var(--fond-3); color:var(--encre)}
+#plan .nav-partie{margin-top:1rem}
+#plan .nav-partie > a{
+  color:var(--or); font-weight:800; font-size:.72rem; letter-spacing:.1em;
+  text-transform:uppercase;
+}
+#plan .nav-chapitre > a{padding-left:1.05rem; border-left:1px solid var(--trait)}
+#plan a.actif{background:var(--fond-3); color:var(--or-clair); font-weight:700}
+html[data-theme="light"] #plan a.actif{color:var(--or)}
+
+/* ═══════════ commandes ═══════════ */
+.commandes{position:fixed; right:1.1rem; top:1.1rem; z-index:30; display:flex; gap:.45rem}
+.commandes button{
+  font-family:var(--sans); font-size:.75rem; font-weight:700; cursor:pointer;
+  background:var(--fond-2); color:var(--encre-2); border:1px solid var(--trait-2);
+  border-radius:9px; padding:.48rem .7rem;
+}
+.commandes button:hover{color:var(--or); border-color:var(--or)}
+#haut{
+  position:fixed; right:1.1rem; bottom:1.1rem; z-index:30; opacity:0; pointer-events:none;
+  transition:opacity .2s; width:2.7rem; height:2.7rem; border-radius:50%; cursor:pointer;
+  background:var(--fond-2); color:var(--encre-2); border:1px solid var(--trait-2); font-size:1rem;
+}
+#haut.visible{opacity:1; pointer-events:auto}
+
+/* ═══════════ corps ═══════════ */
+main{margin-left:20rem; padding:0 3rem 12rem; transition:margin .2s ease}
+.page{max-width:var(--mesure); margin:0 auto}
+body.plein #barre{transform:translateX(-100%)}
+body.plein main{margin-left:0}
+
+/* ═══════════ couverture ═══════════ */
+.couverture{
+  min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+  align-items:center; text-align:center; padding:4rem 1.5rem;
+  background:
+    radial-gradient(ellipse at 50% 30%, color-mix(in srgb,var(--or) 20%,transparent), transparent 65%),
+    var(--fond);
+  border-bottom:1px solid var(--trait);
+}
+.medaille{
+  width:150px; height:150px; border-radius:50%; margin-bottom:2.6rem;
+  background:linear-gradient(150deg,#f9e2a4,#e0ae4a 44%,#8a6212);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  box-shadow:0 18px 55px rgba(0,0,0,.4), inset 0 3px 8px rgba(255,255,255,.6);
+  color:#3a2905; font-family:var(--sans);
+}
+.medaille b{font-size:3rem; line-height:1; font-weight:800; letter-spacing:-.03em}
+.medaille span{font-size:.66rem; letter-spacing:.34em; margin-top:.3rem; font-weight:800}
+.couverture .surtitre{
+  font-family:var(--sans); font-size:.74rem; letter-spacing:.4em; text-transform:uppercase;
+  color:var(--or); margin:0 0 1.6rem; font-weight:800;
+}
+.couverture h1{
+  font-family:var(--sans); font-size:clamp(3.2rem,11vw,6rem); line-height:.95;
+  margin:0 0 1.3rem; letter-spacing:-.045em; border:0; padding:0; font-weight:800;
+}
+.couverture h1::before{content:none}
+.couverture .filet{width:90px; height:4px; background:var(--or); margin:0 auto 1.8rem}
+.couverture .accroche{
+  font-family:var(--sans); color:var(--encre); font-size:1.25rem; font-weight:600;
+  max-width:26rem; margin:0 auto 1.5rem; line-height:1.45;
+}
+.couverture .public{
+  color:var(--encre-3); font-size:1rem; max-width:28rem; margin:0 auto; line-height:1.65;
+}
+.couverture .meta{
+  font-family:var(--sans); font-size:.68rem; color:var(--encre-3); margin-top:3.5rem;
+  letter-spacing:.2em; text-transform:uppercase;
+}
+
+/* ═══════════ sommaire ═══════════ */
+.sommaire{max-width:var(--mesure); margin:0 auto; padding:5rem 0 3rem}
+.sommaire-sur{
+  font-family:var(--sans); font-size:.74rem; letter-spacing:.36em; text-transform:uppercase;
+  color:var(--or); margin:0 0 2.6rem; font-weight:800;
+}
+.sommaire h3.s-partie{
+  font-family:var(--sans); margin:2.6rem 0 .7rem; padding:0 0 .45rem;
+  border:0; border-bottom:2px solid var(--trait-2); font-size:1.15rem; font-weight:800;
+  display:flex; align-items:baseline; gap:.7rem;
+}
+.sommaire h3.s-partie span{
+  font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--or);
+  font-weight:800; white-space:nowrap;
+}
+.sommaire h3.s-partie a{color:var(--encre); text-decoration:none}
+.sommaire ol{list-style:none; margin:0; padding:0}
+.sommaire .s-chap{display:flex; gap:.85rem; align-items:baseline; padding:.2rem 0}
+.sommaire .s-num{
+  font-family:var(--sans); font-size:.72rem; color:var(--or); min-width:1.9rem;
+  text-align:right; font-weight:800;
+}
+.sommaire .s-chap a{font-family:var(--sans); font-size:.95rem; color:var(--encre-2); text-decoration:none}
+.sommaire a:hover{color:var(--or)}
+
+/* ═══════════ titres ═══════════ */
+h1,h2,h3,h4{font-family:var(--sans); line-height:1.14; letter-spacing:-.025em}
+h1{
+  font-size:clamp(2.6rem,6vw,3.8rem); margin:9rem 0 2.5rem; padding-top:4rem;
+  position:relative; scroll-margin-top:1rem; font-weight:800;
+}
+h1::before{
+  content:attr(data-eyebrow); position:absolute; top:1.6rem; left:0;
+  font-size:.72rem; letter-spacing:.36em; text-transform:uppercase; color:var(--or);
+  font-weight:800;
+}
+h1::after{
+  content:""; display:block; width:76px; height:4px; background:var(--or); margin-top:1.6rem;
+}
+h2{
+  font-size:clamp(1.85rem,4vw,2.5rem); margin:7rem 0 1.6rem; padding-top:2.4rem;
+  position:relative; scroll-margin-top:1rem; font-weight:800;
+  border-top:1px solid var(--trait);
+}
+h2[data-eyebrow]::before{
+  content:attr(data-eyebrow); position:absolute; top:1.3rem; left:0;
+  font-family:var(--sans); font-size:.68rem; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--or); font-weight:800;
+}
+h3{
+  font-size:1.32rem; margin:3.4rem 0 1rem; scroll-margin-top:1rem; font-weight:800;
+  color:var(--encre);
+}
+h4{
+  font-size:.82rem; text-transform:uppercase; letter-spacing:.17em;
+  margin:2.2rem 0 .6rem; color:var(--or); font-weight:800;
+}
+p{margin:1.15rem 0}
+a{color:var(--bleu)}
+a:hover{color:var(--or)}
+hr{border:0; height:1px; background:var(--trait); margin:3.5rem 0}
+strong{color:var(--encre); font-weight:700}
+em{color:var(--encre-2)}
+
+/* phrase d'accroche sous un titre de chapitre */
+h2 + p em:only-child{
+  display:block; font-family:var(--sans); font-size:1.22rem; font-weight:600;
+  font-style:normal; color:var(--or); line-height:1.45; margin:.2rem 0 2.2rem;
+}
+
+/* paragraphe d'ouverture */
+.lead{font-size:1.15rem; color:var(--encre-2); line-height:1.7}
+
+/* ═══════════ listes ═══════════ */
+ul,ol{margin:1.15rem 0; padding-left:1.4rem}
+li{margin:.5rem 0; padding-left:.2rem}
+ul li::marker{color:var(--or)}
+ol li::marker{color:var(--or); font-family:var(--sans); font-weight:800; font-size:.9em}
+li > strong:first-child{
+  font-family:var(--sans); font-size:.76rem; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--or); font-weight:800;
+}
+.bloc li > strong:first-child{color:inherit; letter-spacing:.04em}
+
+/* ═══════════ encadrés ═══════════ */
+.bloc{
+  margin:2.4rem 0; padding:1.5rem 1.7rem; border-radius:16px;
+  border:1px solid var(--trait-2); background:var(--fond-2); font-size:1rem;
+  line-height:1.7;
+}
+.bloc > :first-child{margin-top:0}
+.bloc > :last-child{margin-bottom:0}
+.bloc-titre{
+  font-family:var(--sans); font-size:.7rem; font-weight:800; letter-spacing:.19em;
+  text-transform:uppercase; margin:0 0 .9rem !important; display:flex; align-items:center; gap:.5rem;
+}
+.bloc-titre::before{
+  content:""; width:26px; height:2px; background:currentColor; display:inline-block; flex:none;
+}
+.bloc--retenir{border-color:var(--or); background:color-mix(in srgb,var(--or) 12%,var(--fond-2))}
+.bloc--retenir .bloc-titre{color:var(--or)}
+.bloc--erreur{border-color:color-mix(in srgb,var(--rouge) 45%,var(--trait-2)); background:color-mix(in srgb,var(--rouge) 7%,var(--fond-2))}
+.bloc--erreur .bloc-titre{color:var(--rouge)}
+.bloc--danger{border-color:var(--rouge); background:color-mix(in srgb,var(--rouge) 12%,var(--fond-2))}
+.bloc--danger .bloc-titre{color:var(--rouge)}
+.bloc--institutions{border-color:color-mix(in srgb,var(--cyan) 45%,var(--trait-2)); background:color-mix(in srgb,var(--cyan) 7%,var(--fond-2))}
+.bloc--institutions .bloc-titre{color:var(--cyan)}
+.bloc--detail{border-color:color-mix(in srgb,var(--violet) 45%,var(--trait-2)); background:color-mix(in srgb,var(--violet) 8%,var(--fond-2))}
+.bloc--detail .bloc-titre{color:var(--violet)}
+.bloc--xau{border-color:color-mix(in srgb,var(--or) 55%,var(--trait-2)); background:color-mix(in srgb,var(--or) 7%,var(--fond-2))}
+.bloc--xau .bloc-titre{color:var(--or)}
+.bloc--fiche{border-color:color-mix(in srgb,var(--vert) 50%,var(--trait-2)); background:color-mix(in srgb,var(--vert) 8%,var(--fond-2))}
+.bloc--fiche .bloc-titre{color:var(--vert)}
+.bloc--cas{border-color:color-mix(in srgb,var(--vert) 40%,var(--trait-2))}
+.bloc--cas .bloc-titre{color:var(--vert)}
+.bloc--histoire{border-color:color-mix(in srgb,var(--violet) 40%,var(--trait-2))}
+.bloc--histoire .bloc-titre{color:var(--violet)}
+.bloc--astuce{border-color:color-mix(in srgb,var(--bleu) 45%,var(--trait-2))}
+.bloc--astuce .bloc-titre{color:var(--bleu)}
+.bloc--memo{border-color:var(--trait-2); background:var(--fond-3)}
+.bloc--memo .bloc-titre{color:var(--encre-3)}
+.bloc--memo p{font-family:var(--sans); font-size:1rem; font-weight:600}
+.bloc--resume{border-color:var(--or); background:color-mix(in srgb,var(--or) 8%,var(--fond-2))}
+.bloc--resume .bloc-titre{color:var(--or)}
+
+/* phrase forte */
+.bloc--cle{
+  border:0; border-left:5px solid var(--or); border-radius:0; background:none;
+  padding:.6rem 0 .6rem 1.8rem; margin:3rem 0;
+}
+.bloc--cle p{
+  font-family:var(--sans); font-size:1.45rem; line-height:1.35; font-weight:700;
+  color:var(--encre); letter-spacing:-.02em; margin:.3rem 0;
+}
+
+/* trois niveaux */
+.bloc--niveaux{background:none; border:0; padding:0; margin:2.2rem 0}
+.bloc--niveaux ul{list-style:none; margin:0; padding:0; display:grid; gap:.9rem}
+.bloc--niveaux li{
+  margin:0; padding:1.05rem 1.25rem; border-radius:14px; background:var(--fond-2);
+  border:1px solid var(--trait); border-left:4px solid var(--encre-3); font-size:1rem;
+}
+.bloc--niveaux li:nth-child(1){border-left-color:var(--vert)}
+.bloc--niveaux li:nth-child(2){border-left-color:var(--cyan)}
+.bloc--niveaux li:nth-child(3){border-left-color:var(--or)}
+.bloc--niveaux li > strong:first-child{
+  display:block; margin-bottom:.3rem; font-size:.68rem; letter-spacing:.18em;
+}
+.bloc--niveaux li:nth-child(1) > strong:first-child{color:var(--vert)}
+.bloc--niveaux li:nth-child(2) > strong:first-child{color:var(--cyan)}
+.bloc--niveaux li:nth-child(3) > strong:first-child{color:var(--or)}
+
+/* grille de cartes */
+.bloc--cartes{background:none; border:0; padding:0; margin:2.2rem 0}
+.bloc--cartes ul{
+  list-style:none; margin:0; padding:0; display:grid; gap:.85rem;
+  grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+}
+.bloc--cartes li{
+  margin:0; padding:1.05rem 1.2rem; border-radius:14px; background:var(--fond-2);
+  border:1px solid var(--trait); font-size:.96rem; line-height:1.6;
+}
+.bloc--cartes li > strong:first-child{
+  display:block; margin-bottom:.35rem; color:var(--or); font-size:.72rem; letter-spacing:.14em;
+}
+
+/* page de respiration */
+.bloc--respiration{
+  background:var(--fond-2); border:1px solid var(--trait-2); border-radius:20px;
+  padding:2.6rem 2rem; margin:3.5rem 0;
+}
+.bloc--respiration h3{margin-top:2.2rem}
+.bloc--respiration h3:first-child{margin-top:0}
+
+/* ═══════════ tableaux ═══════════ */
+.tab{overflow-x:auto; margin:2rem 0; border-radius:14px; border:1px solid var(--trait)}
+.tab table{margin:0; border:0; width:100%}
+table{
+  width:100%; border-collapse:collapse; font-family:var(--sans); font-size:.92rem;
+  line-height:1.5;
+}
+th,td{border-bottom:1px solid var(--trait); padding:.72rem .9rem; text-align:left; vertical-align:top}
+th{
+  background:var(--fond-3); font-size:.68rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--encre-2); font-weight:800; white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--fond-2) 55%,transparent)}
+td strong{color:var(--encre)}
+
+/* ═══════════ code, schémas, figures ═══════════ */
+code{
+  font-family:var(--mono); font-size:.85em; background:var(--fond-3);
+  padding:.12em .4em; border-radius:6px; color:var(--or-clair);
+}
+html[data-theme="light"] code{color:var(--or)}
+pre.schema{
+  font-family:var(--mono); background:var(--fond-2); border:1px solid var(--trait);
+  border-radius:14px; padding:1.3rem 1.4rem; overflow-x:auto; margin:2rem 0;
+  font-size:.8rem; line-height:1.55; color:var(--encre-2);
+}
+pre.schema code{background:none; padding:0; color:inherit; font-size:inherit}
+pre.schema--large{font-size:.72rem}
+.figure{margin:2.4rem 0; text-align:center}
+.figure svg{max-width:100%; height:auto}
+blockquote{
+  margin:2rem 0; padding:.3rem 0 .3rem 1.4rem; border-left:4px solid var(--or);
+  color:var(--encre-2); font-style:italic; font-size:1.05rem;
+}
+
+/* ═══════════ responsive ═══════════ */
+@media (max-width:1180px){
+  body{font-size:18px}
+  #barre{transform:translateX(-100%); box-shadow:0 0 50px rgba(0,0,0,.5)}
+  body.menu #barre{transform:translateX(0)}
+  main{margin-left:0; padding:3.2rem 1.35rem 7rem}
+  .commandes{top:.6rem; right:.6rem}
+  .commandes button{backdrop-filter:blur(6px)}
+  h1,h2,h3{scroll-margin-top:4.2rem}
+  #haut{right:.7rem; bottom:.7rem; opacity:.85}
+  .bloc{padding:1.25rem 1.3rem; border-radius:14px}
+  .bloc--cle p{font-size:1.25rem}
+}
+@media (max-width:600px){
+  body{font-size:17.5px; line-height:1.75}
+  h1{margin-top:5rem}
+  h2{margin-top:4.5rem}
+  .medaille{width:118px; height:118px}
+  .medaille b{font-size:2.3rem}
+}
+
+/* ═══════════ impression ═══════════ */
+@media print{
+  :root{
+    --fond:#fff; --fond-2:#faf8f4; --fond-3:#f0ece4; --fond-4:#e8e2d6;
+    --encre:#000; --encre-2:#2b2b2b; --encre-3:#5f5f5f;
+    --trait:#d5cfc2; --trait-2:#b3aa97;
+    --or:#8a5f0c; --or-clair:#8a5f0c;
+    --mesure:none;
+  }
+  body{font-size:11.5pt; line-height:1.62; background:#fff; color:#000}
+  #barre,.commandes,#haut{display:none !important}
+  main{margin:0; padding:0}
+  .page{max-width:none}
+  .couverture{
+    min-height:0; padding:52mm 0 0; border:0; background:none; page-break-after:always;
+  }
+  .couverture h1{font-size:44pt; page-break-before:avoid}
+  .couverture .accroche{font-size:14pt}
+  .medaille{box-shadow:none; width:110px; height:110px}
+  .sommaire{page-break-before:always; page-break-after:always; padding:0}
+  h1{page-break-before:always; page-break-after:avoid; margin:0 0 2rem; padding-top:3rem; font-size:30pt}
+  h2{page-break-before:always; page-break-after:avoid; margin:0 0 1.2rem; padding-top:1.8rem; font-size:20pt}
+  h3{page-break-after:avoid; font-size:13pt; margin-top:2rem}
+  h4{page-break-after:avoid}
+  .bloc,pre.schema,table,li,.figure,.tab{page-break-inside:avoid}
+  .bloc--respiration{page-break-before:always; page-break-inside:auto}
+  a{color:#000; text-decoration:none}
+  @page{margin:19mm 17mm}
+}
+</style>
+</head>
+<body>
+<div class="commandes">
+  <button id="plein" title="Afficher / masquer le sommaire">☰ Sommaire</button>
+  <button id="theme" title="Basculer clair / sombre">◐ Thème</button>
+</div>
+<button id="haut" title="Revenir en haut">↑</button>
+
+<aside id="barre">
+  <header>
+    <p class="marque">Gold Macro <span>· XAUUSD</span></p>
+    <input id="recherche" type="search" placeholder="Chercher… (touche /)" autocomplete="off">
+    <p id="indice"></p>
+  </header>
+  <nav id="plan"><ul class="nav-racine">
+<li class="nav-partie"><a href="#avant-d-ouvrir-le-manuel">Avant d&#x27;ouvrir le manuel</a></li>
+<li class="nav-chapitre"><a href="#comment-utiliser-ce-manuel">Comment utiliser ce manuel</a></li>
+<li class="nav-partie"><a href="#la-carte-d-identite-du-gold">La carte d&#x27;identité du Gold</a></li>
+<li class="nav-chapitre"><a href="#pourquoi-l-or-monte-ou-baisse">Pourquoi l&#x27;or monte ou baisse</a></li>
+<li class="nav-chapitre"><a href="#qui-fait-le-prix-de-l-or">Qui fait le prix de l&#x27;or</a></li>
+<li class="nav-chapitre"><a href="#les-10-choses-qui-font-bouger-le-gold">Les 10 choses qui font bouger le Gold</a></li>
+<li class="nav-partie"><a href="#les-indicateurs-macro">Les indicateurs macro</a></li>
+<li class="nav-chapitre"><a href="#cpi">CPI</a></li>
+<li class="nav-chapitre"><a href="#core-cpi">Core CPI</a></li>
+<li class="nav-chapitre"><a href="#pce">PCE</a></li>
+<li class="nav-chapitre"><a href="#ppi">PPI</a></li>
+<li class="nav-chapitre"><a href="#nfp">NFP</a></li>
+<li class="nav-chapitre"><a href="#taux-de-chomage">Taux de chômage</a></li>
+<li class="nav-chapitre"><a href="#jolts">JOLTS</a></li>
+<li class="nav-chapitre"><a href="#pib">PIB</a></li>
+<li class="nav-chapitre"><a href="#pmi">PMI</a></li>
+<li class="nav-chapitre"><a href="#ism">ISM</a></li>
+<li class="nav-chapitre"><a href="#ventes-au-detail">Ventes au détail</a></li>
+<li class="nav-partie"><a href="#la-fed">La Fed</a></li>
+<li class="nav-chapitre"><a href="#hawkish-ou-dovish-decider-en-60-secondes">Hawkish ou dovish : décider en 60 secondes</a></li>
+<li class="nav-chapitre"><a href="#lire-un-discours-de-powell">Lire un discours de Powell</a></li>
+<li class="nav-chapitre"><a href="#interpreter-une-decision-de-taux">Interpréter une décision de taux</a></li>
+<li class="nav-chapitre"><a href="#les-minutes-du-fomc">Les minutes du FOMC</a></li>
+<li class="nav-partie"><a href="#les-graphiques-indispensables">Les graphiques indispensables</a></li>
+<li class="nav-chapitre"><a href="#le-dxy">Le DXY</a></li>
+<li class="nav-chapitre"><a href="#le-rendement-du-10-ans">Le rendement du 10 ans</a></li>
+<li class="nav-chapitre"><a href="#les-taux-reels">Les taux réels</a></li>
+<li class="nav-chapitre"><a href="#les-obligations-et-la-courbe-des-taux">Les obligations et la courbe des taux</a></li>
+<li class="nav-chapitre"><a href="#le-vix">Le VIX</a></li>
+<li class="nav-partie"><a href="#la-routine-quotidienne">La routine quotidienne</a></li>
+<li class="nav-chapitre"><a href="#avant-londres">Avant Londres</a></li>
+<li class="nav-chapitre"><a href="#avant-new-york">Avant New York</a></li>
+<li class="nav-chapitre"><a href="#avant-une-entree">Avant une entrée</a></li>
+<li class="nav-partie"><a href="#les-scenarios-de-marche">Les scénarios de marché</a></li>
+<li class="nav-chapitre"><a href="#les-six-scenarios-de-l-or">Les six scénarios de l&#x27;or</a></li>
+<li class="nav-partie"><a href="#les-erreurs-des-traders">Les erreurs des traders</a></li>
+<li class="nav-chapitre"><a href="#pourquoi-une-bonne-news-fait-souvent-l-inverse">Pourquoi une bonne news fait souvent l&#x27;inverse</a></li>
+<li class="nav-chapitre"><a href="#pourquoi-il-ne-faut-pas-trader-l-annonce">Pourquoi il ne faut pas trader l&#x27;annonce</a></li>
+<li class="nav-chapitre"><a href="#pourquoi-le-marche-anticipe-toujours">Pourquoi le marché anticipe toujours</a></li>
+<li class="nav-chapitre"><a href="#les-neuf-autres-erreurs">Les neuf autres erreurs</a></li>
+<li class="nav-partie"><a href="#les-fiches-rapides">Les fiches rapides</a></li>
+<li class="nav-chapitre"><a href="#gold-daily-checklist">Gold Daily Checklist</a></li>
+<li class="nav-chapitre"><a href="#impact-des-news-sur-xauusd">Impact des news sur XAUUSD</a></li>
+<li class="nav-chapitre"><a href="#les-correlations-importantes">Les corrélations importantes</a></li>
+<li class="nav-chapitre"><a href="#mon-analyse-macro-en-5-minutes">Mon analyse macro en 5 minutes</a></li>
+<li class="nav-partie"><a href="#pour-finir">Pour finir</a></li>
+<li class="nav-chapitre"><a href="#ce-que-vous-savez-maintenant">Ce que vous savez maintenant</a></li>
+<li class="nav-chapitre"><a href="#ou-trouver-les-donnees">Où trouver les données</a></li>
+</ul></nav>
+</aside>
+
+<header class="couverture">
+  <div class="medaille"><b>Au</b><span>79</span></div>
+  <p class="surtitre">Macroéconomie appliquée</p>
+  <h1>GOLD MACRO</h1>
+  <div class="filet"></div>
+  <p class="accroche">Le manuel de référence du trader XAUUSD</p>
+  <p class="public">Savoir en dix minutes pourquoi l'or peut monter ou baisser
+  aujourd'hui, quoi surveiller, et dans quel sens orienter son biais.</p>
+  <p class="meta">8 parties · 20 chapitres · 11 fiches · v2.0</p>
+</header>
+
+<section class="sommaire"><p class="sommaire-sur">Sommaire</p>
+<h3 class="s-partie"><span></span><a href="#avant-d-ouvrir-le-manuel">Avant d&#x27;ouvrir le manuel</a></h3><ol>
+<li class="s-chap"><span class="s-num">·</span><a href="#comment-utiliser-ce-manuel">Comment utiliser ce manuel</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 1</span><a href="#la-carte-d-identite-du-gold">La carte d&#x27;identité du Gold</a></h3><ol>
+<li class="s-chap"><span class="s-num">01</span><a href="#pourquoi-l-or-monte-ou-baisse">Pourquoi l&#x27;or monte ou baisse</a></li>
+<li class="s-chap"><span class="s-num">02</span><a href="#qui-fait-le-prix-de-l-or">Qui fait le prix de l&#x27;or</a></li>
+<li class="s-chap"><span class="s-num">03</span><a href="#les-10-choses-qui-font-bouger-le-gold">Les 10 choses qui font bouger le Gold</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 2</span><a href="#les-indicateurs-macro">Les indicateurs macro</a></h3><ol>
+<li class="s-chap"><span class="s-num">01</span><a href="#cpi">CPI</a></li>
+<li class="s-chap"><span class="s-num">02</span><a href="#core-cpi">Core CPI</a></li>
+<li class="s-chap"><span class="s-num">03</span><a href="#pce">PCE</a></li>
+<li class="s-chap"><span class="s-num">04</span><a href="#ppi">PPI</a></li>
+<li class="s-chap"><span class="s-num">05</span><a href="#nfp">NFP</a></li>
+<li class="s-chap"><span class="s-num">06</span><a href="#taux-de-chomage">Taux de chômage</a></li>
+<li class="s-chap"><span class="s-num">07</span><a href="#jolts">JOLTS</a></li>
+<li class="s-chap"><span class="s-num">08</span><a href="#pib">PIB</a></li>
+<li class="s-chap"><span class="s-num">09</span><a href="#pmi">PMI</a></li>
+<li class="s-chap"><span class="s-num">10</span><a href="#ism">ISM</a></li>
+<li class="s-chap"><span class="s-num">11</span><a href="#ventes-au-detail">Ventes au détail</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 3</span><a href="#la-fed">La Fed</a></h3><ol>
+<li class="s-chap"><span class="s-num">04</span><a href="#hawkish-ou-dovish-decider-en-60-secondes">Hawkish ou dovish : décider en 60 secondes</a></li>
+<li class="s-chap"><span class="s-num">05</span><a href="#lire-un-discours-de-powell">Lire un discours de Powell</a></li>
+<li class="s-chap"><span class="s-num">06</span><a href="#interpreter-une-decision-de-taux">Interpréter une décision de taux</a></li>
+<li class="s-chap"><span class="s-num">07</span><a href="#les-minutes-du-fomc">Les minutes du FOMC</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 4</span><a href="#les-graphiques-indispensables">Les graphiques indispensables</a></h3><ol>
+<li class="s-chap"><span class="s-num">08</span><a href="#le-dxy">Le DXY</a></li>
+<li class="s-chap"><span class="s-num">09</span><a href="#le-rendement-du-10-ans">Le rendement du 10 ans</a></li>
+<li class="s-chap"><span class="s-num">10</span><a href="#les-taux-reels">Les taux réels</a></li>
+<li class="s-chap"><span class="s-num">11</span><a href="#les-obligations-et-la-courbe-des-taux">Les obligations et la courbe des taux</a></li>
+<li class="s-chap"><span class="s-num">12</span><a href="#le-vix">Le VIX</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 5</span><a href="#la-routine-quotidienne">La routine quotidienne</a></h3><ol>
+<li class="s-chap"><span class="s-num">13</span><a href="#avant-londres">Avant Londres</a></li>
+<li class="s-chap"><span class="s-num">14</span><a href="#avant-new-york">Avant New York</a></li>
+<li class="s-chap"><span class="s-num">15</span><a href="#avant-une-entree">Avant une entrée</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 6</span><a href="#les-scenarios-de-marche">Les scénarios de marché</a></h3><ol>
+<li class="s-chap"><span class="s-num">16</span><a href="#les-six-scenarios-de-l-or">Les six scénarios de l&#x27;or</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 7</span><a href="#les-erreurs-des-traders">Les erreurs des traders</a></h3><ol>
+<li class="s-chap"><span class="s-num">17</span><a href="#pourquoi-une-bonne-news-fait-souvent-l-inverse">Pourquoi une bonne news fait souvent l&#x27;inverse</a></li>
+<li class="s-chap"><span class="s-num">18</span><a href="#pourquoi-il-ne-faut-pas-trader-l-annonce">Pourquoi il ne faut pas trader l&#x27;annonce</a></li>
+<li class="s-chap"><span class="s-num">19</span><a href="#pourquoi-le-marche-anticipe-toujours">Pourquoi le marché anticipe toujours</a></li>
+<li class="s-chap"><span class="s-num">20</span><a href="#les-neuf-autres-erreurs">Les neuf autres erreurs</a></li>
+</ol>
+<h3 class="s-partie"><span>Partie 8</span><a href="#les-fiches-rapides">Les fiches rapides</a></h3><ol>
+<li class="s-chap"><span class="s-num">·</span><a href="#gold-daily-checklist">Gold Daily Checklist</a></li>
+<li class="s-chap"><span class="s-num">·</span><a href="#impact-des-news-sur-xauusd">Impact des news sur XAUUSD</a></li>
+<li class="s-chap"><span class="s-num">·</span><a href="#les-correlations-importantes">Les corrélations importantes</a></li>
+<li class="s-chap"><span class="s-num">·</span><a href="#mon-analyse-macro-en-5-minutes">Mon analyse macro en 5 minutes</a></li>
+</ol>
+<h3 class="s-partie"><span></span><a href="#pour-finir">Pour finir</a></h3><ol>
+<li class="s-chap"><span class="s-num">·</span><a href="#ce-que-vous-savez-maintenant">Ce que vous savez maintenant</a></li>
+<li class="s-chap"><span class="s-num">·</span><a href="#ou-trouver-les-donnees">Où trouver les données</a></li>
+</ol>
+</section>
+
+<main><div class="page">
+<h1 class="libre" id="avant-d-ouvrir-le-manuel">Avant d'ouvrir le manuel</h1>
+<h2 class="libre" id="comment-utiliser-ce-manuel">Comment utiliser ce manuel</h2>
+<p><em>Un outil de travail. Pas un livre à lire une fois.</em></p>
+<p>Vous savez lire un graphique. Vous savez marquer une structure, repérer une
+liquidité, exécuter proprement.</p>
+<p>Il vous manque une seule chose : <strong>savoir dans quel sens chercher.</strong></p>
+<p>C'est le seul objet de ce manuel.</p>
+<aside class="bloc bloc--cle"><p>La macro ne vous dira jamais quand entrer.
+Elle vous dira dans quel sens vous avez le droit de chercher.</p></aside>
+<h3 id="les-trois-usages">Les trois usages</h3>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>Chaque matin — 10 min</strong> Partie 5, la routine. Vous obtenez un biais écrit en trois lignes avant l'ouverture de Londres.</li>
+<li><strong>Avant une publication — 30 s</strong> Partie 2, la fiche de l'indicateur. Vous savez ce qui fait monter ou baisser l'or.</li>
+<li><strong>Le dimanche — 20 min</strong> Parties 3, 4 et 6. Vous fixez le régime de la semaine et le scénario dominant.</li>
+</ul></aside>
+<h3 id="ce-que-vous-ne-trouverez-pas-ici">Ce que vous ne trouverez pas ici</h3>
+<ul>
+<li>Aucune base de trading. Vous les avez déjà.</li>
+<li>Aucun signal d'achat ou de vente.</li>
+<li>Aucune théorie économique sans application directe sur XAUUSD.</li>
+</ul>
+<h3 id="le-code-couleur">Le code couleur</h3>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><p>Le noyau du chapitre. Si vous ne lisez qu'un bloc, c'est celui-là.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Ce que fait la majorité — et pourquoi ça coûte cher.</p></aside>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>La lecture réelle d'un desk. Souvent l'inverse de l'intuition.</p></aside>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>La nuance qui sépare une lecture correcte d'une lecture superficielle.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>La traduction immédiate en biais de trading sur l'or.</p></aside>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Fiche pratique</p><p>La checklist à cocher en séance.</p></aside>
+<h3 id="chaque-concept-trois-niveaux">Chaque concept, trois niveaux</h3>
+<p>Les notions importantes sont toujours expliquées ainsi :</p>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> En une phrase, sans jargon. Ce que vous diriez à quelqu'un qui n'y connaît rien.</li>
+<li><strong>Professionnel</strong> Le mécanisme exact, avec le vocabulaire du marché.</li>
+<li><strong>Sur le Gold</strong> Ce que vous en faites concrètement dans votre biais du jour.</li>
+</ul></aside>
+<h3 id="une-seule-chose-a-retenir-avant-de-commencer">Une seule chose à retenir avant de commencer</h3>
+<p>L'or ne verse aucun intérêt. Le détenir a donc un coût : le rendement auquel
+vous renoncez ailleurs.</p>
+<p>Ce coût porte un nom. <strong>Le taux réel.</strong></p>
+<aside class="bloc bloc--cle"><p>Taux réels en baisse → l'or monte.
+Taux réels en hausse → l'or baisse.
+Tout le reste de ce manuel explique ce qui fait bouger les taux réels.</p></aside>
+<h3 id="avertissement">Avertissement</h3>
+<p>Manuel pédagogique. Ne constitue pas un conseil en investissement, ne promet
+aucun résultat.</p>
+<p>Les chiffres et niveaux cités en exemple illustrent des <strong>mécanismes</strong> : ce sont
+des séquences typiques, pas un relevé historique. Les données réelles se
+vérifient sur les sources officielles listées en fin de manuel.</p>
+<h1 id="la-carte-d-identite-du-gold" data-eyebrow="Partie 1">La carte d'identité du Gold</h1>
+<p><em>Trois chapitres pour comprendre ce que vous tradez réellement.</em></p>
+<p>L'or n'est pas une matière première. Ce n'est pas non plus une action, ni une
+devise ordinaire.</p>
+<p>C'est un actif à part, avec ses propres règles. Cette partie les pose.</p>
+<h2 id="pourquoi-l-or-monte-ou-baisse" data-eyebrow="Chapitre 01">Pourquoi l'or monte ou baisse</h2>
+<p><em>Un seul moteur. Tout le reste n'est qu'un rouage.</em></p>
+<h3 id="le-point-de-depart">Le point de départ</h3>
+<p>L'or ne verse aucun intérêt.</p>
+<p>Pas de coupon. Pas de dividende. Pas de loyer. Il reste simplement lui-même.</p>
+<p>Détenir de l'or a donc un <strong>coût</strong> : le rendement auquel vous renoncez en ne
+plaçant pas cet argent ailleurs.</p>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> Si un placement sans risque rapporte 5 % par an, garder de l'or vous coûte 5 % par an. Quand ce placement ne rapporte plus rien, l'or ne coûte plus rien — et il monte.</li>
+<li><strong>Professionnel</strong> Le coût d'opportunité de l'or est le <strong>taux réel</strong> : taux nominal moins inflation anticipée. Il se lit directement sur le rendement des obligations américaines indexées sur l'inflation (TIPS 10 ans).</li>
+<li><strong>Sur le Gold</strong> Rendement réel 10 ans en baisse sur un mois → biais haussier de fond. En hausse → biais baissier de fond. C'est votre première vérification du dimanche.</li>
+</ul></aside>
+<aside class="bloc bloc--cle"><p>Taux réels ↓ → l'or monte.
+Taux réels ↑ → l'or baisse.</p></aside>
+<h3 id="les-quatre-forces-par-ordre-d-importance">Les quatre forces, par ordre d'importance</h3>
+<pre class="schema"><code>   1. TAUX RÉELS        ████████████████████  le moteur
+   2. DOLLAR (DXY)      ████████████          l'amplificateur
+   3. FLUX              ██████                ETF, banques centrales, positionnement
+   4. PEUR              ████                  crises, guerres — puissant mais bref
+</code></pre>
+<p>Les deux premières expliquent la majorité des mouvements. La troisième explique
+pourquoi les corrections finissent plus haut qu'avant. La quatrième explique les
+bougies spectaculaires… et leur disparition trois jours plus tard.</p>
+<h3 id="le-tableau-de-decision-de-fond">Le tableau de décision de fond</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Taux réels</th>
+<th>Dollar</th>
+<th>Biais sur l'or</th>
+<th>Conviction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>↓</td>
+<td>↓</td>
+<td><strong>Haussier</strong></td>
+<td>Maximale</td>
+</tr>
+<tr>
+<td>↓</td>
+<td>↑</td>
+<td>Haussier</td>
+<td>Moyenne — suivre les taux</td>
+</tr>
+<tr>
+<td>↑</td>
+<td>↓</td>
+<td>Baissier</td>
+<td>Moyenne — suivre les taux</td>
+</tr>
+<tr>
+<td>↑</td>
+<td>↑</td>
+<td><strong>Baissier</strong></td>
+<td>Maximale</td>
+</tr>
+</tbody>
+</table></div>
+<p>Quand les deux se contredisent, <strong>les taux réels gagnent</strong>. Toujours.</p>
+<h3 id="ce-qui-ne-fait-pas-bouger-l-or">Ce qui ne fait pas bouger l'or</h3>
+<p>Beaucoup de traders perdent du temps sur ces sujets. Ils n'expliquent aucun
+mouvement de votre semaine.</p>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>La production minière</strong> Elle ajoute environ 2 % au stock mondial chaque année. Tout l'or jamais extrait existe encore. L'offre nouvelle est négligeable.</li>
+<li><strong>La demande de bijoux</strong> Elle compte sur une décennie. Elle n'explique pas une bougie de 30 $ un mardi après-midi.</li>
+<li><strong>Le « prix de revient » des mines</strong> Un actif sans flux financier n'a pas de valeur théorique. Il n'y a pas de prix juste pour l'or.</li>
+<li><strong>Les prévisions de banques</strong> Un objectif à 12 mois publié dans la presse n'a aucune valeur opérationnelle pour votre séance.</li>
+</ul></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>« L'inflation monte, j'achète de l'or. »</p>
+<p>C'est l'erreur la plus coûteuse du marché. Si la banque centrale réagit plus
+vite que l'inflation, le taux réel <strong>monte</strong> — et l'or baisse.</p>
+<p>L'inflation seule n'est jamais un signal d'achat.</p></aside>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>L'or n'est pas suivi par le desk matières premières. Il est suivi par le desk
+<strong>taux et change</strong>, à côté du dollar et des obligations.</p>
+<p>Ce détail d'organisation dit tout : pour un professionnel, l'or est une devise
+sans État.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ul>
+<li>L'or ne rapporte rien : le détenir coûte le taux réel.</li>
+<li>Taux réels en baisse = or en hausse. C'est le mécanisme central.</li>
+<li>Le dollar amplifie, les flux soutiennent, la peur fait du bruit.</li>
+<li>Quand deux signaux se contredisent, les taux réels tranchent.</li>
+</ul></aside>
+<h2 id="qui-fait-le-prix-de-l-or" data-eyebrow="Chapitre 02">Qui fait le prix de l'or</h2>
+<p><em>Cinq acteurs. Trois comptent pour votre semaine.</em></p>
+<h3 id="la-carte-des-intervenants">La carte des intervenants</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Acteur</th>
+<th>Horizon</th>
+<th>Poids sur votre semaine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Fonds macro / marché à terme</strong></td>
+<td>Jours à mois</td>
+<td>★★★★</td>
+</tr>
+<tr>
+<td><strong>ETF adossés à l'or</strong></td>
+<td>Semaines à mois</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td><strong>Banques centrales</strong></td>
+<td>Années</td>
+<td>★ (mais soutien permanent)</td>
+</tr>
+<tr>
+<td><strong>Demande physique</strong> (bijoux, pièces)</td>
+<td>Saisonnier</td>
+<td>★</td>
+</tr>
+<tr>
+<td><strong>Mines</strong></td>
+<td>Décennies</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ce-que-fait-chacun">Ce que fait chacun</h3>
+<p><strong>Les fonds macro.</strong> Ils parient sur la trajectoire des taux réels. Ce sont eux
+qui créent les tendances de plusieurs semaines. Ils construisent leur position
+<strong>dans les corrections</strong>, jamais en une fois.</p>
+<p><strong>Les ETF.</strong> Quand les investisseurs entrent, l'ETF achète de l'or physique. Ses
+encours sont publiés chaque jour : c'est le thermomètre le plus lisible du
+sentiment.</p>
+<p><strong>Les banques centrales.</strong> Elles achètent pour diversifier leurs réserves.
+Lentement, régulièrement, <strong>sans regarder le prix</strong>. Elles n'expliquent aucune
+séance, mais elles expliquent pourquoi les creux se relèvent d'année en année.</p>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Une hausse de l'or <strong>sans</strong> entrées ETF est une hausse fragile : elle est portée
+par des positions à terme qui devront être débouclées.</p>
+<p>Une hausse <strong>avec</strong> entrées ETF est une hausse solide : de l'argent réel est
+entré.</p>
+<p>Vérifiez les encours ETF une fois par semaine. C'est gratuit, public, et cela
+change votre niveau de conviction.</p></aside>
+<h3 id="pourquoi-les-supports-tiennent-plusieurs-fois">Pourquoi les supports tiennent plusieurs fois</h3>
+<p>Un fonds qui veut acheter l'équivalent de plusieurs tonnes ne clique pas une
+fois.</p>
+<p>Il fractionne son ordre sur des jours, parfois des semaines. Une baisse est pour
+lui une <strong>bonne</strong> nouvelle : elle améliore son prix moyen.</p>
+<pre class="schema"><code>   Objectif du fonds : accumuler sur 3 semaines
+        │
+        ├─ baisse ──► il achète       ──► le support tient
+        ├─ baisse ──► il achète       ──► le support tient
+        └─ baisse ──► il achète       ──► le support tient
+   Puis l'exécution est terminée ──► le support cède d'un coup
+</code></pre>
+<p>Ce n'est pas de la magie technique. C'est un programme d'exécution qui se
+déroule, puis qui s'arrête.</p>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>La question posée sur un desk devant une hausse de l'or n'est jamais « jusqu'où
+va-t-elle ? ».</p>
+<p>C'est : <strong>« qui achète ? »</strong></p>
+<p>Fonds spéculatifs déjà chargés → fragile.
+Flux ETF réguliers + banques centrales → solide.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Avant de suivre une tendance sur l'or, posez-vous une seule question : est-ce
+que quelqu'un de patient est derrière ?</p>
+<p>Corrections rachetées rapidement, sans nouvelle particulière = programme
+d'achat en cours = suivez la tendance.</p>
+<p>Hausse verticale sur une news, sans suivi = position spéculative = attendez le
+retour.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ul>
+<li>Le prix se forme sur les marchés financiers, pas dans les bijouteries.</li>
+<li>Trois acteurs comptent pour votre semaine : fonds à terme, ETF, dollar.</li>
+<li>Les banques centrales sont un acheteur insensible au prix, en permanence sous
+  le marché.</li>
+<li>Une hausse sans flux ETF est fragile.</li>
+</ul></aside>
+<h2 id="les-10-choses-qui-font-bouger-le-gold" data-eyebrow="Chapitre 03">Les 10 choses qui font bouger le Gold</h2>
+<p><em>La fiche à connaître par cœur. Rien d'autre n'a d'importance quotidienne.</em></p>
+<section class="bloc bloc--respiration"><p class="bloc-titre">LES 10 MOTEURS DU XAUUSD</p><h3 id="1-les-taux-reels-americains">1. Les taux réels américains</h3>
+<p>Le moteur principal. En baisse → or en hausse. Se lit sur le rendement TIPS
+10 ans.</p>
+<h3 id="2-le-dollar-dxy">2. Le dollar (DXY)</h3>
+<p>L'amplificateur. Dollar fort → vent de face. À 58 %, c'est un EURUSD inversé.</p>
+<h3 id="3-les-anticipations-de-la-fed">3. Les anticipations de la Fed</h3>
+<p>Ce n'est pas la décision qui compte, c'est la <strong>trajectoire attendue</strong>. Un ton
+plus souple que prévu fait monter l'or, même sans baisse de taux.</p>
+<h3 id="4-l-inflation-mais-seulement-par-rapport-aux-taux">4. L'inflation — mais seulement par rapport aux taux</h3>
+<p>Inflation plus forte que prévu → la Fed durcit → or en baisse. Le lien direct
+« inflation = or » n'existe pas.</p>
+<h3 id="5-le-rendement-du-10-ans">5. Le rendement du 10 ans</h3>
+<p>Le concurrent direct de l'or. En hausse rapide → l'or souffre.</p>
+<h3 id="6-les-flux-etf">6. Les flux ETF</h3>
+<p>De l'argent réel qui entre ou sort. Confirme ou infirme la solidité d'un
+mouvement.</p>
+<h3 id="7-les-achats-des-banques-centrales">7. Les achats des banques centrales</h3>
+<p>Un soutien permanent, invisible au jour le jour, décisif sur plusieurs années.</p>
+<h3 id="8-le-risque-geopolitique">8. Le risque géopolitique</h3>
+<p>Puissant et bref. Ne devient durable que s'il touche l'énergie ou la politique
+monétaire.</p>
+<h3 id="9-le-positionnement">9. Le positionnement</h3>
+<p>Quand tout le monde est déjà long, il ne reste plus d'acheteur marginal. Le
+carburant est consommé.</p>
+<h3 id="10-la-liquidite-globale">10. La liquidité globale</h3>
+<p>QE / QT, bilan des banques centrales. Explique les années, jamais les séances.</p></section>
+<h3 id="la-hierarchie-en-une-image">La hiérarchie en une image</h3>
+<pre class="schema"><code>   ┌──────────────────────────────────────────────────────────┐
+   │  TAUX RÉELS          ◄── 1 seule question le dimanche    │
+   ├──────────────────────────────────────────────────────────┤
+   │  DOLLAR · RENDEMENTS ◄── 2 écrans, tous les matins       │
+   ├──────────────────────────────────────────────────────────┤
+   │  FED · INFLATION     ◄── le calendrier de la semaine     │
+   ├──────────────────────────────────────────────────────────┤
+   │  FLUX · POSITIONNEMENT ◄── contrôle hebdomadaire          │
+   ├──────────────────────────────────────────────────────────┤
+   │  PEUR · GÉOPOLITIQUE ◄── réactif, rarement durable       │
+   └──────────────────────────────────────────────────────────┘
+</code></pre>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Les 3 questions du dimanche</p><ul>
+<li>☐ Le rendement réel 10 ans monte-t-il ou baisse-t-il sur un mois ?</li>
+<li>☐ Le DXY est-il au-dessus ou en dessous de sa moyenne 50 jours ?</li>
+<li>☐ Y a-t-il un événement majeur cette semaine ? (CPI, NFP, FOMC)</li>
+</ul>
+<p>Deux réponses favorables sur trois = biais directionnel assumé pour la semaine.</p></aside>
+<h1 id="les-indicateurs-macro" data-eyebrow="Partie 2">Les indicateurs macro</h1>
+<p><em>Onze fiches. Toujours le même format. Trente secondes de lecture chacune.</em></p>
+<p>Avant chaque publication, ouvrez la fiche correspondante. Vous saurez ce que le
+marché attend, et dans quel sens l'or réagit.</p>
+<aside class="bloc bloc--cle"><p>Le marché ne réagit jamais au chiffre.
+Il réagit à l'écart entre le chiffre et ce qui était attendu.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">La règle universelle</p><p>Pour presque tous les indicateurs d'<strong>inflation</strong> et d'<strong>activité</strong> :</p>
+<p><strong>Plus fort que prévu → dollar ↑ → OR ↓</strong>
+<strong>Plus faible que prévu → dollar ↓ → OR ↑</strong></p>
+<p>Les seules exceptions : le taux de chômage et les inscriptions au chômage, où
+un chiffre plus élevé est une <strong>mauvaise</strong> nouvelle économique, donc <strong>haussière</strong>
+pour l'or.</p></aside>
+<h2 class="fiche" id="cpi" data-eyebrow="Fiche 01">CPI</h2>
+<p><em>Le chiffre le plus attendu du mois. Mouvements de 30 à 60 $ en dix minutes.</em></p>
+<h3 id="a-quoi-ca-sert">À quoi ça sert</h3>
+<p>Le CPI (<em>Consumer Price Index</em>) mesure l'évolution du prix d'un panier de biens
+et de services achetés par les ménages américains.</p>
+<p>Publié chaque mois par le Bureau of Labor Statistics, à <strong>14 h 30</strong> heure de
+Paris.</p>
+<h3 id="pourquoi-le-marche-le-regarde">Pourquoi le marché le regarde</h3>
+<p>C'est le baromètre le plus rapide de l'inflation. Il conditionne directement les
+anticipations de taux — donc le dollar, les rendements et l'or.</p>
+<h3 id="reaction-sur-le-gold">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Enchaînement</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Supérieur aux attentes</strong></td>
+<td>Fed plus dure → taux ↑ → DXY ↑</td>
+<td><strong>OR ↓</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td><strong>Inférieur aux attentes</strong></td>
+<td>Fed peut assouplir → taux ↓ → DXY ↓</td>
+<td><strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Conforme</td>
+<td>Rien de neuf</td>
+<td>Retour au contexte</td>
+<td>★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente">Quand la réaction est différente</h3>
+<ul>
+<li><strong>Si la surprise vient de l'énergie</strong> — le marché la relativise. La Fed ne
+  réagit pas au prix du pétrole.</li>
+<li><strong>Si la Fed ne peut pas durcir</strong> (crise bancaire, récession) — une inflation
+  plus forte devient <strong>haussière</strong> pour l'or.</li>
+<li><strong>Si le Core contredit le global</strong> — le marché suit le <strong>Core</strong>.</li>
+</ul>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Regardez le <strong>Core</strong>, en variation <strong>mensuelle</strong>, et l'écart au consensus.
+Le reste est du bruit.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>14 h 00 : aucune position à taille normale.
+14 h 30 : on observe. On ne trade pas.
+15 h 00–16 h 00 : entrée sur le retour dans le déséquilibre laissé par
+l'impulsion, dans le sens de la surprise, stop au-delà de l'extrême de la
+fenêtre.</p></aside>
+<h2 class="fiche" id="core-cpi" data-eyebrow="Fiche 02">Core CPI</h2>
+<p><em>Le vrai patron. C'est lui qui décide de la politique de la Fed.</em></p>
+<h3 id="a-quoi-ca-sert-2">À quoi ça sert</h3>
+<p>Même panier que le CPI, mais <strong>hors énergie et alimentation</strong>.</p>
+<p>Ces deux composantes sont trop volatiles et dépendent de facteurs (météo, OPEP,
+guerres) sur lesquels une banque centrale n'a aucune prise.</p>
+<h3 id="pourquoi-le-marche-le-regarde-2">Pourquoi le marché le regarde</h3>
+<p>Le Core mesure l'inflation <strong>persistante</strong> — celle qui s'installe dans les
+loyers et les salaires. C'est celle qui empêche la Fed de baisser ses taux.</p>
+<h3 id="reaction-sur-le-gold-2">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Core inférieur aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Core conforme mais global surprenant</td>
+<td>Réaction courte, puis retour</td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-2">Quand la réaction est différente</h3>
+<p>Tout dépend de <strong>quelle composante</strong> crée la surprise :</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Composante</th>
+<th>Réaction du marché</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Logement</td>
+<td>Minimisée — c'est une donnée retardée</td>
+</tr>
+<tr>
+<td>Biens</td>
+<td>Modérée</td>
+</tr>
+<tr>
+<td><strong>Services hors logement</strong></td>
+<td><strong>Maximale</strong> — c'est l'inflation la plus difficile à faire reculer</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Les professionnels appellent « supercore » les services hors logement.</p>
+<p>Quand cette ligne surprend à la hausse, la réaction ne se dégonfle pas : elle
+s'installe pendant plusieurs séances. Quand la surprise vient du logement, elle
+s'efface souvent dans l'heure.</p>
+<p>C'est exactement là que se trouve la différence entre un trader qui subit le CPI
+et un trader qui l'exploite.</p></aside>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Core mensuel + services hors logement = les deux seules lignes à regarder.</p></aside>
+<h2 class="fiche" id="pce" data-eyebrow="Fiche 03">PCE</h2>
+<p><em>Le chiffre officiel de la Fed. Moins spectaculaire, plus décisif.</em></p>
+<h3 id="a-quoi-ca-sert-3">À quoi ça sert</h3>
+<p>Le PCE (<em>Personal Consumption Expenditures</em>) mesure lui aussi l'inflation, mais
+avec un panier <strong>évolutif</strong> : il tient compte du fait que les consommateurs
+remplacent un produit devenu cher par un autre.</p>
+<p>Publié en fin de mois par le Bureau of Economic Analysis, à 14 h 30.</p>
+<h3 id="pourquoi-le-marche-le-regarde-3">Pourquoi le marché le regarde</h3>
+<p>La cible officielle de 2 % de la Réserve fédérale porte sur le <strong>Core PCE</strong>, pas
+sur le CPI.</p>
+<p>Quand un membre de la Fed dit « nous avons besoin de plus de confiance », il
+parle de ce chiffre.</p>
+<h3 id="reaction-sur-le-gold-3">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core PCE supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Core PCE inférieur aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>PCE qui contredit le CPI publié deux semaines plus tôt</td>
+<td>Correction du mouvement précédent</td>
+<td>★★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-3">Quand la réaction est différente</h3>
+<p>Le PCE sort en même temps que les <strong>revenus et dépenses des ménages</strong>. Si ces
+derniers surprennent fortement, la réaction de l'or peut être dictée par la
+croissance, pas par l'inflation.</p>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>La mesure réellement citée par les membres de la Fed est le <strong>Core PCE annualisé
+sur 3 mois</strong>. Elle lisse le bruit mensuel.</p>
+<p>Tant qu'elle reste nettement au-dessus de 2 %, aucun grand cycle de baisse de
+taux n'est crédible — et donc aucun grand marché haussier durable sur l'or.</p></aside>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Le CPI fait le bruit. Le PCE fait la décision.</p></aside>
+<h2 class="fiche" id="ppi" data-eyebrow="Fiche 04">PPI</h2>
+<p><em>L'inflation en amont. Le signal avancé que peu de traders exploitent.</em></p>
+<h3 id="a-quoi-ca-sert-4">À quoi ça sert</h3>
+<p>Le PPI (<em>Producer Price Index</em>) mesure les prix de vente perçus par les
+producteurs — l'inflation <strong>avant</strong> qu'elle n'arrive en magasin.</p>
+<h3 id="pourquoi-le-marche-le-regarde-4">Pourquoi le marché le regarde</h3>
+<p>Deux raisons :</p>
+<ol>
+<li>Il annonce la tendance du CPI des mois suivants.</li>
+<li>Certaines de ses composantes entrent <strong>directement</strong> dans le calcul du PCE :
+   les analystes recalculent leur estimation dans les minutes qui suivent.</li>
+</ol>
+<h3 id="reaction-sur-le-gold-4">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Inférieur aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Très éloigné du consensus</td>
+<td>Réaction amplifiée (révision du PCE attendu)</td>
+<td>★★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-4">Quand la réaction est différente</h3>
+<p>Si la surprise vient de l'<strong>énergie</strong> ou des matières premières, le marché la
+relativise : ces coûts ne se transmettent pas toujours au consommateur.</p>
+<aside class="bloc bloc--astuce"><p class="bloc-titre">Astuce</p><p>Le PPI est un excellent terrain d'entraînement.</p>
+<p>Volatilité plus faible que le CPI, mais même mécanique. Utilisez-le pour
+répéter la routine « observer 30 minutes, marquer le déséquilibre, entrer au
+retour » sans le risque d'un jour de CPI.</p></aside>
+<h2 class="fiche" id="nfp" data-eyebrow="Fiche 05">NFP</h2>
+<p><em>Premier vendredi du mois. La séance la plus violente de l'or.</em></p>
+<h3 id="a-quoi-ca-sert-5">À quoi ça sert</h3>
+<p>Le rapport NFP (<em>Non-Farm Payrolls</em>) mesure les créations d'emplois hors
+agriculture aux États-Unis. Publié à <strong>14 h 30</strong>, premier vendredi du mois.</p>
+<p>Il contient <strong>trois</strong> chiffres, pas un :</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Importance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Créations d'emplois</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Taux de chômage</td>
+<td>★★</td>
+</tr>
+<tr>
+<td><strong>Salaire horaire moyen</strong></td>
+<td>★★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="pourquoi-le-marche-le-regarde-5">Pourquoi le marché le regarde</h3>
+<p>L'emploi est le premier des deux mandats de la Fed. Et le salaire horaire
+alimente directement l'inflation des services.</p>
+<h3 id="reaction-sur-le-gold-5">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Emplois <strong>et</strong> salaires supérieurs aux attentes</td>
+<td><strong>OR ↓↓</strong></td>
+<td>★★★★</td>
+</tr>
+<tr>
+<td>Emplois supérieurs, salaires faibles</td>
+<td>Neutre à légèrement haussier</td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Emplois nettement inférieurs</td>
+<td><strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Emplois faibles + salaires forts (stagflation)</td>
+<td>Volatil, puis <strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Révisions fortement négatives des mois précédents</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-5">Quand la réaction est différente</h3>
+<p>En fin de cycle, un très mauvais chiffre peut faire <strong>baisser</strong> l'or pendant
+quelques heures : la crainte de récession déclenche des ventes pour faire du
+cash. La hausse revient dès que les anticipations de baisse de taux s'installent.</p>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Laisser une position ouverte à taille normale à 14 h 29 « parce que le setup
+était bon ».</p>
+<p>Le slippage sur les stops pendant le NFP peut doubler votre risque réel. Un bon
+setup au mauvais moment est un mauvais trade.</p></aside>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Sur un desk, personne ne trade la première bougie.</p>
+<p>Règle non écrite : <strong>les cinq premières minutes appartiennent aux machines.</strong>
+Les humains décident entre la 15ᵉ et la 45ᵉ minute, quand le spread est
+redevenu normal et que la direction est confirmée.</p></aside>
+<h2 class="fiche" id="taux-de-chomage" data-eyebrow="Fiche 06">Taux de chômage</h2>
+<p><em>Attention au piège : il peut baisser pour une mauvaise raison.</em></p>
+<h3 id="a-quoi-ca-sert-6">À quoi ça sert</h3>
+<p>Il mesure la part de la population active sans emploi. Publié avec le NFP.</p>
+<h3 id="pourquoi-le-marche-le-regarde-6">Pourquoi le marché le regarde</h3>
+<p>Parce que c'est la mesure la plus lisible du mandat « plein emploi » de la Fed.</p>
+<p>Mais il ne se lit jamais seul : il faut le croiser avec le <strong>taux de
+participation</strong>. Un chômage qui baisse parce que des gens abandonnent la
+recherche d'emploi n'est pas une bonne nouvelle.</p>
+<h3 id="reaction-sur-le-gold-attention-sens-inverse">Réaction sur le Gold — attention, sens inversé</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Lecture</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Chômage supérieur aux attentes</strong></td>
+<td>L'économie ralentit → baisses de taux plus proches</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td><strong>Chômage inférieur aux attentes</strong></td>
+<td>Marché du travail tendu → Fed ferme</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="le-signal-a-connaitre-la-regle-de-sahm">Le signal à connaître : la règle de Sahm</h3>
+<pre class="schema"><code>   Chômage (moyenne 3 mois) − plus bas des 12 derniers mois &gt; 0,5 point
+        ↓
+   Une récession est historiquement déjà en cours
+        ↓
+   Baisses de taux à venir  ──►  taux réels ↓  ──►  OR ↑↑
+</code></pre>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>La règle de Sahm est devenue une référence partagée par tout le marché. Son
+franchissement est un <strong>événement de marché à part entière</strong>, pas une curiosité
+académique.</p>
+<p>Calculez-la une fois par mois. C'est une soustraction. Elle vous donne un
+signal avancé de grand marché haussier sur l'or.</p></aside>
+<h2 class="fiche" id="jolts" data-eyebrow="Fiche 07">JOLTS</h2>
+<p><em>La tension du marché du travail. L'indicateur préféré de la Fed sur les salaires.</em></p>
+<h3 id="a-quoi-ca-sert-7">À quoi ça sert</h3>
+<p>Le rapport JOLTS mesure le nombre de <strong>postes vacants</strong> aux États-Unis. Publié
+avec environ un mois de retard.</p>
+<h3 id="pourquoi-le-marche-le-regarde-7">Pourquoi le marché le regarde</h3>
+<p>Beaucoup de postes vacants pour peu de chômeurs = les entreprises doivent
+augmenter les salaires pour recruter = inflation des services.</p>
+<p>Le ratio <strong>postes vacants / chômeurs</strong> est cité directement dans les discours de
+la Fed.</p>
+<h3 id="reaction-sur-le-gold-6">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Lecture</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Postes vacants supérieurs aux attentes</td>
+<td>Marché tendu, pression salariale</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Postes vacants inférieurs aux attentes</td>
+<td>Détente, moins de pression</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-6">Quand la réaction est différente</h3>
+<p>La donnée est ancienne d'un mois. Si un NFP récent a déjà raconté une autre
+histoire, le marché ignore largement les JOLTS.</p>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Ratio postes vacants / chômeurs qui se détend = bonne nouvelle pour l'or.</p></aside>
+<h2 class="fiche" id="pib" data-eyebrow="Fiche 08">PIB</h2>
+<p><em>Une photo du passé. Utile pour le cadre, pas pour la séance.</em></p>
+<h3 id="a-quoi-ca-sert-8">À quoi ça sert</h3>
+<p>Le PIB mesure la production totale de l'économie sur un trimestre. Publié en
+trois estimations successives.</p>
+<h3 id="pourquoi-le-marche-le-regarde-8">Pourquoi le marché le regarde</h3>
+<p>Parce qu'il dit si l'économie tient. Tant qu'elle tient, la Fed n'a aucune
+raison d'assouplir — et l'or n'a pas de vent arrière.</p>
+<h3 id="reaction-sur-le-gold-7">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PIB nettement supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>PIB nettement inférieur aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Surprise due aux <strong>stocks</strong></td>
+<td>Effet éphémère</td>
+<td>★</td>
+</tr>
+<tr>
+<td>Surprise due à la <strong>consommation</strong></td>
+<td>Effet durable</td>
+<td>★★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-7">Quand la réaction est différente</h3>
+<p>Si le marché anticipe déjà une récession, un mauvais PIB ne fait rien : il
+confirme ce qui est déjà valorisé.</p>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Un desk connaît l'ordre de grandeur du PIB des semaines avant sa publication,
+grâce aux modèles de suivi en temps réel mis à jour à chaque donnée mensuelle.</p>
+<p>La publication officielle n'est une surprise que pour ceux qui ne les suivent
+pas.</p></aside>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Regardez la <strong>composition</strong>, jamais le titre. Consommation = durable. Stocks =
+éphémère.</p></aside>
+<h2 class="fiche" id="pmi" data-eyebrow="Fiche 09">PMI</h2>
+<p><em>Une enquête auprès des directeurs d'achat. Un seul seuil : 50.</em></p>
+<h3 id="a-quoi-ca-sert-9">À quoi ça sert</h3>
+<p>Le PMI interroge directement les entreprises sur leurs commandes, leur
+production, leurs prix et leurs délais. Il sort <strong>avant</strong> les chiffres
+officiels.</p>
+<pre class="schema"><code>   Indice &gt; 50   ──►  EXPANSION    l'activité progresse
+   Indice &lt; 50   ──►  CONTRACTION  l'activité recule
+</code></pre>
+<h3 id="pourquoi-le-marche-le-regarde-9">Pourquoi le marché le regarde</h3>
+<p>C'est un indicateur <strong>avancé</strong>. Il décrit le mois en cours, pas le trimestre
+passé.</p>
+<h3 id="reaction-sur-le-gold-8">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PMI supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>PMI inférieur aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td><strong>Franchissement du seuil de 50</strong></td>
+<td>Réaction amplifiée</td>
+<td>★★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-8">Quand la réaction est différente</h3>
+<p>Le PMI publié par un opérateur privé sort quelques jours avant l'ISM. Il
+prépare le terrain, mais c'est <strong>l'ISM</strong> qui fait bouger les marchés.</p>
+<aside class="bloc bloc--memo"><p class="bloc-titre">Mémo</p><p>Le passage de 50,5 à 49,5 déplace plus le marché que celui de 54 à 52.
+Le seuil compte plus que la variation.</p></aside>
+<h2 class="fiche" id="ism" data-eyebrow="Fiche 10">ISM</h2>
+<p><em>La version qui compte vraiment. Surtout la partie services.</em></p>
+<h3 id="a-quoi-ca-sert-10">À quoi ça sert</h3>
+<p>Même principe que le PMI, publié par l'Institute for Supply Management. Deux
+versions :</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Enquête</th>
+<th>Publication</th>
+<th>Importance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ISM manufacturier</td>
+<td>1ᵉʳ jour ouvré du mois, 16 h</td>
+<td>★★</td>
+</tr>
+<tr>
+<td><strong>ISM services</strong></td>
+<td>3ᵉ jour ouvré du mois, 16 h</td>
+<td>★★★★</td>
+</tr>
+</tbody>
+</table></div>
+<p>L'économie américaine est une économie de services. C'est donc la seconde qui
+décide.</p>
+<h3 id="les-deux-sous-indices-a-lire">Les deux sous-indices à lire</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Sous-indice</th>
+<th>Ce qu'il annonce</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nouvelles commandes</strong></td>
+<td>L'activité des mois suivants</td>
+</tr>
+<tr>
+<td><strong>Prix payés</strong></td>
+<td>L'inflation à venir (CPI, PPI)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="reaction-sur-le-gold-9">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ISM services sous 50</td>
+<td><strong>OR ↑</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>ISM services très supérieur aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Prix payés en forte hausse</td>
+<td><strong>OR ↓</strong> (inflation à venir)</td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Nouvelles commandes en chute</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-9">Quand la réaction est différente</h3>
+<p>L'ISM manufacturier peut rester sous 50 plus d'un an sans récession. Ne
+construisez jamais un scénario de récession sur lui seul.</p>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Le raccourci de desk : <strong>« commandes en baisse + prix payés en hausse = le pire
+mélange »</strong>.</p>
+<p>C'est la signature de la stagflation — historiquement l'environnement le plus
+favorable à l'or.</p></aside>
+<h2 class="fiche" id="ventes-au-detail" data-eyebrow="Fiche 11">Ventes au détail</h2>
+<p><em>70 % de l'économie américaine. Quand le consommateur craque, le cycle bascule.</em></p>
+<h3 id="a-quoi-ca-sert-11">À quoi ça sert</h3>
+<p>Elles mesurent ce que les ménages dépensent réellement. Publiées vers le
+milieu du mois, à 14 h 30.</p>
+<h3 id="pourquoi-le-marche-le-regarde-10">Pourquoi le marché le regarde</h3>
+<p>La consommation représente environ 70 % du PIB américain. Tant qu'elle tient, il
+n'y a pas de récession — donc pas de grand cycle haussier sur l'or.</p>
+<h3 id="reaction-sur-le-gold-10">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Résultat</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ventes supérieures aux attentes</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Ventes inférieures aux attentes</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Ventes correctes mais <strong>révisions négatives</strong></td>
+<td>Souvent haussier</td>
+<td>★★</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="quand-la-reaction-est-differente-10">Quand la réaction est différente</h3>
+<p>Les ventes sont exprimées <strong>en valeur</strong>, donc gonflées par l'inflation. Des
+ventes « fortes » peuvent correspondre à des volumes en baisse.</p>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Deux corrections à faire, systématiquement :</p>
+<ol>
+<li>Regardez le <strong>groupe de contrôle</strong> (hors automobile, carburant, matériaux et
+   restauration) : c'est la mesure qui entre dans le calcul du PIB.</li>
+<li>Lisez les <strong>révisions</strong> du mois précédent.</li>
+</ol>
+<p>Une bonne moitié des surprises apparentes disparaît après ces deux
+vérifications.</p></aside>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Le réflexe de fin de cycle</p><ul>
+<li>☐ Le taux d'épargne fond-il ?</li>
+<li>☐ Les défauts sur cartes de crédit et crédits auto montent-ils ?</li>
+<li>☐ Les ventes ralentissent-elles <strong>en volume</strong> ?</li>
+</ul>
+<p>Trois oui = le consommateur américain est en train de céder = l'or entre dans
+son meilleur régime.</p></aside>
+<h1 id="la-fed" data-eyebrow="Partie 3">La Fed</h1>
+<p><em>Aucune institution n'a autant de pouvoir sur le prix de l'or.</em></p>
+<p>Quatre chapitres pour décoder ce qu'elle dit, avant que le marché ne le
+comprenne.</p>
+<aside class="bloc bloc--cle"><p>La Fed ne fixe pas le prix de l'or.
+Elle fixe le prix de l'argent — et l'or suit.</p></aside>
+<h2 id="hawkish-ou-dovish-decider-en-60-secondes" data-eyebrow="Chapitre 04">Hawkish ou dovish : décider en 60 secondes</h2>
+<p><em>Deux mots. Ils valent des dizaines de dollars l'once.</em></p>
+<h3 id="le-principe">Le principe</h3>
+<pre class="schema"><code>   HAWKISH (faucon)   ferme contre l'inflation   ──► taux ↑ ──► DXY ↑ ──► OR ↓
+   DOVISH  (colombe)  soucieux de l'économie     ──► taux ↓ ──► DXY ↓ ──► OR ↑
+</code></pre>
+<p>Mais attention, la vraie règle est ailleurs.</p>
+<aside class="bloc bloc--cle"><p>Un discours n'est jamais hawkish ou dovish dans l'absolu.
+Il l'est <strong>par rapport à ce que le marché attendait.</strong></p></aside>
+<p>Un ton ferme, mais moins ferme que prévu → l'or monte.
+Un ton souple, mais moins souple que prévu → l'or baisse.</p>
+<h3 id="le-dictionnaire-de-traduction">Le dictionnaire de traduction</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Ce qui est dit</th>
+<th>Ce que ça veut dire</th>
+<th>Ton</th>
+<th>Or</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>« des hausses supplémentaires pourraient être appropriées »</td>
+<td>On n'a pas fini</td>
+<td>Hawkish</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>« l'inflation reste trop élevée »</td>
+<td>Pas de baisse à court terme</td>
+<td>Hawkish</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>« il nous faut plus de confiance »</td>
+<td>Pas de baisse tout de suite</td>
+<td>Hawkish</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>« nous n'hésiterons pas à agir »</td>
+<td>Prêts à durcir</td>
+<td>Hawkish</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>« nous procéderons avec prudence »</td>
+<td>On ralentit le rythme</td>
+<td>Neutre-dovish</td>
+<td>↑</td>
+</tr>
+<tr>
+<td>« nous sommes attentifs aux données »</td>
+<td>On ne s'engage pas</td>
+<td>Neutre</td>
+<td>—</td>
+</tr>
+<tr>
+<td>« les risques sont mieux équilibrés »</td>
+<td>L'inflation n'est plus la seule crainte</td>
+<td>Dovish</td>
+<td>↑</td>
+</tr>
+<tr>
+<td>« la politique est suffisamment restrictive »</td>
+<td>C'est probablement le sommet</td>
+<td>Dovish</td>
+<td>↑</td>
+</tr>
+<tr>
+<td>« nous surveillons les risques pour l'emploi »</td>
+<td>Le second mandat revient</td>
+<td>Dovish</td>
+<td>↑</td>
+</tr>
+<tr>
+<td>« la désinflation est en cours »</td>
+<td>Le combat est en train d'être gagné</td>
+<td>Dovish</td>
+<td>↑</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="le-test-en-trois-questions">Le test en trois questions</h3>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Est-ce hawkish ou dovish ? — 60 secondes</p><ul>
+<li>☐ <strong>1.</strong> Combien de baisses de taux le marché valorisait-il <strong>avant</strong> ?</li>
+<li>☐ <strong>2.</strong> Le discours en implique-t-il plus, ou moins ?</li>
+<li>☐ <strong>3.</strong> Le rendement à 2 ans monte-t-il ou baisse-t-il dans les 5 minutes ?</li>
+</ul>
+<p>La question 3 est le juge. Le 2 ans ne se trompe jamais sur l'interprétation
+du marché.</p></aside>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Ce ne sont pas les phrases <strong>ajoutées</strong> qui comptent le plus. Ce sont les
+phrases <strong>supprimées</strong>.</p>
+<p>Quand une formulation disparaît d'un communiqué — « des hausses supplémentaires
+pourraient être nécessaires », par exemple — c'est un signal beaucoup plus fort
+qu'une nouvelle phrase prudente.</p>
+<p>Gardez le communiqué précédent ouvert dans une fenêtre. Comparez. C'est ce que
+font les desks, en quelques secondes.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Juger un discours « dur » ou « souple » selon son propre ressenti.</p>
+<p>Le marché ne réagit jamais au contenu absolu. Il réagit à l'écart avec ce qui
+était attendu. Sans connaître le point de départ, vous ne pouvez pas mesurer le
+mouvement.</p></aside>
+<h2 id="lire-un-discours-de-powell" data-eyebrow="Chapitre 05">Lire un discours de Powell</h2>
+<p><em>Le communiqué est écrit. La conférence est improvisée. C'est là que tout se joue.</em></p>
+<h3 id="les-deux-vagues">Les deux vagues</h3>
+<pre class="schema"><code>   20 h 00   COMMUNIQUÉ            texte écrit, prudent, souvent proche du précédent
+                                   ──► réaction algorithmique immédiate
+   20 h 30   CONFÉRENCE DE PRESSE  questions-réponses, improvisé
+                                   ──► SECONDE VAGUE, souvent OPPOSÉE à la première
+   21 h 30   fin                   le marché a choisi sa direction
+</code></pre>
+<aside class="bloc bloc--cle"><p>La deuxième vague efface régulièrement la première.
+Le vrai biais s'établit après 21 h 00.</p></aside>
+<h3 id="une-soiree-type">Une soirée type</h3>
+<aside class="bloc bloc--histoire"><p class="bloc-titre">Histoire de marché</p><p><strong>20 h 00</strong> — Taux inchangés, comme prévu. Le communiqué retire une phrase sur
+d'éventuelles hausses. Les algorithmes lisent cela comme un assouplissement :
+le dollar chute, <strong>l'or gagne 22 $ en deux minutes</strong>.</p>
+<p><strong>20 h 31</strong> — La conférence commence. À la troisième question, Powell déclare
+que le comité a besoin de « beaucoup plus de confiance » avant de baisser.</p>
+<p><strong>20 h 34</strong> — Retournement complet. <strong>L'or perd 38 $</strong> et termine sous son
+niveau de départ.</p>
+<p>Le trader entré à 20 h 02 a vu un gain de 22 $ devenir une perte. Celui qui a
+attendu 21 h 00 a pris la vraie direction, avec un stop clair au-dessus du
+sommet de la soirée.</p></aside>
+<h3 id="ce-qu-il-faut-ecouter">Ce qu'il faut écouter</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Poids</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Le ton général (hésitations, insistance)</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Les réponses sur le <strong>calendrier</strong> des baisses</td>
+<td>★★★★</td>
+</tr>
+<tr>
+<td>Les réponses sur l'emploi</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Les réponses sur la stabilité financière</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Les questions journalistiques sans intérêt</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Sur un desk, la soirée FOMC se joue en deux temps : comparaison automatique du
+texte à 20 h 00, écoute humaine à 20 h 30.</p>
+<p>Le positionnement réel se prend <strong>après</strong> la conférence. Jamais avant.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Règle simple et non négociable :</p>
+<p><strong>Aucune position à taille normale sur XAUUSD entre 19 h 30 et 21 h 00.</strong></p>
+<p>Après 21 h 00 : entrée uniquement si la direction est confirmée par le dollar
+<strong>et</strong> par les rendements, avec un stop au-delà de l'extrême de la soirée.</p>
+<p>Le lendemain, le range de la soirée FOMC devient une zone de référence
+exploitable pendant plusieurs jours.</p></aside>
+<h2 id="interpreter-une-decision-de-taux" data-eyebrow="Chapitre 06">Interpréter une décision de taux</h2>
+<p><em>Le chiffre est connu d'avance. Ce n'est pas lui qui bouge le marché.</em></p>
+<h3 id="le-principe-2">Le principe</h3>
+<p>Dans la quasi-totalité des cas, la décision est anticipée à plus de 90 % par le
+marché avant la réunion.</p>
+<p>Ce qui déplace les prix, c'est la <strong>révision de la trajectoire</strong>.</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th></th>
+<th>Réunion A</th>
+<th>Réunion B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Décision</td>
+<td>+0,25 %</td>
+<td>+0,25 %</td>
+</tr>
+<tr>
+<td>Attendue</td>
+<td>Oui</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>Message</td>
+<td>« d'autres hausses seront nécessaires »</td>
+<td>« nous approchons de la fin »</td>
+</tr>
+<tr>
+<td>Dollar</td>
+<td>↑ 0,8 %</td>
+<td>↓ 1,1 %</td>
+</tr>
+<tr>
+<td><strong>Or</strong></td>
+<td><strong>−35 $</strong></td>
+<td><strong>+42 $</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Même décision. Mouvement opposé.</p>
+<h3 id="le-dot-plot">Le dot plot</h3>
+<p>Quatre fois par an, la Fed publie les projections de taux de chaque membre du
+comité. C'est souvent <strong>plus important que la décision elle-même</strong>.</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Ce que montre le dot plot</th>
+<th>Effet sur l'or</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plus de baisses que ce que le marché valorise</td>
+<td><strong>OR ↑↑</strong></td>
+</tr>
+<tr>
+<td>Moins de baisses que valorisé</td>
+<td><strong>OR ↓↓</strong></td>
+</tr>
+<tr>
+<td>Conforme</td>
+<td>Neutre</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>La formule employée sur les desks : <strong>« la Fed dit deux baisses, le marché en
+valorise quatre »</strong>.</p>
+<p>Cet écart est une position en soi. C'est lui qui décide de la tendance de l'or
+sur les mois à venir — pas le niveau du taux directeur.</p>
+<p>Les probabilités valorisées par le marché sont publiques et gratuites, via les
+futures sur les <em>Fed Funds</em>. Vérifiez-les avant chaque réunion.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Vendre de l'or parce que « la Fed monte encore ses taux ».</p>
+<p>Si c'est anticipé, c'est déjà dans le prix. Historiquement, l'or fait ses plus
+beaux départs <strong>pendant</strong> que les taux sont encore élevés — dès que le marché
+comprend que le cycle va se retourner.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ul>
+<li>La décision est connue. La trajectoire ne l'est pas.</li>
+<li>Le dot plot vaut souvent plus que la décision.</li>
+<li>Le meilleur moment pour l'or est l'anticipation du <strong>retournement</strong> de cycle.</li>
+<li>Ton plus dur que prévu → or ↓. Ton plus souple que prévu → or ↑.</li>
+</ul></aside>
+<h2 id="les-minutes-du-fomc" data-eyebrow="Chapitre 07">Les minutes du FOMC</h2>
+<p><em>Trois semaines après. Moins violent, mais très informatif.</em></p>
+<h3 id="a-quoi-ca-sert-12">À quoi ça sert</h3>
+<p>Les minutes sont le compte-rendu détaillé de la réunion précédente, publiées
+trois semaines plus tard, à 20 h heure de Paris.</p>
+<p>Elles révèlent ce que le communiqué avait lissé : les <strong>désaccords</strong>.</p>
+<h3 id="ce-qu-on-y-cherche">Ce qu'on y cherche</h3>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>Le degré de division</strong> « plusieurs membres », « quelques membres », « certains participants » : ces nuances sont calibrées. Plus la division est forte, moins la trajectoire est sûre.</li>
+<li><strong>Les conditions de changement</strong> Ce que les membres exigent pour baisser ou monter. C'est la feuille de route des prochaines réunions.</li>
+<li><strong>Les inquiétudes nouvelles</strong> Emploi, crédit, stabilité financière : un sujet qui apparaît pour la première fois est un signal.</li>
+<li><strong>Ce qui a disparu</strong> Un sujet qui n'est plus mentionné a cessé d'être une préoccupation.</li>
+</ul></aside>
+<h3 id="reaction-sur-le-gold-11">Réaction sur le Gold</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Contenu des minutes</th>
+<th>Effet</th>
+<th>Force</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plus dures que ne le laissait penser le communiqué</td>
+<td><strong>OR ↓</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Plus souples que le communiqué</td>
+<td><strong>OR ↑</strong></td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Forte division du comité</td>
+<td>Volatilité, direction incertaine</td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Conformes</td>
+<td>Négligeable</td>
+<td>★</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--astuce"><p class="bloc-titre">Astuce</p><p>Les minutes portent sur une réunion vieille de trois semaines. Si des données
+importantes sont sorties entre-temps (CPI, NFP), le marché les considère comme
+<strong>périmées</strong> et la réaction est faible.</p>
+<p>Vérifiez toujours ce qui s'est passé depuis avant d'attendre un mouvement.</p></aside>
+<h3 id="la-checklist-complete-avant-une-reunion-de-la-fed">La checklist complète avant une réunion de la Fed</h3>
+<section class="bloc bloc--respiration"><p class="bloc-titre">AVANT UNE RÉUNION DE LA FED</p><h3 id="1-ce-qui-est-deja-valorise">1. Ce qui est déjà valorisé</h3>
+<ul>
+<li>☐ Combien de hausses ou de baisses le marché valorise-t-il pour cette réunion ?</li>
+<li>☐ Et pour les 12 prochains mois ?</li>
+<li>☐ Y a-t-il une divergence entre le dernier dot plot et le marché ?</li>
+</ul>
+<h3 id="2-les-donnees-depuis-la-derniere-reunion">2. Les données depuis la dernière réunion</h3>
+<ul>
+<li>☐ Le dernier CPI : surprise haussière ou baissière ?</li>
+<li>☐ Le dernier Core PCE : se rapproche-t-il de 2 % ?</li>
+<li>☐ Le dernier NFP : marché du travail tendu ou en détente ?</li>
+<li>☐ L'ISM services : au-dessus ou en dessous de 50 ?</li>
+</ul>
+<h3 id="3-le-contexte-de-marche">3. Le contexte de marché</h3>
+<ul>
+<li>☐ Où en est le DXY par rapport à sa moyenne 50 jours ?</li>
+<li>☐ Le rendement à 2 ans monte-t-il ou baisse-t-il depuis un mois ?</li>
+<li>☐ Le rendement <strong>réel</strong> à 10 ans : direction sur un mois ?</li>
+<li>☐ Y a-t-il un stress visible (VIX, écarts de crédit) ?</li>
+</ul>
+<h3 id="4-le-plan-de-seance">4. Le plan de séance</h3>
+<ul>
+<li>☐ Aucune position à taille normale après 19 h 30.</li>
+<li>☐ Positions existantes : réduites ou clôturées.</li>
+<li>☐ Niveaux marqués : plus haut et plus bas de la journée avant l'annonce.</li>
+<li>☐ Je n'agis pas avant 21 h 00.</li>
+</ul>
+<h3 id="5-apres">5. Après</h3>
+<ul>
+<li>☐ Le marché a-t-il <strong>révisé</strong> sa trajectoire de taux ? (le seul juge)</li>
+<li>☐ Le dollar et les rendements vont-ils dans le même sens ? (si non : prudence)</li>
+<li>☐ Range de la soirée noté comme zone de référence pour les jours suivants.</li>
+</ul></section>
+<h1 id="les-graphiques-indispensables" data-eyebrow="Partie 4">Les graphiques indispensables</h1>
+<p><em>Cinq écrans. Ils expliquent la quasi-totalité des mouvements de l'or.</em></p>
+<p>Vous n'avez pas besoin d'un terminal professionnel. Ces cinq graphiques sont
+gratuits sur n'importe quelle plateforme.</p>
+<aside class="bloc bloc--cle"><p>L'or est toujours le dernier à bouger.
+Les quatre autres écrans vous préviennent avant.</p></aside>
+<h2 id="le-dxy" data-eyebrow="Chapitre 08">Le DXY</h2>
+<p><em>L'indicateur le plus immédiat. Trois secondes de lecture.</em></p>
+<h3 id="ce-que-ca-signifie">Ce que ça signifie</h3>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> C'est la valeur du dollar face à six autres monnaies. Quand il monte, le dollar est fort.</li>
+<li><strong>Professionnel</strong> Indice pondéré dominé par l'euro (57,6 %), puis le yen (13,6 %) et la livre (11,9 %). C'est, pour l'essentiel, un EURUSD inversé.</li>
+<li><strong>Sur le Gold</strong> L'or est coté en dollars. Dollar fort → il faut moins de dollars pour la même once → prix affiché en baisse. Et un dollar fort traduit généralement des taux américains attractifs, ce qui pèse doublement.</li>
+</ul></aside>
+<h3 id="comment-ca-influence-l-or">Comment ça influence l'or</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>DXY</th>
+<th>Effet</th>
+<th>Fiabilité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Monte parce que les taux US montent</td>
+<td><strong>OR ↓↓</strong></td>
+<td>Très élevée</td>
+</tr>
+<tr>
+<td>Baisse parce que les taux US baissent</td>
+<td><strong>OR ↑↑</strong></td>
+<td>Très élevée</td>
+</tr>
+<tr>
+<td>Monte à cause d'un problème européen ou japonais</td>
+<td>Effet modéré</td>
+<td>Moyenne</td>
+</tr>
+<tr>
+<td>Monte par fuite vers la sécurité</td>
+<td>Effet ambigu</td>
+<td>Faible</td>
+</tr>
+<tr>
+<td>Monte <strong>en même temps que l'or</strong></td>
+<td>Signal de défiance systémique</td>
+<td>Rare, à prendre au sérieux</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="comment-l-utiliser-dans-votre-biais">Comment l'utiliser dans votre biais</h3>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Placez le DXY à côté de votre XAUUSD, en H4 et en M15.</p>
+<p><strong>Règle unique :</strong> si le DXY casse un niveau important à la hausse, votre achat
+d'or attend.</p>
+<p>Cette seule habitude supprime une bonne partie des entrées à contretemps.</p></aside>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>La bonne question n'est jamais « où va le dollar ? ».</p>
+<p>C'est <strong>« quel moteur pousse le dollar aujourd'hui ? »</strong></p>
+<p>Taux américains → très négatif pour l'or.
+Faiblesse de l'euro ou du yen → effet limité, la cause n'est pas américaine.
+Panique → ambigu, les deux refuges se disputent les flux.</p>
+<p>C'est cette distinction qui sépare une lecture d'amateur d'une lecture de
+professionnel.</p></aside>
+<h2 id="le-rendement-du-10-ans" data-eyebrow="Chapitre 09">Le rendement du 10 ans</h2>
+<p><em>Le concurrent direct de l'or.</em></p>
+<h3 id="ce-que-ca-signifie-2">Ce que ça signifie</h3>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> C'est ce que rapporte un prêt à l'État américain sur dix ans. Si ça rapporte beaucoup, pourquoi détenir un métal qui ne rapporte rien ?</li>
+<li><strong>Professionnel</strong> C'est le taux d'actualisation de référence mondial. Attention : le <strong>prix</strong> de l'obligation et son <strong>rendement</strong> évoluent toujours en sens inverse.</li>
+<li><strong>Sur le Gold</strong> Une hausse rapide du rendement écrase l'or. Une baisse rapide le propulse. La <strong>vitesse</strong> compte plus que le niveau.</li>
+</ul></aside>
+<h3 id="comment-ca-influence-l-or-2">Comment ça influence l'or</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Mouvement</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hausse rapide (plus de 15 points de base en une séance)</td>
+<td><strong>OR ↓</strong></td>
+</tr>
+<tr>
+<td>Baisse rapide</td>
+<td><strong>OR ↑</strong></td>
+</tr>
+<tr>
+<td>Stable</td>
+<td>L'or suit le dollar et les flux</td>
+</tr>
+<tr>
+<td>Hausse causée par une défiance sur la dette</td>
+<td><strong>OR ↑</strong> — cas particulier important</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="deux-echeances-deux-messages">Deux échéances, deux messages</h3>
+<pre class="schema"><code>   Rendement 2 ANS   ──►  ce que le marché pense de la FED
+   Rendement 10 ANS  ──►  ce que le marché pense de l'ÉCONOMIE
+</code></pre>
+<aside class="bloc bloc--astuce"><p class="bloc-titre">Astuce</p><p>Le 2 ans est votre juge en temps réel. À 14 h 30, ne regardez pas l'or :
+regardez le 2 ans.</p>
+<p>Il vous donne l'interprétation du marché en dix secondes, avant que l'or n'ait
+fini de bouger.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Confondre « les obligations montent » et « les rendements montent ».</p>
+<p>Ce sont deux choses <strong>opposées</strong>. Obligations en hausse = rendements en baisse =
+<strong>haussier</strong> pour l'or.</p></aside>
+<h2 id="les-taux-reels" data-eyebrow="Chapitre 10">Les taux réels</h2>
+<p><em>Le seul graphique vraiment indispensable.</em></p>
+<h3 id="ce-que-ca-signifie-3">Ce que ça signifie</h3>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> C'est ce que rapporte vraiment un placement une fois l'inflation retirée. Si ça rapporte 5 % mais que les prix montent de 6 %, vous perdez 1 % : détenir de l'or ne coûte plus rien.</li>
+<li><strong>Professionnel</strong> Taux réel = taux nominal − inflation anticipée. Il se lit directement sur le rendement des obligations indexées sur l'inflation (<strong>TIPS 10 ans</strong>), sans aucun calcul.</li>
+<li><strong>Sur le Gold</strong> C'est LE moteur. Taux réel en baisse → l'or monte. En hausse → l'or baisse. Toutes les autres données comptent uniquement parce qu'elles influencent cette variable.</li>
+</ul></aside>
+<h3 id="le-tableau-qui-explique-tout">Le tableau qui explique tout</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Taux nominal</th>
+<th>Inflation</th>
+<th>Taux réel</th>
+<th>Or</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5 %</td>
+<td>2 %</td>
+<td><strong>+3 %</strong></td>
+<td>Souffre</td>
+</tr>
+<tr>
+<td>5 %</td>
+<td>6 %</td>
+<td><strong>−1 %</strong></td>
+<td><strong>Brille</strong></td>
+</tr>
+<tr>
+<td>1 %</td>
+<td>0 %</td>
+<td>+1 %</td>
+<td>Neutre</td>
+</tr>
+<tr>
+<td>0 %</td>
+<td>4 %</td>
+<td><strong>−4 %</strong></td>
+<td><strong>Meilleur régime</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Regardez la deuxième ligne. Les taux sont très élevés — et l'or monte quand
+même.</p>
+<p>Contre-intuitif pour un débutant. Évident pour un professionnel.</p>
+<aside class="bloc bloc--histoire"><p class="bloc-titre">2022 : l&#x27;année qui a détruit un mythe</p><p>L'inflation américaine atteint des niveaux inconnus depuis quarante ans. Tous
+les manuels grand public annoncent l'envolée de l'or.</p>
+<p>L'or baisse.</p>
+<p>Pourquoi ? Parce que la Fed remonte ses taux plus vite que l'inflation
+anticipée ne progresse. Le taux réel passe de nettement négatif à franchement
+positif.</p>
+<p>Des milliers de traders ont acheté « à cause de l'inflation » et ont perdu. Ils
+regardaient le mauvais chiffre.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Une vérification, une fois par semaine, le dimanche :</p>
+<p>Le rendement <strong>réel</strong> à 10 ans monte-t-il ou baisse-t-il sur un mois ?</p>
+<p>En baisse → biais haussier de fond : j'achète les corrections.
+En hausse → biais baissier de fond : je vends les rebonds.</p>
+<p>Écrivez la réponse. Ne la révisez pas avant dimanche prochain.</p></aside>
+<h2 id="les-obligations-et-la-courbe-des-taux" data-eyebrow="Chapitre 11">Les obligations et la courbe des taux</h2>
+<p><em>Le thermomètre du cycle économique.</em></p>
+<h3 id="ce-que-ca-signifie-4">Ce que ça signifie</h3>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> L'État emprunte sur 2 ans, 10 ans, 30 ans. Normalement, plus c'est long, plus ça rapporte. Quand c'est l'inverse, le marché anticipe des ennuis.</li>
+<li><strong>Professionnel</strong> L'écart 10 ans − 2 ans donne la pente. Une pente négative (inversion) signale que le marché attend des baisses de taux, donc un ralentissement.</li>
+<li><strong>Sur le Gold</strong> L'inversion est un signal avancé de récession, avec 12 à 18 mois de décalage. C'est un cadre, jamais un signal d'entrée.</li>
+</ul></aside>
+<pre class="schema"><code>   NORMALE      2a ▁▂▃▅ 30a    croissance attendue
+   PLATE        2a ▄▄▄▄ 30a    ralentissement
+   INVERSÉE     2a ▅▃▂▁ 30a    récession anticipée  ──►  futur marché haussier de l'or
+</code></pre>
+<h3 id="le-cas-particulier-a-connaitre">Le cas particulier à connaître</h3>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Il existe une situation où <strong>rendements en hausse et or en hausse</strong> coexistent.</p>
+<p>Quand les rendements montent parce que le marché doute de la capacité de l'État
+à se financer — déficit qui dérape, adjudications mal souscrites, dégradation
+de note — la hausse des taux n'est plus un signe de vigueur économique. C'est un
+signe de défiance.</p>
+<p>Signature à repérer : <strong>rendements ↑ + dollar plat ou en baisse + or ↑</strong>.</p>
+<p>Dans ce cas, ne vendez pas l'or mécaniquement. C'est l'un des régimes les plus
+haussiers qui existent pour le métal.</p></aside>
+<h2 id="le-vix" data-eyebrow="Chapitre 12">Le VIX</h2>
+<p><em>Le thermomètre de la peur. Utile uniquement aux extrêmes.</em></p>
+<h3 id="ce-que-ca-signifie-5">Ce que ça signifie</h3>
+<aside class="bloc bloc--niveaux"><ul>
+<li><strong>Simple</strong> C'est l'indice de la peur sur les actions américaines. Il monte quand les marchés paniquent.</li>
+<li><strong>Professionnel</strong> Il mesure la volatilité <strong>implicite</strong> attendue sur 30 jours, dérivée des options sur le S&amp;P 500. C'est le prix de l'assurance.</li>
+<li><strong>Sur le Gold</strong> Il ne donne pas de direction. Il indique un <strong>régime</strong> : appétit pour le risque, ou fuite vers la sécurité.</li>
+</ul></aside>
+<h3 id="comment-l-utiliser">Comment l'utiliser</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>VIX</th>
+<th>Régime</th>
+<th>Conséquence pour l'or</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bas et stable</td>
+<td>Appétit pour le risque</td>
+<td>L'or suit les taux et le dollar</td>
+</tr>
+<tr>
+<td>En hausse modérée</td>
+<td>Prudence</td>
+<td>Soutien à l'or</td>
+</tr>
+<tr>
+<td>Explosion soudaine</td>
+<td>Panique de liquidité</td>
+<td><strong>L'or baisse d'abord</strong> — ventes forcées</td>
+</tr>
+<tr>
+<td>Reste haut plusieurs semaines</td>
+<td>Stress installé</td>
+<td>Hausse durable de l'or, une fois la banque centrale engagée</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Acheter de l'or dès que le VIX explose.</p>
+<p>Dans les premiers jours d'une panique, les investisseurs vendent tout ce qui est
+liquide pour obtenir du cash — <strong>y compris l'or</strong>.</p>
+<p>Le vrai signal d'achat n'est pas la panique. C'est la <strong>chute du rendement à
+2 ans</strong>, qui signifie que le marché anticipe l'intervention de la Fed.</p></aside>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Le tableau de bord à cinq écrans</p><ul>
+<li>☐ <strong>XAUUSD</strong> — l'instrument tradé</li>
+<li>☐ <strong>DXY</strong> — le filtre immédiat</li>
+<li>☐ <strong>US10Y</strong> (et US02Y) — le moteur et le juge</li>
+<li>☐ <strong>Rendement réel 10 ans (TIPS)</strong> — le biais de fond, vérifié le dimanche</li>
+<li>☐ <strong>VIX</strong> — le régime de risque</li>
+</ul>
+<p>Avant chaque entrée : au moins deux des quatre autres écrans confirment mon
+sens. Sinon, pas de trade.</p></aside>
+<h1 id="la-routine-quotidienne" data-eyebrow="Partie 5">La routine quotidienne</h1>
+<p><em>Dix minutes le matin. Deux minutes avant chaque entrée.</em></p>
+<p>Une routine n'est pas une contrainte. C'est ce qui vous évite de redécouvrir le
+marché chaque jour.</p>
+<aside class="bloc bloc--cle"><p>La macro se révise le dimanche.
+Le contexte se vérifie le matin.
+La technique décide à l'entrée.</p></aside>
+<h2 id="avant-londres" data-eyebrow="Chapitre 13">Avant Londres</h2>
+<p><em>08 h 45. Dix minutes. Vous en sortez avec un biais écrit.</em></p>
+<h3 id="les-six-verifications">Les six vérifications</h3>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>1 · Calendrier</strong> Une publication majeure aujourd'hui ? À quelle heure ? Cette heure devient une fenêtre interdite.</li>
+<li><strong>2 · Dollar</strong> DXY : tendance H4, niveau clé le plus proche, et quel moteur le pousse.</li>
+<li><strong>3 · Rendements</strong> US10Y et US02Y : direction et vitesse depuis hier. Plus de 10 points de base = ça domine la séance.</li>
+<li><strong>4 · Contexte</strong> Un événement en cours change-t-il le régime ? Crise, conflit, banque centrale.</li>
+<li><strong>5 · Niveaux</strong> Plus haut et plus bas de la veille, clôture de la veille, bornes du range asiatique.</li>
+<li><strong>6 · Décision</strong> Trois lignes écrites. Pas pensées : écrites.</li>
+</ul></aside>
+<h3 id="la-fiche-de-biais">La fiche de biais</h3>
+<pre class="schema"><code>   ┌────────────────────────────────────────────────────────┐
+   │  BIAIS DU JOUR — XAUUSD                                │
+   │                                                        │
+   │  DIRECTION     : ..................................    │
+   │  CIBLE         : ..................................    │
+   │  INVALIDATION  : ..................................    │
+   │                                                        │
+   │  Fenêtres interdites : .........................       │
+   └────────────────────────────────────────────────────────┘
+</code></pre>
+<p>Si vous ne pouvez pas remplir les trois lignes, la journée est une journée
+d'observation. C'est une décision, pas un échec.</p>
+<aside class="bloc bloc--astuce"><p class="bloc-titre">Astuce</p><p>Le range asiatique est votre réservoir de liquidité du jour. Tracez ses deux
+bornes chaque matin.</p>
+<p>Londres commence très souvent par en purger un côté avant de partir dans
+l'autre. Cette purge n'invalide pas votre biais : elle crée votre point
+d'entrée.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Fenêtre de trading : <strong>09 h – 11 h</strong>.</p>
+<p>C'est la période où Londres donne la direction du jour. Après 11 h, la
+volatilité retombe et les faux signaux se multiplient jusqu'à l'ouverture
+américaine.</p></aside>
+<h2 id="avant-new-york" data-eyebrow="Chapitre 14">Avant New York</h2>
+<p><em>14 h 00. Cinq minutes. Vous confirmez ou vous corrigez.</em></p>
+<h3 id="les-quatre-verifications">Les quatre vérifications</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Vérification</th>
+<th>Ce que vous cherchez</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Publication à 14 h 30 ?</strong></td>
+<td>Si oui : aucune position à taille normale avant 15 h</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Ce qu'a fait Londres</strong></td>
+<td>Le biais du matin est-il confirmé ou invalidé ?</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>DXY et rendements</strong></td>
+<td>Ont-ils changé de direction depuis ce matin ?</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Niveaux du jour</strong></td>
+<td>Plus haut et plus bas de la séance européenne, notés</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="les-trois-scenarios-de-l-apres-midi">Les trois scénarios de l'après-midi</h3>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>Continuation</strong> Londres a donné une direction claire, le dollar confirme. New York étend le mouvement. Objectifs élargis.</li>
+<li><strong>Retournement</strong> Londres est allé chercher une liquidité, le dollar se retourne. New York renverse. C'est fréquent, surtout autour de 17 h.</li>
+<li><strong>Range</strong> Rien n'est clair, pas de publication. On ne force pas. Deuxième journée d'observation.</li>
+</ul></aside>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>La clôture de Londres, entre 17 h et 18 h, retourne fréquemment le mouvement du
+jour.</p>
+<p>Ce n'est pas mystérieux : les positions européennes se dénouent, les flux de
+fixing passent, la liquidité change de main.</p>
+<p>Si vous avez une position ouverte à 17 h 30, prenez une <strong>décision explicite</strong> :
+je garde, ou je sors. Ne laissez jamais la question ouverte.</p></aside>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p>Fenêtre de trading : <strong>14 h 30 – 17 h</strong>.</p>
+<p>C'est le recouvrement Londres–New York, le moment de volume maximal. Un signal
+identique vaut plus ici qu'à 12 h 30.</p></aside>
+<h2 id="avant-une-entree" data-eyebrow="Chapitre 15">Avant une entrée</h2>
+<p><em>Deux minutes. La checklist obligatoire.</em></p>
+<h3 id="les-six-controles-macro">Les six contrôles macro</h3>
+<pre class="schema"><code>   ☐  1. NEWS       Une publication importante dans l'heure qui vient ?
+   ☐  2. DOLLAR     Le DXY va-t-il contre mon trade ?
+   ☐  3. TAUX       Les rendements vont-ils contre mon trade ?
+   ☐  4. DISCOURS   Un membre de la Fed parle-t-il aujourd'hui ?
+   ☐  5. SENTIMENT  VIX calme ou en tension ? Actions en hausse ou en baisse ?
+   ☐  6. RÉGIME     Mon biais macro de la semaine autorise-t-il ce sens ?
+</code></pre>
+<p>Une seule case problématique = taille réduite.
+Deux cases problématiques = pas de trade.</p>
+<h3 id="la-regle-de-coherence">La règle de cohérence</h3>
+<aside class="bloc bloc--cle"><p>Si le biais macro et la zone technique se contredisent,
+la seule bonne décision est de ne rien faire.</p></aside>
+<p>Vous ne perdez rien en attendant. Vous perdez beaucoup en forçant.</p>
+<h3 id="ce-que-la-macro-change-concretement">Ce que la macro change concrètement</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Contexte</th>
+<th>Ce que vous ajustez</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Macro alignée avec la technique</td>
+<td>Taille normale, objectifs étendus, on laisse courir</td>
+</tr>
+<tr>
+<td>Macro neutre</td>
+<td>Taille réduite, objectifs courts, sortie rapide</td>
+</tr>
+<tr>
+<td>Macro contraire</td>
+<td>Aucun trade</td>
+</tr>
+<tr>
+<td>Publication dans l'heure</td>
+<td>Aucune nouvelle position</td>
+</tr>
+<tr>
+<td>Régime de crise</td>
+<td>Taille divisée par deux, stops élargis (la volatilité a doublé)</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Une vue de desk s'énonce en une phrase, et elle vaut pour la semaine entière :</p>
+<p><strong>« On est long l'or. On achète les replis sur les zones. On ne vend pas. »</strong></p>
+<p>Tout le monde sait alors ce qui est autorisé. Personne ne redécouvre la macro
+chaque matin.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Réviser son biais macro toutes les heures parce que le prix bouge.</p>
+<p>La macro se révise le dimanche, ou lors d'un événement majeur. Changer d'avis
+trois fois par jour, c'est n'avoir aucun biais.</p></aside>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">La checklist complète avant d&#x27;appuyer</p><ul>
+<li>☐ Mon biais macro de la semaine autorise-t-il ce sens ?</li>
+<li>☐ Aucune publication majeure dans l'heure qui vient ?</li>
+<li>☐ Le DXY confirme, ou au moins ne contredit pas ?</li>
+<li>☐ Les rendements confirment, ou au moins ne contredisent pas ?</li>
+<li>☐ Suis-je dans une fenêtre horaire valide (09–11 h ou 14 h 30–17 h) ?</li>
+<li>☐ Ma zone technique est-elle valide indépendamment de la macro ?</li>
+<li>☐ Mon stop est-il placé au-delà de la structure, avec une marge ?</li>
+<li>☐ Ma taille est-elle calculée, pas choisie ?</li>
+</ul>
+<p>Huit cases. Deux minutes. Chaque trade.</p></aside>
+<h1 id="les-scenarios-de-marche" data-eyebrow="Partie 6">Les scénarios de marché</h1>
+<p><em>Six configurations. Apprenez-les, vous reconnaîtrez 90 % des semaines.</em></p>
+<p>Un scénario n'est pas une prédiction. C'est une grille de lecture qui vous dit
+quoi surveiller, et avec quelle conviction agir.</p>
+<h2 id="les-six-scenarios-de-l-or" data-eyebrow="Chapitre 16">Les six scénarios de l'or</h2>
+<p><em>De la conviction maximale à l'abstention totale.</em></p>
+<section class="bloc bloc--respiration"><p class="bloc-titre">LES SIX SCÉNARIOS</p><h3 id="scenario-1-bullish-parfait">🟢 Scénario 1 — Bullish parfait</h3>
+<p><strong>Ce qu'on observe</strong>
+Dollar faible · rendements en baisse · taux réels en baisse · Fed qui prépare des
+baisses de taux.</p>
+<p><strong>Ce que ça veut dire</strong>
+Le coût de détention de l'or s'effondre. Les fonds macro construisent des
+positions longues.</p>
+<p><strong>Ce qu'on fait</strong>
+Biais haussier assumé. Achats en correction uniquement. Taille normale,
+objectifs étendus, stop suiveur.</p>
+<p><strong>Conviction</strong> ★★★★</p>
+<hr>
+<h3 id="scenario-2-bullish-de-defiance">🟢 Scénario 2 — Bullish de défiance</h3>
+<p><strong>Ce qu'on observe</strong>
+Rendements <strong>en hausse</strong> · dollar stable ou en baisse · or <strong>en hausse</strong> ·
+inquiétude sur la dette publique ou le système bancaire.</p>
+<p><strong>Ce que ça veut dire</strong>
+Les taux ne montent pas parce que l'économie va bien, mais parce que le marché
+doute de l'emprunteur. La corrélation habituelle est écrasée par un mécanisme
+plus fort.</p>
+<p><strong>Ce qu'on fait</strong>
+Rester haussier malgré les rendements. Ne pas vendre l'or mécaniquement.</p>
+<p><strong>Conviction</strong> ★★★★ (et souvent les plus grands mouvements)</p>
+<hr>
+<h3 id="scenario-3-bearish-parfait">🔴 Scénario 3 — Bearish parfait</h3>
+<p><strong>Ce qu'on observe</strong>
+Dollar fort · rendements en hausse · taux réels en hausse · Fed restrictive ·
+données économiques solides.</p>
+<p><strong>Ce que ça veut dire</strong>
+Double vent de face. Détenir de l'or coûte de plus en plus cher.</p>
+<p><strong>Ce qu'on fait</strong>
+Biais baissier. Ventes en rebond uniquement, en premium. Aucun achat.</p>
+<p><strong>Conviction</strong> ★★★★</p>
+<hr>
+<h3 id="scenario-4-panique-de-liquidite">🔴 Scénario 4 — Panique de liquidité</h3>
+<p><strong>Ce qu'on observe</strong>
+Krach sur les actions · VIX qui explose · dollar en forte hausse · or <strong>en
+baisse</strong> alors que la crise éclate.</p>
+<p><strong>Ce que ça veut dire</strong>
+Les investisseurs vendent tout ce qui est liquide pour obtenir du cash. L'or
+est vendu parce qu'il se vend facilement, pas parce qu'il a perdu son rôle.</p>
+<p><strong>Ce qu'on fait</strong>
+Ne pas acheter tout de suite. Réduire la taille générale. Surveiller le
+rendement à 2 ans : sa chute brutale est le signal d'entrée.</p>
+<p><strong>Conviction</strong> ★★ à l'entrée, ★★★★ une fois le 2 ans effondré</p>
+<hr>
+<h3 id="scenario-5-prime-de-peur-geopolitique">🟡 Scénario 5 — Prime de peur géopolitique</h3>
+<p><strong>Ce qu'on observe</strong>
+Choc géopolitique · or +30 $ en une heure · pétrole peu réactif · rendements
+inchangés.</p>
+<p><strong>Ce que ça veut dire</strong>
+Prime de risque émotionnelle, sans effet économique. Elle se dégonfle presque
+toujours.</p>
+<p><strong>Ce qu'on fait</strong>
+Ne pas acheter l'impulsion. Noter le niveau. Si l'or le conserve plus de 48 h,
+le repositionnement est structurel. Sinon, retour à la tendance précédente.</p>
+<p><strong>Conviction</strong> ★ (sauf si le pétrole s'envole aussi)</p>
+<hr>
+<h3 id="scenario-6-aucun-scenario">⚪ Scénario 6 — Aucun scénario</h3>
+<p><strong>Ce qu'on observe</strong>
+Rendements plats · dollar sans direction · pas de publication · biais macro
+neutre.</p>
+<p><strong>Ce que ça veut dire</strong>
+Le marché attend quelque chose. Les mouvements sont techniques, sans suite.</p>
+<p><strong>Ce qu'on fait</strong>
+Taille réduite, objectifs courts — ou rien du tout. La plupart des semaines
+médiocres commencent par un scénario 6 mal identifié.</p>
+<p><strong>Conviction</strong> —</p></section>
+<h3 id="comment-identifier-le-scenario-en-30-secondes">Comment identifier le scénario en 30 secondes</h3>
+<pre class="schema"><code>   Les taux réels baissent ?
+        ├── OUI ─► le dollar baisse aussi ? ── OUI ─► SCÉNARIO 1 (bullish parfait)
+        │                                    └─ NON ─► SCÉNARIO 1 quand même
+        │                                              (les taux réels priment)
+        └── NON ─► l'or monte malgré tout ? ─ OUI ─► SCÉNARIO 2 (défiance)
+                                             └─ NON ─► SCÉNARIO 3 (bearish)
+
+   Le VIX explose et l'or baisse ?         ──► SCÉNARIO 4 (panique)
+   Choc géopolitique sans réaction pétrole ? ──► SCÉNARIO 5 (prime de peur)
+   Rien ne bouge ?                          ──► SCÉNARIO 6 (abstention)
+</code></pre>
+<aside class="bloc bloc--fiche"><p class="bloc-titre">Identifier son scénario — le dimanche</p><ul>
+<li>☐ Rendement réel 10 ans : hausse ou baisse sur un mois ?</li>
+<li>☐ DXY : au-dessus ou en dessous de sa moyenne 50 jours ?</li>
+<li>☐ L'or fait-il quelque chose d'incohérent avec les deux réponses ci-dessus ?</li>
+<li>☐ VIX : calme, tendu, ou en explosion ?</li>
+<li>☐ Y a-t-il un choc géopolitique actif ?</li>
+</ul>
+<p>→ <strong>Scénario retenu : ....................</strong>
+→ <strong>Conviction : ★ / ★★ / ★★★ / ★★★★</strong>
+→ <strong>Ce que j'ai le droit de faire cette semaine : ....................</strong></p></aside>
+<h1 id="les-erreurs-des-traders" data-eyebrow="Partie 7">Les erreurs des traders</h1>
+<p><em>Trois mécanismes expliquent la quasi-totalité des pertes macro sur l'or.</em></p>
+<p>Ce ne sont pas des erreurs de débutant. Ce sont des erreurs de logique, que
+commettent aussi des traders techniques expérimentés.</p>
+<h2 id="pourquoi-une-bonne-news-fait-souvent-l-inverse" data-eyebrow="Chapitre 17">Pourquoi une bonne news fait souvent l'inverse</h2>
+<p><em>Le marché ne trade pas la nouvelle. Il trade l'écart avec ce qu'il attendait.</em></p>
+<h3 id="le-mecanisme">Le mécanisme</h3>
+<p>Un chiffre n'a aucune valeur absolue. Il n'existe que par rapport au consensus.</p>
+<pre class="schema"><code>   Attendu 0,3 %   ·   Publié 0,3 %   ──►  presque rien ne bouge
+   Attendu 0,3 %   ·   Publié 0,5 %   ──►  surprise haussière → DXY ↑ → OR ↓
+   Attendu 0,5 %   ·   Publié 0,4 %   ──►  chiffre élevé, mais SURPRISE BAISSIÈRE
+                                            → DXY ↓ → OR ↑
+</code></pre>
+<p>La troisième ligne est celle qui déroute. Le chiffre est objectivement mauvais —
+une inflation à 0,4 % par mois reste élevée — et pourtant l'or monte.</p>
+<p>Parce que le marché attendait pire.</p>
+<aside class="bloc bloc--cle"><p>Ce n'est pas la nouvelle qui compte.
+C'est la distance entre la nouvelle et ce qui était déjà dans le prix.</p></aside>
+<h3 id="le-second-niveau-le-regime">Le second niveau : le régime</h3>
+<p>La même donnée change de signe selon le contexte.</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Contexte</th>
+<th>Bon chiffre d'emploi</th>
+<th>Lecture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Surchauffe inflationniste</td>
+<td><strong>Mauvais</strong> pour l'or</td>
+<td>La Fed restera dure</td>
+</tr>
+<tr>
+<td>Ralentissement / récession</td>
+<td><strong>Bon</strong> pour l'or… ou neutre</td>
+<td>L'économie tient, pas de panique</td>
+</tr>
+</tbody>
+</table></div>
+<p>Avant de lire un chiffre, sachez dans quel régime vous êtes. Sinon vous
+interpréterez correctement une donnée et vous tirerez la mauvaise conclusion.</p>
+<h3 id="le-troisieme-niveau-la-composition">Le troisième niveau : la composition</h3>
+<p>Une surprise n'a pas le même poids selon d'où elle vient.</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Origine de la surprise</th>
+<th>Réaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Énergie</td>
+<td>Minimisée — la Fed n'y réagit pas</td>
+</tr>
+<tr>
+<td>Logement</td>
+<td>Atténuée — donnée retardée</td>
+</tr>
+<tr>
+<td>Services hors logement</td>
+<td><strong>Maximale</strong> — inflation persistante</td>
+</tr>
+<tr>
+<td>Stocks (dans le PIB)</td>
+<td>Éphémère</td>
+</tr>
+<tr>
+<td>Consommation</td>
+<td>Durable</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>« Le chiffre est mauvais, donc l'or doit monter. »</p>
+<p>Trois vérifications manquent : quel était le consensus, dans quel régime
+sommes-nous, et d'où vient la surprise.</p>
+<p>Sans ces trois réponses, vous jouez à pile ou face avec un spread élargi.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ul>
+<li>Un chiffre n'existe que par rapport au consensus.</li>
+<li>La même donnée change de signe selon le régime.</li>
+<li>La composition de la surprise décide de sa durée de vie.</li>
+</ul></aside>
+<h2 id="pourquoi-il-ne-faut-pas-trader-l-annonce" data-eyebrow="Chapitre 18">Pourquoi il ne faut pas trader l'annonce</h2>
+<p><em>Les cinq premières minutes appartiennent aux machines.</em></p>
+<h3 id="ce-qui-se-passe-vraiment-a-14-h-30">Ce qui se passe vraiment à 14 h 30</h3>
+<pre class="schema"><code>   14 h 29      les teneurs de marché retirent leurs ordres
+                le spread sur l'or passe de 20 à 60 cents, parfois plus
+
+   14 h 30,0    les algorithmes lisent les trois lignes du rapport,
+                comparent au consensus, envoient leurs ordres
+                ── vous n'avez aucun avantage ici ──
+
+   14 h 30,4    l'or a déjà fait 25 $
+
+   14 h 33      les humains lisent le détail : révisions, composition
+                le mouvement s'essouffle, parfois s'inverse totalement
+
+   15 h 00      le marché a choisi sa direction
+                un déséquilibre net est visible sur le graphique
+
+   15 h 10      ── c'est ici que le trade se prend ──
+</code></pre>
+<h3 id="les-trois-raisons-de-ne-pas-y-etre">Les trois raisons de ne pas y être</h3>
+<aside class="bloc bloc--cartes"><ul>
+<li><strong>Le spread</strong> Multiplié par trois à cinq. Votre coût d'entrée explose au moment précis où vous voulez entrer.</li>
+<li><strong>Le slippage</strong> Vos stops ne s'exécutent pas au niveau demandé. Un stop de 25 pips peut coûter 35 pips réels.</li>
+<li><strong>L'inversion</strong> Le premier mouvement est inversé environ une fois sur deux, quand le marché lit le détail.</li>
+</ul></aside>
+<h3 id="ce-qu-il-faut-faire-a-la-place">Ce qu'il faut faire à la place</h3>
+<aside class="bloc bloc--xau"><p class="bloc-titre">Application directe sur XAUUSD</p><p><strong>14 h 00</strong> — Aucune position à taille normale.
+<strong>14 h 30</strong> — On observe. On regarde le rendement à 2 ans et le DXY, pas l'or.
+<strong>14 h 30 – 15 h 00</strong> — On marque : le plus haut, le plus bas, et le déséquilibre
+laissé par l'impulsion.
+<strong>Après 15 h 00</strong> — On entre au retour dans ce déséquilibre, dans le sens de la
+surprise, stop au-delà de l'extrême de la fenêtre.</p>
+<p>Une seule tentative. Si elle échoue, la journée est terminée.</p></aside>
+<aside class="bloc bloc--detail"><p class="bloc-titre">Le détail que 90 % des traders ignorent</p><p>Il y a une raison structurelle à cette règle.</p>
+<p>Pendant l'impulsion, le prix parcourt une zone sans y négocier réellement : les
+ordres n'ont pas tous pu être servis. Cette zone est un déséquilibre.</p>
+<p>Le retour dans cette zone n'est pas une coïncidence technique. C'est la
+conséquence d'une exécution inachevée. C'est pourquoi il offre à la fois un
+meilleur prix <strong>et</strong> une invalidation plus courte.</p></aside>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Entrer sur la bougie de 14 h 30 « parce que la direction est évidente ».</p>
+<p>Elle l'est. Mais vous entrez au pire prix, avec le spread maximal et un stop qui
+doit être trois fois plus large. Un bon scénario exécuté au mauvais moment
+devient un mauvais trade.</p></aside>
+<h2 id="pourquoi-le-marche-anticipe-toujours" data-eyebrow="Chapitre 19">Pourquoi le marché anticipe toujours</h2>
+<p><em>Quand l'information vous parvient, le mouvement a déjà eu lieu.</em></p>
+<h3 id="le-principe-3">Le principe</h3>
+<p>Les marchés valorisent des <strong>anticipations</strong>, pas des faits.</p>
+<pre class="schema"><code>   Le marché anticipe une baisse de taux dans 6 mois
+        ↓
+   Il achète l'or MAINTENANT
+        ↓
+   6 mois plus tard, la Fed baisse ses taux
+        ↓
+   L'or ne bouge presque pas — ou baisse (prise de profit)
+</code></pre>
+<p>C'est ce qu'on appelle « acheter la rumeur, vendre la nouvelle ».</p>
+<h3 id="les-trois-consequences-pratiques">Les trois conséquences pratiques</h3>
+<p><strong>1. Le sommet des taux est le creux de l'or.</strong>
+Pas le moment où les taux redescendent : le moment où le marché <strong>comprend</strong>
+qu'ils vont redescendre.</p>
+<p><strong>2. Une récession annoncée ne fait plus bouger le marché.</strong>
+Si tout le monde l'attend depuis six mois, elle est déjà dans le prix.</p>
+<p><strong>3. Le vrai risque, c'est le scénario que personne n'attend.</strong>
+Une inflation qui repart alors que tout le monde la croyait vaincue déplace
+beaucoup plus les prix qu'une inflation élevée mais anticipée.</p>
+<aside class="bloc bloc--institutions"><p class="bloc-titre">Ce que font les institutions</p><p>Un gérant obligataire ne dit jamais « les taux sont hauts ».</p>
+<p>Il dit : <strong>« le marché valorise trois baisses d'ici décembre »</strong>.</p>
+<p>La différence entre ces deux phrases est exactement la différence entre subir le
+marché et le lire.</p></aside>
+<h3 id="ou-lire-ce-qui-est-deja-anticipe">Où lire ce qui est déjà anticipé</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Ce que vous voulez savoir</th>
+<th>Où le lire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Les baisses de taux attendues</td>
+<td>Probabilités implicites des futures <em>Fed Funds</em> (public, gratuit)</td>
+</tr>
+<tr>
+<td>L'inflation anticipée</td>
+<td>Écart entre le 10 ans nominal et le 10 ans TIPS (<em>breakeven</em>)</td>
+</tr>
+<tr>
+<td>Le positionnement des fonds</td>
+<td>Rapport COT hebdomadaire</td>
+</tr>
+<tr>
+<td>L'appétit des investisseurs</td>
+<td>Encours quotidiens des ETF or</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--erreur"><p class="bloc-titre">Erreur des débutants</p><p>Construire un scénario sur une information publique vieille de plusieurs jours.</p>
+<p>Si vous l'avez lue dans la presse, les desks l'ont intégrée il y a longtemps.
+La seule information exploitable est <strong>l'écart entre ce qui est attendu et ce qui
+arrive</strong>.</p></aside>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ul>
+<li>Le marché valorise six à douze mois à l'avance.</li>
+<li>Le creux de l'or se forme quand le marché anticipe la fin du cycle de hausse,
+  pas quand les taux baissent.</li>
+<li>Ce qui est connu est déjà dans le prix.</li>
+<li>Le seul avantage exploitable est l'écart au consensus.</li>
+</ul></aside>
+<h2 id="les-neuf-autres-erreurs" data-eyebrow="Chapitre 20">Les neuf autres erreurs</h2>
+<p><em>Chacune a un coût mesurable.</em></p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Erreur</th>
+<th>Le remède</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Acheter l'or « parce que l'inflation monte »</td>
+<td>Regarder le <strong>taux réel</strong>, jamais l'inflation seule</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Vendre l'or uniquement parce que le DXY monte</td>
+<td>Identifier le <strong>moteur</strong> du dollar</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Conclure « la corrélation est cassée » et arrêter d'analyser</td>
+<td>Remonter au taux réel : il tranche toujours</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Acheter sur un titre géopolitique</td>
+<td>Vérifier le pétrole ; attendre 48 h</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Acheter en pleine panique de liquidité</td>
+<td>Attendre la chute du rendement à 2 ans</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Confondre prix et rendement obligataire</td>
+<td>« Obligations en hausse » = rendements en baisse</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Réviser son biais macro toutes les heures</td>
+<td>La macro se révise le dimanche</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Utiliser la macro comme signal d'entrée</td>
+<td>La macro <strong>autorise</strong>, la technique <strong>déclenche</strong></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Trader tous les jours de la même façon</td>
+<td>Adapter la taille au calendrier de la semaine</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--danger"><p class="bloc-titre">Les trois plus coûteuses</p><p><strong>N° 1 — acheter sur l'inflation.</strong> Elle a ruiné des comptes entiers en 2022.</p>
+<p><strong>N° 5 — acheter en panique.</strong> Elle fait entrer au pire moment d'une crise,
+exactement quand l'or baisse.</p>
+<p><strong>N° 8 — la macro comme déclencheur.</strong> « Le CPI est bas, j'achète au marché » :
+sans niveau, sans stop logique, sans zone. C'est un pari, pas un trade.</p></aside>
+<aside class="bloc bloc--cle"><p>Les trois racines de toutes ces erreurs :
+appliquer un slogan · confondre les rôles · agir trop vite.</p></aside>
+<h1 id="les-fiches-rapides" data-eyebrow="Partie 8">Les fiches rapides</h1>
+<p><em>Quatre pages. Ce sont celles que vous ouvrirez le plus souvent.</em></p>
+<p>Imprimez-les. Épinglez-les. Ce sont les seules pages de ce manuel dont vous
+aurez besoin après la première lecture.</p>
+<h2 class="libre" id="gold-daily-checklist">Gold Daily Checklist</h2>
+<section class="bloc bloc--respiration"><p class="bloc-titre">GOLD DAILY CHECKLIST — à utiliser chaque matin</p><h3 id="1-le-fond-etabli-le-dimanche-non-revisable-en-semaine">① Le fond (établi le dimanche, non révisable en semaine)</h3>
+<ul>
+<li>☐ Rendement <strong>réel</strong> 10 ans : ⬆ hausse ⬇ baisse ➡ plat</li>
+<li>☐ Biais de fond retenu : 🟢 haussier 🔴 baissier ⚪ neutre</li>
+<li>☐ Scénario en cours : n° ......... · conviction ★ ★★ ★★★ ★★★★</li>
+</ul>
+<h3 id="2-le-calendrier-du-jour">② Le calendrier du jour</h3>
+<ul>
+<li>☐ Publication majeure aujourd'hui ? ..................... à ......... h</li>
+<li>☐ Discours d'un membre de la Fed ? .....................</li>
+<li>☐ Fenêtres interdites notées : .....................</li>
+</ul>
+<h3 id="3-les-marches-directeurs-08-h-45">③ Les marchés directeurs (08 h 45)</h3>
+<ul>
+<li>☐ <strong>DXY</strong> : tendance H4 ⬆ ⬇ ➡ · niveau clé proche : .............</li>
+<li>☐ <strong>US10Y</strong> : ⬆ ⬇ ➡ · mouvement &gt; 10 pb depuis hier ? oui / non</li>
+<li>☐ <strong>US02Y</strong> : ⬆ ⬇ ➡</li>
+<li>☐ <strong>VIX</strong> : calme / tendu / en explosion</li>
+</ul>
+<h3 id="4-les-niveaux-du-jour">④ Les niveaux du jour</h3>
+<ul>
+<li>☐ Plus haut de la veille : .............</li>
+<li>☐ Plus bas de la veille : .............</li>
+<li>☐ Clôture de la veille : .............</li>
+<li>☐ Range asiatique : ............. / .............</li>
+</ul>
+<h3 id="5-la-decision">⑤ La décision</h3>
+<pre><code>DIRECTION     : ...........................................
+CIBLE         : ...........................................
+INVALIDATION  : ...........................................
+</code></pre>
+<ul>
+<li>☐ Si je ne peux pas écrire ces trois lignes → <strong>journée d'observation</strong>.</li>
+</ul>
+<h3 id="6-le-soir">⑥ Le soir</h3>
+<ul>
+<li>☐ Résultat du jour en R : .............</li>
+<li>☐ Ai-je respecté mon biais ? oui / non</li>
+<li>☐ Ai-je tradé dans une fenêtre interdite ? oui / non</li>
+<li>☐ Ce qui a fait bouger l'or aujourd'hui : .....................</li>
+</ul></section>
+<h2 class="libre" id="impact-des-news-sur-xauusd">Impact des news sur XAUUSD</h2>
+<section class="bloc bloc--respiration"><p class="bloc-titre">TABLEAU DE RÉACTION — XAUUSD</p><h3 id="la-regle-generale">La règle générale</h3>
+<p><strong>Chiffre d'inflation ou d'activité plus fort que prévu → OR ↓</strong>
+<strong>Chiffre plus faible que prévu → OR ↑</strong></p>
+<p>Exceptions : chômage et inscriptions au chômage, où le sens est inversé.</p>
+<pre class="schema schema--large"><code> PUBLICATION              │ PLUS HAUT QUE PRÉVU │ PLUS BAS QUE PRÉVU │ FORCE  │ HEURE
+──────────────────────────┼─────────────────────┼────────────────────┼────────┼────────
+ CPI global               │  OR ↓               │  OR ↑              │ ★★★    │ 14h30
+ Core CPI                 │  OR ↓               │  OR ↑              │ ★★★    │ 14h30
+ PCE / Core PCE           │  OR ↓               │  OR ↑              │ ★★★    │ 14h30
+ PPI                      │  OR ↓               │  OR ↑              │ ★★     │ 14h30
+ NFP (emplois)            │  OR ↓               │  OR ↑              │ ★★★    │ 14h30
+ Salaire horaire          │  OR ↓               │  OR ↑              │ ★★★    │ 14h30
+ Taux de chômage          │  OR ↑               │  OR ↓              │ ★★     │ 14h30
+ Inscriptions chômage     │  OR ↑               │  OR ↓              │ ★      │ 14h30
+ JOLTS                    │  OR ↓               │  OR ↑              │ ★      │ 16h00
+ PIB                      │  OR ↓               │  OR ↑              │ ★★     │ 14h30
+ ISM services             │  OR ↓               │  OR ↑              │ ★★★    │ 16h00
+ ISM manufacturier        │  OR ↓               │  OR ↑              │ ★★     │ 16h00
+ PMI                      │  OR ↓               │  OR ↑              │ ★★     │ 15h45
+ Ventes au détail         │  OR ↓               │  OR ↑              │ ★★     │ 14h30
+ Confiance consommateur   │  OR ↓               │  OR ↑              │ ★      │ 16h00
+──────────────────────────┼─────────────────────┼────────────────────┼────────┼────────
+ Taux directeur (surprise)│  OR ↓               │  OR ↑              │ ★★★★   │ 20h00
+ Dot plot (plus de baisses)│ OR ↑               │  OR ↓              │ ★★★    │ 20h00
+ Ton de la conférence     │  hawkish : OR ↓     │  dovish : OR ↑     │ ★★★★   │ 20h30
+──────────────────────────┼─────────────────────┼────────────────────┼────────┼────────
+ DXY                      │  OR ↓               │  OR ↑              │ ★★★    │ continu
+ Rendement 10 ans         │  OR ↓               │  OR ↑              │ ★★★    │ continu
+ Rendement RÉEL 10 ans    │  OR ↓               │  OR ↑              │ ★★★★   │ continu
+ VIX (explosion soudaine) │  OR ↓ puis ↑        │  —                 │ ★★     │ continu
+</code></pre>
+<h3 id="les-trois-exceptions-au-tableau">Les trois exceptions au tableau</h3>
+<p><strong>1. La Fed ne peut pas réagir</strong> (crise, instabilité financière) → une inflation
+plus forte devient <strong>haussière</strong> pour l'or.</p>
+<p><strong>2. Les rendements montent par défiance sur la dette</strong> → l'or monte <strong>avec</strong> les
+rendements.</p>
+<p><strong>3. Panique de liquidité</strong> → l'or baisse avec tout le reste, avant de repartir
+une fois la banque centrale engagée.</p></section>
+<h2 class="libre" id="les-correlations-importantes">Les corrélations importantes</h2>
+<section class="bloc bloc--respiration"><p class="bloc-titre">LES CORRÉLATIONS DU GOLD</p><h3 id="le-tableau">Le tableau</h3>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Actif</th>
+<th>Relation</th>
+<th>Force</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rendement réel 10 ans</strong></td>
+<td>Inverse</td>
+<td>★★★★</td>
+<td>Le coût de détention de l'or</td>
+</tr>
+<tr>
+<td><strong>DXY</strong></td>
+<td>Inverse</td>
+<td>★★★</td>
+<td>Cotation en dollars + signal macro</td>
+</tr>
+<tr>
+<td><strong>Rendement 10 ans nominal</strong></td>
+<td>Inverse</td>
+<td>★★★</td>
+<td>Le concurrent porteur d'intérêts</td>
+</tr>
+<tr>
+<td><strong>S&amp;P 500</strong></td>
+<td>Variable</td>
+<td>★★</td>
+<td>Dépend du régime : liquidité ou peur</td>
+</tr>
+<tr>
+<td><strong>Bitcoin</strong></td>
+<td>Variable</td>
+<td>★★</td>
+<td>Même sensibilité à la liquidité globale</td>
+</tr>
+<tr>
+<td><strong>Pétrole</strong></td>
+<td>Faible, positive</td>
+<td>★</td>
+<td>Canal inflation, indirect</td>
+</tr>
+<tr>
+<td><strong>Argent (XAG)</strong></td>
+<td>Positive forte</td>
+<td>★★★</td>
+<td>L'or amplifié, plus la demande industrielle</td>
+</tr>
+<tr>
+<td><strong>Yen, franc suisse</strong></td>
+<td>Positive en stress</td>
+<td>★★</td>
+<td>Refuges concurrents</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ce-que-chaque-combinaison-signifie">Ce que chaque combinaison signifie</h3>
+<pre class="schema"><code>   DXY ↓ + rendements ↓     ──►  alignement parfait        BIAIS HAUSSIER FORT
+   DXY ↑ + rendements ↑     ──►  double vent de face       BIAIS BAISSIER FORT
+   DXY ↑ + rendements ↓     ──►  contradiction             suivre les RENDEMENTS
+   DXY ↓ + rendements ↑     ──►  contradiction             prudence, taille réduite
+   Actions ↓ + rendements ↓ ──►  fuite vers la qualité     HAUSSIER
+   Actions ↓ + or ↓ + DXY ↑ ──►  panique de liquidité      attendre le 2 ans
+</code></pre>
+<h3 id="ce-qu-il-faut-savoir-sur-les-ruptures">Ce qu'il faut savoir sur les ruptures</h3>
+<p>Une corrélation qui se casse n'est pas un bug. C'est le signe qu'un mécanisme
+<strong>plus puissant</strong> est apparu.</p>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Rupture observée</th>
+<th>Mécanisme dominant</th>
+<th>Biais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Or ↑ <strong>et</strong> dollar ↑</td>
+<td>Défiance systémique</td>
+<td><strong>Haussier</strong></td>
+</tr>
+<tr>
+<td>Or ↑ <strong>et</strong> rendements ↑</td>
+<td>Risque souverain</td>
+<td><strong>Haussier</strong></td>
+</tr>
+<tr>
+<td>Or ↓ <strong>et</strong> actions ↓</td>
+<td>Panique de liquidité</td>
+<td>Attendre</td>
+</tr>
+<tr>
+<td>Or immobile sur une mauvaise nouvelle</td>
+<td>Quelqu'un accumule</td>
+<td><strong>Haussier</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="la-regle-de-resolution">La règle de résolution</h3>
+<pre class="schema"><code>   NIVEAU 1   Taux réels        ◄── gagne toujours
+   NIVEAU 2   Dollar
+   NIVEAU 3   Flux (ETF, positionnement)
+   NIVEAU 4   Sentiment et technique
+</code></pre>
+<p>Quand deux niveaux se contredisent, le niveau supérieur tranche.</p>
+<h3 id="le-bitcoin-n-est-pas-de-l-or-numerique">Le Bitcoin n'est pas de l'or numérique</h3>
+<p>À l'échelle d'une semaine de trading, le Bitcoin est un actif à fort bêta : en
+choc de liquidité, il est vendu <strong>en premier</strong>.</p>
+<p>L'or, lui, finit par jouer son rôle de refuge — mais seulement après
+l'intervention de la banque centrale.</p></section>
+<h2 class="libre" id="mon-analyse-macro-en-5-minutes">Mon analyse macro en 5 minutes</h2>
+<section class="bloc bloc--respiration"><p class="bloc-titre">L&#x27;ANALYSE MACRO EN 5 MINUTES</p><h3 id="minute-1-le-fond">Minute 1 — Le fond</h3>
+<p>Ouvrir le rendement <strong>réel</strong> 10 ans (TIPS).</p>
+<pre><code>   En baisse sur un mois  ──►  🟢 biais de fond HAUSSIER
+   En hausse sur un mois  ──►  🔴 biais de fond BAISSIER
+   Plat                   ──►  ⚪ pas de biais de fond
+</code></pre>
+<h3 id="minute-2-le-dollar">Minute 2 — Le dollar</h3>
+<p>Ouvrir le DXY en H4.</p>
+<pre><code>   Sous sa moyenne 50 j, en baisse   ──►  🟢 vent arrière
+   Au-dessus, en hausse              ──►  🔴 vent de face
+   Sans direction                    ──►  ⚪ neutre
+</code></pre>
+<p>Puis une seule question : <strong>quel moteur pousse le dollar ?</strong>
+Taux américains → effet fort. Faiblesse étrangère → effet limité.</p>
+<h3 id="minute-3-le-calendrier">Minute 3 — Le calendrier</h3>
+<pre><code>   Publication majeure aujourd'hui ?   ──►  noter l'heure = fenêtre interdite
+   Discours d'un membre de la Fed ?    ──►  noter l'heure
+   Jour de FOMC ?                      ──►  aucune position avant 21 h
+</code></pre>
+<h3 id="minute-4-les-niveaux">Minute 4 — Les niveaux</h3>
+<p>Tracer quatre lignes, pas une de plus :</p>
+<pre><code>   ─────────  plus haut de la veille
+   ─────────  clôture de la veille
+   ─────────  plus bas de la veille
+   ─────────  bornes du range asiatique
+</code></pre>
+<h3 id="minute-5-la-decision">Minute 5 — La décision</h3>
+<pre><code>   ┌──────────────────────────────────────────────────┐
+   │  DIRECTION     : ..............................  │
+   │  CIBLE         : ..............................  │
+   │  INVALIDATION  : ..............................  │
+   │  TAILLE        : normale / réduite / aucune      │
+   └──────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="la-regle-de-sortie-de-cette-routine">La règle de sortie de cette routine</h3>
+<p>Deux réponses vertes sur trois (fond, dollar, calendrier) → <strong>biais assumé,
+taille normale</strong>.</p>
+<p>Une seule → <strong>taille réduite, objectifs courts</strong>.</p>
+<p>Zéro → <strong>journée d'observation</strong>. Et c'est un résultat parfaitement acceptable.</p></section>
+<h1 class="libre" id="pour-finir">Pour finir</h1>
+<h2 class="libre" id="ce-que-vous-savez-maintenant">Ce que vous savez maintenant</h2>
+<p>Vous saviez déjà exécuter. Vous savez maintenant dans quel sens.</p>
+<pre class="schema"><code>   L'or est une devise sans État, pas une matière première.
+        ↓
+   Son prix mesure la confiance dans la monnaie et dans la dette.
+        ↓
+   Sa variable maîtresse est le TAUX RÉEL américain.
+        ↓
+   Tout le reste — dollar, inflation, emploi, croissance, Fed, crises —
+   ne compte que parce que cela influence le taux réel.
+        ↓
+   La macro donne la direction. Votre technique donne le moment.
+</code></pre>
+<h3 id="ce-qu-il-faut-ignorer">Ce qu'il faut ignorer</h3>
+<p>La production minière. La demande de bijoux à court terme. Les objectifs de
+prix publiés par les banques. Les titres de presse spectaculaires sans effet
+économique. La première bougie de chaque publication.</p>
+<h3 id="les-cinq-phrases-du-manuel">Les cinq phrases du manuel</h3>
+<aside class="bloc bloc--retenir"><p class="bloc-titre">À retenir absolument</p><ol>
+<li>L'or suit les <strong>taux réels</strong>, pas l'inflation.</li>
+<li>Le dollar est un raccourci utile, mais imparfait : cherchez toujours son
+   moteur.</li>
+<li>Seule la <strong>surprise</strong> par rapport au consensus déplace les prix.</li>
+<li>On ne trade jamais l'annonce : on trade le déséquilibre qu'elle laisse.</li>
+<li>La macro <strong>supprime</strong> des trades ; elle n'en crée aucun.</li>
+</ol></aside>
+<h3 id="le-mot-de-la-fin">Le mot de la fin</h3>
+<p>La macro ne vous donnera jamais de certitude.</p>
+<p>Elle vous donne quelque chose de plus utile : <strong>une raison</strong>. Une raison de
+préférer l'achat à la vente cette semaine. Une raison de ne rien faire
+aujourd'hui. Une raison de doubler la conviction quand tout s'aligne — et de
+rester à l'écart quand rien ne s'aligne.</p>
+<p>Le reste — la patience, la répétition, le bilan relu chaque vendredi soir — ne
+s'écrit pas dans un manuel. Cela se pratique.</p>
+<aside class="bloc bloc--cle"><p>Bon trading.
+Et surtout : bonne survie.</p></aside>
+<h2 class="libre" id="ou-trouver-les-donnees">Où trouver les données</h2>
+<div class="tab"><table>
+<thead>
+<tr>
+<th>Donnée</th>
+<th>Source officielle, gratuite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPI, PPI, NFP, chômage, JOLTS</td>
+<td>Bureau of Labor Statistics — bls.gov</td>
+</tr>
+<tr>
+<td>PCE, PIB, revenus et dépenses</td>
+<td>Bureau of Economic Analysis — bea.gov</td>
+</tr>
+<tr>
+<td>Décisions, communiqués, dot plot, minutes</td>
+<td>Réserve fédérale — federalreserve.gov</td>
+</tr>
+<tr>
+<td>Rendements, <strong>taux réels</strong>, breakeven, DXY</td>
+<td>FRED — fred.stlouisfed.org</td>
+</tr>
+<tr>
+<td>ISM manufacturier et services</td>
+<td>Institute for Supply Management</td>
+</tr>
+<tr>
+<td>Positionnement des fonds (COT)</td>
+<td>Commodity Futures Trading Commission</td>
+</tr>
+<tr>
+<td>Demande d'or, achats de banques centrales</td>
+<td>World Gold Council</td>
+</tr>
+<tr>
+<td>Prix de référence de l'or physique</td>
+<td>LBMA</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="bloc bloc--astuce"><p class="bloc-titre">Astuce</p><p>Créez un tableau de bord sur FRED avec quatre séries : <strong>rendement réel 10 ans</strong>,
+rendement nominal 10 ans, breakeven 10 ans, indice du dollar.</p>
+<p>C'est gratuit, officiel, et cela remplace la plupart des services payants.</p></aside>
+<aside class="bloc bloc--danger"><p class="bloc-titre">Avertissement</p><p>Ce manuel est un ouvrage pédagogique. Il ne constitue pas un conseil en
+investissement et ne promet aucun résultat.</p>
+<p>Les chiffres et niveaux cités en exemple illustrent des <strong>mécanismes</strong> : ce sont
+des séquences typiques du marché, pas un relevé historique exact. Vérifiez
+toujours les données réelles auprès des sources officielles ci-dessus avant
+toute décision.</p>
+<p>Le trading de l'or à effet de levier fait perdre de l'argent à la majorité des
+participants. La seule variable que vous contrôlez réellement est votre risque.</p></aside>
+</div></main>
+
+<script>window.__INDEX__ = [{"i":"avant-d-ouvrir-le-manuel","t":"Avant d'ouvrir le manuel"},{"i":"comment-utiliser-ce-manuel","t":"Comment utiliser ce manuel"},{"i":"les-trois-usages","t":"Les trois usages"},{"i":"ce-que-vous-ne-trouverez-pas-ici","t":"Ce que vous ne trouverez pas ici"},{"i":"le-code-couleur","t":"Le code couleur"},{"i":"chaque-concept-trois-niveaux","t":"Chaque concept, trois niveaux"},{"i":"une-seule-chose-a-retenir-avant-de-commencer","t":"Une seule chose à retenir avant de commencer"},{"i":"avertissement","t":"Avertissement"},{"i":"la-carte-d-identite-du-gold","t":"La carte d'identité du Gold"},{"i":"pourquoi-l-or-monte-ou-baisse","t":"Pourquoi l'or monte ou baisse"},{"i":"le-point-de-depart","t":"Le point de départ"},{"i":"les-quatre-forces-par-ordre-d-importance","t":"Les quatre forces, par ordre d'importance"},{"i":"le-tableau-de-decision-de-fond","t":"Le tableau de décision de fond"},{"i":"ce-qui-ne-fait-pas-bouger-l-or","t":"Ce qui ne fait pas bouger l'or"},{"i":"qui-fait-le-prix-de-l-or","t":"Qui fait le prix de l'or"},{"i":"la-carte-des-intervenants","t":"La carte des intervenants"},{"i":"ce-que-fait-chacun","t":"Ce que fait chacun"},{"i":"pourquoi-les-supports-tiennent-plusieurs-fois","t":"Pourquoi les supports tiennent plusieurs fois"},{"i":"les-10-choses-qui-font-bouger-le-gold","t":"Les 10 choses qui font bouger le Gold"},{"i":"1-les-taux-reels-americains","t":"1. Les taux réels américains"},{"i":"2-le-dollar-dxy","t":"2. Le dollar (DXY)"},{"i":"3-les-anticipations-de-la-fed","t":"3. Les anticipations de la Fed"},{"i":"4-l-inflation-mais-seulement-par-rapport-aux-taux","t":"4. L'inflation — mais seulement par rapport aux taux"},{"i":"5-le-rendement-du-10-ans","t":"5. Le rendement du 10 ans"},{"i":"6-les-flux-etf","t":"6. Les flux ETF"},{"i":"7-les-achats-des-banques-centrales","t":"7. Les achats des banques centrales"},{"i":"8-le-risque-geopolitique","t":"8. Le risque géopolitique"},{"i":"9-le-positionnement","t":"9. Le positionnement"},{"i":"10-la-liquidite-globale","t":"10. La liquidité globale"},{"i":"la-hierarchie-en-une-image","t":"La hiérarchie en une image"},{"i":"les-indicateurs-macro","t":"Les indicateurs macro"},{"i":"cpi","t":"CPI"},{"i":"a-quoi-ca-sert","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente","t":"Quand la réaction est différente"},{"i":"core-cpi","t":"Core CPI"},{"i":"a-quoi-ca-sert-2","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-2","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-2","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-2","t":"Quand la réaction est différente"},{"i":"pce","t":"PCE"},{"i":"a-quoi-ca-sert-3","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-3","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-3","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-3","t":"Quand la réaction est différente"},{"i":"ppi","t":"PPI"},{"i":"a-quoi-ca-sert-4","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-4","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-4","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-4","t":"Quand la réaction est différente"},{"i":"nfp","t":"NFP"},{"i":"a-quoi-ca-sert-5","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-5","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-5","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-5","t":"Quand la réaction est différente"},{"i":"taux-de-chomage","t":"Taux de chômage"},{"i":"a-quoi-ca-sert-6","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-6","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-attention-sens-inverse","t":"Réaction sur le Gold — attention, sens inversé"},{"i":"le-signal-a-connaitre-la-regle-de-sahm","t":"Le signal à connaître : la règle de Sahm"},{"i":"jolts","t":"JOLTS"},{"i":"a-quoi-ca-sert-7","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-7","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-6","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-6","t":"Quand la réaction est différente"},{"i":"pib","t":"PIB"},{"i":"a-quoi-ca-sert-8","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-8","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-7","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-7","t":"Quand la réaction est différente"},{"i":"pmi","t":"PMI"},{"i":"a-quoi-ca-sert-9","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-9","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-8","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-8","t":"Quand la réaction est différente"},{"i":"ism","t":"ISM"},{"i":"a-quoi-ca-sert-10","t":"À quoi ça sert"},{"i":"les-deux-sous-indices-a-lire","t":"Les deux sous-indices à lire"},{"i":"reaction-sur-le-gold-9","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-9","t":"Quand la réaction est différente"},{"i":"ventes-au-detail","t":"Ventes au détail"},{"i":"a-quoi-ca-sert-11","t":"À quoi ça sert"},{"i":"pourquoi-le-marche-le-regarde-10","t":"Pourquoi le marché le regarde"},{"i":"reaction-sur-le-gold-10","t":"Réaction sur le Gold"},{"i":"quand-la-reaction-est-differente-10","t":"Quand la réaction est différente"},{"i":"la-fed","t":"La Fed"},{"i":"hawkish-ou-dovish-decider-en-60-secondes","t":"Hawkish ou dovish : décider en 60 secondes"},{"i":"le-principe","t":"Le principe"},{"i":"le-dictionnaire-de-traduction","t":"Le dictionnaire de traduction"},{"i":"le-test-en-trois-questions","t":"Le test en trois questions"},{"i":"lire-un-discours-de-powell","t":"Lire un discours de Powell"},{"i":"les-deux-vagues","t":"Les deux vagues"},{"i":"une-soiree-type","t":"Une soirée type"},{"i":"ce-qu-il-faut-ecouter","t":"Ce qu'il faut écouter"},{"i":"interpreter-une-decision-de-taux","t":"Interpréter une décision de taux"},{"i":"le-principe-2","t":"Le principe"},{"i":"le-dot-plot","t":"Le dot plot"},{"i":"les-minutes-du-fomc","t":"Les minutes du FOMC"},{"i":"a-quoi-ca-sert-12","t":"À quoi ça sert"},{"i":"ce-qu-on-y-cherche","t":"Ce qu'on y cherche"},{"i":"reaction-sur-le-gold-11","t":"Réaction sur le Gold"},{"i":"la-checklist-complete-avant-une-reunion-de-la-fed","t":"La checklist complète avant une réunion de la Fed"},{"i":"1-ce-qui-est-deja-valorise","t":"1. Ce qui est déjà valorisé"},{"i":"2-les-donnees-depuis-la-derniere-reunion","t":"2. Les données depuis la dernière réunion"},{"i":"3-le-contexte-de-marche","t":"3. Le contexte de marché"},{"i":"4-le-plan-de-seance","t":"4. Le plan de séance"},{"i":"5-apres","t":"5. Après"},{"i":"les-graphiques-indispensables","t":"Les graphiques indispensables"},{"i":"le-dxy","t":"Le DXY"},{"i":"ce-que-ca-signifie","t":"Ce que ça signifie"},{"i":"comment-ca-influence-l-or","t":"Comment ça influence l'or"},{"i":"comment-l-utiliser-dans-votre-biais","t":"Comment l'utiliser dans votre biais"},{"i":"le-rendement-du-10-ans","t":"Le rendement du 10 ans"},{"i":"ce-que-ca-signifie-2","t":"Ce que ça signifie"},{"i":"comment-ca-influence-l-or-2","t":"Comment ça influence l'or"},{"i":"deux-echeances-deux-messages","t":"Deux échéances, deux messages"},{"i":"les-taux-reels","t":"Les taux réels"},{"i":"ce-que-ca-signifie-3","t":"Ce que ça signifie"},{"i":"le-tableau-qui-explique-tout","t":"Le tableau qui explique tout"},{"i":"les-obligations-et-la-courbe-des-taux","t":"Les obligations et la courbe des taux"},{"i":"ce-que-ca-signifie-4","t":"Ce que ça signifie"},{"i":"le-cas-particulier-a-connaitre","t":"Le cas particulier à connaître"},{"i":"le-vix","t":"Le VIX"},{"i":"ce-que-ca-signifie-5","t":"Ce que ça signifie"},{"i":"comment-l-utiliser","t":"Comment l'utiliser"},{"i":"la-routine-quotidienne","t":"La routine quotidienne"},{"i":"avant-londres","t":"Avant Londres"},{"i":"les-six-verifications","t":"Les six vérifications"},{"i":"la-fiche-de-biais","t":"La fiche de biais"},{"i":"avant-new-york","t":"Avant New York"},{"i":"les-quatre-verifications","t":"Les quatre vérifications"},{"i":"les-trois-scenarios-de-l-apres-midi","t":"Les trois scénarios de l'après-midi"},{"i":"avant-une-entree","t":"Avant une entrée"},{"i":"les-six-controles-macro","t":"Les six contrôles macro"},{"i":"la-regle-de-coherence","t":"La règle de cohérence"},{"i":"ce-que-la-macro-change-concretement","t":"Ce que la macro change concrètement"},{"i":"les-scenarios-de-marche","t":"Les scénarios de marché"},{"i":"les-six-scenarios-de-l-or","t":"Les six scénarios de l'or"},{"i":"scenario-1-bullish-parfait","t":"🟢 Scénario 1 — Bullish parfait"},{"i":"scenario-2-bullish-de-defiance","t":"🟢 Scénario 2 — Bullish de défiance"},{"i":"scenario-3-bearish-parfait","t":"🔴 Scénario 3 — Bearish parfait"},{"i":"scenario-4-panique-de-liquidite","t":"🔴 Scénario 4 — Panique de liquidité"},{"i":"scenario-5-prime-de-peur-geopolitique","t":"🟡 Scénario 5 — Prime de peur géopolitique"},{"i":"scenario-6-aucun-scenario","t":"⚪ Scénario 6 — Aucun scénario"},{"i":"comment-identifier-le-scenario-en-30-secondes","t":"Comment identifier le scénario en 30 secondes"},{"i":"les-erreurs-des-traders","t":"Les erreurs des traders"},{"i":"pourquoi-une-bonne-news-fait-souvent-l-inverse","t":"Pourquoi une bonne news fait souvent l'inverse"},{"i":"le-mecanisme","t":"Le mécanisme"},{"i":"le-second-niveau-le-regime","t":"Le second niveau : le régime"},{"i":"le-troisieme-niveau-la-composition","t":"Le troisième niveau : la composition"},{"i":"pourquoi-il-ne-faut-pas-trader-l-annonce","t":"Pourquoi il ne faut pas trader l'annonce"},{"i":"ce-qui-se-passe-vraiment-a-14-h-30","t":"Ce qui se passe vraiment à 14 h 30"},{"i":"les-trois-raisons-de-ne-pas-y-etre","t":"Les trois raisons de ne pas y être"},{"i":"ce-qu-il-faut-faire-a-la-place","t":"Ce qu'il faut faire à la place"},{"i":"pourquoi-le-marche-anticipe-toujours","t":"Pourquoi le marché anticipe toujours"},{"i":"le-principe-3","t":"Le principe"},{"i":"les-trois-consequences-pratiques","t":"Les trois conséquences pratiques"},{"i":"ou-lire-ce-qui-est-deja-anticipe","t":"Où lire ce qui est déjà anticipé"},{"i":"les-neuf-autres-erreurs","t":"Les neuf autres erreurs"},{"i":"les-fiches-rapides","t":"Les fiches rapides"},{"i":"gold-daily-checklist","t":"Gold Daily Checklist"},{"i":"1-le-fond-etabli-le-dimanche-non-revisable-en-semaine","t":"① Le fond (établi le dimanche, non révisable en semaine)"},{"i":"2-le-calendrier-du-jour","t":"② Le calendrier du jour"},{"i":"3-les-marches-directeurs-08-h-45","t":"③ Les marchés directeurs (08 h 45)"},{"i":"4-les-niveaux-du-jour","t":"④ Les niveaux du jour"},{"i":"5-la-decision","t":"⑤ La décision"},{"i":"6-le-soir","t":"⑥ Le soir"},{"i":"impact-des-news-sur-xauusd","t":"Impact des news sur XAUUSD"},{"i":"la-regle-generale","t":"La règle générale"},{"i":"les-trois-exceptions-au-tableau","t":"Les trois exceptions au tableau"},{"i":"les-correlations-importantes","t":"Les corrélations importantes"},{"i":"le-tableau","t":"Le tableau"},{"i":"ce-que-chaque-combinaison-signifie","t":"Ce que chaque combinaison signifie"},{"i":"ce-qu-il-faut-savoir-sur-les-ruptures","t":"Ce qu'il faut savoir sur les ruptures"},{"i":"la-regle-de-resolution","t":"La règle de résolution"},{"i":"le-bitcoin-n-est-pas-de-l-or-numerique","t":"Le Bitcoin n'est pas de l'or numérique"},{"i":"mon-analyse-macro-en-5-minutes","t":"Mon analyse macro en 5 minutes"},{"i":"minute-1-le-fond","t":"Minute 1 — Le fond"},{"i":"minute-2-le-dollar","t":"Minute 2 — Le dollar"},{"i":"minute-3-le-calendrier","t":"Minute 3 — Le calendrier"},{"i":"minute-4-les-niveaux","t":"Minute 4 — Les niveaux"},{"i":"minute-5-la-decision","t":"Minute 5 — La décision"},{"i":"la-regle-de-sortie-de-cette-routine","t":"La règle de sortie de cette routine"},{"i":"pour-finir","t":"Pour finir"},{"i":"ce-que-vous-savez-maintenant","t":"Ce que vous savez maintenant"},{"i":"ce-qu-il-faut-ignorer","t":"Ce qu'il faut ignorer"},{"i":"les-cinq-phrases-du-manuel","t":"Les cinq phrases du manuel"},{"i":"le-mot-de-la-fin","t":"Le mot de la fin"},{"i":"ou-trouver-les-donnees","t":"Où trouver les données"}];</script>
+<script>
+(function(){
+  var plan=document.getElementById('plan'),champ=document.getElementById('recherche'),
+      indice=document.getElementById('indice'),navOriginal=plan.innerHTML,
+      INDEX=window.__INDEX__||[],REPERE=INDEX.length+' sections indexées';
+
+  function sansAccent(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+
+  function chercher(q){
+    if(!q.trim()){plan.innerHTML=navOriginal;indice.textContent=REPERE;brancher();return;}
+    var mots=sansAccent(q).split(/\s+/).filter(Boolean);
+    var t=INDEX.filter(function(e){var x=sansAccent(e.t);
+      return mots.every(function(m){return x.indexOf(m)!==-1;});}).slice(0,120);
+    if(!t.length){
+      plan.innerHTML='<p style="font-family:var(--sans);font-size:.8rem;color:var(--encre-3);padding:.7rem">Rien trouvé.</p>';
+      indice.textContent='0 résultat';return;
+    }
+    plan.innerHTML='<ul class="nav-racine">'+t.map(function(e){
+      return '<li class="nav-chapitre"><a href="#'+e.i+'">'+
+        e.t.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</a></li>';}).join('')+'</ul>';
+    indice.textContent=t.length+' résultat'+(t.length>1?'s':'');
+    brancher();
+  }
+
+  indice.textContent=REPERE;
+  champ.addEventListener('input',function(){chercher(champ.value);});
+  champ.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){champ.value='';chercher('');champ.blur();}
+    if(e.key==='Enter'){var a=plan.querySelector('a');if(a){a.click();}}
+  });
+
+  function brancher(){
+    plan.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click',function(){
+        if(window.innerWidth<=1180){document.body.classList.remove('menu');}
+      });
+    });
+  }
+  brancher();
+
+  document.addEventListener('keydown',function(e){
+    if(e.key==='/'&&document.activeElement!==champ){e.preventDefault();champ.focus();champ.select();}
+  });
+
+  var btn=document.getElementById('theme'),memo=localStorage.getItem('gm-theme');
+  if(memo){document.documentElement.setAttribute('data-theme',memo);}
+  btn.addEventListener('click',function(){
+    var a=document.documentElement.getAttribute('data-theme');
+    if(!a){a=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+    var s=a==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',s);
+    localStorage.setItem('gm-theme',s);
+  });
+
+  document.getElementById('plein').addEventListener('click',function(){
+    if(window.innerWidth<=1180){document.body.classList.toggle('menu');}
+    else{document.body.classList.toggle('plein');}
+  });
+
+  var titres=Array.prototype.slice.call(document.querySelectorAll('main h1, main h2'));
+  var haut=document.getElementById('haut');
+  function surDefilement(){
+    haut.classList.toggle('visible',window.scrollY>900);
+    if(champ.value.trim())return;
+    var courant=null;
+    for(var i=0;i<titres.length;i++){
+      if(titres[i].getBoundingClientRect().top<140){courant=titres[i];}else{break;}
+    }
+    plan.querySelectorAll('a.actif').forEach(function(a){a.classList.remove('actif');});
+    if(courant){
+      var l=plan.querySelector('a[href="#'+courant.id+'"]');
+      if(l){l.classList.add('actif');
+        var b=l.getBoundingClientRect(),p=plan.getBoundingClientRect();
+        if(b.top<p.top||b.bottom>p.bottom){l.scrollIntoView({block:'center'});}}
+    }
+    localStorage.setItem('gm-position',String(window.scrollY));
+  }
+  window.addEventListener('scroll',surDefilement,{passive:true});
+  surDefilement();
+  haut.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+
+  if(!location.hash){
+    var pos=parseInt(localStorage.getItem('gm-position')||'0',10);
+    if(pos>400){window.scrollTo(0,pos);}
+  }
+})();
+</script>
+</body>
+</html>

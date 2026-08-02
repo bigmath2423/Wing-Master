@@ -1,97 +1,105 @@
-# L'Or et la Macro — comprendre les forces qui font bouger le XAUUSD
+# GOLD MACRO — le manuel de référence du trader XAUUSD
 
-Livre de macroéconomie appliquée au trading de l'or, en 10 parties et
-31 chapitres. Écrit pour un trader qui maîtrise déjà l'analyse technique, la
-structure de marché, la liquidité et l'exécution — et à qui il manque la lecture
-macro.
+Manuel professionnel de macroéconomie appliquée au trading de l'or. Conçu comme
+un **outil de travail quotidien**, pas comme un livre à lire une fois : fiches,
+tableaux de réaction, checklists, scénarios et routine de séance.
+
+Pour un trader qui maîtrise déjà l'analyse technique, la structure de marché, la
+liquidité et l'exécution.
 
 ## Les deux formats
 
 | Fichier | Usage |
 |---|---|
-| **`or-et-macro.pdf`** | 128 pages A4, prêt à imprimer ou à lire sur tablette |
-| **`or-et-macro.html`** | Version interactive : recherche instantanée, thème clair/sombre, reprise de lecture |
+| **`gold-macro.pdf`** | 106 pages A4, grande police, très aéré — à imprimer ou à lire sur tablette |
+| **`gold-macro.html`** | Version interactive : recherche instantanée, thème clair/sombre, reprise de lecture, adapté au téléphone |
 
 Le HTML est **autonome** : aucune police distante, aucune image externe, aucun
-script tiers. Il fonctionne hors ligne, sur téléphone comme sur ordinateur.
+script tiers. Il fonctionne hors ligne.
 
 | Action | Comment |
 |---|---|
-| Chercher un sujet | Touche `/` — accents et majuscules ignorés |
+| Chercher | Touche `/` — accents et majuscules ignorés |
 | Naviguer | Sommaire de gauche, ou sommaire imprimé au début |
 | Clair / sombre | Bouton **◐ Thème** (mémorisé) |
-| Exporter en PDF | `Ctrl+P` → « Enregistrer au format PDF », A4, marges par défaut |
+| Exporter en PDF | `Ctrl+P` → A4, marges par défaut, **arrière-plans activés** |
 
-## Structure
+## Structure — 8 parties
 
-Chaque chapitre suit exactement le même plan :
+| Partie | Contenu |
+|---|---|
+| 1 | **La carte d'identité du Gold** — pourquoi il monte ou baisse, qui fait le prix, les 10 moteurs |
+| 2 | **Les indicateurs macro** — 11 fiches : CPI, Core CPI, PCE, PPI, NFP, chômage, JOLTS, PIB, PMI, ISM, ventes au détail |
+| 3 | **La Fed** — hawkish/dovish, lire un discours, décision de taux, minutes, checklist avant réunion |
+| 4 | **Les graphiques indispensables** — DXY, 10 ans, taux réels, courbe des taux, VIX |
+| 5 | **La routine quotidienne** — avant Londres, avant New York, avant une entrée |
+| 6 | **Les scénarios de marché** — 6 configurations, de la conviction maximale à l'abstention |
+| 7 | **Les erreurs des traders** — pourquoi une bonne news fait l'inverse, pourquoi ne pas trader l'annonce, pourquoi le marché anticipe |
+| 8 | **Les fiches rapides** — Daily Checklist, tableau d'impact des news, corrélations, analyse macro en 5 minutes |
+
+### Le format d'une fiche indicateur
+
+Toujours le même, pour une lecture en trente secondes :
 
 ```
-📌 Pourquoi ce chapitre compte     l'enjeu pour un trader du Gold
-💡 L'explication simple            le concept en mots accessibles
-📊 Exemple concret                 une situation réelle de marché
-🥇 Impact sur le Gold              ça monte / ça baisse / les exceptions
-🏛️ Ce que regarde un pro            la lecture institutionnelle
-✅ À retenir absolument            la page à relire avant de trader
-📋 Fiche pratique                  la checklist utilisable en séance
+À quoi ça sert  ·  Pourquoi le marché le regarde
+Réaction sur le Gold (supérieur / inférieur aux attentes, force)
+Quand la réaction est différente  ·  Mémo
 ```
 
-### Les dix parties
+### Les trois niveaux d'explication
 
-| Partie | Contenu | Chapitres |
-|---|---|---|
-| 1 | Comprendre l'or | 1–4 |
-| 2 | Le dollar (DXY) | 5–6 |
-| 3 | Les taux d'intérêt (Fed, obligations, **taux réels**) | 7–9 |
-| 4 | L'inflation (CPI, Core CPI, PCE, PPI) | 10–13 |
-| 5 | L'emploi américain (NFP, chômage, JOLTS, ADP) | 14–15 |
-| 6 | La croissance (PIB, PMI/ISM, consommation) | 16–18 |
-| 7 | Les banques centrales (Fed, FOMC, hawkish/dovish) | 19–21 |
-| 8 | Crises et événements mondiaux | 22–24 |
-| 9 | Les corrélations du Gold | 25–26 |
-| 10 | **La méthode** (8 étapes, semaine type, macro + SMC, études de cas, erreurs) | 27–31 |
+Chaque notion importante est expliquée en **simple**, en **professionnel**, puis
+en **application directe sur XAUUSD**.
 
-Plus cinq annexes : tableau de réaction universel, calendrier permanent,
-glossaire, fiche d'une page, sources de données officielles.
+## Modifier le manuel
 
-## Modifier le livre
-
-Sources en Markdown dans `src/`, lues dans l'ordre alphabétique des noms de
-fichiers.
+Sources en Markdown dans `src/`, lues dans l'ordre alphabétique.
 
 ```bash
 pip install markdown          # une seule fois
-python3 livre-gold/build.py   # régénère or-et-macro.html
+python3 livre-gold/build.py   # régénère gold-macro.html
 ```
-
-Pour régénérer le PDF : ouvrir le HTML, `Ctrl+P`, format A4, marges par défaut,
-arrière-plans activés.
 
 ### Conventions d'écriture
 
 ```markdown
-# Titre        ouverture de PARTIE  (page pleine à l'impression)
-## Titre       CHAPITRE             (nouvelle page à l'impression)
-### Titre      section du chapitre  (indexée par la recherche)
+# Titre                 PARTIE   (page pleine à l'impression)
+## Titre                CHAPITRE (numéroté, nouvelle page)
+## Titre {: .fiche }    FICHE    (numérotation séparée)
+## Titre {: .libre }    page spéciale, sans numéro
+### Titre               section
 
 ::: retenir Titre facultatif
 contenu markdown
 :::
 ```
 
-Classes d'encadrés : `retenir` (or), `erreur` (rouge), `astuce` (bleu),
-`pro` (cyan), `histoire` (violet), `cas` (vert), `fiche` (vert clair),
-`danger` (rouge appuyé), `memo`, `chiffre`.
+Encadrés disponibles :
 
-Blocs de code balisés : `schema` (schéma ASCII encadré), `svg` (graphique
-vectoriel inséré tel quel, adapté automatiquement au thème clair/sombre),
-`tableau` (tableau ASCII large).
+| Classe | Rendu |
+|---|---|
+| `retenir` | À retenir absolument (or) |
+| `erreur` | Erreur des débutants (rouge) |
+| `institutions` | Ce que font les institutions (cyan) |
+| `detail` | Le détail que 90 % des traders ignorent (violet) |
+| `xau` | Application directe sur XAUUSD (or) |
+| `fiche` | Fiche pratique (vert) |
+| `cas`, `histoire`, `astuce`, `danger`, `memo`, `resume` | variantes |
+| `niveaux` | les trois niveaux d'explication (liste de 3 puces) |
+| `cartes` | grille de cartes (liste à puces) |
+| `cle` | phrase forte, en grand |
+| `respiration` | page de respiration (saut de page avant, à l'impression) |
+
+Blocs de code balisés : `schema` (schéma ASCII), `svg` (graphique vectoriel
+adapté au thème), `tableau` (tableau ASCII large).
 
 ## Avertissement
 
 Ouvrage pédagogique. Ne constitue pas un conseil en investissement et ne promet
-aucun résultat. Les chiffres et niveaux cités dans les exemples illustrent des
-**mécanismes** : ce sont des séquences typiques, pas un relevé historique exact.
-Vérifiez les données réelles auprès des sources officielles listées en annexe E
-(BLS, BEA, Réserve fédérale, FRED, LBMA, World Gold Council) avant toute
-décision.
+aucun résultat.
+
+Les chiffres et niveaux cités en exemple illustrent des **mécanismes** : ce sont
+des séquences typiques du marché, pas un relevé historique exact. Vérifiez les
+données réelles auprès des sources officielles listées en fin de manuel (BLS,
+BEA, Réserve fédérale, FRED, ISM, CFTC, World Gold Council, LBMA).

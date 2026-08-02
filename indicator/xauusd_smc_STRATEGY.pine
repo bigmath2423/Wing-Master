@@ -1,5 +1,5 @@
 //@version=6
-strategy("XAUUSD SMC Confluence Signals [BACKTEST]", shorttitle="SMC Gold BT", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500, initial_capital=input.int(10000, "Capital de depart", minval=1, group="🧪 BACKTEST — Compte"), currency=currency.USD, commission_type=strategy.commission.percent, commission_value=input.float(0.0, "Commission (% par ordre)", minval=0.0, step=0.005, group="🧪 BACKTEST — Compte"), slippage=input.int(95, "Slippage (ticks)", minval=0, group="🧪 BACKTEST — Compte"), default_qty_type=strategy.fixed, default_qty_value=1, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=false)
+strategy("XAUUSD SMC Confluence Signals [BACKTEST]", shorttitle="SMC Gold BT", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500, initial_capital=10000, currency=currency.USD, commission_type=strategy.commission.percent, commission_value=0.0, slippage=95, default_qty_type=strategy.fixed, default_qty_value=1, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=false)
 
 // ============================================================
 // CARTE DE VALIDATION A/B  (backtests d'ablation - a valider avant de garder)

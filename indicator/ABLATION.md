@@ -127,9 +127,9 @@ filtre ou de niveau n'a été touchée. Le moteur d'exécution ajouté en fin de
 
 | Groupe | Réglage | Défaut |
 |--------|---------|--------|
-| Compte | Capital de départ | 10 000 |
-| Compte | Commission (% par ordre) | 0.0 |
-| Compte | Slippage (ticks) | 0 |
+| Propriétés TradingView | Capital de départ | 10 000 (modifiable dans l'onglet Propriétés) |
+| Propriétés TradingView | Commission | 0.0 (onglet Propriétés) |
+| Propriétés TradingView | Slippage | 95 ticks (onglet Propriétés) |
 | Exécution | Type d'entrée (Marché / Limite) | Marché |
 | Exécution | Validité ordre limite (barres) | 10 |
 | Exécution | Sorties (3 paliers / TP1 seul / TP Final seul) | 3 paliers |
@@ -247,3 +247,13 @@ Seuils de rentabilité recalculés (SL à 1.2 ATR) :
 | H1 | 7 % | 35,7 % | 26,8 % | **21,4 %** |
 
 Coût par aller-retour : 0,01 lot = 0,95 $ · 0,10 lot = 9,50 $ · 1 lot = 95 $.
+
+### 🐛 Correctif compilation — `input.*` interdit dans `strategy()`
+
+Les paramètres `initial_capital`, `commission_value` et `slippage` de la déclaration
+`strategy()` exigent des valeurs **constantes** : y placer des `input.*` provoque une
+erreur de compilation. Ils sont désormais **codés en dur** (10 000 / 0.0 / 95 ticks).
+
+Ce n'est pas une perte : TradingView expose nativement ces trois réglages dans
+l'onglet **Propriétés** de la stratégie (⚙️ à côté du nom sur le graphique), qui prime
+sur les valeurs du code. Capital, commission et slippage restent donc modifiables.

@@ -108,6 +108,13 @@ emaTrend = ta.ema(close, emaLen)
 htfClose = request.security(syminfo.tickerid, htfTimeframe, close[1], lookahead=barmerge.lookahead_off)
 htfEma   = request.security(syminfo.tickerid, htfTimeframe, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
 vwapVal  = ta.vwap(hlc3)
+// Contexte multi-timeframe pondere (D1 + H4) — sert UNIQUEMENT a noter les zones.
+// [1] + lookahead_off -> barres cloturees, zero repaint.
+mtfEmaLen = 50
+[d1c, d1e] = request.security(syminfo.tickerid, "1D",  [close[1], ta.ema(close, mtfEmaLen)[1]], lookahead=barmerge.lookahead_off)
+[h4c, h4e] = request.security(syminfo.tickerid, "240", [close[1], ta.ema(close, mtfEmaLen)[1]], lookahead=barmerge.lookahead_off)
+d1Bull = not na(d1c) and not na(d1e) and d1c > d1e
+h4Bull = not na(h4c) and not na(h4e) and h4c > h4e
 
 plot(showBiasLine and useTrendFilter ? emaTrend : na, "EMA", color=color.new(color.gray, 40))
 plot(showBiasLine and useHtfFilter ? htfEma : na, "EMA HTF", color=color.new(color.purple, 30), linewidth=2)
@@ -724,11 +731,12 @@ if tmActive
             tmT3Hit := true
 
 // ================= ZONES ANTICIPEES : BUY LIMIT / SELL LIMIT =================
-// Projetees AVANT que le prix n'arrive. Chaque zone est notee /100 sur la
-// confluence des seuls elements du moteur : Premium/Discount, Fibonacci (OTE),
-// structure, liquidite a prendre, type de zone (OB / FVG), biais HTF.
-// La zone est ensuite RESSERREE sur l'intersection avec la bande OTE 0.618-0.786
-// -> le point d'entree devient un niveau, pas une plage.
+// Projetees AVANT que le prix n'arrive. Trois mecanismes de PRECISION :
+//   1. note /100 sur la confluence (dont biais multi-timeframe pondere D1/H4/H1)
+//   2. RESSERRAGE par la note : plus la confluence est forte, plus la zone est
+//      etroite (0.40 x ATR a 40/100  ->  0.06 x ATR a 100/100)
+//   3. CLIP sur la bande OTE Fibonacci 0.618-0.786 si elle croise la zone
+// Resultat : un niveau d'entree, pas une plage approximative.
 var box   buyZoneBox = na
 var label buyZoneLbl = na
 var box   sellZoneBox = na
@@ -738,7 +746,11 @@ var label sellZoneLbl = na
 oteTop = fibReady ? swingHighVal - fibRng * 0.618 : na
 oteBot = fibReady ? swingHighVal - fibRng * 0.786 : na
 
-// Y a-t-il de la liquidite a prendre au-dela de la zone ? (cible du sweep)
+// Biais multi-timeframe pondere : D1 12 + H4 10 + H1 8 = 30 points
+mtfBullPts = (d1Bull ? 12 : 0) + (h4Bull ? 10 : 0) + (htfBull ? 8 : 0)
+mtfBearPts = (not d1Bull ? 12 : 0) + (not h4Bull ? 10 : 0) + (htfBear ? 8 : 0)
+
+// Liquidite a prendre au-dela de la zone (cible du sweep)
 f_liqBelow(float lvl) =>
     bool ok = (not na(swingLowVal) and swingLowVal < lvl) or (not na(pdl) and pdl < lvl) or (not na(pwl) and pwl < lvl)
     if not ok and array.size(eqlLvls) > 0
@@ -755,66 +767,86 @@ f_liqAbove(float lvl) =>
                 ok := true
     ok
 
-// Note de confluence d'une zone (0-100)
+// Note /100 : Prem-Disc 15 | OTE 20 | type 10-15 | liquidite 15 | MTF 30 | structure 5
 f_zoneScore(bool isBuy, float top, float bot, bool isOb, bool isFvg) =>
     int sc = 0
     float mid = (top + bot) / 2
-    // Premium / Discount (20)
     if isBuy and pdReady and mid < eqLevel
-        sc += 20
+        sc += 15
     if not isBuy and pdReady and mid > eqLevel
-        sc += 20
-    // Recouvrement de la bande OTE Fibonacci (25)
+        sc += 15
     if not na(oteTop) and not na(oteBot) and top >= oteBot and bot <= oteTop
-        sc += 25
-    // Type de zone (20 si OB et FVG se superposent, sinon 15 OB / 12 FVG)
-    sc += isOb and isFvg ? 20 : isOb ? 15 : 12
-    // Liquidite a prendre au-dela (15)
+        sc += 20
+    sc += isOb and isFvg ? 15 : isOb ? 12 : 10
     if isBuy and f_liqBelow(bot)
         sc += 15
     if not isBuy and f_liqAbove(top)
         sc += 15
-    // Biais du timeframe superieur (20)
-    if isBuy and htfBull
-        sc += 20
-    if not isBuy and htfBear
-        sc += 20
-    // Structure du graphique alignee (10)
+    sc += isBuy ? mtfBullPts : mtfBearPts
     if isBuy and structTrend == "bullish"
-        sc += 10
+        sc += 5
     if not isBuy and structTrend == "bearish"
-        sc += 10
+        sc += 5
     math.min(100, sc)
+
+// RESSERRAGE par la note (porte de l'ancien moteur) : plus la confluence est
+// forte, plus la zone est fine. 40/100 -> 0.40 x ATR ; 100/100 -> 0.06 x ATR.
+f_zoneWidth(int sc) => atr * math.max(0.06, 0.40 - 0.0057 * math.max(0, sc - 40))
+f_zoneGrade(int s) => s >= 90 ? "A+" : s >= 80 ? "A" : s >= 70 ? "B" : "C"
 
 // ---- Candidate ACHAT : OB et/ou FVG haussier sous le prix ----
 bool bObOk = bullObActive and not na(bullObTop) and bullObTop < close
 bool bFvOk = bullFvgActive and not na(bullFvgTop) and bullFvgTop < close
 float buyTop0 = bObOk and bFvOk ? math.max(bullObTop, bullFvgTop) : bObOk ? bullObTop : bFvOk ? bullFvgTop : na
 float buyBot0 = bObOk and bFvOk ? math.min(bullObBot, bullFvgBot) : bObOk ? bullObBot : bFvOk ? bullFvgBot : na
-// Resserrage sur l'intersection avec la bande OTE
+int buyScore = not na(buyTop0) ? f_zoneScore(true, buyTop0, buyBot0, bObOk, bFvOk) : 0
+// 1) clip OTE  2) resserrage par la note — le bord HAUT (bord de reaction) est conserve
 float buyTop = buyTop0
 float buyBot = buyBot0
-if zoneFibClip and not na(buyTop0) and not na(oteTop) and not na(oteBot) and buyTop0 >= oteBot and buyBot0 <= oteTop
-    buyTop := math.min(buyTop0, oteTop)
-    buyBot := math.max(buyBot0, oteBot)
-int buyScore = not na(buyTop) ? f_zoneScore(true, buyTop, buyBot, bObOk, bFvOk) : 0
+if not na(buyTop0)
+    if zoneFibClip and not na(oteTop) and not na(oteBot) and buyTop0 >= oteBot and buyBot0 <= oteTop
+        buyTop := math.min(buyTop0, oteTop)
+        buyBot := math.max(buyBot0, oteBot)
+    buyBot := math.max(buyBot, buyTop - f_zoneWidth(buyScore))
 
 // ---- Candidate VENTE : OB et/ou FVG baissier au-dessus du prix ----
 bool sObOk = bearObActive and not na(bearObBot) and bearObBot > close
 bool sFvOk = bearFvgActive and not na(bearFvgBot) and bearFvgBot > close
 float sellTop0 = sObOk and sFvOk ? math.max(bearObTop, bearFvgTop) : sObOk ? bearObTop : sFvOk ? bearFvgTop : na
 float sellBot0 = sObOk and sFvOk ? math.min(bearObBot, bearFvgBot) : sObOk ? bearObBot : sFvOk ? bearFvgBot : na
+int sellScore = not na(sellBot0) ? f_zoneScore(false, sellTop0, sellBot0, sObOk, sFvOk) : 0
 float sellTop = sellTop0
 float sellBot = sellBot0
-if zoneFibClip and not na(sellBot0) and not na(oteTop) and not na(oteBot) and sellTop0 >= oteBot and sellBot0 <= oteTop
-    sellTop := math.min(sellTop0, oteTop)
-    sellBot := math.max(sellBot0, oteBot)
-int sellScore = not na(sellBot) ? f_zoneScore(false, sellTop, sellBot, sObOk, sFvOk) : 0
+if not na(sellBot0)
+    if zoneFibClip and not na(oteTop) and not na(oteBot) and sellTop0 >= oteBot and sellBot0 <= oteTop
+        sellTop := math.min(sellTop0, oteTop)
+        sellBot := math.max(sellBot0, oteBot)
+    sellTop := math.min(sellTop, sellBot + f_zoneWidth(sellScore))
 
 buyZoneOK  = showLimitZones and not na(buyTop)  and buyTop  < close and buyScore  >= zoneMinScore
 sellZoneOK = showLimitZones and not na(sellBot) and sellBot > close and sellScore >= zoneMinScore
 
-f_zoneGrade(int s) => s >= 90 ? "A+" : s >= 80 ? "A" : s >= 70 ? "B" : "C"
+// ---- Etat de la zone : EN ATTENTE / ACTIVE / TESTEE ----
+var float bzMid = na
+var bool  bzTested = false
+if not na(buyTop)
+    float m = (buyTop + buyBot) / 2
+    if na(bzMid) or math.abs(m - bzMid) > atr * 0.1
+        bzMid := m
+        bzTested := false
+    if low <= buyTop and high >= buyBot
+        bzTested := true
+var float szMid = na
+var bool  szTested = false
+if not na(sellBot)
+    float m2 = (sellTop + sellBot) / 2
+    if na(szMid) or math.abs(m2 - szMid) > atr * 0.1
+        szMid := m2
+        szTested := false
+    if low <= sellTop and high >= sellBot
+        szTested := true
+buyZoneState  = (low <= buyTop and high >= buyBot) ? "● ACTIVE" : bzTested ? "○ TESTEE" : "◌ EN ATTENTE"
+sellZoneState = (low <= sellTop and high >= sellBot) ? "● ACTIVE" : szTested ? "○ TESTEE" : "◌ EN ATTENTE"
 
 // ================= AFFICHAGE FINAL (derniere barre) =================
 f_uiPos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "middle_left" ? position.middle_left : p == "middle_right" ? position.middle_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
@@ -875,7 +907,7 @@ if barstate.islast
         float zRisk = math.max(buyTop - zSl, syminfo.mintick)
         color zc = buyScore >= 90 ? color.rgb(0, 170, 75) : color.rgb(46, 204, 113)
         buyZoneBox := box.new(bar_index, buyTop, bar_index + 10, buyBot, border_color=zc, border_width=2, bgcolor=color.new(zc, 85), extend=extend.right)
-        buyZoneLbl := label.new(bar_index + 10, (buyTop + buyBot) / 2, "🟢 BUY LIMIT  " + f_zoneGrade(buyScore) + "  " + str.tostring(buyScore) + "/100\nEntree " + f_px(buyTop) + "\nSL " + f_px(zSl) + "\nTP1 " + f_px(buyTop + zRisk * rrTp1) + "\nTP2 " + f_px(buyTop + zRisk * rrTp2) + "\nTP Final " + f_px(buyTop + zRisk * rrTp3), style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=uiVal, size=size.tiny)
+        buyZoneLbl := label.new(bar_index + 10, (buyTop + buyBot) / 2, "🟢 BUY LIMIT  " + f_zoneGrade(buyScore) + "  " + str.tostring(buyScore) + "/100  " + buyZoneState + "\nZone " + f_px(buyBot) + " - " + f_px(buyTop) + "\nEntree " + f_px(buyTop) + "\nSL " + f_px(zSl) + "\nTP1 " + f_px(buyTop + zRisk * rrTp1) + "\nTP2 " + f_px(buyTop + zRisk * rrTp2) + "\nTP Final " + f_px(buyTop + zRisk * rrTp3), style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=uiVal, size=size.tiny)
 
     box.delete(sellZoneBox)
     label.delete(sellZoneLbl)
@@ -884,7 +916,7 @@ if barstate.islast
         float zRisk2 = math.max(zSl2 - sellBot, syminfo.mintick)
         color zc2 = sellScore >= 90 ? color.rgb(200, 30, 30) : color.rgb(231, 76, 60)
         sellZoneBox := box.new(bar_index, sellTop, bar_index + 10, sellBot, border_color=zc2, border_width=2, bgcolor=color.new(zc2, 85), extend=extend.right)
-        sellZoneLbl := label.new(bar_index + 10, (sellTop + sellBot) / 2, "🔴 SELL LIMIT  " + f_zoneGrade(sellScore) + "  " + str.tostring(sellScore) + "/100\nEntree " + f_px(sellBot) + "\nSL " + f_px(zSl2) + "\nTP1 " + f_px(sellBot - zRisk2 * rrTp1) + "\nTP2 " + f_px(sellBot - zRisk2 * rrTp2) + "\nTP Final " + f_px(sellBot - zRisk2 * rrTp3), style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=uiVal, size=size.tiny)
+        sellZoneLbl := label.new(bar_index + 10, (sellTop + sellBot) / 2, "🔴 SELL LIMIT  " + f_zoneGrade(sellScore) + "  " + str.tostring(sellScore) + "/100  " + sellZoneState + "\nZone " + f_px(sellBot) + " - " + f_px(sellTop) + "\nEntree " + f_px(sellBot) + "\nSL " + f_px(zSl2) + "\nTP1 " + f_px(sellBot - zRisk2 * rrTp1) + "\nTP2 " + f_px(sellBot - zRisk2 * rrTp2) + "\nTP Final " + f_px(sellBot - zRisk2 * rrTp3), style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=uiVal, size=size.tiny)
 
     // ---- Panneau ----
     if showPanel

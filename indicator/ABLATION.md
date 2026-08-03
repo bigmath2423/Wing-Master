@@ -383,3 +383,45 @@ seule), convertie en `strategy()`. Le moteur d'ordres ajouté ne fait que **lire
 Le tableau de résultats reprend le coût du spread depuis l'input `spreadCost` (0,95)
 de la stratégie : **« Profit net » vs « Profit AVANT spread »** chiffre exactement ce
 que le broker coûte sur la période.
+
+---
+
+## ➕ Ajouts à la version PRO (cycle AMD + zones anticipées)
+
+### 1. Cycle de marché — Accumulation → Manipulation → Distribution
+Phase **dérivée** des états déjà calculés (aucun moteur séparé, aucun nouveau calcul) :
+
+| Phase | Condition |
+|-------|-----------|
+| **ACCUMULATION** | aucune cassure depuis N barres ET prix contenu dans le range des swings |
+| **MANIPULATION** | sweep qualifié récent (la liquidité vient d'être prise) |
+| **DISTRIBUTION ↑/↓** | cassure de structure adossée à ce sweep (le mouvement se livre) |
+
+C'est le pipeline du moteur rendu lisible. Affiché en label sur le graphique + ligne
+« Cycle » dans le panneau. **Display-only : ne filtre aucun signal** (la logique
+sweep→cassure était déjà le cœur du moteur).
+
+> Ce n'est pas le module Wyckoff retiré : celui-ci classait des phases via un moteur
+> dédié (range box, Spring/Upthrust/SOS/SOW, 15 pts de score). Ici, rien n'est calculé
+> en plus — la phase est une lecture de `barsSinceBreak`, `barsSinceSweep` et `backed`.
+
+### 2. Zones anticipées Buy Limit / Sell Limit — moteur de précision
+Chaque zone candidate (OB et/ou FVG du bon côté du prix) est **notée /100** :
+
+| Facteur | Points |
+|---------|-------:|
+| Premium/Discount favorable | 20 |
+| Recouvre la bande OTE Fibonacci (0.618-0.786) | 25 |
+| Type : OB+FVG superposés 20 · OB 15 · FVG 12 | 12-20 |
+| Liquidité à prendre au-delà (cible du sweep) | 15 |
+| Biais HTF aligné | 20 |
+| Structure du graphique alignée | 10 |
+
+Seules les zones **≥ `zoneMinScore` (70 par défaut)** sont affichées → peu de zones,
+mais de haute qualité. Note affichée A+ / A / B.
+
+**Resserrage OTE** (`zoneFibClip`, ON) : si la zone croise la bande 0.618-0.786, elle
+est réduite à cette **intersection** → le point d'entrée devient un niveau précis au
+lieu d'une plage large. C'est ce qui rend les zones réellement exploitables.
+
+Chaque zone affiche son plan complet : Entrée · SL (buffer + spread) · TP1 · TP2 · TP Final.

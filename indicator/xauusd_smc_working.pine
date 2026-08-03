@@ -189,6 +189,24 @@ grpAudit = "⓪ AMELIORATIONS (audit) — interrupteurs A/B"
 // anticipation, sessions, swings, Wyckoff, breakers, EQH/EQL, PDH/PWH...). N'affecte
 // NI les signaux, NI le score, NI les SL/TP : uniquement ce qui est dessine.
 cleanChartOn = input.bool(false, "🧹 Graphique epure (masque toutes les couches d'affichage)", group=grpAudit, tooltip="ON : ne laisse que les bougies, les fleches BUY/SELL, les lignes Entry/SL/TP et le panneau principal. Tout le reste (sessions colorees, zones predictives, zones d'anticipation, labels de structure, Wyckoff, breakers, niveaux de liquidite) est masque. AUCUN impact sur les trades.")
+grpPRO = "⑤ PRO — Affichage & Zone d'entree"
+// MODE PRO : n'affiche que les couches a vraie valeur decisionnelle (ATH, Premium/
+// Discount, Buy/Sell Limit, sweeps, CHoCH/BOS, FVG/OB, Fibonacci, EMA/VWAP).
+// Masque le decor (sessions, swings HH/LH, Wyckoff, breakers, zones redondantes).
+// AUCUN impact sur les signaux, le score ou les niveaux.
+proMode = input.bool(true, "🎯 Mode PRO (graphique epure, couches decisionnelles seules)", group=grpPRO, tooltip="Affiche uniquement : ATH, Premium/Discount, zones Buy/Sell Limit, sweeps de liquidite, CHoCH/BOS, FVG ou Order Block, Fibonacci, EMA/VWAP. Masque le reste (sessions colorees, labels de swing, Wyckoff, breakers, zones redondantes). Purement visuel.")
+// ZONE D'ENTREE : quel type de zone institutionnelle valide une entree.
+// "FVG + Order Block" = comportement d'origine exact.
+ezMode = input.string("FVG + Order Block", "Zone d'entree", options=["FVG + Order Block","FVG seul","Order Block seul"], group=grpPRO, tooltip="Choisit le type de zone qui valide une entree ET ce qui est dessine. 'FVG + Order Block' (defaut) = comportement d'origine. 'FVG seul' / 'Order Block seul' = plus selectif, moins de signaux.")
+athShow = input.bool(true, "Afficher l'ATH (plus haut historique charge)", group=grpPRO, tooltip="Trace le plus haut atteint sur l'historique charge par le graphique. Repere de liquidite majeure.")
+fibDraw = input.bool(true, "Tracer les niveaux Fibonacci (0.5 / 0.618 / 0.705 / 0.786)", group=grpPRO, tooltip="Rend visible le moteur Fibonacci interne (jusqu'ici invisible) sur le dernier swing. N'affecte pas le score.")
+rrCustomOn = input.bool(false, "R:R personnalise (remplace les cibles du TP Engine)", group=grpPRO, tooltip="ON : TP1/TP2/TP Final sont des multiples fixes du risque, definis ci-dessous. OFF = TP Engine structurel d'origine (cibles calees sur la liquidite).")
+rrTp1 = input.float(1.5, "R:R — TP1", minval=0.2, step=0.1, group=grpPRO)
+rrTp2 = input.float(3.0, "R:R — TP2", minval=0.3, step=0.1, group=grpPRO)
+rrTp3 = input.float(5.0, "R:R — TP Final", minval=0.5, step=0.1, group=grpPRO)
+// Derives du mode de zone d'entree
+ezUseFvg = ezMode != "Order Block seul"
+ezUseOb  = ezMode != "FVG seul"
 fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable)", group=grpAudit, tooltip="ON : une cassure n'est validee que si le niveau de swing casse etait DEJA en place a la barre precedente (niveau stable). Elimine les faux BOS/CHoCH provoques par la simple mise a jour d'un pivot sous le prix. OFF (false) = comportement d'origine exact (baseline).")
 // B2 : le toggle d'AFFICHAGE showLiq ne doit plus gater la DETECTION des sweeps de
 //      swing (qui alimente le score et le verrou eliminatoire). Baseline = false.
@@ -223,11 +241,11 @@ swingLen = input.int(10, "Swing detection length", minval=2, group=grpE1)
 
 grpFVG = "⚙️ Expert — Fair Value Gaps"
 showFVG_raw = input.bool(true, "Show FVG zones", group=grpFVG)
-showFVG = showFVG_raw and not cleanChartOn
+showFVG = showFVG_raw and ezUseFvg and not cleanChartOn
 
 grpOB = "⚙️ Expert — Order Blocks"
 showOB_raw = input.bool(true, "Show Order Block zones", group=grpOB)
-showOB = showOB_raw and not cleanChartOn
+showOB = showOB_raw and ezUseOb and not cleanChartOn
 
 grpLiq = "⚙️ Expert — Liquidity"
 showLiq_raw = input.bool(true, "Mark liquidity sweeps", group=grpLiq)
@@ -281,17 +299,17 @@ sendNotifications = input.bool(true, "Send TradingView alert() with confluence %
 
 grpMS = "⚙️ Expert — Module 1 - Market Structure"
 msShowSwingLabels_raw = input.bool(true, "Show HH / HL / LH / LL labels", group=grpMS)
-msShowSwingLabels = msShowSwingLabels_raw and not cleanChartOn
+msShowSwingLabels = msShowSwingLabels_raw and not cleanChartOn and not proMode
 msMaxSwingLabels = 30  // verrouille (affichage : nb de labels conserves)
 msKeepBreakHistory_raw = input.bool(true, "Keep BOS / CHoCH history on chart", group=grpMS)
-msKeepBreakHistory = msKeepBreakHistory_raw and not cleanChartOn
+msKeepBreakHistory = msKeepBreakHistory_raw and not cleanChartOn and not proMode
 msMaxBreakMarks = 15  // VERROUILLE : buffer d'affichage BOS/CHoCH, aucun impact signal (Phase 2)
 msMtfSwingLen = input.int(10, "MTF swing length", minval=2, group=grpMS)
 msTfContext = input.timeframe("60", "Context timeframe (H1)", group=grpMS)
 msTfStructure = input.timeframe("15", "Structure timeframe (M15)", group=grpMS)
 msTfExec = input.timeframe("5", "Execution timeframe (M5)", group=grpMS)
 msShowPanel_raw = input.bool(true, "Show multi-timeframe panel", group=grpMS)
-msShowPanel = msShowPanel_raw and not cleanChartOn
+msShowPanel = msShowPanel_raw and not cleanChartOn and not proMode
 msPanelPos = input.string("bottom_right", "Panel position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpMS)
 
 grpLE = "⚙️ Expert — Module 2 - Liquidity Engine"
@@ -315,9 +333,9 @@ leRequireSweep = input.bool(false, "STRICT filter: signals only after sweep-back
 
 grpSMC = "⚙️ Expert — Module 3 - Smart Money Concepts"
 smcShowBreakers_raw = input.bool(true, "Show Breaker Blocks", group=grpSMC)
-smcShowBreakers = smcShowBreakers_raw and not cleanChartOn
+smcShowBreakers = smcShowBreakers_raw and not cleanChartOn and not proMode
 smcShowImb_raw = input.bool(true, "Mark imbalance candles (displacement)", group=grpSMC)
-smcShowImb = smcShowImb_raw and not cleanChartOn
+smcShowImb = smcShowImb_raw and not cleanChartOn and not proMode
 smcImbMult = input.float(1.5, "Imbalance body size (ATR x)", minval=0.5, step=0.1, group=grpSMC)
 smcShowPD_raw = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
 smcShowPD = smcShowPD_raw and not cleanChartOn
@@ -328,22 +346,22 @@ smcShowAPlus = smcShowAPlus_raw and not cleanChartOn
 grpWY = "⚙️ Expert — Module 4 - Wyckoff"
 wyMinQuiet = input.int(20, "Bars without structure break to define a range", minval=5, group=grpWY)
 wyShowRange_raw = input.bool(true, "Show Wyckoff range box + phase", group=grpWY)
-wyShowRange = wyShowRange_raw and not cleanChartOn
+wyShowRange = wyShowRange_raw and not cleanChartOn and not proMode
 wyShowFigures_raw = input.bool(true, "Mark Spring / Upthrust / SOS / SOW", group=grpWY)
-wyShowFigures = wyShowFigures_raw and not cleanChartOn
+wyShowFigures = wyShowFigures_raw and not cleanChartOn and not proMode
 wyMaxFigLabels = 20  // verrouille (affichage)
 wyImpMult = input.float(1.0, "SOS/SOW displacement body (ATR x)", minval=0.1, step=0.1, group=grpWY)
 wyFigWindow = input.int(20, "Figure validity for strong setup (bars)", minval=2, group=grpWY)
 wyUseFilter = input.bool(true, "Use Wyckoff phase as context filter (block contrary signals)", group=grpE2)
 wyShowStrong_raw = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
-wyShowStrong = wyShowStrong_raw and not cleanChartOn
+wyShowStrong = wyShowStrong_raw and not cleanChartOn and not proMode
 
 grpPF = "⚙️ Expert — Module 5 - Filtres Pro"
 pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpE2)
 pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
 pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
 pfShowFake_raw = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
-pfShowFake = pfShowFake_raw and not cleanChartOn
+pfShowFake = pfShowFake_raw and not cleanChartOn and not proMode
 pfMaxFakeLabels = 15  // verrouille (affichage)
 pfShowVwap_raw = input.bool(true, "Show session VWAP", group=grpPF)
 pfShowVwap = pfShowVwap_raw and not cleanChartOn
@@ -355,7 +373,7 @@ chopAdxMin = input.float(20.0, "Anti-consolidation - ADX minimum", minval=0.0, m
 pfAtrLen = input.int(50, "ATR average length", minval=2, group=grpPF)
 pfAtrMinMult = input.float(0.7, "Min ATR vs its average (x)", minval=0.1, step=0.05, group=grpPF)
 pfShowSessions_raw = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
-pfShowSessions = pfShowSessions_raw and not cleanChartOn
+pfShowSessions = pfShowSessions_raw and not cleanChartOn and not proMode
 pfSessMode = input.string("Off", "Session filter for signals", options=["Off", "London + New York", "Kill zones only"], group=grpE2)
 pfLdnSess = input.session("0800-1700", "London session (Europe/London)", group=grpPF)
 pfNySess = input.session("0800-1700", "New York session (America/New_York)", group=grpPF)
@@ -369,12 +387,12 @@ deSweepWindow = input.int(20, "Sweep validity for decision (bars)", minval=1, gr
 deScoreMin = input.int(80, "Display threshold (signal shown, no alert)", minval=1, maxval=100, group=grpE1)
 deScoreAPlus = input.int(85, "A+ / alert threshold (signal + TradingView alert)", minval=1, maxval=100, group=grpE1, tooltip="Score minimum (sur 100) a partir duquel un signal declenche une alerte TradingView. Defaut 85 -> alertes pour tout score de 85 a 100. Ne modifie pas le calcul du score.")
 deShowReasons_raw = input.bool(true, "Show detailed reasons on signal label", group=grpDE)
-deShowReasons = deShowReasons_raw and not cleanChartOn
+deShowReasons = deShowReasons_raw and not cleanChartOn and not proMode
 deMaxSignalLabels = 12  // verrouille (affichage)
 
 grpPZ = "⚙️ Expert — Module 7 - Zones Potentielles (pre-signal)"
 pzShow_raw = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
-pzShow = pzShow_raw and not cleanChartOn
+pzShow = pzShow_raw and not cleanChartOn and not proMode
 pzShowBC = input.bool(false, "Afficher aussi les zones B et C (moins fiables)", group=grpPZ, tooltip="Par defaut, seules les zones A+ et A (forte confluence) sont affichees. Activez pour voir aussi les zones B (correcte) et C (faible). Recommande : laisser desactive pour n'afficher que les meilleures zones.")
 pzMaxWidthAtr = input.float(0.4, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
 
@@ -383,6 +401,13 @@ emaTrend = ta.ema(close, emaLen)
 trendBullOK = not useTrendFilter or close > emaTrend
 trendBearOK = not useTrendFilter or close < emaTrend
 plot(useTrendFilter ? emaTrend : na, "EMA Trend", color=color.new(color.gray, 40))
+
+// ================= ATH (plus haut historique charge) =================
+// Repere de liquidite majeure. Calcule en continu sur les barres cloturees :
+// aucun repaint, aucune donnee future.
+var float athVal = na
+athVal := na(athVal) ? high : math.max(athVal, high)
+plot(athShow ? athVal : na, "ATH", color=color.new(color.yellow, 25), linewidth=2, style=plot.style_stepline)
 
 // ================= MULTI-TIMEFRAME FILTER =================
 htfClose = request.security(syminfo.tickerid, htfTimeframe, close[1], lookahead=barmerge.lookahead_off)
@@ -1114,6 +1139,33 @@ if barstate.islast
         smcEqLine := line.new(smcLeftBar, smcEq, bar_index + 5, smcEq, color=color.new(color.gray, 30), style=line.style_dashed)
         smcEqLbl := label.new(bar_index + 5, smcEq, "EQ 50%", style=label.style_label_left, color=color.new(color.white, 100), textcolor=color.gray, size=size.tiny)
 
+// Helper au niveau GLOBAL (Pine interdit une declaration de fonction dans un if).
+f_fibLine(int x1, float hi, float rng, float r, color c) =>
+    line.new(x1, hi - rng * r, bar_index + 5, hi - rng * r, color=c, style=line.style_dotted, width=1)
+
+// ================= FIBONACCI VISIBLE (option) =================
+// Rend visible le moteur Fibonacci interne : niveaux 0.5 / 0.618 / 0.705 / 0.786
+// sur le dernier swing confirme. Redessine sur la derniere barre uniquement.
+var line fibL50 = na
+var line fibL618 = na
+var line fibL705 = na
+var line fibL786 = na
+var label fibLbl = na
+if barstate.islast
+    line.delete(fibL50)
+    line.delete(fibL618)
+    line.delete(fibL705)
+    line.delete(fibL786)
+    label.delete(fibLbl)
+    if fibDraw and not na(swingHighVal) and not na(swingLowVal) and swingHighVal > swingLowVal
+        float fRng = swingHighVal - swingLowVal
+        int fL = math.min(swingHighBar, swingLowBar)
+        fibL50  := f_fibLine(fL, swingHighVal, fRng, 0.50, color.new(color.gray, 35))
+        fibL618 := f_fibLine(fL, swingHighVal, fRng, 0.618, color.new(color.orange, 25))
+        fibL705 := f_fibLine(fL, swingHighVal, fRng, 0.705, color.new(color.yellow, 10))
+        fibL786 := f_fibLine(fL, swingHighVal, fRng, 0.786, color.new(color.orange, 25))
+        fibLbl  := label.new(bar_index + 5, swingHighVal - fRng * 0.705, "OTE 0.705", style=label.style_label_left, color=color.new(color.white, 100), textcolor=color.yellow, size=size.tiny)
+
 // ================= MODULE 4 : WYCKOFF =================
 // Identification des phases des gros acteurs. Un range = periode sans cassure
 // de structure (reutilise barsSinceBullBreak/barsSinceBearBreak du moteur
@@ -1508,8 +1560,8 @@ deBearHardOK = deBearSweepRecent and deBearStructRecent
 // l'Order Block ou le FVG, ou position en discount/premium) -> on entre sur le
 // RETOUR en zone, pas sur l'extension. OFF = comportement d'origine.
 entryZoneGate = input.bool(true, "Exiger un retour en zone pour entrer (anti-entree prematuree)", group=grpE1, tooltip="ON : le signal n'est valide que si le prix est en interaction avec une zone (retour dans l'Order Block / le FVG, ou en discount pour un BUY / premium pour un SELL). Evite d'entrer sur la bougie d'impulsion apres un BOS/CHoCH. OFF = comportement d'origine exact. Ne change pas le score ; filtre uniquement le TIMING d'entree.")
-gateBuyZone = not entryZoneGate or deBullObTouch or deBullFvgTouch or smcInDiscount
-gateSellZone = not entryZoneGate or deBearObTouch or deBearFvgTouch or smcInPremium
+gateBuyZone = not entryZoneGate or (ezUseOb and deBullObTouch) or (ezUseFvg and deBullFvgTouch) or smcInDiscount
+gateSellZone = not entryZoneGate or (ezUseOb and deBearObTouch) or (ezUseFvg and deBearFvgTouch) or smcInPremium
 deBuyQualifies = deBullHardOK and deBullScore >= deScoreMin and gateBuyZone
 deSellQualifies = deBearHardOK and deBearScore >= deScoreMin and gateSellZone
 
@@ -1951,6 +2003,10 @@ if buySignal
             if lv > entry
                 array.push(rawUp, lv)
     [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode, atrVal)
+    if rrCustomOn
+        t1 := entry + riskDist * rrTp1
+        t2 := entry + riskDist * rrTp2
+        t3 := entry + riskDist * rrTp3
     // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
     // On memorise le multiple R de chaque TP AVANT d'elargir le stop, puis on
     // reprojette les TP sur le nouveau risque -> R:R strictement conserve.
@@ -2032,6 +2088,10 @@ if sellSignal
             if lv < entry
                 array.push(rawDn, lv)
     [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode, atrVal)
+    if rrCustomOn
+        t1 := entry - riskDist2 * rrTp1
+        t2 := entry - riskDist2 * rrTp2
+        t3 := entry - riskDist2 * rrTp3
     // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
     float xbSell = f_slExecBuf(atrVal)
     if not na(xbSell) and xbSell > 0
@@ -2614,7 +2674,7 @@ azWidthAtr = input.float(0.15, "Demi-largeur de zone (x ATR)", minval=0.05, step
 azMinDist  = input.float(1.0,  "Distance minimum au prix (x ATR)", minval=0.0, step=0.25, group=grpAZ, tooltip="La zone ne s'affiche que si le niveau est au moins a cette distance du prix : on ne montre que ce qui est vraiment EN AVANCE. 0 = toujours montrer.")
 azSlAtr    = input.float(0.6,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpAZ)
 azShowCard_raw = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
-azShowCard = azShowCard_raw and not cleanChartOn
+azShowCard = azShowCard_raw and not cleanChartOn and not proMode
 
 // ---- Swings H4 confirmes (pivots 5/5), memorises via fixnan ----
 azH4H = request.security(syminfo.tickerid, "240", fixnan(ta.pivothigh(high, 5, 5)), lookahead=barmerge.lookahead_off)

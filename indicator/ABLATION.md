@@ -288,3 +288,36 @@ Le slippage passe donc de 95 à **950 ticks** pour représenter 0,95 $ de spread
 
 > ⚠️ Vérifier sur le symbole réellement utilisé : si ton flux cote 2 décimales
 > (4041,18), il faut 95. Le réglage est modifiable dans l'onglet **Propriétés**.
+
+---
+
+## 🎯 Mode PRO — évolution premium (`proMode`, défaut ON)
+
+Aucun module supprimé, aucune logique recréée : l'indicateur implémentait **déjà**
+toute la philosophie demandée (biais, Premium/Discount, liquidité, sweep→CHoCH/BOS,
+FVG/OB, Fibonacci, risque). Le travail a porté sur la **hiérarchie visuelle** et
+3 ajouts ciblés.
+
+### Ce que le mode PRO affiche (liste blanche)
+ATH · Premium/Discount · Buy/Sell Limit (zones prédictives) · Sweeps de liquidité ·
+CHoCH/BOS · FVG **ou** Order Block (selon `ezMode`) · Fibonacci · EMA/VWAP.
+
+### Ce qu'il masque (13 couches, purement décoratives)
+Sessions colorées · fond de tendance · labels HH/HL/LH/LL · historique BOS/CHoCH ·
+Wyckoff (range + figures + WY+) · Breakers · Imbalances · labels FAKE? ·
+raisons détaillées · zones Module 7 · zones d'anticipation Module 11 · fiches
+détaillées des zones · panneau MTF.
+
+> Chaque couche reste pilotable individuellement. `proMode = OFF` restaure l'affichage complet.
+
+### Ajouts (tous optionnels)
+
+| Ajout | Input | Défaut | Impact signaux |
+|-------|-------|--------|----------------|
+| **ATH** (plus haut historique chargé) | `athShow` | ON | Aucun (affichage) |
+| **Fibonacci visible** (0.5/0.618/**0.705 OTE**/0.786) | `fibDraw` | ON | Aucun (le moteur interne était déjà là, il était juste invisible) |
+| **Mode de zone d'entrée** | `ezMode` | « FVG + Order Block » | Défaut = comportement d'origine exact ; « FVG seul » / « OB seul » = plus sélectif |
+| **R:R personnalisé** | `rrCustomOn` | OFF | Remplace les cibles du TP Engine par des multiples fixes du risque |
+
+`ezMode` pilote à la fois **ce qui est dessiné** et **ce qui valide une entrée**
+(`gateBuyZone` / `gateSellZone`), conformément à la philosophie demandée.

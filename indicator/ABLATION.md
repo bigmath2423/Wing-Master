@@ -366,3 +366,20 @@ même format d'alerte, mêmes lignes Entry/SL/TP.
 SL structurel anti-chasse borné [1.2 ; 2.8] ATR, **coût du spread (0,95) intégré au
 placement du stop**, entrée de précision sur bord d'OB / milieu de FVG, TP en
 multiples R configurables (1.5 / 3 / 5).
+
+### 🧪 `xauusd_smc_PRO_STRATEGY.pine` — backtest de la version PRO
+
+Copie **strictement identique** de `xauusd_smc_PRO.pine` (diff du corps = ligne 2
+seule), convertie en `strategy()`. Le moteur d'ordres ajouté ne fait que **lire**
+`buySignal` / `sellSignal` / `tmEntry` / `tmSL` / `tmT1-T3`.
+
+| Réglage | Défaut | Note |
+|---------|--------|------|
+| Capital / commission / slippage | 10 000 / 0 % / **950 ticks** | Codés en dur (Pine exige des const) — surchargeables dans l'onglet **Propriétés** |
+| Type d'entrée | Marché | « Limite » = plus fidèle mais moins de trades |
+| Sorties | 3 paliers | **TP1 à 20 %** (et non 40) : sortir gros à TP1 écrase le R:R, fatal avec un spread large |
+| Taille | Risque 1 % du capital | Calculée sur la distance du stop |
+
+Le tableau de résultats reprend le coût du spread depuis l'input `spreadCost` (0,95)
+de la stratégie : **« Profit net » vs « Profit AVANT spread »** chiffre exactement ce
+que le broker coûte sur la période.

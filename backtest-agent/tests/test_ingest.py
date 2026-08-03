@@ -195,6 +195,48 @@ def test_format_a_une_ligne_par_trade_nest_pas_affecte():
     assert len(df) == 2
 
 
+# --- Décodage du score enrichi (Module 6 / Decision Engine) -----------------
+
+def test_extrait_le_score_du_signal_enrichi():
+    """Le Signal d'entrée peut porter la décomposition du score injectée via
+    `comment=` côté Pine : `S<total> L<liquidite> T<structure> Z<zone>
+    W<wyckoff> H<htf> V<volume> P<vwap>`."""
+    lignes = [
+        {"Numéro de trade": 1, "Type": "Entrer short",
+         "Date et heure": "2025-01-01 10:00",
+         "Signal": "S100 L20 T20 Z12 W10 H10 V5 P5",
+         "Prix USD": 100.0, "P&L net USD": 5.0},
+        {"Numéro de trade": 1, "Type": "Sortir du short",
+         "Date et heure": "2025-01-01 14:00", "Signal": "TP1s",
+         "Prix USD": 95.0, "P&L net USD": 5.0},
+    ]
+    df = normalize(pd.DataFrame(lignes))
+    row = df.iloc[0]
+    assert row["score_total"] == 100
+    assert row["score_liquidity"] == 20
+    assert row["score_structure"] == 20
+    assert row["score_zone"] == 12
+    assert row["score_wyckoff"] == 10
+    assert row["score_htf"] == 10
+    assert row["score_volume"] == 5
+    assert row["score_vwap"] == 5
+    assert "score_total" in df.attrs["conditions"]
+
+
+def test_signal_classique_ne_produit_pas_de_colonnes_de_score():
+    """Un export sans enrichissement (Signal = 'BUY'/'SELL' classique) ne doit
+    faire apparaître aucune colonne de score : il n'y a rien à décoder."""
+    df = normalize(_export_tradingview_deux_lignes(2))
+    assert "score_total" not in df.columns
+
+
+def test_parse_score_signal_ignore_le_texte_non_conforme():
+    from backtest_agent.ingest import _parse_score_signal
+    assert _parse_score_signal("BUY") is None
+    assert _parse_score_signal("TP1s") is None
+    assert _parse_score_signal(float("nan")) is None
+
+
 def test_pivot_retourne_none_sans_colonnes_indispensables():
     from backtest_agent.ingest import _pivot_entry_exit_pairs
     df = pd.DataFrame([

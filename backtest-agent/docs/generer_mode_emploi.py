@@ -172,7 +172,7 @@ story.append(p(
     "sur votre système. Vérifiez que tout est en place :", "p"))
 story.extend(bloc_code([
     "backtest-agent --version",
-    "# → backtest-agent 0.5.0",
+    "# → backtest-agent 0.6.0",
 ]))
 
 story.append(p("Si vous préférez ne rien installer", "h2"))

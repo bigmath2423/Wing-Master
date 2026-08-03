@@ -50,7 +50,7 @@ par-dessus les mêmes chiffres.
 
 | Fichier | Responsabilité |
 |---------|----------------|
-| `backtest_agent/ingest.py` | Lit CSV/JSON, détecte les colonnes (multi-langue TradingView), normalise vers un schéma stable, dérive `result` et le multiple de `R`. |
+| `backtest_agent/ingest.py` | Lit CSV/JSON, détecte les colonnes (multi-langue TradingView), normalise vers un schéma stable, dérive `result` et le multiple de `R`, décode le score de qualité de signal si présent dans le Signal enrichi. |
 | `backtest_agent/metrics.py` | **Analyse globale** : win rate, profit factor, drawdown (abs + %), payoff, espérance, régularité mensuelle, séries, Sharpe/trade. |
 | `backtest_agent/features.py` | Segmentation : sessions, heures, buckets d'ATR/volatilité, buckets de confiance ; mesure d'impact d'une condition. |
 | `backtest_agent/losses.py` | **Analyse des pertes** : conditions récurrentes avant les pertes (lift), hypothèses structurelles (stop trop serré, entrée tardive, volatilité). |
@@ -67,7 +67,7 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
 | `backtest_agent/htmlview.py` | Convertisseur Markdown → HTML minimal (sans dépendance), pour afficher un rapport dans le navigateur. |
 | `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `view`, `pipeline`). |
-| `tests/` | 132 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `tests/` | 135 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -91,7 +91,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 132 tests
+pytest                        # 135 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,
@@ -225,6 +225,15 @@ barres) est conservé comme conditions analysables. Pour
 enrichir l'export avec tes conditions (OB, FVG…), ajoute-les dans la stratégie via
 `strategy.entry(..., comment=...)` ou des colonnes de plot exportables, ou utilise
 la Voie B en parallèle pour capturer le contexte.
+
+Cas particulier reconnu automatiquement : si `comment=` sur `strategy.entry()`
+contient la décomposition d'un score de qualité de signal au format
+`S<total> L<liquidite> T<structure> Z<zone> W<wyckoff> H<htf> V<volume> P<vwap>`
+(entiers, séparés par des espaces), l'ingestion la décode en colonnes
+`score_total`, `score_liquidity`, `score_structure`, `score_zone`,
+`score_wyckoff`, `score_htf`, `score_volume`, `score_vwap` — analysables comme
+n'importe quelle condition (pertes, meilleurs trades, buckets de score). Aucun
+effet si le Signal ne suit pas ce format.
 
 ### Voie B — Webhook (pour le suivi forward / temps réel)
 

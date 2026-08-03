@@ -42,7 +42,7 @@ git config user.email "noreply@anthropic.com"
 Agent d'analyse quantitative de backtests de trading. Voir
 `backtest-agent/README.md` pour l'architecture et le mode d'emploi.
 
-- Tests : `cd backtest-agent && pytest` (109 tests)
+- Tests : `cd backtest-agent && pytest` (135 tests)
 - CI : `.github/workflows/backtest-agent-tests.yml`, Python 3.10 et 3.12,
   déclenchée sur `pull_request` et sur les push vers `main`
 - Le mode d'emploi PDF est généré : après toute modification touchant la

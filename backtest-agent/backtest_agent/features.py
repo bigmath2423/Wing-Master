@@ -37,6 +37,14 @@ def bucketize(df: pd.DataFrame) -> pd.DataFrame:
         out["_conf_bucket"] = pd.cut(
             out["confidence"], bins=[-0.01, 0.25, 0.5, 0.75, 1.01],
             labels=["0-25%", "25-50%", "50-75%", "75-100%"])
+    # Score du Module 6 (Decision Engine) décodé depuis le Signal enrichi :
+    # utile en quantiles plutôt qu'en valeur brute (trop de modalités distinctes
+    # pour être exploitables une par une avec un échantillon de taille modeste).
+    if "score_total" in out.columns and out["score_total"].notna().any():
+        num = pd.to_numeric(out["score_total"], errors="coerce")
+        if num.dropna().nunique() >= 2:
+            out["_score_bucket"] = pd.qcut(num, q=min(4, num.dropna().nunique()),
+                                           duplicates="drop")
     # ATR / volatilité : cherche une colonne condition contenant 'atr' numérique.
     for col in df.attrs.get("conditions", []):
         if "atr" in col.lower():
@@ -91,7 +99,8 @@ def all_condition_columns(df: pd.DataFrame) -> list[str]:
     """Colonnes de conditions détectées + colonnes dérivées de segmentation."""
     base = list(df.attrs.get("conditions", []))
     derived = [c for c in ["_hour", "_session", "_dow", "_conf_bucket",
-                           "_atr_bucket", "direction", "timeframe", "symbol"]
+                           "_atr_bucket", "_score_bucket", "direction",
+                           "timeframe", "symbol"]
                if c in df.columns]
     # On retire les ATR numériques bruts (remplacés par _atr_bucket).
     return derived + base

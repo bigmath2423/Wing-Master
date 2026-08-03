@@ -41,6 +41,7 @@ KNOWN_CONDITION_HINTS = [
     "ob", "orderblock", "order_block", "fvg", "sweep", "liquidity",
     "vwap", "structure", "bos", "choch", "atr", "trend", "session",
     "rsi", "ema", "volume", "imbalance", "premium", "discount",
+    "score", "wyckoff", "zone", "htf",
 ]
 
 # Correspondances (source -> canonique). Clés en minuscules, sans espaces.
@@ -181,6 +182,29 @@ def _derive_pnl_r(df: pd.DataFrame) -> pd.Series | None:
 _ENTRY_HINTS = ("entrer", "entry")
 _EXIT_HINTS = ("sortir", "exit")
 
+# Décodage du texte de diagnostic injecté via `comment=` sur `strategy.entry()`
+# côté Pine : `S<total> L<liquidite> T<structure> Z<zone> W<wyckoff> H<htf>
+# V<volume> P<vwap>`, un par composante du score du Module 6 (Decision Engine).
+# Optionnel : n'existe que si le script Pine a été enrichi pour l'exporter.
+_SCORE_SIGNAL_RE = re.compile(
+    r"^S(-?\d+)\s+L(-?\d+)\s+T(-?\d+)\s+Z(-?\d+)\s+W(-?\d+)\s+H(-?\d+)\s+"
+    r"V(-?\d+)\s+P(-?\d+)$"
+)
+_SCORE_FIELDS = [
+    "score_total", "score_liquidity", "score_structure", "score_zone",
+    "score_wyckoff", "score_htf", "score_volume", "score_vwap",
+]
+
+
+def _parse_score_signal(text: object) -> dict[str, int] | None:
+    """Décode la décomposition du score si le Signal d'entrée suit le format
+    enrichi ci-dessus ; retourne None pour un signal classique (« BUY »/« SELL »)
+    ou tout texte qui ne correspond pas exactement au motif."""
+    match = _SCORE_SIGNAL_RE.match(str(text).strip())
+    if match is None:
+        return None
+    return dict(zip(_SCORE_FIELDS, (int(g) for g in match.groups())))
+
 
 def _find_col(columns: Iterable[str], *substrings: str) -> str | None:
     """Cherche la première colonne dont le nom nettoyé CONTIENT l'un des motifs.
@@ -261,6 +285,9 @@ def _pivot_entry_exit_pairs(df: pd.DataFrame) -> pd.DataFrame | None:
         }
         if signal_col is not None:
             row["exit_signal"] = s[signal_col]
+            score = _parse_score_signal(e[signal_col])
+            if score is not None:
+                row.update(score)
         if duree_col is not None:
             row["duration_bars"] = s[duree_col]
         if commission_col is not None:

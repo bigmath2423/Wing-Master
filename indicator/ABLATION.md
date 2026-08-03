@@ -67,12 +67,27 @@ comme les toggles, en gardant la baseline comme référence.
 
 | Input | Baseline | À tester (M5) | Pourquoi (audit) | Risque |
 |-------|----------|---------------|------------------|--------|
-| `chopFilterOn` (ADX anti-range) | OFF | **ON** | Le range est la 1ʳᵉ source de pertes ; seul filtre directionnel | Coupe des breakouts précoces |
-| `slMinAtr` (dist. min SL) | 0.5 | **0.7–0.8** | 0.5 ATR se fait sweeper par spread+mèche sur l'or M5 | SL plus large = R par trade ↑ |
-| `slExecBufSpread` (plancher spread) | 0.0 | **0.15–0.30** | À 0, le SL ignore le coût broker réel (optimiste) | Idem, risque absolu ↑ |
+| `chopFilterOn` (ADX anti-range) | OFF | ~~ON~~ **testé, voir résultat ci-dessous** | Le range est la 1ʳᵉ source de pertes ; seul filtre directionnel | Coupe des breakouts précoces |
+| `slMinAtr` (dist. min SL) | 1.2 (déjà calibré spread) | — | 0.5 ATR se fait sweeper par spread+mèche sur l'or M5 | SL plus large = R par trade ↑ |
+| `slExecBufSpread` (plancher spread) | 1.10 (déjà calibré spread) | — | À 0, le SL ignore le coût broker réel (optimiste) | Idem, risque absolu ↑ |
 | `pfUseVolFilter` (filtre volume) | ON | **OFF** (comparer) | Tick-volume or peu fiable | Perte d'un filtre (à mesurer) |
 | `signalCooldown` | 10 | **15–20** (M5) | Anti-whipsaw en range | Moins de trades |
 | `deScoreMin` / `deScoreAPlus` | 80 / 85 | Recalibrer après backtest | Score gonflé (voir S1) | Change la sélectivité |
+
+### Résultat A/B mesuré (utilisateur, M15)
+
+| Config | Win rate | Profit Factor | Verdict |
+|--------|---------:|---------------:|---------|
+| `chopFilterOn = ON` | — | **0.90** | ❌ dégrade |
+| `chopFilterOn = OFF` (défaut) | **53 %** | **1.337** | ✅ garder |
+
+**Conclusion : `chopFilterOn` reste OFF.** L'ADX coupe des débuts de tendance que le
+reste du moteur (sweep + structure + zones) avait déjà validés à raison — le filtre
+élimine plus de bons trades qu'il n'en évite de mauvais, sur cet échantillon.
+
+R:R moyen réalisé implicite ≈ 1.19:1 (déduit de WR 53 % / PF 1.337) — modeste mais
+positif, cohérent avec un TP Mode "Équilibré". Progrès net depuis le tout premier
+backtest (PF 0.59 avant les corrections B1/B2/B1b + précision OB + quorum A1).
 
 ---
 

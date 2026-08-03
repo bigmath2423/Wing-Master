@@ -521,3 +521,39 @@ Les filtres de base s'empilent avec A1. Leviers suivants, dans l'ordre :
 2. `wyUseFilter` → OFF (Wyckoff bloque déjà le contre-cycle)
 3. `pfUseVolFilter` → OFF (tick-volume peu fiable sur l'or)
 4. `deScoreMin` → 75
+
+---
+
+## 📈 Réglages "haute fréquence" — objectif ~3 trades/jour (défauts assouplis)
+
+⚠️ **Aucun réglage ne peut garantir un nombre de trades fixe.** Le marché ne produit
+pas de configurations de qualité sur un calendrier — certains jours 5 signaux,
+d'autres 0. Ce qui suit **augmente fortement la fréquence potentielle**, sans
+pouvoir la garantir. Sur le run 6 ans précédent (29 signaux, PF 1.215), ces
+changements visent un facteur ×5 à ×10 en acceptant une possible baisse du PF.
+
+| Réglage | Avant | Après | Effet |
+|---------|------:|------:|-------|
+| `saMinCount` (quorum A1) | 4/6 | **2/6** | Quorum très permissif — A1 reste actif mais laisse passer beaucoup plus |
+| `deScoreMin` | 80 | **70** | Seuil d'affichage plus bas |
+| `signalCooldown` | 10 | **3** | Ré-autorise un signal même sens après seulement 3 barres |
+| `structLookback` | 30 | **45** | Une cassure reste "récente" plus longtemps → plus de fenêtres valides |
+| `deSweepWindow` | 20 | **30** | Un sweep reste "récent" plus longtemps → idem |
+| `wyUseFilter` | ON | **OFF** | Wyckoff ne bloque plus le contre-cycle (doublon avec son propre score) |
+| `pfUseVolFilter` | ON | **OFF** | Filtre volume retiré (tick-volume or peu fiable) |
+
+### ⚠️ Risque explicite
+Ces changements **augmentent la fréquence en dégradant potentiellement la
+sélectivité** — c'est l'arbitrage direct de la demande. Avant ce changement, le
+système était sur-filtré (PF 1.2-1.3, 29 trades/6 ans). Le risque est de retomber
+vers la zone PF < 1 observée tout au début (0.59-0.9) si on desserre trop.
+
+### Protocole de mesure obligatoire
+1. Backtest sur les mêmes 6 ans avec ces nouveaux défauts. Comparer trades, WR, PF,
+   drawdown au run précédent (29 trades, WR 51.7%, PF 1.215).
+2. Si le PF reste **> 1.1** avec beaucoup plus de trades → bon compromis, garder.
+3. Si le PF tombe **sous 1.0** → desserrer un cran de moins à la fois (remonter
+   `saMinCount` à 3, ou `deScoreMin` à 75) jusqu'à retrouver un PF acceptable.
+4. Pour un vrai gain de fréquence **sans perdre en qualité par barre**, tester aussi
+   **M5** : plus de barres/jour → plus d'occasions de structure/sweep, indépendamment
+   du desserrage des filtres.

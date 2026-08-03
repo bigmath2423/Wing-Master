@@ -455,3 +455,22 @@ signal** (il était défini après) pour pouvoir servir de filtre.
 > ⚠️ Attendu : **forte baisse du nombre de signaux**. C'est l'objectif — ne garder que
 > les configurations qu'un trader discrétionnaire prendrait réellement. À mesurer :
 > le profit factor doit monter même si le nombre de trades s'effondre.
+
+---
+
+## 🎯 P1 — Précision des zones institutionnelles (défaut ON)
+
+Le maillon le plus faible de l'indicateur : l'**Order Block** était pris
+**mèche à mèche** (`high[i]` / `low[i]`), sans vérifier qu'un vrai displacement
+suivait, et l'entrée se faisait au bord de cette zone large.
+
+| Raffinement | Toggle | Effet |
+|-------------|--------|-------|
+| **Zone = corps de la bougie** | `obBodyOnly` | `open`-`close` au lieu de `high`-`low` → zone typiquement 2 à 3× plus étroite, centrée sur le vrai niveau institutionnel |
+| **Displacement exigé** | `obNeedDisp` + `obDispAtr` (1.0) | L'OB n'est retenu que si le prix a parcouru ≥ 1 ATR depuis lui. Élimine les OB mous qui ne tiennent pas |
+| **Entrée au Consequent Encroachment** | `entryCE` | Entrée au **50 % de la zone** (référence ICT) au lieu du bord proximal → meilleur prix, stop plus serré, R:R mécaniquement supérieur |
+
+Le FVG utilisait déjà son milieu comme entrée : il était déjà au CE, donc précis.
+
+> Effet attendu : moins d'Order Blocks retenus (ceux sans displacement disparaissent),
+> et ceux qui restent sont beaucoup plus fins. À mesurer : le R:R réalisé doit monter.

@@ -244,6 +244,14 @@ saUseChop = input.bool(true, "A1 — exiger un marche directionnel (ADX)", group
 saUsePd   = input.bool(true, "A1 — exiger le bon cote Premium/Discount", group=grpAudit)
 saUseZone = input.bool(true, "A1 — exiger l'interaction avec une zone OB/FVG", group=grpAudit)
 saUseSweep= input.bool(true, "A1 — exiger une cassure adossee a un sweep", group=grpAudit)
+// P1 : PRECISION DES ZONES INSTITUTIONNELLES (Order Block / entree)
+//   L'Order Block etait pris MECHE A MECHE et sans verifier qu'un vrai
+//   displacement suivait. Trois raffinements, chacun desactivable :
+grpPREC = "⑥ PRECISION des zones"
+obBodyOnly = input.bool(true, "P1 · Order Block = CORPS de la bougie (au lieu de meche a meche)", group=grpPREC, tooltip="La zone institutionnelle est le corps de la derniere bougie opposee (open-close), pas son extreme mecheur. Zone bien plus etroite et bien plus proche du vrai niveau d'entree. OFF = comportement d'origine (high-low).")
+obNeedDisp = input.bool(true, "P1 · Exiger un displacement apres l'Order Block", group=grpPREC, tooltip="Un vrai Order Block est suivi d'un mouvement FRANC (deplacement institutionnel). Si le prix n'a pas parcouru la distance minimale ci-dessous depuis l'OB, la zone est ignoree : elimine les OB mous qui ne tiennent pas.")
+obDispAtr  = input.float(1.0, "P1 · Displacement minimum (x ATR)", minval=0.1, step=0.1, group=grpPREC)
+entryCE    = input.bool(true, "P1 · Entree au Consequent Encroachment (50 % de la zone)", group=grpPREC, tooltip="Entree au MILIEU de l'Order Block plutot qu'a son bord : c'est le niveau ICT de reference, statistiquement le point de reaction. Donne un meilleur prix et un stop plus serre. OFF = entree au bord proximal.")
 sigConfirmOn = input.bool(true, "C1 · Signaux confirmes en cloture (anti-repaint intrabar)", group=grpAudit, tooltip="ON : un signal BUY/SELL n'apparait qu'une fois la barre CLOTUREE, jamais pendant sa formation -> la fleche ne peut plus apparaitre puis disparaitre en temps reel. Sur l'historique, aucun changement (les barres y sont deja cloturees) : le backtest est IDENTIQUE. OFF (false) = comportement d'origine (fleche evaluee a chaque tick sur la barre en cours).")
 
 // ================= GROUPES ESSENTIELS (en haut) =================
@@ -803,14 +811,19 @@ if bullBOS or bullCHoCH
             idxOB := i
             break
     if not na(idxOB)
-        bullObTop := high[idxOB]
-        bullObBot := low[idxOB]
-        bullObActive := true
-        if not na(bullObBox)
-            box.delete(bullObBox)
-            bullObBox := na
-        if showOB
-            bullObBox := box.new(bar_index[idxOB], bullObTop, bar_index, bullObBot, border_color=color.new(color.blue,40), bgcolor=color.new(color.blue,88), extend=extend.right)
+        // P1 : zone = corps (precise) ou meche a meche (origine) + displacement exige
+        float obT = obBodyOnly ? math.max(open[idxOB], close[idxOB]) : high[idxOB]
+        float obB = obBodyOnly ? math.min(open[idxOB], close[idxOB]) : low[idxOB]
+        bool obDispOK = not obNeedDisp or (close - low[idxOB]) >= obDispAtr * atrGlobal
+        if obDispOK
+            bullObTop := obT
+            bullObBot := obB
+            bullObActive := true
+            if not na(bullObBox)
+                box.delete(bullObBox)
+                bullObBox := na
+            if showOB
+                bullObBox := box.new(bar_index[idxOB], bullObTop, bar_index, bullObBot, border_color=color.new(color.blue,40), bgcolor=color.new(color.blue,88), extend=extend.right)
 
 if bearBOS or bearCHoCH
     int idxOB2 = na
@@ -819,14 +832,18 @@ if bearBOS or bearCHoCH
             idxOB2 := i
             break
     if not na(idxOB2)
-        bearObTop := high[idxOB2]
-        bearObBot := low[idxOB2]
-        bearObActive := true
-        if not na(bearObBox)
-            box.delete(bearObBox)
-            bearObBox := na
-        if showOB
-            bearObBox := box.new(bar_index[idxOB2], bearObTop, bar_index, bearObBot, border_color=color.new(color.purple,40), bgcolor=color.new(color.purple,88), extend=extend.right)
+        float obT2 = obBodyOnly ? math.max(open[idxOB2], close[idxOB2]) : high[idxOB2]
+        float obB2 = obBodyOnly ? math.min(open[idxOB2], close[idxOB2]) : low[idxOB2]
+        bool obDispOK2 = not obNeedDisp or (high[idxOB2] - close) >= obDispAtr * atrGlobal
+        if obDispOK2
+            bearObTop := obT2
+            bearObBot := obB2
+            bearObActive := true
+            if not na(bearObBox)
+                box.delete(bearObBox)
+                bearObBox := na
+            if showOB
+                bearObBox := box.new(bar_index[idxOB2], bearObTop, bar_index, bearObBot, border_color=color.new(color.purple,40), bgcolor=color.new(color.purple,88), extend=extend.right)
 
 if bullObActive and close < bullObBot
     bullObActive := false
@@ -1995,8 +2012,10 @@ if buySignal
     // ---- Entree de precision : meilleur niveau institutionnel sous le prix ----
     float peLvl = na
     if pePrecision
-        if bullObActive and not na(bullObTop) and bullObTop <= close
-            peLvl := bullObTop
+        if bullObActive and not na(bullObTop) and not na(bullObBot)
+            float obEntry = entryCE ? (bullObTop + bullObBot) / 2 : bullObTop
+            if obEntry <= close
+                peLvl := obEntry
         if bullFvgActive and not na(bullFvgTop) and not na(bullFvgBot)
             fvgMid = (bullFvgTop + bullFvgBot) / 2
             if fvgMid <= close and (na(peLvl) or fvgMid > peLvl)
@@ -2080,8 +2099,10 @@ if sellSignal
     // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
     float peLvlS = na
     if pePrecision
-        if bearObActive and not na(bearObBot) and bearObBot >= close
-            peLvlS := bearObBot
+        if bearObActive and not na(bearObTop) and not na(bearObBot)
+            float obEntryS = entryCE ? (bearObTop + bearObBot) / 2 : bearObBot
+            if obEntryS >= close
+                peLvlS := obEntryS
         if bearFvgActive and not na(bearFvgTop) and not na(bearFvgBot)
             fvgMidS = (bearFvgTop + bearFvgBot) / 2
             if fvgMidS >= close and (na(peLvlS) or fvgMidS < peLvlS)

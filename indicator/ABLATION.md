@@ -474,3 +474,35 @@ Le FVG utilisait déjà son milieu comme entrée : il était déjà au CE, donc 
 
 > Effet attendu : moins d'Order Blocks retenus (ceux sans displacement disparaissent),
 > et ceux qui restent sont beaucoup plus fins. À mesurer : le R:R réalisé doit monter.
+
+---
+
+## ⚖️ A1 corrigé — quorum au lieu du « tout ou rien »
+
+**Problème constaté par l'utilisateur : 100 % de réussite, mais ~6 trades par an.**
+Le mode A1 exigeait les 6 critères SIMULTANÉMENT, en plus des filtres déjà présents
+(biais EMA, biais HTF, Wyckoff, volume, zone, sweep éliminatoire). Le sur-filtrage
+rendait l'échantillon inutilisable — et 100 % sur 6 trades n'a aucune valeur
+statistique (il faut ~30 trades minimum pour conclure).
+
+### Nouveau fonctionnement
+`saMinCount` (défaut **4**) = nombre de critères devant être satisfaits parmi ceux
+activés. Réglage progressif :
+
+| Valeur | Effet attendu |
+|--------|---------------|
+| 6 | ultra strict — quasi aucun trade (l'ancien comportement) |
+| **4** | **équilibré (défaut)** |
+| 3 | permissif — beaucoup plus de signaux |
+| 1-2 | proche du comportement d'origine |
+
+Le label du signal affiche désormais **`X/Y crit.`** : combien de critères étaient
+réunis. Utile pour calibrer — si les gagnants sont presque tous à 5/6, monter le
+seuil ; s'ils sont à 3/6, le descendre.
+
+### Si le nombre de trades reste trop faible
+Les filtres de base s'empilent avec A1. Leviers suivants, dans l'ordre :
+1. `saMinCount` → 3
+2. `wyUseFilter` → OFF (Wyckoff bloque déjà le contre-cycle)
+3. `pfUseVolFilter` → OFF (tick-volume peu fiable sur l'or)
+4. `deScoreMin` → 75

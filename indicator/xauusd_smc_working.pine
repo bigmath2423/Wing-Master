@@ -244,6 +244,7 @@ saUseChop = input.bool(true, "A1 — exiger un marche directionnel (ADX)", group
 saUsePd   = input.bool(true, "A1 — exiger le bon cote Premium/Discount", group=grpAudit)
 saUseZone = input.bool(true, "A1 — exiger l'interaction avec une zone OB/FVG", group=grpAudit)
 saUseSweep= input.bool(true, "A1 — exiger une cassure adossee a un sweep", group=grpAudit)
+saMinCount= input.int(4, "A1 — nombre de criteres exiges (sur ceux actives)", minval=1, maxval=6, group=grpAudit, tooltip="Au lieu d'exiger TOUS les criteres (ce qui ne laisse presque aucun trade), on exige les X meilleurs. 6 = ultra strict (tres peu de signaux) · 4 = equilibre · 3 = permissif. Baisser d'un cran si le nombre de trades est trop faible pour juger.")
 // P1 : PRECISION DES ZONES INSTITUTIONNELLES (Order Block / entree)
 //   L'Order Block etait pris MECHE A MECHE et sans verifier qu'un vrai
 //   displacement suivait. Trois raffinements, chacun desactivable :
@@ -1663,20 +1664,28 @@ chopOK = not chopFilterOn or na(chopAdx) or chopAdx >= chopAdxMin
 // C1 : gate de confirmation (barstate.isconfirmed). Historique -> toujours vrai (backtest identique) ;
 //      barre en cours -> le signal n'est retenu qu'a la cloture (pas de repaint de la fleche).
 sigConfirmOK = not sigConfirmOn or barstate.isconfirmed
-// ---- A1 : ALIGNEMENT TOTAL (chaque exigence est desactivable individuellement) ----
-saLateBuyOK  = not saOn or not saUseLate  or not lwLateBuy
-saLateSellOK = not saOn or not saUseLate  or not lwLateSell
-saBiasBuyOK  = not saOn or not saUseBias  or (htfClose > htfEma and structTrend == "bullish")
-saBiasSellOK = not saOn or not saUseBias  or (htfClose < htfEma and structTrend == "bearish")
-saChopOK     = not saOn or not saUseChop  or na(chopAdx) or chopAdx >= chopAdxMin
-saPdBuyOK    = not saOn or not saUsePd    or smcInDiscount
-saPdSellOK   = not saOn or not saUsePd    or smcInPremium
-saZoneBuyOK  = not saOn or not saUseZone  or deBullObTouch or deBullFvgTouch
-saZoneSellOK = not saOn or not saUseZone  or deBearObTouch or deBearFvgTouch
-saSweepBuyOK = not saOn or not saUseSweep or leBullBonusActive
-saSweepSellOK= not saOn or not saUseSweep or leBearBonusActive
-saBuyOK  = saLateBuyOK  and saBiasBuyOK  and saChopOK and saPdBuyOK  and saZoneBuyOK  and saSweepBuyOK
-saSellOK = saLateSellOK and saBiasSellOK and saChopOK and saPdSellOK and saZoneSellOK and saSweepSellOK
+// ---- A1 : ALIGNEMENT par QUORUM ----
+// Exiger les 6 criteres a la fois ne laissait presque aucun trade. On compte
+// desormais combien de criteres ACTIVES sont satisfaits, et on exige saMinCount.
+// Reglage progressif : 6 = ultra strict, 4 = equilibre, 3 = permissif.
+saCondLateBuy  = not lwLateBuy
+saCondLateSell = not lwLateSell
+saCondBiasBuy  = htfClose > htfEma and structTrend == "bullish"
+saCondBiasSell = htfClose < htfEma and structTrend == "bearish"
+saCondChop     = na(chopAdx) or chopAdx >= chopAdxMin
+saCondPdBuy    = smcInDiscount
+saCondPdSell   = smcInPremium
+saCondZoneBuy  = deBullObTouch or deBullFvgTouch
+saCondZoneSell = deBearObTouch or deBearFvgTouch
+saCondSwBuy    = leBullBonusActive
+saCondSwSell   = leBearBonusActive
+
+saEnabled = (saUseLate ? 1 : 0) + (saUseBias ? 1 : 0) + (saUseChop ? 1 : 0) + (saUsePd ? 1 : 0) + (saUseZone ? 1 : 0) + (saUseSweep ? 1 : 0)
+saBuyMet  = (saUseLate and saCondLateBuy ? 1 : 0) + (saUseBias and saCondBiasBuy ? 1 : 0) + (saUseChop and saCondChop ? 1 : 0) + (saUsePd and saCondPdBuy ? 1 : 0) + (saUseZone and saCondZoneBuy ? 1 : 0) + (saUseSweep and saCondSwBuy ? 1 : 0)
+saSellMet = (saUseLate and saCondLateSell ? 1 : 0) + (saUseBias and saCondBiasSell ? 1 : 0) + (saUseChop and saCondChop ? 1 : 0) + (saUsePd and saCondPdSell ? 1 : 0) + (saUseZone and saCondZoneSell ? 1 : 0) + (saUseSweep and saCondSwSell ? 1 : 0)
+saNeed    = math.min(saMinCount, saEnabled)
+saBuyOK   = not saOn or saBuyMet  >= saNeed
+saSellOK  = not saOn or saSellMet >= saNeed
 
 buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK and saBuyOK
 sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK and saSellOK
@@ -1709,11 +1718,11 @@ f_dePushSignalLabel(label lb) =>
         label.delete(array.shift(deSignalLabels))
 
 if buySignal
-    deBuyTxt = "BUY " + str.tostring(deBullScore) + "/100" + (deBuyAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBullScore) + (deShowReasons ? "\n" + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, "\n") : "")
+    deBuyTxt = "BUY " + str.tostring(deBullScore) + "/100 · " + str.tostring(saBuyMet) + "/" + str.tostring(saEnabled) + " crit." + (deBuyAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBullScore) + (deShowReasons ? "\n" + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, "\n") : "")
     f_dePushSignalLabel(label.new(bar_index, low - leAtr * 3, deBuyTxt, style=label.style_label_up, color=color.new(deBuyAPlus ? color.lime : color.green, deBuyAPlus ? 10 : 40), textcolor=deBuyAPlus ? color.black : color.white, size=size.small))
 
 if sellSignal
-    deSellTxt = "SELL " + str.tostring(deBearScore) + "/100" + (deSellAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBearScore) + (deShowReasons ? "\n" + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, "\n") : "")
+    deSellTxt = "SELL " + str.tostring(deBearScore) + "/100 · " + str.tostring(saSellMet) + "/" + str.tostring(saEnabled) + " crit." + (deSellAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBearScore) + (deShowReasons ? "\n" + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, "\n") : "")
     f_dePushSignalLabel(label.new(bar_index, high + leAtr * 3, deSellTxt, style=label.style_label_down, color=color.new(deSellAPlus ? color.red : color.maroon, deSellAPlus ? 10 : 40), textcolor=color.white, size=size.small))
 
 // ================= MODULE 7 : POTENTIAL BUY / SELL ZONES (PRE-SIGNAL) =================

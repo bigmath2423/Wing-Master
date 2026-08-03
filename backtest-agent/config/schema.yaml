@@ -1,0 +1,59 @@
+# Référence du schéma interne et des correspondances de colonnes.
+# Ce fichier est DOCUMENTAIRE : la logique réelle vit dans ingest.py (ALIASES).
+# Il sert à comprendre / étendre le mapping sans lire le code.
+
+# Colonnes canoniques attendues par l'agent :
+canonical_columns:
+  datetime:      "Date/heure d'entrée du trade"
+  symbol:        "Actif tradé (BTCUSDT, EURUSD, ...)"
+  timeframe:     "Unité de temps (5m, 15m, 1h, 4h)"
+  direction:     "BUY / SELL"
+  entry_price:   "Prix d'entrée"
+  stop_loss:     "Stop loss"
+  take_profit:   "Take profit"
+  exit_price:    "Prix de sortie (pour dériver le R)"
+  result:        "WIN / LOSS / BE (dérivé du pnl si absent)"
+  pnl:           "Gain/perte en devise"
+  pnl_r:         "Gain/perte en multiple de R (préféré, comparable entre actifs)"
+  duration_min:  "Durée du trade en minutes"
+  confidence:    "Score de confiance du signal (0..1 ou 0..100)"
+
+# Toute colonne supplémentaire est traitée comme une CONDITION de marché :
+# ex. ob, fvg, sweep, vwap_up, structure_up, atr, session, rsi, ema, volume...
+# Les booléennes alimentent l'analyse de combinaisons ; les numériques (atr)
+# sont découpées en quartiles.
+
+# Indices de détection des conditions connues (voir KNOWN_CONDITION_HINTS) :
+condition_hints:
+  - ob / order_block
+  - fvg
+  - sweep / liquidity
+  - vwap
+  - structure / bos / choch
+  - atr / volatility
+  - trend / ema / rsi
+  - session
+  - volume / imbalance
+  - premium / discount
+
+# Seuils d'échantillon (voir modules) :
+thresholds:
+  min_sample_loss_condition: 5    # losses.MIN_SAMPLE
+  min_sample_winner: 8            # winners.MIN_SAMPLE
+  min_sample_filter: 10           # suggestions.MIN_SAMPLE_FILTER
+  min_retained_ratio: 0.25        # part min de trades conservés après filtre
+
+# Étape 3 — validation de la pile combinée (validate.py) :
+validation:
+  min_trades_after: 30            # échantillon résiduel minimal
+  min_retained: 0.25              # sous ce seuil, la stratégie est dénaturée
+  min_segment_agreement: 0.6      # part des segments devant s'améliorer
+
+# Walk-forward glissant (rolling.py) — 4 exigences CUMULATIVES pour « ROBUSTE ».
+# Chacune bouche un trou par lequel du bruit passait :
+rolling:
+  min_chunk: 15                   # taille minimale d'une fenêtre
+  min_fold_trades: 10             # sous ce seuil, une fenêtre OOS n'est pas jugée
+  min_folds_for_claim: 3          # « 2 fois sur 2 » arrive 1 fois sur 4 au hasard
+  min_t_stat: 2.0                 # l'effet doit dépasser sa propre dispersion
+  min_effect_size: 0.15           # ...et peser 15% de la volatilité d'un trade

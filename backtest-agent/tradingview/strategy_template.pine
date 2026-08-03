@@ -1,0 +1,92 @@
+//@version=5
+// ============================================================================
+// GABARIT DE STRATÉGIE D'EXPORT — Wing / Backtest Analysis Agent
+// ----------------------------------------------------------------------------
+// But : transformer TON indicateur en une STRATÉGIE qui (1) se backteste dans le
+// Strategy Tester et (2) émet, à chaque trade, une alerte JSON contenant toutes
+// les conditions du moment. Ce JSON est capté par tradingview/webhook_server.py
+// qui l'écrit dans un CSV directement analysable par l'agent.
+//
+// IMPORTANT : à ce stade on NE modifie PAS la logique de l'indicateur. On se
+// contente d'exposer ses signaux et son contexte. Remplace les blocs marqués
+// `>>> REMPLACE` par les variables réelles de ton indicateur.
+// ============================================================================
+
+strategy("Wing Export Strategy", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=1,
+     calc_on_every_tick=false, process_orders_on_close=true)
+
+// --- Paramètres de risque (servent aussi à calculer le R) -------------------
+atrLen     = input.int(14, "ATR length")
+slAtrMult  = input.float(1.5, "Stop (× ATR)")
+tpAtrMult  = input.float(3.0, "Target (× ATR)")
+
+atr = ta.atr(atrLen)
+
+// ============================================================================
+// >>> REMPLACE : branche ici les signaux et conditions de TON indicateur.
+//     Ces variables sont des exemples — mets tes vraies conditions à la place.
+// ============================================================================
+longSignal  = ta.crossover(ta.ema(close, 9), ta.ema(close, 21))   // exemple
+shortSignal = ta.crossunder(ta.ema(close, 9), ta.ema(close, 21))  // exemple
+
+cond_ob        = close > ta.highest(high, 20)[1]      // exemple order block
+cond_fvg       = math.abs(open - close[1]) > atr * 0.5 // exemple FVG
+cond_sweep     = low < ta.lowest(low, 10)[1]           // exemple liquidity sweep
+cond_vwap_up   = close > ta.vwap                       // au-dessus du VWAP
+cond_structure = close > ta.sma(close, 50)             // structure haussière
+confidence     = math.round(50 + 50 * (atr / ta.highest(atr, 50)), 0) // 0..100
+// ============================================================================
+
+// --- Filtres proposés par l'agent (étape 2) ---------------------------------
+// Le bloc entre les deux marqueurs est (re)généré automatiquement par
+// `backtest_agent.cli propose` à partir de règles VALIDÉES en walk-forward.
+// Par défaut passFilters=true (stratégie inchangée). Ne pas éditer à la main.
+// <<< AGENT_FILTERS_BEGIN >>>
+passFilters = true
+// <<< AGENT_FILTERS_END >>>
+
+// --- Gestion des positions --------------------------------------------------
+longSL  = close - atr * slAtrMult
+longTP  = close + atr * tpAtrMult
+shortSL = close + atr * slAtrMult
+shortTP = close - atr * tpAtrMult
+
+if longSignal and passFilters and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+    strategy.exit("L-exit", "L", stop=longSL, limit=longTP)
+
+if shortSignal and passFilters and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+    strategy.exit("S-exit", "S", stop=shortSL, limit=shortTP)
+
+// --- Construction du payload JSON d'alerte ----------------------------------
+// {{...}} en Pine = accolade littérale. On envoie tout le contexte du signal.
+dir      = longSignal ? "BUY" : "SELL"
+entryPx  = close
+slPx     = longSignal ? longSL : shortSL
+tpPx     = longSignal ? longTP : shortTP
+
+jsonMsg = '{' +
+     '"datetime":"' + str.tostring(time, "yyyy-MM-dd'T'HH:mm:ssZ") + '",' +
+     '"symbol":"' + syminfo.ticker + '",' +
+     '"timeframe":"' + timeframe.period + '",' +
+     '"direction":"' + dir + '",' +
+     '"entry_price":' + str.tostring(entryPx) + ',' +
+     '"stop_loss":' + str.tostring(slPx) + ',' +
+     '"take_profit":' + str.tostring(tpPx) + ',' +
+     '"confidence":' + str.tostring(confidence) + ',' +
+     '"atr":' + str.tostring(atr) + ',' +
+     '"ob":' + (cond_ob ? "true" : "false") + ',' +
+     '"fvg":' + (cond_fvg ? "true" : "false") + ',' +
+     '"sweep":' + (cond_sweep ? "true" : "false") + ',' +
+     '"vwap_up":' + (cond_vwap_up ? "true" : "false") + ',' +
+     '"structure_up":' + (cond_structure ? "true" : "false") +
+     '}'
+
+if (longSignal or shortSignal) and strategy.position_size == 0
+    alert(jsonMsg, alert.freq_once_per_bar_close)
+
+// NOTE : pour un backtest complet avec RÉSULTAT et PnL réels, préfère l'export
+// "List of Trades" du Strategy Tester (voir README). Les alertes servent au
+// suivi live / forward, l'export CSV sert au backtest historique.

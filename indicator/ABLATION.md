@@ -321,3 +321,48 @@ détaillées des zones · panneau MTF.
 
 `ezMode` pilote à la fois **ce qui est dessiné** et **ce qui valide une entrée**
 (`gateBuyZone` / `gateSellZone`), conformément à la philosophie demandée.
+
+---
+
+## 🧼 `xauusd_smc_PRO.pine` — reconstruction du moteur de décision
+
+Fichier **nouveau et autonome** (803 lignes contre 2 785). Le cerveau a été
+reconstruit uniquement autour des 10 briques demandées. Les anciens modules ne sont
+pas masqués : **ils n'existent plus dans le code**.
+
+### Supprimés du moteur (vérifié : zéro occurrence hors commentaires)
+Wyckoff · Accumulation/Distribution · RSI/Stochastique · DXY · rendements 10Y-2Y ·
+filtre news · sessions & kill zones · filtre volume · Breakers · Imbalances ·
+filtre ADX · avertissement d'entrée tardive · zones potentielles (module 7) ·
+zones d'anticipation (module 11) · panneau multi-timeframe · labels HH/HL/LH/LL.
+
+### Le moteur restant
+`Biais → Premium/Discount → Liquidité → Sweep → CHoCH/BOS → FVG/OB → Entrée → Risque`
+
+**Barème rééquilibré sur 100** (l'ancien tombait à 70 max une fois les modules
+retirés, ce qui aurait rendu le seuil de 80 inatteignable) :
+
+| Composant | Points |
+|-----------|-------:|
+| Liquidité (sweep 12 + cassure adossée 13) | 25 |
+| Structure BOS/CHoCH (18 + alignement 7) | 25 |
+| OB / FVG (une zone 15, les deux 20) | 20 |
+| Biais HTF + EMA (8 + 7) | 15 |
+| Premium / Discount | 10 |
+| VWAP | 5 |
+| **Total** | **100** |
+| Bonus Fibonacci (confluence uniquement) | +0 à 10, plafonné à 100 |
+
+**2 règles éliminatoires conservées** : aucun signal sans sweep récent, aucun signal
+sans cassure structurelle récente. Plus le filtre de biais et le filtre
+Premium/Discount, tous deux actifs par défaut.
+
+### Identité visuelle préservée
+Mêmes couleurs (teal FVG, bleu/violet OB, aqua/fuchsia sweeps, lime/rouge BOS,
+jaune/orange CHoCH), mêmes styles de labels, même palette de panneau (ardoise + or),
+même format d'alerte, mêmes lignes Entry/SL/TP.
+
+### Gestion du risque
+SL structurel anti-chasse borné [1.2 ; 2.8] ATR, **coût du spread (0,95) intégré au
+placement du stop**, entrée de précision sur bord d'OB / milieu de FVG, TP en
+multiples R configurables (1.5 / 3 / 5).

@@ -425,3 +425,33 @@ est réduite à cette **intersection** → le point d'entrée devient un niveau 
 lieu d'une plage large. C'est ce qui rend les zones réellement exploitables.
 
 Chaque zone affiche son plan complet : Entrée · SL (buffer + spread) · TP1 · TP2 · TP Final.
+
+---
+
+## 🎯 A1 — Mode ALIGNEMENT TOTAL (`saOn`, défaut ON)
+
+Constat de l'utilisateur : **rentable en manuel avec les zones**, mais le déclencheur
+automatique tire sur des configurations qu'il ne prendrait pas.
+
+Constat dans le code : l'indicateur **détectait déjà** les entrées tardives
+(`lwLateBuy` / `lwLateSell`) mais ne s'en servait que pour afficher un avertissement —
+le signal partait quand même. Le bloc de calcul a été **remonté avant le moteur de
+signal** (il était défini après) pour pouvoir servir de filtre.
+
+### Les 6 exigences (chacune désactivable seule)
+
+| Sous-toggle | Exige |
+|-------------|-------|
+| `saUseLate` | Aucune entrée tardive (sur-extension ATR / premium-discount profond) |
+| `saUseBias` | Biais HTF **et** structure du graphique alignés |
+| `saUseChop` | Marché directionnel (ADX ≥ seuil) — plus de signaux dans le bruit |
+| `saUsePd` | BUY en discount / SELL en premium |
+| `saUseZone` | Prix en interaction avec un Order Block ou un FVG |
+| `saUseSweep` | Cassure adossée à un sweep de liquidité |
+
+`saOn = OFF` restaure exactement le comportement précédent. Chaque sous-exigence peut
+être relâchée individuellement si le backtest montre qu'elle coûte trop de trades.
+
+> ⚠️ Attendu : **forte baisse du nombre de signaux**. C'est l'objectif — ne garder que
+> les configurations qu'un trader discrétionnaire prendrait réellement. À mesurer :
+> le profit factor doit monter même si le nombre de trades s'effondre.

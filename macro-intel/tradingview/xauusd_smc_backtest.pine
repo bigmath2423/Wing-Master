@@ -21,9 +21,34 @@
 //        position ouverte
 //     4. la gestion des ordres limites en attente (expiration/annulation)
 //
-//   REGLE : mettre "Trader uniquement les signaux A+" sur OFF et laisser
-//   les autres reglages par defaut reproduit exactement les fleches
+//   REGLE : mettre "Trader uniquement les signaux A+" sur OFF, le trailing
+//   (I1) et le filtre de cout (I2) sur OFF reproduit exactement les fleches
 //   BUY / SELL de l'indicateur, une position par fleche.
+//
+// ---- AMELIORATIONS I1 / I2 (mesurees sur M3, 2020-2026, 1 967 positions) ----
+//   Le premier backtest donne une esperance de -0.009 R par trade (t-stat
+//   -0.43 : indiscernable de zero) AVANT frais, et un compte souffle des que
+//   le spread reel est applique. Deux leviers en decoulent, chacun activable
+//   separement :
+//     I1 (btTrailOn, ON) - la derniere tranche suit le prix au lieu de buter
+//        sur le TP Final fixe. Mesure : les positions gagnantes atteignent
+//        1.33 R de MFE mediane mais n'en realisent que 0.79 R, soit +0.75 R
+//        abandonnes par trade ; 18 % des gagnants depassent 2 R de MFE.
+//     I2 (btCostOn, ON) - refuse les signaux dont le stop est si court que le
+//        cout d'execution mange plus de X % du risque. Mesure : l'esperance
+//        BRUTE est plate quelle que soit la taille du stop, mais l'esperance
+//        NETTE passe de -0.102 R (stops les plus serres) a -0.014 R (les plus
+//        larges). Ce filtre se neutralise tout seul sur les grandes UT.
+//   ECARTE volontairement, parce que les donnees le contredisent :
+//     - resserrer le stop : 32 % des trades gagnants reculent au-dela de
+//       -0.5 R avant de payer, un stop plus court les tuerait ;
+//     - poser un time-stop : les perdants sont PLUS COURTS que les gagnants
+//       (16 contre 31 barres de mediane) et les positions encore ouvertes
+//       apres N barres ont une esperance POSITIVE.
+//   ATTENTION : I1 et I2 ameliorent la STRUCTURE du resultat, ils ne creent
+//   pas d'edge. Le score /100 ne discrimine rien (correlation score/resultat
+//   -0.004), donc la rentabilite reste a demontrer, en priorite sur une unite
+//   de temps plus grande ou le cout d'execution pese beaucoup moins lourd.
 //
 // ---- NOTES D'EXACTITUDE DU BACKTEST (a lire avant d'interpreter) ----
 //   * Commission et slippage se reglent dans l'onglet Proprietes du
@@ -281,6 +306,30 @@ btBeOffAtr  = input.float(0.05, "Marge du Break Even (x ATR)", minval=0.0, step=
 
 // ---- Signal opposé pendant une position ouverte ----
 btOppMode = input.string("Ignorer le signal oppose", "Signal oppose en cours de position", options=["Ignorer le signal oppose", "Fermer sans inverser", "Inverser la position"], group=grpBT, tooltip="Ignorer (defaut) : la position en cours est geree UNIQUEMENT par son SL et ses TP, comme l'indicateur le propose. Fermer : un signal contraire solde la position sans en ouvrir de nouvelle. Inverser : un signal contraire solde la position ET ouvre la position opposee.")
+
+// ---- AMELIORATIONS issues de l'analyse du backtest M3 2020-2026 (1 967 positions) ----
+// Deux leviers, chacun justifie par une mesure et desactivable pour revenir au
+// comportement precedent. Ce qui a ete ECARTE, parce que les donnees le
+// contredisent : resserrer le stop (32 % des trades gagnants reculent au-dela
+// de -0.5 R avant de payer) et poser un time-stop (les perdants sont PLUS
+// COURTS que les gagnants, 16 contre 31 barres de mediane).
+
+// I1 : laisser courir la derniere tranche. Mesure : les positions gagnantes
+// atteignent 1.33 R de MFE mediane mais n'en realisent que 0.79 R -> +0.75 R
+// abandonnes en moyenne, et 18 % des gagnants depassent 2 R de MFE. Le TP Final
+// fixe est ce qui plafonne le gain a ~1.33 R alors qu'un perdant coute 1 R plein.
+btTrailOn     = input.bool(true, "TP Final : laisser courir avec un trailing stop", group=grpBT, tooltip="ON : la derniere tranche n'est plus fermee sur le TP Final fixe ; elle suit le prix avec un trailing stop, sans cible plafond. Justification mesuree : les trades gagnants abandonnent +0.75 R en moyenne entre leur meilleur point et leur sortie. OFF = TP Final fixe du TP Engine (comportement de l'indicateur).")
+btTrailStartR = input.float(1.0, "Trailing — activation a X R de profit", minval=0.1, step=0.1, group=grpBT, tooltip="Le trailing ne s'arme qu'une fois ce multiple du risque atteint, pour ne pas etre sorti par le bruit initial.")
+btTrailDistR  = input.float(0.5, "Trailing — distance suivie (X R)", minval=0.1, step=0.1, group=grpBT, tooltip="Distance conservee sous le plus haut atteint (BUY) / au-dessus du plus bas (SELL), en multiples du risque. Plus petit = capture plus de gain mais sort plus tot.")
+
+// I2 : filtre de cout d'execution. Mesure : l'esperance BRUTE est plate quelle
+// que soit la taille du stop, mais l'esperance NETTE se degrade lineairement
+// quand le stop se resserre (quintile de stop le plus serre : -0.102 R net,
+// quintile le plus large : -0.014 R net, spread 0.30 $/oz). Un stop trop court
+// rend le trade mathematiquement invendable, quel que soit le signal.
+btCostOn      = input.bool(true, "Refuser les trades ou le cout d'execution pese trop lourd", group=grpBT, tooltip="Bloque un signal quand la distance Entree->Stop Loss est si courte que le spread + slippage mange une part excessive du risque. Ce filtre s'auto-adapte au timeframe : il ne bloque presque rien en H1 et beaucoup en M1/M3, ou le cout devient structurellement ingerable.")
+btCostPerUnit = input.float(0.30, "Cout d'execution estime, aller-retour (en prix)", minval=0.0, step=0.05, group=grpBT, tooltip="Spread + slippage typiques de ton broker, exprimes dans l'unite de prix du symbole (0.30 = 30 cents sur l'or). Doit correspondre a ce que tu renseignes dans l'onglet Proprietes du Strategy Tester.")
+btCostMaxPctR = input.float(5.0, "Cout maximum tolere (% du risque)", minval=0.5, maxval=50.0, step=0.5, group=grpBT, tooltip="Un trade est refuse si le cout d'execution depasse ce pourcentage de la distance Entree->SL. 5 % avec un cout de 0.30 $ impose un stop d'au moins 6 $ : en dessous, le spread absorbe l'essentiel de l'esperance.")
 
 // ---- Periode testee ----
 btUseRange = input.bool(false, "Limiter la periode de backtest", group=grpBT, tooltip="ON : seuls les signaux compris dans la fenetre ci-dessous ouvrent des positions (utile pour tester in-sample / out-of-sample). Les positions encore ouvertes sont soldees a la fin de la fenetre.")
@@ -1977,6 +2026,7 @@ var float btSLPx     = na
 var float btT1Px     = na
 var float btT2Px     = na
 var float btT3Px     = na
+var float btRiskPx   = na   // distance Entree->SL d'origine (unite du trailing et du R)
 var float btQtyOpen  = na
 var bool  btBeDone   = false
 var bool  btPendLong = false
@@ -2009,6 +2059,26 @@ f_btQty(float riskDist) =>
     if btMaxQty > 0
         q := math.min(q, btMaxQty)
     na(q) or q <= 0 ? 0.0 : q
+
+// I2 : distance Entree->SL minimale pour que le cout d'execution reste supportable.
+// Exprimee comme "le cout ne doit pas depasser X % du risque" -> le seuil s'adapte
+// tout seul au symbole et au timeframe, sans valeur en points codee en dur.
+btMinRiskPx = btCostOn ? btCostPerUnit / (btCostMaxPctR / 100.0) : 0.0
+f_btCostOK(float riskDist) => not btCostOn or riskDist >= btMinRiskPx
+
+// I1 : parametres du trailing stop de la derniere tranche, calcules a partir du
+// risque d'origine. trail_offset s'exprime en TICKS pour Pine, d'ou la division
+// par syminfo.mintick.
+f_btTrailAct(bool isLong, float entryPx, float riskPx) =>
+    float v = na
+    if btTrailOn and not na(entryPx) and not na(riskPx) and riskPx > 0
+        v := isLong ? entryPx + btTrailStartR * riskPx : entryPx - btTrailStartR * riskPx
+    v
+f_btTrailOff(float riskPx) =>
+    float v = na
+    if btTrailOn and not na(riskPx) and riskPx > 0
+        v := math.max(1.0, btTrailDistR * riskPx / syminfo.mintick)
+    v
 
 // Autorisation d'ouvrir : periode + filtre A+ + regle du signal oppose.
 // (En mode "Inverser", un signal contraire est autorise a solder et retourner.)
@@ -2118,7 +2188,7 @@ if buySignal
     // ---- 🔁 BACKTEST : ouverture de la position LONG ----
     // Utilise EXACTEMENT les niveaux calcules ci-dessus (entry / slLevel /
     // t1 / t2 / t3), buffer d'execution inclus. Rien n'est recalcule.
-    if btBuyAllowed
+    if btBuyAllowed and f_btCostOK(riskDist)
         float btQ = f_btQty(riskDist)
         if btQ > 0
             strategy.cancel("SHORT")
@@ -2128,6 +2198,7 @@ if buySignal
             btT1Px    := t1
             btT2Px    := t2
             btT3Px    := t3
+            btRiskPx  := riskDist
             btQtyOpen := btQ
             btBeDone  := false
             btPendBars := 0
@@ -2143,7 +2214,8 @@ if buySignal
                 strategy.exit("TP1 L", from_entry="LONG", qty=btQ * btP1 / 100.0, limit=t1, stop=slLevel, comment_profit="TP1", comment_loss="SL")
             if btP2 > 0
                 strategy.exit("TP2 L", from_entry="LONG", qty=btQ * btP2 / 100.0, limit=t2, stop=slLevel, comment_profit="TP2", comment_loss="SL")
-            strategy.exit("TP3 L", from_entry="LONG", limit=t3, stop=slLevel, comment_profit="TP Final", comment_loss="SL")
+            // Derniere tranche : cible fixe, ou trailing sans plafond si I1 est ON.
+            strategy.exit("TP3 L", from_entry="LONG", limit=btTrailOn ? na : t3, stop=slLevel, trail_price=f_btTrailAct(true, entry, riskDist), trail_offset=f_btTrailOff(riskDist), comment_profit="TP Final", comment_loss="SL", comment_trailing="Trailing")
     if showRiskLabels
         if not na(bullRiskLabel)
             label.delete(bullRiskLabel)
@@ -2226,7 +2298,7 @@ if sellSignal
     // ---- 🔁 BACKTEST : ouverture de la position SHORT ----
     // Utilise EXACTEMENT les niveaux calcules ci-dessus (entry / slLevel2 /
     // t1 / t2 / t3), buffer d'execution inclus. Rien n'est recalcule.
-    if btSellAllowed
+    if btSellAllowed and f_btCostOK(riskDist2)
         float btQs = f_btQty(riskDist2)
         if btQs > 0
             strategy.cancel("LONG")
@@ -2236,6 +2308,7 @@ if sellSignal
             btT1Px    := t1
             btT2Px    := t2
             btT3Px    := t3
+            btRiskPx  := riskDist2
             btQtyOpen := btQs
             btBeDone  := false
             btPendBars := 0
@@ -2249,7 +2322,8 @@ if sellSignal
                 strategy.exit("TP1 S", from_entry="SHORT", qty=btQs * btP1 / 100.0, limit=t1, stop=slLevel2, comment_profit="TP1", comment_loss="SL")
             if btP2 > 0
                 strategy.exit("TP2 S", from_entry="SHORT", qty=btQs * btP2 / 100.0, limit=t2, stop=slLevel2, comment_profit="TP2", comment_loss="SL")
-            strategy.exit("TP3 S", from_entry="SHORT", limit=t3, stop=slLevel2, comment_profit="TP Final", comment_loss="SL")
+            // Derniere tranche : cible fixe, ou trailing sans plafond si I1 est ON.
+            strategy.exit("TP3 S", from_entry="SHORT", limit=btTrailOn ? na : t3, stop=slLevel2, trail_price=f_btTrailAct(false, entry, riskDist2), trail_offset=f_btTrailOff(riskDist2), comment_profit="TP Final", comment_loss="SL", comment_trailing="Trailing")
     if showRiskLabels
         if not na(bearRiskLabel)
             label.delete(bearRiskLabel)
@@ -2298,18 +2372,22 @@ if strategy.position_size != 0 and not na(btEntryPx) and not na(btSLPx)
     // Quantites effectivement replacables (jamais plus que le reliquat ouvert)
     float btQ1eff = btT1Done ? 0.0 : math.min(btQ1, btRem)
     float btQ2eff = btT2Done ? 0.0 : math.min(btQ2, btRem - btQ1eff)
+    // I1 : la derniere tranche suit le prix au lieu de buter sur le TP Final.
+    float btTrAct = f_btTrailAct(btIsLong, btEntryPx, btRiskPx)
+    float btTrOff = f_btTrailOff(btRiskPx)
+    float btT3Lim = btTrailOn ? na : btT3Px
     if btIsLong
         if btQ1eff > 0
             strategy.exit("TP1 L", from_entry="LONG", qty=btQ1eff, limit=btT1Px, stop=btSlNow, comment_profit="TP1", comment_loss="SL")
         if btQ2eff > 0
             strategy.exit("TP2 L", from_entry="LONG", qty=btQ2eff, limit=btT2Px, stop=btSlNow, comment_profit="TP2", comment_loss="SL")
-        strategy.exit("TP3 L", from_entry="LONG", limit=btT3Px, stop=btSlNow, comment_profit="TP Final", comment_loss="SL")
+        strategy.exit("TP3 L", from_entry="LONG", limit=btT3Lim, stop=btSlNow, trail_price=btTrAct, trail_offset=btTrOff, comment_profit="TP Final", comment_loss="SL", comment_trailing="Trailing")
     else
         if btQ1eff > 0
             strategy.exit("TP1 S", from_entry="SHORT", qty=btQ1eff, limit=btT1Px, stop=btSlNow, comment_profit="TP1", comment_loss="SL")
         if btQ2eff > 0
             strategy.exit("TP2 S", from_entry="SHORT", qty=btQ2eff, limit=btT2Px, stop=btSlNow, comment_profit="TP2", comment_loss="SL")
-        strategy.exit("TP3 S", from_entry="SHORT", limit=btT3Px, stop=btSlNow, comment_profit="TP Final", comment_loss="SL")
+        strategy.exit("TP3 S", from_entry="SHORT", limit=btT3Lim, stop=btSlNow, trail_price=btTrAct, trail_offset=btTrOff, comment_profit="TP Final", comment_loss="SL", comment_trailing="Trailing")
 
 // Position a plat : on reinitialise l'etat du break-even pour le trade suivant.
 if strategy.position_size == 0 and not btPendLong and not btPendShort

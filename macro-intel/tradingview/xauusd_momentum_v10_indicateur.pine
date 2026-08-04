@@ -1179,7 +1179,7 @@ if (buySignal or sellSignal) and not inPosI[1] and labOn
     array.push(jVol,  atrV > atrRef ? 1 : 0)
     array.push(jNews, (newsHigh or newsWarn) ? 1 : 0)
     array.push(jHtf,  (buySignal ? htfBull : htfBear) ? 1 : 0)
-    array.push(jRisk, math.max(1e-9, strategy.equity * riskPct / 100.0))
+    array.push(jRisk, 1.0)   // version indicateur : le laboratoire travaille directement en R
 
 // Accumulateurs par contexte : n, gagnants, somme R, somme R2, gains, pertes.
 // 4 regimes + 2 volatilites + 2 fenetres macro + 2 biais HTF = 10 groupes.

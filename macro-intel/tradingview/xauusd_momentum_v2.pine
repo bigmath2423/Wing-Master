@@ -166,11 +166,16 @@ belowVwap = not na(vwapV) and close < vwapV
 
 // --- Biais journalier et hebdomadaire (bougies CLOTUREES : aucun repaint) ---
 // Le seul ajout de v2 qui FILTRE, parce que le seul qui l'a merite a la mesure.
-biasDup = request.security(syminfo.tickerid, "D", close[1] > ta.ema(close, biasDLen)[1], lookahead=barmerge.lookahead_off)
-biasWup = request.security(syminfo.tickerid, "W", close[1] > ta.ema(close, biasWLen)[1], lookahead=barmerge.lookahead_off)
-biasBull = not na(biasDup) and not na(biasWup) and biasDup and biasWup
-biasBear = not na(biasDup) and not na(biasWup) and not biasDup and not biasWup
-biasTxt  = na(biasDup) or na(biasWup) ? "—" : biasBull ? "Haussier (D1+W1)" : biasBear ? "Baissier (D1+W1)" : "Divergent"
+// On renvoie l'ECART (cloture - EMA) en flottant plutot qu'un booleen : Pine
+// n'accepte pas na() sur un booleen renvoye par request.security, et le
+// flottant propage naturellement l'absence de donnee tant que l'EMA n'est pas
+// formee. Le SIGNE de l'ecart donne le biais.
+biasD = request.security(syminfo.tickerid, "D", close[1] - ta.ema(close, biasDLen)[1], lookahead=barmerge.lookahead_off)
+biasW = request.security(syminfo.tickerid, "W", close[1] - ta.ema(close, biasWLen)[1], lookahead=barmerge.lookahead_off)
+biasReady = not na(biasD) and not na(biasW)
+biasBull = biasReady and biasD > 0 and biasW > 0
+biasBear = biasReady and biasD < 0 and biasW < 0
+biasTxt  = not biasReady ? "—" : biasBull ? "Haussier (D1+W1)" : biasBear ? "Baissier (D1+W1)" : "Divergent"
 
 // --- Niveaux S/R : derniers pivots confirmes. AFFICHAGE SEUL. ---
 // Ils ne participent a AUCUNE condition d'entree : la mesure a montre que la

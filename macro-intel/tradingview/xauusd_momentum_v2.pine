@@ -117,6 +117,7 @@ slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=
 trailStartR = input.float(1.0, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX)
 trailDistR  = input.float(1.0, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX)
 riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
+maxLev      = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpX, tooltip="SECURITE. Plafonne la taille de position pour que le notionnel ne depasse jamais ce multiple du capital. Sans ce plafond, un symbole dont la volatilite affichee est anormalement faible produit des tailles enormes : sur TVC:GOLD le levier atteignait 20x (128x au pire) et une perte coutait 2.72 % du capital au lieu de 1 %. Si le compteur de levier du panneau reste colle a cette valeur, c'est que le symbole fausse le calcul : change de symbole plutot que d'augmenter le plafond.")
 
 grpU = "④ Affichage"
 showPanel = input.bool(true,  "Afficher le panneau", group=grpU)
@@ -249,9 +250,20 @@ var float sPx = na
 var float rPx = na
 var bool  eLong = false
 
+// PLAFOND DE LEVIER — securite ajoutee apres un incident reel.
+// Sur TVC:GOLD, la taille calculee atteignait 20x le capital (128x au pire) :
+// une perte coutait 2.72 % du capital au lieu du 1 % configure, et TOUS les
+// resultats etaient gonfles d'un facteur ~2.7 dans les deux sens. Le stop, lui,
+// se declenchait exactement ou il devait (excursion adverse = perte realisee).
+// La cause : syminfo.pointvalue n'a pas la meme signification sur un INDICE non
+// negociable que sur un symbole broker, ce qui fausse la conversion risque ->
+// quantite. Le plafond ci-dessous rend cette erreur impossible, quel que soit
+// le symbole : le notionnel ne peut jamais depasser maxLev fois le capital.
 f_qty(float risk) =>
     float pv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
-    risk > 0 ? math.max(0.0, strategy.equity * riskPct / 100.0) / (risk * pv) : 0.0
+    float q = risk > 0 ? math.max(0.0, strategy.equity * riskPct / 100.0) / (risk * pv) : 0.0
+    float qMax = close > 0 ? maxLev * strategy.equity / close : 0.0
+    math.min(q, qMax)
 
 if buySignal and strategy.position_size == 0
     risk = slAtr * atrV
@@ -330,6 +342,8 @@ if barstate.islast and showPanel
     f_row(4, "TP1 (1 R)", inPos ? str.tostring(eLong ? ePx + rPx : ePx - rPx, "#.##") : "—", color.rgb(46, 204, 113))
     f_row(5, "TP2 (2 R)", inPos ? str.tostring(eLong ? ePx + 2 * rPx : ePx - 2 * rPx, "#.##") : "—", color.aqua)
     f_row(6, "Sortie reelle", "Trailing " + str.tostring(trailDistR, "#.#") + " R", color.aqua)
+    float levNow = strategy.equity > 0 ? math.abs(strategy.position_size) * close / strategy.equity : 0.0
+    f_row(7, "Levier engage", inPos ? str.tostring(levNow, "#.#") + "x" + (levNow >= maxLev * 0.99 ? "  ⚠ plafonne" : "") : "—", levNow >= maxLev * 0.99 ? color.orange : color.silver)
     table.cell(tb, 0, 7, "CONFLUENCES", text_color=color.rgb(212, 175, 96), bgcolor=color.new(color.rgb(26, 35, 50), 20), text_size=size.small)
     table.cell(tb, 1, 7, isL ? "BUY" : "SELL", text_color=isL ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=color.new(color.rgb(26, 35, 50), 20), text_size=size.small)
     f_row(8,  "BOS", f_ok(isL ? bullBos : bearBos), f_okc(isL ? bullBos : bearBos))

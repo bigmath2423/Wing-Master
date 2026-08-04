@@ -100,7 +100,11 @@ def simulate(df: pd.DataFrame, atr_s: pd.Series, long_sig: pd.Series,
                 exit_reason = "TP"
                 break
             # --- trailing sur le reliquat ---
-            if plan.trail_r > 0 and hit[0]:
+            # L'activation depend UNIQUEMENT du profit atteint (trail_start_r).
+            # La conditionner au remplissage de TP1 rendait le trailing inerte
+            # quand les sorties partielles sont desactivees : la position ne
+            # sortait alors jamais et le simulateur rendait des +3.7 R absurdes.
+            if plan.trail_r > 0:
                 peak = max(peak, h[j]) if is_long else min(peak, l[j])
                 moved = ((peak - entry) if is_long else (entry - peak)) / risk
                 if moved >= plan.trail_start_r:

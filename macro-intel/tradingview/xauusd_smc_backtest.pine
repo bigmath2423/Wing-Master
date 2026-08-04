@@ -2279,10 +2279,14 @@ if strategy.position_size != 0 and not na(btEntryPx) and not na(btSLPx)
     float btQtyRef = na(btQtyOpen) or btQtyOpen <= 0 ? btRem : btQtyOpen
     float btQ1     = btQtyRef * btP1 / 100.0
     float btQ2     = btQtyRef * btP2 / 100.0
-    float btEps    = math.max(btQtyRef * 0.001, 1e-9)
+    // Le broker arrondit les quantites au pas de lot : une tolerance fixe trop
+    // fine faisait passer une tranche deja remplie pour "non remplie" (le
+    // reliquat partait alors en un seul bloc au lieu d'etre reparti TP2/TP
+    // Final). On considere donc une tranche executee des que la MOITIE en est
+    // fermee : robuste a n'importe quel arrondi inferieur a une demi-tranche.
     float btClosed = math.max(0.0, btQtyRef - btRem)
-    bool  btT1Done = btQ1 <= 0 or btClosed >= btQ1 - btEps
-    bool  btT2Done = btQ2 <= 0 or btClosed >= btQ1 + btQ2 - btEps
+    bool  btT1Done = btQ1 <= 0 or btClosed >= btQ1 * 0.5
+    bool  btT2Done = btQ2 <= 0 or btClosed >= btQ1 + btQ2 * 0.5
     // Break-even : declenche par le TP1 touche sur la barre en cours ; le stop
     // modifie s'applique a partir de la barre suivante (aucun look-ahead).
     if btBeOn and not btBeDone and not na(btT1Px) and ((btIsLong and high >= btT1Px) or (not btIsLong and low <= btT1Px))

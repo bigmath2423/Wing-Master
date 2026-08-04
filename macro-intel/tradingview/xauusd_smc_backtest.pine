@@ -1,0 +1,2968 @@
+//@version=6
+// ============================================================
+// VERSION BACKTEST (strategy) de "XAUUSD SMC Confluence Signals"
+// ------------------------------------------------------------
+// Ce fichier est la conversion EXACTE de l'indicateur en STRATEGIE
+// TradingView, afin de mesurer ses performances dans le Strategy Tester.
+//
+//   >>> AUCUNE logique de signal n'a ete modifiee. <<<
+//   Les modules 1 a 12, le score /100, les regles eliminatoires, les
+//   filtres, le Precision Engine, le Stop-Loss Engine, le buffer
+//   d'execution, le TP Engine et tous les affichages sont repris
+//   LIGNE POUR LIGNE. buySignal / sellSignal, l'entree, le SL et les
+//   TP1 / TP2 / TP Final sont exactement ceux de l'indicateur.
+//
+//   Ce qui est AJOUTE (et uniquement cela) :
+//     1. declaration `strategy(...)` a la place de `indicator(...)`
+//     2. un groupe d'inputs "🔁 BACKTEST" (taille de position, ordres,
+//        repartition des TP, break-even, periode testee, protections)
+//     3. l'envoi des ordres : strategy.entry sur buySignal / sellSignal
+//        et strategy.exit (TP1 / TP2 / TP Final + SL commun) sur la
+//        position ouverte
+//     4. la gestion des ordres limites en attente (expiration/annulation)
+//
+//   REGLE : mettre "Trader uniquement les signaux A+" sur OFF et laisser
+//   les autres reglages par defaut reproduit exactement les fleches
+//   BUY / SELL de l'indicateur, une position par fleche.
+//
+// ---- NOTES D'EXACTITUDE DU BACKTEST (a lire avant d'interpreter) ----
+//   * Commission et slippage se reglent dans l'onglet Proprietes du
+//     Strategy Tester (non codes en dur ici) : mets-y le spread + le
+//     slippage reel de ton broker, sinon les resultats sont optimistes.
+//   * process_orders_on_close = true : un ordre au marche est execute a
+//     la cloture de la bougie du signal (pas a l'ouverture suivante).
+//   * Mode d'entree "Limite" : TradingView ne peut attacher le SL/TP
+//     qu'a partir de la bougie SUIVANT le remplissage de l'ordre limite
+//     (limitation du moteur, pas du script). L'effet est globalement
+//     legerement PESSIMISTE (sortie possiblement plus tardive). Le mode
+//     "Marche" n'a pas cette limitation.
+//   * Sans "Bar Magnifier" (abonnement Premium), quand SL et TP sont
+//     touches dans la MEME bougie, TradingView suppose le pire cas.
+//   * Le backtest suppose que chaque signal est pris : verifie que le
+//     nombre de trades est statistiquement suffisant (> 100) avant de
+//     conclure quoi que ce soit.
+// ============================================================
+strategy("XAUUSD SMC Confluence — BACKTEST", shorttitle="SMC Gold BT", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500, initial_capital=10000, currency=currency.USD, default_qty_type=strategy.fixed, default_qty_value=1, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=true, close_entries_rule="ANY", margin_long=0, margin_short=0, commission_type=strategy.commission.percent, commission_value=0.0, slippage=0)
+
+// ============================================================
+// CARTE DE VALIDATION A/B  (backtests d'ablation - a valider avant de garder)
+// Chaque amelioration est INDEPENDANTE : la mettre a sa valeur "baseline" ci-dessous
+// restaure exactement le comportement d'origine. Tester une seule a la fois.
+//
+//   >>> BASELINE (comportement d'origine, tout desactive) :
+//       sweepQualityOn=false | fvgMinAtr=0 | entryZoneGate=false
+//       pePrecision=false | slSmartOn=false | slExecBufOn=false
+//       newsAutoOn=false | chopFilterOn=false
+//       (dxyOn/macroOn/newsOn = filtres macro pre-existants, ON par defaut)
+//
+//   AFFECTENT LES SIGNAUX (quels trades sont pris) :
+//     - sweepQualityOn  : filtre les faux liquidity sweeps           (defaut ON)
+//     - fvgMinAtr        : taille minimale des FVG (0 = off)          (defaut 0.10)
+//     - entryZoneGate    : exige un retour en zone pour entrer        (defaut ON)
+//     - newsAutoOn       : blocage auto NFP (si newsMode=Bloquer)     (defaut OFF)
+//     - chopFilterOn     : anti-consolidation ADX (range = pas de trade) (defaut OFF)
+//   AFFECTENT L'EXECUTION (entree / stop, pas quels trades) - EMPILEMENT :
+//     - pePrecision      : entree limite + SL de precision           (defaut ON)
+//     - slSmartOn        : SL structurel anti-chasse (par-dessus pePrecision) (defaut ON)
+//     - slExecBufOn      : buffer d'execution compte reel sur le SL (TP rescales, R:R identique) (defaut ON)
+//       -> ablation propre : baseline < +pePrecision < +slSmartOn < +slExecBufOn
+//   AFFICHAGE UNIQUEMENT (zero impact sur les trades, ne pas backtester) :
+//     - pzoOn (zones predictives) | azOn (zones d'anticipation)
+//     - lwOn (avertissement "entree tardive" : info seule, ne bloque aucun signal)
+// ============================================================
+// ============================================================
+// XAU/USD - SMART MONEY CONCEPTS CONFLUENCE SIGNAL ENGINE
+// BOS / CHoCH + Fair Value Gaps + Order Blocks + Liquidity Sweeps + Momentum Oscillator
+// v3 : fix accumulation d'objets graphiques (v1/v2 laissaient tous les anciens
+//      boxes/labels s'empiler a l'infini -> chart illisible). Chaque zone/label
+//      ne garde maintenant que sa version la plus recente.
+// v4 : Order Block se cree maintenant aussi sur CHoCH (pas seulement BOS) ->
+//      un retournement de structure peut de nouveau generer un signal.
+//      Le toggle "Show Order Block zones" ne controle plus QUE l'affichage
+//      (avant, le decocher desactivait aussi le scoring et les entrees, contrairement au FVG).
+//      bullSignalFired/bearSignalFired se reinitialisent aussi sur CHoCH.
+// v5 : migration Pine Script v6 (aucune logique de signal modifiee) +
+//      MODULE 1 - MARKET STRUCTURE INSTITUTIONNELLE :
+//        - labels HH / HL / LH / LL sur les swings confirmes
+//        - historique optionnel des BOS / CHoCH (avant : seul le dernier restait)
+//        - analyse de structure multi-timeframe (H1 contexte / M15 structure /
+//          M5 execution) via request.security sur barres CLOTUREES -> zero repaint
+//        - panneau dedie : Tendance H1 / Structure M15 / Signal M5 / structure chart
+// v6 : MODULE 2 - LIQUIDITY ENGINE :
+//        - zones de liquidite : Equal Highs / Equal Lows (pivots quasi-egaux,
+//          tolerance en fraction d'ATR), Previous Day High/Low, Previous Week
+//          High/Low (uniquement sur periodes cloturees -> zero repaint)
+//        - sweeps de ces zones : meche au-dela + cloture de retour, label avec
+//          la source (EQH/EQL/PDH/PDL/PWH/PWL), le sens (haussier/baissier)
+//          et la mention (rejet) si la bougie cloture dans la moitie opposee
+//        - regle "sweep -> BOS/CHoCH" : un BOS/CHoCH precede d'un sweep recent
+//          est marque d'un losange ; option +1 point de confluence (defaut ON,
+//          le score max passe alors a 5) et option filtre STRICT (defaut OFF :
+//          aucun signal sans cassure adossee a un sweep)
+// v7 : MODULE 3 - SMART MONEY CONCEPTS :
+//        - Breaker Blocks : un Order Block invalide devient une zone breaker
+//          inversee (OB haussier casse -> breaker baissier et vice-versa)
+//        - Imbalances : bougies de displacement (corps >= ATR x seuil)
+//        - Premium / Discount : range = dernier swing high / swing low,
+//          equilibre a 50%, zones affichees + filtre optionnel (defaut OFF :
+//          BUY seulement en discount / SELL seulement en premium)
+//        - Setup A+ : sweep de liquidite -> BOS/CHoCH -> retour dans OB/FVG,
+//          marque "A+" sur le signal (les OB et FVG existants sont inchanges)
+// v8 : MODULE 4 - WYCKOFF :
+//        - detection de range : aucune cassure de structure pendant N barres
+//          -> range borne par les derniers swings confirmes (boite grise)
+//        - classification de phase : tendance precedente baissiere ->
+//          "Accumulation ?", haussiere -> "Distribution ?", puis confirmation
+//          par les figures : Spring / SOS -> Accumulation (ou Reaccumulation
+//          si la tendance precedente etait haussiere), Upthrust / SOW ->
+//          Distribution (ou Redistribution si tendance precedente baissiere)
+//        - sortie de range : cloture au-dela des bornes ou BOS/CHoCH ->
+//          phase "Markup" / "Markdown"
+//        - filtre de contexte (defaut ON) : bloque uniquement les signaux
+//          CONTRAIRES a la phase (ex : pas de SELL en accumulation) ; hors
+//          range, aucun blocage
+//        - setup fort "WY+" : phase + figure + sweep->BOS/CHoCH alignes
+//          (ex : Accumulation + Spring + Sweep + CHoCH = achat fort)
+// v9 : MODULE 5 - FILTRES PRO :
+//        - Volume : ratio volume/SMA memorise sur chaque BOS/CHoCH ; une
+//          cassure sous le seuil est etiquetee "FAKE?" et (filtre ON par
+//          defaut) les signaux issus de cette cassure sont bloques
+//        - VWAP session : trace + biais dans le dashboard ; filtre optionnel
+//          (OFF par defaut) BUY au-dessus / SELL en dessous uniquement
+//        - ATR : filtre de volatilite (ON par defaut) qui ne bloque que les
+//          marches trop calmes (ATR < moyenne x seuil)
+//        - Sessions : Londres / New York / Kill Zones surlignees ; filtre
+//          optionnel (OFF par defaut) : signaux uniquement en session ou
+//          uniquement en kill zone
+//        Chaque filtre laisse passer si la donnee est indisponible (volume
+//        absent, VWAP na...) pour ne jamais supprimer de bonnes opportunites.
+// v10 : MODULE 6 - MOTEUR DE DECISION PROFESSIONNEL (score /100) :
+//        - plus aucun signal base sur un seul indicateur : 8 composants notes
+//          et additionnes -> Liquidite 20 + BOS/CHoCH 20 + OB/FVG 15 +
+//          Wyckoff 15 + Tendance HTF 10 + Volume 5 + VWAP 5 +
+//          ATR/Session 10 = 100 points
+//        - 2 regles ELIMINATOIRES : aucun signal sans sweep de liquidite
+//          recent, aucun signal sans confirmation structurelle (BOS/CHoCH)
+//        - niveaux : 90-100 = signal A+ (affiche + alerte TradingView) /
+//          80-89 = affichage uniquement, pas d'alerte / <80 = aucun signal
+//        - chaque signal affiche : BUY/SELL, score /100, raisons detaillees
+//          (points de chaque composant) et niveau de confiance
+//        - remplace l'ancien score de confluence /4-5 (inputs minConfluence,
+//          useOscFilter, oscLookback et liqLookback retires ; la validite du
+//          sweep est desormais "Sweep validity for decision" du module 6 ;
+//          l'oscillateur reste visible dans le dashboard). Les anciens
+//          filtres binaires ON/OFF (EMA, HTF,
+//          Premium/Discount, Wyckoff, volume, VWAP, ATR, sessions) ne
+//          bloquent plus les signaux : leur information est desormais
+//          integree au score. Les composants dont la donnee est indisponible
+//          (volume absent, VWAP na...) recoivent une note neutre partielle.
+//        - l'ancien marqueur "A+" (sweep -> BOS/CHoCH -> OB/FVG) est renomme
+//          "SMC+" pour ne pas le confondre avec le niveau A+ du score
+// v11 : RETRAIT COMPLET DU MODULE 13 (Gold Futures GC1! / COMEX) :
+//        - TradingView refusait la CREATION d'alerte tant que le script
+//          contenait une reference au symbole COMEX:GC1! (abonnement CME requis),
+//          meme le module desactive. Le module etant OFF par defaut, il est
+//          desormais ENTIEREMENT retire du code :
+//            * suppression des inputs gcOn / gcSym / gcRes / gcMode et de la
+//              requete request.security vers le Gold Futures ;
+//            * suppression des filtres gcBuyOk / gcSellOk sur les signaux ;
+//            * suppression de l'option "Volume reel GC1! (COMEX)" (input
+//              pfVolSource) et de la requete de volume GC1! -> le filtre volume
+//              utilise le volume natif du symbole affiche ;
+//            * suppression de la ligne "Gold GC1!" du tableau de bord.
+//        - AUCUNE logique de trading modifiee par rapport au baseline : le
+//          module etant OFF par defaut, aucune confirmation inter-marche
+//          n'etait active. Le score /100, les regles eliminatoires, les seuils
+//          et les entrees/SL/TP restent identiques. Plus aucune reference COMEX
+//          -> l'alerte se cree sans aucun abonnement aux donnees CME.
+// v12 : BUFFER D'EXECUTION COMPTE REEL sur le STOP-LOSS (fiabilite en reel) :
+//        - probleme : en execution reelle, un SL trop proche de l'entree se fait
+//          sortir par le spread, le slippage ou une petite meche, avant que le
+//          trade parte au TP. Ajout d'un buffer INTELLIGENT et ADAPTATIF :
+//            buffer = max( ATR x mult (composante volatilite, plafonnee) ,
+//                          plancher spread/slippage fixe configurable )
+//          -> se resserre en marche calme, s'elargit en marche volatil, sans
+//          jamais descendre sous le cout d'execution reel du broker.
+//        - les TAKE-PROFITS sont AUTOMATIQUEMENT recalcules : le multiple R de
+//          chaque TP est memorise avant l'elargissement du SL puis reprojete sur
+//          le nouveau risque -> le ratio R:R reste EXACTEMENT identique (aucune
+//          degradation risque/rendement, seule la distance absolue augmente).
+//        - AUCUN signal touche : le buffer s'applique APRES le declenchement du
+//          signal, uniquement sur les niveaux d'execution (SL/TP). Le score /100,
+//          les regles eliminatoires, les seuils, les conditions d'entree et le
+//          prix d'entree sont STRICTEMENT inchanges.
+//        - nouveaux inputs (groupe "Buffer d'execution compte reel") :
+//          slExecBufOn (ON par defaut), x ATR adaptatif (0.10), plancher spread
+//          (0.0, a regler selon le broker), plafond x ATR (0.5). slExecBufOn=OFF
+//          restaure le SL d'origine exact.
+// v13 : AVERTISSEMENT "ENTREE TARDIVE" (filtre secondaire, INFO seule) :
+//        - detecte les signaux techniquement valides mais potentiellement pris
+//          TROP TARD (prix deja en fin d'impulsion) et affiche un avertissement
+//          "⚠️ Trade a risque - Entree tardive". Ne bloque JAMAIS le trade, ne
+//          modifie NI le signal, NI le score, NI l'entree, NI les filtres.
+//        - INDEPENDANT du score : un signal a 85-90 % peut rester affiche ET
+//          recevoir l'avertissement s'il est sur-etendu.
+//        - trois axes (aucun ne touche au score) : sur-extension du mouvement en
+//          cours vs ATR ; distance a la derniere structure (plus bas/haut recent) ;
+//          achat en premium profond / vente en discount profond (position dans le
+//          range). Le signal est juge tardif si l'un des axes depasse son seuil.
+//        - affichage : plotshape "⚠️ Tardif" sur la fleche, ligne ajoutee dans
+//          l'etiquette de trade, ligne "Contexte" dans le tableau de bord, et
+//          mention " | ⚠️ ENTREE TARDIVE" dans l'alerte. OFF (lwOn) = rien affiche.
+//        - nouveaux inputs (groupe "Avertissement entree tardive") : lwOn (ON),
+//          fenetre d'impulsion, seuil sur-extension (ATR), seuil premium/discount.
+//        - CALIBRAGE AUTO PAR TIMEFRAME (lwAutoTf, ON par defaut) : les 3 seuils
+//          s'adaptent a l'UT du graphique (presets calibres or) -> M1: 30/3.5/80,
+//          M5: 25/4.0/78, M15: 20/4.5/75, M30: 18/5.0/73, H1: 15/5.5/70
+//          (fenetre barres / sur-extension ATR / premium %). UT hors liste =
+//          preset le plus proche. OFF = valeurs manuelles. Purement d'affichage,
+//          zero impact backtest.
+// A tester en demo / backtest avant tout usage en reel.
+// ============================================================
+
+// ================= INPUTS =================
+// ================= ⓪ AMELIORATIONS (audit) — interrupteurs A/B =================
+// Chaque amelioration issue de l'audit est INDEPENDANTE et reversible. Mettre TOUS
+// les toggles de ce groupe a leur valeur "baseline" (indiquee) reproduit EXACTEMENT
+// le comportement de xauusd_smc_v14_baseline.pine. Tester une amelioration a la fois.
+grpAudit = "⓪ AMELIORATIONS (audit) — interrupteurs A/B"
+// B1 : corrige le faux BOS/CHoCH declenche quand le niveau de swing vient de changer
+//      (ta.crossover sur un niveau MOBILE). Baseline = false.
+fixBreakOn = input.bool(true, "B1 · Anti faux BOS/CHoCH (niveau de swing stable)", group=grpAudit, tooltip="ON : une cassure n'est validee que si le niveau de swing casse etait DEJA en place a la barre precedente (niveau stable). Elimine les faux BOS/CHoCH provoques par la simple mise a jour d'un pivot sous le prix. OFF (false) = comportement d'origine exact (baseline).")
+// B2 : le toggle d'AFFICHAGE showLiq ne doit plus gater la DETECTION des sweeps de
+//      swing (qui alimente le score et le verrou eliminatoire). Baseline = false.
+fixSweepGateOn = input.bool(true, "B2 · Detection des sweeps de swing independante de l'affichage", group=grpAudit, tooltip="ON : les sweeps de swing (liqSweepLow/High) sont TOUJOURS detectes pour le score et les verrous, meme si 'Mark liquidity sweeps' (affichage) est decoche. Seul le label a l'ecran reste controle par l'affichage. OFF (false) = comportement d'origine (decocher l'affichage desactivait aussi la detection).")
+// B3 : garder les TP sur leur niveau STRUCTUREL apres l'elargissement du SL par le
+//      buffer d'execution (au lieu de les re-projeter en multiples R purs, ce qui
+//      les eloigne de la liquidite visee). ARBITRAGE (hit-rate vs R:R) -> baseline
+//      = false (defaut OFF, incertain, a valider par backtest).
+fixTpSnapOn = input.bool(false, "B3 · Garder les TP sur la structure (ne pas rescaler apres buffer SL)", group=grpAudit, tooltip="ON : quand le buffer d'execution elargit le SL, les TP RESTENT sur les niveaux structurels calcules par le TP Engine (liquidite/swings) au lieu d'etre repousses pour conserver le meme R:R. Le R:R affiche baisse legerement mais les cibles restent sur la vraie structure (meilleur hit-rate potentiel). OFF (false) = comportement d'origine (R:R strictement conserve, TP repousses). Incertain : mesurer en backtest.")
+// S1 : confiance affichee CALIBREE. AFFICHAGE UNIQUEMENT (zero impact signaux/score/
+//      seuils/alertes). Le score /100 garde ~25 pts structurellement pre-acquis par
+//      tout signal eligible (verrous : sweep 10 + structure 15) -> la "Probabilite"
+//      brute = score surestime. On rescale au-dela de ce plancher. Baseline = false.
+scoreRealistOn = input.bool(false, "S1 · Confiance affichee calibree (affichage seul)", group=grpAudit, tooltip="ON : la valeur 'Probabilite' du panneau est recalculee au-dessus du plancher structurel (points garantis par les verrous eliminatoires) pour ne plus surestimer la confiance. N'affecte NI le score /100, NI les seuils, NI les signaux, NI les alertes : purement d'affichage. OFF (false) = affichage d'origine (Probabilite = score brut).")
+scoreFloorPts  = input.int(25, "S1 · Plancher structurel du score (pts garantis)", minval=0, maxval=60, group=grpAudit, tooltip="Points qu'un signal eligible possede DEJA par construction (verrous : sweep recent 10 + cassure structurelle 15 = 25). La confiance calibree mappe [plancher..100] du score sur [1..99] %. Ajustable pour ne pas figer une constante cachee. Utilise seulement si S1 est ON.")
+// B1b : meme correctif que B1 mais sur la structure MULTI-TIMEFRAME (f_msStructure),
+//       qui alimente le score via msCtxTrend/msCtxEvent. Toggle SEPARE car il touche
+//       le module de score. Baseline = false (defaut OFF, a valider par backtest).
+fixBreakMtfOn = input.bool(false, "B1b · Anti faux BOS/CHoCH sur la structure multi-timeframe", group=grpAudit, tooltip="Applique la garde de stabilite du niveau (comme B1) a la detection de cassure MTF (H1/M15/M5) utilisee par le tableau Market Structure et le score HTF. OFF (false) = comportement d'origine. Defaut OFF car il modifie une entree du score : a activer et backtester separement de B1.")
+// C1 : n'emet un signal (fleche, label, TP, alerte) que sur une barre CLOTUREE ->
+//      supprime le repaint intrabar de la fleche sur la barre en cours. Sur les
+//      barres historiques barstate.isconfirmed est toujours vrai -> BACKTEST IDENTIQUE.
+//      Seul le temps reel change (plus de fleche qui apparait/disparait avant cloture).
+//      Baseline (effet) = identique en historique. Defaut ON (ameliore le reel, neutre en backtest).
+sigConfirmOn = input.bool(true, "C1 · Signaux confirmes en cloture (anti-repaint intrabar)", group=grpAudit, tooltip="ON : un signal BUY/SELL n'apparait qu'une fois la barre CLOTUREE, jamais pendant sa formation -> la fleche ne peut plus apparaitre puis disparaitre en temps reel. Sur l'historique, aucun changement (les barres y sont deja cloturees) : le backtest est IDENTIQUE. OFF (false) = comportement d'origine (fleche evaluee a chaque tick sur la barre en cours).")
+
+// ================= 🔁 BACKTEST — EXECUTION DES ORDRES =================
+// SEULE partie ajoutee par rapport a l'indicateur. Elle ne touche NI aux
+// signaux, NI au score, NI aux niveaux Entry/SL/TP : elle se contente de
+// TRANSMETTRE au Strategy Tester les trades que l'indicateur affiche.
+grpBT = "🔁 BACKTEST — Execution des ordres"
+
+// ---- Quels signaux sont tradés ----
+btOnlyAPlus = input.bool(false, "Trader uniquement les signaux A+ (ceux qui declenchent l'alerte)", group=grpBT, tooltip="OFF (defaut) : chaque fleche BUY/SELL affichee par l'indicateur (score >= seuil d'affichage) ouvre une position -> le backtest reproduit EXACTEMENT l'indicateur. ON : seuls les signaux dont le score atteint le seuil A+ (celui qui declenche l'alerte TradingView) sont tradés -> moins de trades, en principe de meilleure qualite.")
+
+// ---- Taille de position ----
+btSizeMode = input.string("Risque % du capital", "Taille de position", options=["Risque % du capital", "Quantite fixe"], group=grpBT, tooltip="Risque % du capital : la quantite est calculee pour que la distance Entree->Stop Loss corresponde exactement au pourcentage de capital choisi (gestion de risque professionnelle, la taille s'adapte a chaque SL). Quantite fixe : toujours le meme nombre de contrats/onces.")
+btRiskPct   = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, maxval=100.0, step=0.1, group=grpBT, tooltip="Pourcentage du capital perdu si le Stop Loss est touche a 100 % de la position. 1 % = standard institutionnel.")
+btFixedQty  = input.float(1.0, "Quantite fixe (si mode Quantite fixe)", minval=0.0, step=0.1, group=grpBT)
+btMaxQty    = input.float(0.0, "Quantite maximum (0 = illimitee)", minval=0.0, step=0.1, group=grpBT, tooltip="Plafonne la taille calculee par le risque %, pour eviter des positions absurdes quand le Stop Loss est tres serre. 0 = aucun plafond.")
+
+// ---- Type d'ordre d'entree ----
+btEntryMode = input.string("Limite (prix de precision)", "Ordre d'entree", options=["Limite (prix de precision)", "Marche (cloture du signal)"], group=grpBT, tooltip="Limite : place un ordre au prix d'entree calcule par le Precision Engine (bord d'Order Block / milieu de FVG) -> fidele a la strategie, mais certains signaux ne seront jamais remplis, et TradingView n'attache le SL/TP qu'a partir de la bougie suivant le remplissage. Marche : entre a la cloture de la bougie du signal -> tous les signaux sont pris et le SL/TP est actif immediatement (execution la plus fidele pour le moteur de backtest).")
+btLimitBars = input.int(10, "Validite de l'ordre limite (barres)", minval=1, maxval=200, group=grpBT, tooltip="Si l'ordre limite n'est pas rempli dans ce nombre de barres, il est annule (le setup est considere comme perime).")
+
+// ---- Sorties : repartition des Take Profits ----
+btTp1Pct = input.float(50.0, "Part fermee au TP1 (%)", minval=0.0, maxval=100.0, step=5.0, group=grpBT, tooltip="Pourcentage de la position initiale cloturee au TP1. 0 = pas de sortie partielle a TP1.")
+btTp2Pct = input.float(30.0, "Part fermee au TP2 (%)", minval=0.0, maxval=100.0, step=5.0, group=grpBT, tooltip="Pourcentage de la position initiale cloturee au TP2. Le RESTE (100 - TP1 - TP2) est ferme au TP Final. La somme TP1+TP2 est automatiquement bornee a 95 % pour toujours laisser un residu sur le TP Final.")
+btBeOn      = input.bool(true, "Passer le Stop Loss au Break Even apres TP1", group=grpBT, tooltip="Reproduit la gestion affichee par l'indicateur ('TP1 · SL au Break Even'). Une fois le TP1 touche, le stop du reliquat est ramene au prix d'entree (plus la marge ci-dessous).")
+btBeOffAtr  = input.float(0.05, "Marge du Break Even (x ATR)", minval=0.0, step=0.05, group=grpBT, tooltip="Petite marge au-dela de l'entree pour couvrir le spread/les frais lors du passage au Break Even. 0 = strictement au prix d'entree.")
+
+// ---- Signal opposé pendant une position ouverte ----
+btOppMode = input.string("Ignorer le signal oppose", "Signal oppose en cours de position", options=["Ignorer le signal oppose", "Fermer sans inverser", "Inverser la position"], group=grpBT, tooltip="Ignorer (defaut) : la position en cours est geree UNIQUEMENT par son SL et ses TP, comme l'indicateur le propose. Fermer : un signal contraire solde la position sans en ouvrir de nouvelle. Inverser : un signal contraire solde la position ET ouvre la position opposee.")
+
+// ---- Periode testee ----
+btUseRange = input.bool(false, "Limiter la periode de backtest", group=grpBT, tooltip="ON : seuls les signaux compris dans la fenetre ci-dessous ouvrent des positions (utile pour tester in-sample / out-of-sample). Les positions encore ouvertes sont soldees a la fin de la fenetre.")
+btFrom     = input.time(timestamp("2020-01-01 00:00 +0000"), "Debut du backtest", group=grpBT)
+btTo       = input.time(timestamp("2030-01-01 00:00 +0000"), "Fin du backtest", group=grpBT)
+
+// ---- Protections de compte (0 = desactive) ----
+btMaxDayLossPct = input.float(0.0, "Protection : perte max par jour (% du capital, 0 = off)", minval=0.0, maxval=100.0, step=0.5, group=grpBT, tooltip="Arrete la strategie pour la journee quand la perte intraday atteint ce pourcentage du capital (regle de risque prop firm). 0 = desactive.")
+btMaxTradesDay  = input.int(0, "Protection : nombre max de trades par jour (0 = off)", minval=0, maxval=100, group=grpBT, tooltip="Limite le nombre d'entrees par journee de trading. 0 = desactive.")
+
+// Les fonctions strategy.risk.* doivent etre appelees au niveau global (jamais
+// dans un bloc conditionnel) : on neutralise donc la regle avec une valeur qui
+// ne peut pas se declencher plutot que de sauter l'appel.
+strategy.risk.max_intraday_loss(btMaxDayLossPct > 0 ? btMaxDayLossPct : 100.0, strategy.percent_of_equity)
+strategy.risk.max_intraday_filled_orders(btMaxTradesDay > 0 ? btMaxTradesDay : 9999)
+
+// ================= GROUPES ESSENTIELS (en haut) =================
+grpE1 = "① ESSENTIEL — Signaux & Seuils"
+grpE2 = "② ESSENTIEL — Filtres & Execution"
+grpE3 = "③ ESSENTIEL — Macro & Confirmations"
+swingLen = input.int(10, "Swing detection length", minval=2, group=grpE1)
+
+grpFVG = "⚙️ Expert — Fair Value Gaps"
+showFVG = input.bool(true, "Show FVG zones", group=grpFVG)
+
+grpOB = "⚙️ Expert — Order Blocks"
+showOB = input.bool(true, "Show Order Block zones", group=grpOB)
+
+grpLiq = "⚙️ Expert — Liquidity"
+showLiq = input.bool(true, "Mark liquidity sweeps", group=grpLiq)
+
+grpTrend = "⚙️ Expert — Trend Filter"
+useTrendFilter = input.bool(true, "Require EMA trend alignment", group=grpE2)
+emaLen = input.int(200, "EMA length", group=grpTrend)
+
+grpHTF = "⚙️ Expert — Multi-Timeframe Filter"
+useHtfFilter = input.bool(true, "Require higher-timeframe bias alignment", group=grpE2)
+htfTimeframe = input.timeframe("60", "Higher timeframe", group=grpHTF)
+htfEmaLen = input.int(50, "HTF EMA length", minval=2, group=grpHTF)
+
+grpOsc = "⚙️ Expert — Momentum Oscillator"
+oscType = input.string("RSI", "Oscillator type", options=["RSI", "Stochastic"], group=grpOsc)
+oscLen = input.int(14, "Oscillator length", minval=2, group=grpOsc)
+oscSmoothK = 3  // verrouille (interne, aucun impact signal)
+oscSmoothD = 3  // verrouille (interne)
+oscOversold = input.int(30, "Oversold level (Stoch default: 20)", minval=1, maxval=49, group=grpOsc)
+oscOverbought = input.int(70, "Overbought level (Stoch default: 80)", minval=51, maxval=99, group=grpOsc)
+
+grpSig = "⚙️ Expert — Signal Engine"
+structLookback = input.int(30, "Structure break validity (bars)", minval=5, group=grpSig)
+signalCooldown = input.int(10, "Minimum bars between signals (same direction)", minval=0, group=grpE1)
+
+grpRisk = "⚙️ Expert — Risk Management"
+atrLen = input.int(14, "ATR length", group=grpRisk)
+slAtrMult = input.float(1.2, "Stop-loss = ATR x", minval=0.1, group=grpRisk)
+showRiskLabels = input.bool(true, "Show SL/TP labels on signals", group=grpRisk)
+
+grpTP = "⚙️ Expert — Module 8 - TP Engine (cibles dynamiques)"
+tpMode = input.string("Equilibre", "Mode TP", options=["Conservateur", "Equilibre", "Agressif"], group=grpE1, tooltip="Moteur 100 % adaptatif : les cibles sont des multiples d'ATR (l'ATR grandit avec le timeframe) calees sur la structure la plus proche (liquidite EQH/EQL, PDH/PDL, PWH/PWL, swings, OB, FVG). Il reconnait le timeframe courant et produit des objectifs realistes sur TOUTES les unites de temps (M1 -> W1) sans reglage. Conservateur : TP plus proches. Equilibre : defaut. Agressif : TP plus eloignes. Aucune valeur en points codee en dur.")
+tpPipSize = 0.1  // VERROUILLE : conversion pips uniquement, aucun impact signal (Phase 2)
+tpShowLines = input.bool(true, "Tracer les lignes Entry / SL / TP1 / TP2 / TP Final", group=grpTP)
+
+grpFIB = "⚙️ Expert — Module 9 - Fibonacci interne (arriere-plan, invisible)"
+fibUse = input.bool(true, "Activer le bonus Fibonacci (score uniquement, AUCUN dessin)", group=grpE2, tooltip="Moteur Fibonacci purement interne : detecte le dernier swing, calcule 0.5 / 0.618 / 0.705 / 0.786 / 1.0 et ajoute des points au score UNIQUEMENT en confluence avec BOS/CHoCH, sweep, OB, FVG, Premium/Discount ou tendance HTF. Ne trace rien sur le graphique et ne declenche jamais un trade a lui seul. Bonus plafonne a 10 points.")
+fibTol = input.float(0.03, "Tolerance de zone Fibonacci (fraction du swing)", minval=0.005, maxval=0.15, step=0.005, group=grpFIB, tooltip="Largeur de la zone autour de chaque niveau. 0.03 = 3 % de l'amplitude du swing.")
+
+grpUI = "⚙️ Expert — Interface / Panneaux"
+uiDevice = input.string("Desktop", "Mode d'affichage", options=["Desktop", "Mobile", "Auto"], group=grpUI, tooltip="Desktop : panneau principal + details (si actives) + Market Structure, tailles confortables. Mobile : UN seul panneau compact (BUY/SELL, score, confiance, Entry/SL/TP), police reduite, le reste masque. Auto : disposition Desktop avec texte auto-dimensionne (size.auto) - Pine ne peut PAS lire la taille reelle de l'ecran, Auto se rapproche donc de Desktop en adaptant la police a l'espace.")
+uiPos = input.string("middle_right", "Position du panneau principal", options=["top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin ou bord ou s'ancre le panneau principal (toujours visible). 'middle_right' = colle a droite, au centre vertical, pour degager au maximum les bougies.")
+uiDetailPos = input.string("bottom_right", "Position du panneau Confirmations", options=["top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right"], group=grpUI, tooltip="Coin du panneau Confirmations (mode Expert uniquement). A placer dans un coin DIFFERENT du panneau principal pour ne jamais se chevaucher.")
+uiViewMode = input.string("Simple", "Mode d'interface", options=["Simple", "Expert"], group=grpUI, tooltip="Simple : panneau TRADE SIGNAL essentiel (BUY/SELL, score, Entry, SL, TP1/TP2/TP Final). Expert : ajoute Note, Statut, Confiance, Trend, Mode TP, le panneau Confirmations (checklist complete) et le Market Structure. Le mode Mobile force l'affichage Simple.")
+uiSize = input.string("Normal", "Taille", options=["Compact", "Normal", "Large"], group=grpUI, tooltip="Compact = police tiny. Normal = police normale. Large = grande police (grands ecrans). Ignore en mode Mobile (force Compact) et en Auto (size.auto).")
+uiTransp = input.int(75, "Transparence des panneaux (%)", minval=0, maxval=100, step=5, group=grpUI, tooltip="0 = opaque, 100 = totalement transparent. 70-80 % recommande pour voir les bougies derriere.")
+uiShowMain = input.bool(true, "Afficher le panneau principal", group=grpUI)
+
+sendNotifications = input.bool(true, "Send TradingView alert() with confluence %", group=grpE1)
+
+grpMS = "⚙️ Expert — Module 1 - Market Structure"
+msShowSwingLabels = input.bool(true, "Show HH / HL / LH / LL labels", group=grpMS)
+msMaxSwingLabels = 30  // verrouille (affichage : nb de labels conserves)
+msKeepBreakHistory = input.bool(true, "Keep BOS / CHoCH history on chart", group=grpMS)
+msMaxBreakMarks = 15  // VERROUILLE : buffer d'affichage BOS/CHoCH, aucun impact signal (Phase 2)
+msMtfSwingLen = input.int(10, "MTF swing length", minval=2, group=grpMS)
+msTfContext = input.timeframe("60", "Context timeframe (H1)", group=grpMS)
+msTfStructure = input.timeframe("15", "Structure timeframe (M15)", group=grpMS)
+msTfExec = input.timeframe("5", "Execution timeframe (M5)", group=grpMS)
+msShowPanel = input.bool(true, "Show multi-timeframe panel", group=grpMS)
+msPanelPos = input.string("bottom_right", "Panel position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group=grpMS)
+
+grpLE = "⚙️ Expert — Module 2 - Liquidity Engine"
+leShowZones = input.bool(true, "Show EQH / EQL liquidity zones", group=grpLE)
+leEqTolAtr = input.float(0.15, "Equal highs/lows tolerance (ATR x)", minval=0.01, step=0.05, group=grpLE)
+leMaxZones = 6  // verrouille (affichage)
+leShowDaily = input.bool(true, "Show previous day high / low (PDH / PDL)", group=grpLE)
+leShowWeekly = input.bool(true, "Show previous week high / low (PWH / PWL)", group=grpLE)
+leShowSweeps = input.bool(true, "Mark liquidity sweeps + type", group=grpLE)
+leMaxSweepLabels = 20  // verrouille (affichage)
+// TODO (Phase MOYEN, apres backtest) : leSweepWindow (15) et deSweepWindow (20)
+// couvrent le meme concept "sweep recent". A fusionner en UN seul parametre si
+// le backtest confirme qu'ils sont redondants. Ne rien changer avant mesure.
+leSweepWindow = input.int(15, "Sweep -> BOS/CHoCH max delay (bars)", minval=1, group=grpLE)
+leUseBonus = input.bool(true, "Sweep before BOS/CHoCH = +1 confluence point", group=grpE2)
+leRequireSweep = input.bool(false, "STRICT filter: signals only after sweep-backed break", group=grpE2)
+
+grpSMC = "⚙️ Expert — Module 3 - Smart Money Concepts"
+smcShowBreakers = input.bool(true, "Show Breaker Blocks", group=grpSMC)
+smcShowImb = input.bool(true, "Mark imbalance candles (displacement)", group=grpSMC)
+smcImbMult = input.float(1.5, "Imbalance body size (ATR x)", minval=0.5, step=0.1, group=grpSMC)
+smcShowPD = input.bool(true, "Show Premium / Discount zones", group=grpSMC)
+smcUsePdFilter = input.bool(false, "Filter: BUY only in discount / SELL only in premium", group=grpE2)
+smcShowAPlus = input.bool(true, "Mark SMC+ setups (sweep -> BOS/CHoCH -> OB/FVG)", group=grpSMC)
+
+grpWY = "⚙️ Expert — Module 4 - Wyckoff"
+wyMinQuiet = input.int(20, "Bars without structure break to define a range", minval=5, group=grpWY)
+wyShowRange = input.bool(true, "Show Wyckoff range box + phase", group=grpWY)
+wyShowFigures = input.bool(true, "Mark Spring / Upthrust / SOS / SOW", group=grpWY)
+wyMaxFigLabels = 20  // verrouille (affichage)
+wyImpMult = input.float(1.0, "SOS/SOW displacement body (ATR x)", minval=0.1, step=0.1, group=grpWY)
+wyFigWindow = input.int(20, "Figure validity for strong setup (bars)", minval=2, group=grpWY)
+wyUseFilter = input.bool(true, "Use Wyckoff phase as context filter (block contrary signals)", group=grpE2)
+wyShowStrong = input.bool(true, "Mark strong Wyckoff setups (WY+)", group=grpWY)
+
+grpPF = "⚙️ Expert — Module 5 - Filtres Pro"
+pfUseVolFilter = input.bool(true, "Volume: block signals from low-volume (fake) breakouts", group=grpE2)
+pfVolLen = input.int(20, "Volume SMA length", minval=2, group=grpPF)
+pfVolFakeMult = input.float(0.8, "Fake breakout if break volume < SMA x", minval=0.1, step=0.1, group=grpPF)
+pfShowFake = input.bool(true, "Label suspected fake breakouts (FAKE?)", group=grpPF)
+pfMaxFakeLabels = 15  // verrouille (affichage)
+pfShowVwap = input.bool(true, "Show session VWAP", group=grpPF)
+pfUseVwapFilter = input.bool(false, "VWAP filter: BUY above / SELL below only", group=grpE2)
+pfUseAtrFilter = input.bool(true, "ATR: block signals when volatility too low", group=grpE2)
+chopFilterOn = input.bool(false, "Anti-consolidation: bloquer les signaux en range / tendance faible (ADX)", group=grpE2, tooltip="Un desk ne trade pas dans le bruit d'un range. ON : aucun signal si l'ADX (force de tendance) est sous le seuil -> on evite les faux signaux en marche sans direction. Distinct du filtre ATR (qui mesure la volatilite, pas la directionnalite). OFF par defaut = comportement d'origine exact ; a activer puis comparer en backtest. N'affecte NI le score NI les TP/SL : filtre uniquement l'emission du signal, les deux sens.")
+chopAdxLen = input.int(14, "Anti-consolidation - longueur ADX", minval=2, group=grpPF, tooltip="Longueur de calcul du DI/ADX. 14 = standard institutionnel.")
+chopAdxMin = input.float(20.0, "Anti-consolidation - ADX minimum", minval=0.0, maxval=100.0, step=1.0, group=grpPF, tooltip="Seuil de force de tendance. ADX < seuil = consolidation -> signal bloque (si filtre ON). 20 = seuil classique tendance/range ; 25 = plus strict (moins de trades, plus propres).")
+pfAtrLen = input.int(50, "ATR average length", minval=2, group=grpPF)
+pfAtrMinMult = input.float(0.7, "Min ATR vs its average (x)", minval=0.1, step=0.05, group=grpPF)
+pfShowSessions = input.bool(true, "Highlight sessions & kill zones", group=grpPF)
+pfSessMode = input.string("Off", "Session filter for signals", options=["Off", "London + New York", "Kill zones only"], group=grpE2)
+pfLdnSess = input.session("0800-1700", "London session (Europe/London)", group=grpPF)
+pfNySess = input.session("0800-1700", "New York session (America/New_York)", group=grpPF)
+pfLdnKz = input.session("0700-1000", "London kill zone (Europe/London)", group=grpPF)
+pfNyKz = input.session("0830-1100", "New York kill zone (America/New_York)", group=grpPF)
+
+grpDE = "⚙️ Expert — Module 6 - Moteur de Decision (score /100)"
+// TODO (Phase MOYEN, apres backtest) : voir leSweepWindow -> possible fusion des
+// deux fenetres de sweep en un seul parametre. A confirmer par backtest.
+deSweepWindow = input.int(20, "Sweep validity for decision (bars)", minval=1, group=grpE1, tooltip="Regle eliminatoire 1 : aucun signal si aucun sweep de liquidite (EQH/EQL/PDH/PDL/PWH/PWL/swing) dans les N dernieres barres.")
+deScoreMin = input.int(80, "Display threshold (signal shown, no alert)", minval=1, maxval=100, group=grpE1)
+deScoreAPlus = input.int(85, "A+ / alert threshold (signal + TradingView alert)", minval=1, maxval=100, group=grpE1, tooltip="Score minimum (sur 100) a partir duquel un signal declenche une alerte TradingView. Defaut 85 -> alertes pour tout score de 85 a 100. Ne modifie pas le calcul du score.")
+deShowReasons = input.bool(true, "Show detailed reasons on signal label", group=grpDE)
+deMaxSignalLabels = 12  // verrouille (affichage)
+
+grpPZ = "⚙️ Expert — Module 7 - Zones Potentielles (pre-signal)"
+pzShow = input.bool(true, "Afficher les Potential Buy / Sell Zones (pre-signal, SANS alerte)", group=grpPZ, tooltip="Zones ou une opportunite se construit, affichees AVANT le signal final. Elles ne declenchent JAMAIS d'alerte. Des que le score atteint le seuil d'alerte, la zone laisse place au signal BUY/SELL (avec alerte).")
+pzShowBC = input.bool(false, "Afficher aussi les zones B et C (moins fiables)", group=grpPZ, tooltip="Par defaut, seules les zones A+ et A (forte confluence) sont affichees. Activez pour voir aussi les zones B (correcte) et C (faible). Recommande : laisser desactive pour n'afficher que les meilleures zones.")
+pzMaxWidthAtr = input.float(0.4, "Largeur maximale de zone (x ATR)", minval=0.1, maxval=3.0, step=0.1, group=grpPZ, tooltip="Chaque zone est resserree a cette largeur maximale (en multiple d'ATR) pour rester la plus precise possible. Le bord proche du prix (bord de reaction) est conserve. Plus petit = zone plus etroite et plus precise.")
+
+// ================= TREND FILTER =================
+emaTrend = ta.ema(close, emaLen)
+trendBullOK = not useTrendFilter or close > emaTrend
+trendBearOK = not useTrendFilter or close < emaTrend
+plot(useTrendFilter ? emaTrend : na, "EMA Trend", color=color.new(color.gray, 40))
+
+// ================= MULTI-TIMEFRAME FILTER =================
+htfClose = request.security(syminfo.tickerid, htfTimeframe, close[1], lookahead=barmerge.lookahead_off)
+htfEma = request.security(syminfo.tickerid, htfTimeframe, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfBullOK = not useHtfFilter or htfClose > htfEma
+htfBearOK = not useHtfFilter or htfClose < htfEma
+htfTrendLabel = htfClose > htfEma ? "bullish" : "bearish"
+plot(useHtfFilter ? htfEma : na, "HTF EMA Trend", color=color.new(color.purple, 30), linewidth=2)
+
+// ================= MOMENTUM OSCILLATOR =================
+rsiVal = ta.rsi(close, oscLen)
+rawK = ta.stoch(close, high, low, oscLen)
+stochK = ta.sma(rawK, oscSmoothK)
+stochD = ta.sma(stochK, oscSmoothD)
+
+// v10 : l'oscillateur n'entre plus dans le score (bareme fixe /100 du module 6),
+// il reste affiche dans le dashboard comme information de contexte.
+oscVal = oscType == "RSI" ? rsiVal : stochK
+
+// ================= SWING DETECTION =================
+float ph = ta.pivothigh(high, swingLen, swingLen)
+float pl = ta.pivotlow(low, swingLen, swingLen)
+
+var float swingHighVal = na
+var int   swingHighBar = na
+var float swingLowVal  = na
+var int   swingLowBar  = na
+
+if not na(ph)
+    swingHighVal := ph
+    swingHighBar := bar_index - swingLen
+
+if not na(pl)
+    swingLowVal := pl
+    swingLowBar := bar_index - swingLen
+
+// ================= MODULE 1 : HELPERS HISTORIQUE BOS / CHoCH =================
+// Archive un objet au lieu de le supprimer quand l'historique est active.
+// Comportement identique a avant quand msKeepBreakHistory = false.
+var array<line>  msBreakLineHist  = array.new<line>()
+var array<label> msBreakLabelHist = array.new<label>()
+
+f_msArchiveLine(line ln) =>
+    if msKeepBreakHistory
+        array.push(msBreakLineHist, ln)
+        if array.size(msBreakLineHist) > msMaxBreakMarks
+            line.delete(array.shift(msBreakLineHist))
+    else
+        line.delete(ln)
+
+f_msArchiveLabel(label lb) =>
+    if msKeepBreakHistory
+        array.push(msBreakLabelHist, lb)
+        if array.size(msBreakLabelHist) > msMaxBreakMarks
+            label.delete(array.shift(msBreakLabelHist))
+    else
+        label.delete(lb)
+
+// ================= MARKET STRUCTURE: BOS / CHoCH =================
+var string structTrend = "neutral"
+var line  bullBreakLine = na
+var label bullBreakLabel = na
+var line  bearBreakLine = na
+var label bearBreakLabel = na
+
+bullBOS = false
+bearBOS = false
+bullCHoCH = false
+bearCHoCH = false
+
+// Pine v6 : les ta.* sont sorties des conditions `and` (evaluation paresseuse
+// en v6 -> une ta.* dans un operande conditionnel ne s'executerait pas a chaque
+// barre). Resultat strictement identique a la version v5.
+// --- B1 : ta.crossover est TOUJOURS evalue (etat maintenu a chaque barre) ; la
+//     garde de STABILITE du niveau ne fait que valider/invalider le resultat.
+//     Un vrai break = le prix franchit un niveau qui etait DEJA en place a la barre
+//     precedente. Si le niveau vient de changer (nouveau pivot sous le prix), le
+//     "crossover" est un artefact de mise a jour du niveau, pas une cassure reelle.
+crossUpRaw = ta.crossover(close, swingHighVal)
+crossDnRaw = ta.crossunder(close, swingLowVal)
+bhStable = swingHighVal == swingHighVal[1]
+blStable = swingLowVal == swingLowVal[1]
+crossUpSwingHigh = crossUpRaw and (not fixBreakOn or bhStable)
+crossDnSwingLow = crossDnRaw and (not fixBreakOn or blStable)
+
+if not na(swingHighVal) and crossUpSwingHigh
+    if structTrend == "bearish"
+        bullCHoCH := true
+    else
+        bullBOS := true
+    structTrend := "bullish"
+    if not na(bullBreakLine)
+        f_msArchiveLine(bullBreakLine)
+    if not na(bullBreakLabel)
+        f_msArchiveLabel(bullBreakLabel)
+    bullBreakLine := line.new(swingHighBar, swingHighVal, bar_index, swingHighVal, color=bullCHoCH ? color.new(color.yellow,0) : color.new(color.lime,0), width=1, style=bullCHoCH ? line.style_dashed : line.style_solid)
+    bullBreakLabel := label.new(bar_index, swingHighVal, bullCHoCH ? "CHoCH" : "BOS", style=label.style_label_down, color=color.new(color.white,100), textcolor=bullCHoCH ? color.yellow : color.lime, size=size.tiny)
+
+if not na(swingLowVal) and crossDnSwingLow
+    if structTrend == "bullish"
+        bearCHoCH := true
+    else
+        bearBOS := true
+    structTrend := "bearish"
+    if not na(bearBreakLine)
+        f_msArchiveLine(bearBreakLine)
+    if not na(bearBreakLabel)
+        f_msArchiveLabel(bearBreakLabel)
+    bearBreakLine := line.new(swingLowBar, swingLowVal, bar_index, swingLowVal, color=bearCHoCH ? color.new(color.orange,0) : color.new(color.red,0), width=1, style=bearCHoCH ? line.style_dashed : line.style_solid)
+    bearBreakLabel := label.new(bar_index, swingLowVal, bearCHoCH ? "CHoCH" : "BOS", style=label.style_label_up, color=color.new(color.white,100), textcolor=bearCHoCH ? color.orange : color.red, size=size.tiny)
+
+// Suivi AFFICHAGE du dernier BOS / CHoCH (panneau Market Structure) : ces deux
+// variables ne servent qu'a l'affichage, elles n'entrent dans aucun calcul.
+var string msLastBOS = "—"
+var string msLastCHoCH = "—"
+if bullBOS
+    msLastBOS := "haussier"
+if bearBOS
+    msLastBOS := "baissier"
+if bullCHoCH
+    msLastCHoCH := "haussier"
+if bearCHoCH
+    msLastCHoCH := "baissier"
+
+var int barsSinceBullBreak = 9999
+var int barsSinceBearBreak = 9999
+barsSinceBullBreak += 1
+barsSinceBearBreak += 1
+if bullBOS or bullCHoCH
+    barsSinceBullBreak := 0
+if bearBOS or bearCHoCH
+    barsSinceBearBreak := 0
+
+bgcolor(structTrend == "bullish" ? color.new(color.green, 95) : structTrend == "bearish" ? color.new(color.red, 95) : na, title="Trend background")
+
+// ================= MODULE 1 : SWINGS HH / HL / LH / LL =================
+// Les pivots ph/pl sont confirmes swingLen barres apres leur formation ->
+// le label est pose une seule fois, sur une barre passee : aucun repaint.
+var float msPrevSwingHigh = na
+var float msPrevSwingLow = na
+var string msHighTag = "-"
+var string msLowTag = "-"
+var array<label> msSwingLabels = array.new<label>()
+
+f_msPushSwingLabel(label lb) =>
+    array.push(msSwingLabels, lb)
+    if array.size(msSwingLabels) > msMaxSwingLabels
+        label.delete(array.shift(msSwingLabels))
+
+if not na(ph)
+    msHighTag := na(msPrevSwingHigh) ? "H" : ph > msPrevSwingHigh ? "HH" : "LH"
+    if msShowSwingLabels
+        colHigh = msHighTag == "HH" ? color.lime : msHighTag == "LH" ? color.red : color.gray
+        f_msPushSwingLabel(label.new(bar_index - swingLen, ph, msHighTag, style=label.style_label_down, color=color.new(color.white, 100), textcolor=colHigh, size=size.small))
+    msPrevSwingHigh := ph
+
+if not na(pl)
+    msLowTag := na(msPrevSwingLow) ? "L" : pl > msPrevSwingLow ? "HL" : "LL"
+    if msShowSwingLabels
+        colLow = msLowTag == "HL" ? color.lime : msLowTag == "LL" ? color.red : color.gray
+        f_msPushSwingLabel(label.new(bar_index - swingLen, pl, msLowTag, style=label.style_label_up, color=color.new(color.white, 100), textcolor=colLow, size=size.small))
+    msPrevSwingLow := pl
+
+// P1 : msSwingTrend retire (calcule mais jamais consomme). La tendance de
+// reference du moteur reste structTrend ; la tendance MTF affichee vient de msCtxTrend.
+
+// ================= MODULE 1 : STRUCTURE MULTI-TIMEFRAME =================
+// Meme moteur pivots + cassures que le graphique, execute dans le contexte de
+// chaque timeframe via request.security. La fonction retourne les valeurs de
+// la barre HTF PRECEDENTE ([1]) avec lookahead_off -> uniquement des barres
+// cloturees, aucun repaint.
+f_msStructure() =>
+    float pH = ta.pivothigh(high, msMtfSwingLen, msMtfSwingLen)
+    float pL = ta.pivotlow(low, msMtfSwingLen, msMtfSwingLen)
+    var float sh = na
+    var float sl = na
+    var int trend = 0     // 1 = bullish, -1 = bearish, 0 = neutral
+    var int lastEvent = 0 // 1 = BOS up, 2 = CHoCH up, -1 = BOS down, -2 = CHoCH down
+    if not na(pH)
+        sh := pH
+    if not na(pL)
+        sl := pL
+    // B1b : meme garde de stabilite que B1 -> une cassure ne compte que si le
+    // niveau de swing MTF etait deja en place a la barre precedente.
+    shStableMtf = sh == sh[1]
+    slStableMtf = sl == sl[1]
+    crossUp = ta.crossover(close, sh) and (not fixBreakMtfOn or shStableMtf)
+    crossDn = ta.crossunder(close, sl) and (not fixBreakMtfOn or slStableMtf)
+    if not na(sh) and crossUp
+        lastEvent := trend == -1 ? 2 : 1
+        trend := 1
+    if not na(sl) and crossDn
+        lastEvent := trend == 1 ? -2 : -1
+        trend := -1
+    [trend[1], lastEvent[1]]
+
+[msCtxTrend, msCtxEvent] = request.security(syminfo.tickerid, msTfContext, f_msStructure(), lookahead=barmerge.lookahead_off)
+[msStructTrendMtf, msStructEvent] = request.security(syminfo.tickerid, msTfStructure, f_msStructure(), lookahead=barmerge.lookahead_off)
+[msExecTrend, msExecEvent] = request.security(syminfo.tickerid, msTfExec, f_msStructure(), lookahead=barmerge.lookahead_off)
+
+// ================= MODULE 13 : RETIRE =================
+// L'ancien module "Confirmation Gold Futures (GC1! COMEX)" a ete ENTIEREMENT
+// retire : la reference COMEX:GC1! (input.symbol puis input.string) declenchait
+// le refus de creation d'alerte de TradingView faute d'abonnement aux donnees
+// CME, meme module desactive. Le module etant OFF par defaut, sa suppression
+// laisse le comportement de trading strictement IDENTIQUE au baseline
+// (aucune confirmation inter-marche n'etait active par defaut).
+
+f_msTrendTxt(int t) =>
+    t == 1 ? "Bullish" : t == -1 ? "Bearish" : "Neutral"
+
+f_msEventTxt(int e) =>
+    e == 1 ? "BOS ↑" : e == 2 ? "CHoCH ↑" : e == -1 ? "BOS ↓" : e == -2 ? "CHoCH ↓" : "—"
+
+f_msTrendColor(int t) =>
+    t == 1 ? color.lime : t == -1 ? color.red : color.gray
+
+// Previent l'utilisateur si le TF du module est INFERIEUR au TF du graphique
+// (request.security vers un TF plus bas ne renvoie que la derniere valeur intrabar)
+f_msTfWarn(string tf) =>
+    timeframe.in_seconds(tf) < timeframe.in_seconds(timeframe.period) ? " ⚠" : ""
+
+// ================= INTERFACE : HELPERS PANNEAUX (RESPONSIVE) =================
+// Interface responsive Desktop / Mobile / Auto. Aucune logique de trading n'est
+// touchee : uniquement l'affichage. Les tables sont ancrees dans les coins (Pine
+// ne permet pas un placement au pixel pres) et semi-transparentes pour laisser
+// voir les bougies. Ordre de creation : panneau principal PUIS details, pour
+// qu'ils s'empilent proprement au meme coin (principal au-dessus).
+f_uiPos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "middle_left" ? position.middle_left : p == "middle_right" ? position.middle_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
+// Reconnaissance automatique du timeframe courant (affichage), toutes UT confondues.
+f_tfLabel() => timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : timeframe.isintraday ? (timeframe.multiplier >= 60 ? "H" + str.tostring(int(timeframe.multiplier / 60)) : "M" + str.tostring(timeframe.multiplier)) : timeframe.isdaily ? "D1" : timeframe.isweekly ? "W1" : "MN"
+// AFFICHAGE uniquement (ne touche ni aux signaux ni aux scores).
+// Note en lettre : 90-100 A+, 85-89 A, 80-84 B, 70-79 C, <70 pas de signal.
+f_grade(int sc) => sc >= 90 ? "A+" : sc >= 85 ? "A" : sc >= 80 ? "B" : sc >= 70 ? "C" : "—"
+// Libelle complet de note (score < 70 -> "Aucun signal") et pastille couleur.
+f_gradeFull(int sc) => sc >= 90 ? "A+" : sc >= 85 ? "A" : sc >= 80 ? "B" : sc >= 70 ? "C" : "Aucun signal"
+f_gradeDot(int sc) => sc >= 85 ? "🟢" : sc >= 80 ? "🟡" : sc >= 70 ? "🟠" : "🔴"
+// Ligne de score "premium" : pastille + score + note. AFFICHAGE uniquement.
+f_scoreLine(int sc) => f_gradeDot(sc) + " " + str.tostring(sc) + "/100 • " + f_gradeFull(sc)
+// Probabilite estimee (indicateur de CONFIANCE derive du score, borne 4-96 %).
+// Ce n'est PAS une garantie de resultat et ne modifie aucun calcul.
+f_prob(int sc) => math.min(96, math.max(4, sc))
+// S1 : confiance CALIBREE au-dessus du plancher structurel (affichage uniquement).
+// Rescale [scoreFloorPts..100] du score sur [1..99] %. Ne modifie aucun calcul.
+f_probCal(int sc) =>
+    float denom = math.max(1.0, 100.0 - scoreFloorPts)
+    float t = (sc - scoreFloorPts) / denom
+    int v = int(math.round(math.max(0.0, math.min(1.0, t)) * 100.0))
+    math.min(99, math.max(1, v))
+// Selecteur d'affichage : calibree si S1 ON, sinon valeur d'origine.
+f_probShow(int sc) => scoreRealistOn ? f_probCal(sc) : f_prob(sc)
+// Palette moderne (flat UI), lisible d'un coup d'oeil : vert fonce (>=90),
+// vert (85-89), jaune (80-84), orange (70-79), rouge (<70).
+f_gradeCol(int sc) => sc >= 90 ? color.rgb(0, 150, 60) : sc >= 85 ? color.rgb(46, 204, 113) : sc >= 80 ? color.rgb(241, 196, 15) : sc >= 70 ? color.rgb(230, 126, 34) : color.rgb(231, 76, 60)
+// Niveau de confiance en texte.
+f_conf(int sc) => sc >= 90 ? "Tres elevee" : sc >= 85 ? "Elevee" : sc >= 80 ? "Correcte" : sc >= 70 ? "Faible" : "Insuffisante"
+// Statut du signal (emoji + texte).
+f_statut(int sc) => sc >= 85 ? "✅ Signal valide" : sc >= 70 ? "⏳ En attente" : "❌ Aucun signal"
+f_statutCol(int sc) => sc >= 85 ? color.rgb(46, 204, 113) : sc >= 70 ? color.rgb(241, 196, 15) : color.rgb(231, 76, 60)
+// Pastille de confirmation (checklist).
+f_ok(bool b) => b ? "✔" : "✘"
+f_okCol(bool b) => b ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+
+uiIsMobile = uiDevice == "Mobile"
+uiExpert = uiViewMode == "Expert" and not uiIsMobile
+uiShowDetail = uiExpert
+// Panneau COMPLET (toutes les sections, dont Market Structure) sur PC/portable ;
+// seul le mode Mobile affiche la version compacte. Ainsi le tableau detaille
+// s'affiche toujours en entier sur ordinateur, quel que soit Simple / Expert.
+uiFullPanel = not uiIsMobile
+// Taille de police : Mobile force le plus petit, Auto = adaptatif, sinon le choix.
+// Taille dense pour la grille multi-colonnes : Petit/Compact = tiny, Grand/Large =
+// normal, Moyen/Normal = small (defaut plus compact qu'avant pour tout faire tenir).
+uiTxtSize = uiIsMobile ? size.tiny : uiDevice == "Auto" ? size.auto : uiSize == "Compact" ? size.tiny : uiSize == "Large" ? size.normal : size.small
+// ---- PALETTE PREMIUM (style terminal pro : fond ardoise, accents discrets) ----
+// Fond principal ardoise tres sombre (pas noir pur -> plus doux, plus "logiciel").
+uiCellBg = color.new(color.rgb(13, 18, 26), uiTransp)
+// En-tete : bandeau bleu nuit profond.
+uiHeadBg = color.new(color.rgb(18, 27, 44), math.max(0, uiTransp - 30))
+// Bandeau de section (separateur discret, legerement plus clair que le fond).
+uiSecBg = color.new(color.rgb(26, 35, 50), math.max(0, uiTransp - 35))
+// Libelles discrets (gris bleute) / valeurs (blanc casse) / accent or sobre.
+uiLblCol = color.rgb(140, 156, 173)
+uiValCol = color.rgb(233, 238, 244)
+uiAccent = color.rgb(212, 175, 96)
+uiPosition = f_uiPos(uiPos)
+uiDetailPosition = f_uiPos(uiDetailPos)
+// Panneau principal (toujours visible) + Confirmations, chacun dans SON coin.
+// Grille multi-colonnes (6 colonnes = 3 sections cote a cote : libelle+valeur x3)
+// -> panneau court, 100% visible en 1080p, style terminal. Le mode Mobile
+// n'utilise que les 2 premieres colonnes (compact).
+var table mainPanel = table.new(uiPosition, 6, 20, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.rgb(70, 84, 102), 45))
+// Helpers de remplissage : une ligne libelle+valeur dans une section (col c / c+1).
+f_pRow(int c, int r, string lbl, string val, color vc) =>
+    table.cell(mainPanel, c, r, lbl, text_color=uiLblCol, text_size=uiTxtSize)
+    table.cell(mainPanel, c + 1, r, val, text_color=vc, text_size=uiTxtSize)
+f_pHead(int c, int r, string title, string right, color rcol) =>
+    table.cell(mainPanel, c, r, title, text_color=uiAccent, bgcolor=uiHeadBg, text_size=uiTxtSize)
+    table.cell(mainPanel, c + 1, r, right, text_color=rcol, bgcolor=uiHeadBg, text_size=uiTxtSize)
+f_pSub(int c, int r, string title) =>
+    table.cell(mainPanel, c, r, title, text_color=uiAccent, bgcolor=uiSecBg, text_size=uiTxtSize)
+    table.cell(mainPanel, c + 1, r, "", bgcolor=uiSecBg, text_size=uiTxtSize)
+var table detailPanel = table.new(uiDetailPosition, 2, 11, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 60))
+
+// ================= MODULE 1 : PANNEAU MULTI-TIMEFRAME =================
+msPanelPosition = msPanelPos == "top_left" ? position.top_left : msPanelPos == "top_right" ? position.top_right : msPanelPos == "bottom_left" ? position.bottom_left : position.bottom_right
+var table msPanel = table.new(msPanelPosition, 2, 10, bgcolor=uiCellBg, border_width=1, border_color=color.new(color.gray, 55))
+// NB : le remplissage du panneau Market Structure est place tout en bas du script
+// (section "PANNEAU MARKET STRUCTURE"), car il lit des variables (Wyckoff, SMC,
+// Volume, HTF) calculees plus loin. La table est juste declaree ici.
+
+// ================= FAIR VALUE GAPS =================
+// ATR global calcule UNE seule fois et reutilise partout (leAtr, atrVal, filtres)
+// -> supprime le double calcul redondant de ta.atr, code plus rapide.
+atrGlobal = ta.atr(atrLen)
+// Filtre anti-bruit : ignore les micro-FVG plus petits qu'une fraction d'ATR
+// (gaps insignifiants qui generaient des zones/entrees de faible qualite).
+fvgMinAtr = input.float(0.10, "FVG - taille minimum (x ATR)", minval=0.0, step=0.05, group=grpE2, tooltip="Un Fair Value Gap n'est retenu que si son ecart depasse cette fraction de l'ATR. 0.10 = filtre uniquement le bruit (micro-gaps). 0 = desactive (tous les gaps comptent, comme avant). Ameliore la pertinence des OB/FVG sans supprimer les vrais gaps.")
+
+var float bullFvgTop = na
+var float bullFvgBot = na
+var bool  bullFvgActive = false
+var box   bullFvgBox = na
+
+var float bearFvgTop = na
+var float bearFvgBot = na
+var bool  bearFvgActive = false
+var box   bearFvgBox = na
+
+bullFVG = (low - high[2]) > math.max(fvgMinAtr * atrGlobal, 0)
+bearFVG = (low[2] - high) > math.max(fvgMinAtr * atrGlobal, 0)
+
+if bullFVG
+    bullFvgTop := low
+    bullFvgBot := high[2]
+    bullFvgActive := true
+    if not na(bullFvgBox)
+        box.delete(bullFvgBox)
+        bullFvgBox := na
+    if showFVG
+        bullFvgBox := box.new(bar_index[2], bullFvgTop, bar_index, bullFvgBot, border_color=color.new(color.teal,40), bgcolor=color.new(color.teal,88), extend=extend.right)
+
+if bearFVG
+    bearFvgTop := low[2]
+    bearFvgBot := high
+    bearFvgActive := true
+    if not na(bearFvgBox)
+        box.delete(bearFvgBox)
+        bearFvgBox := na
+    if showFVG
+        bearFvgBox := box.new(bar_index[2], bearFvgTop, bar_index, bearFvgBot, border_color=color.new(color.red,40), bgcolor=color.new(color.red,88), extend=extend.right)
+
+if bullFvgActive and close < bullFvgBot
+    bullFvgActive := false
+    if not na(bullFvgBox)
+        box.delete(bullFvgBox)
+        bullFvgBox := na
+
+if bearFvgActive and close > bearFvgTop
+    bearFvgActive := false
+    if not na(bearFvgBox)
+        box.delete(bearFvgBox)
+        bearFvgBox := na
+
+// ================= ORDER BLOCKS =================
+var float bullObTop = na
+var float bullObBot = na
+var bool  bullObActive = false
+var box   bullObBox = na
+
+var float bearObTop = na
+var float bearObBot = na
+var bool  bearObActive = false
+var box   bearObBox = na
+
+if bullBOS or bullCHoCH
+    int idxOB = na
+    for i = 1 to swingLen
+        if close[i] < open[i]
+            idxOB := i
+            break
+    if not na(idxOB)
+        bullObTop := high[idxOB]
+        bullObBot := low[idxOB]
+        bullObActive := true
+        if not na(bullObBox)
+            box.delete(bullObBox)
+            bullObBox := na
+        if showOB
+            bullObBox := box.new(bar_index[idxOB], bullObTop, bar_index, bullObBot, border_color=color.new(color.blue,40), bgcolor=color.new(color.blue,88), extend=extend.right)
+
+if bearBOS or bearCHoCH
+    int idxOB2 = na
+    for i = 1 to swingLen
+        if close[i] > open[i]
+            idxOB2 := i
+            break
+    if not na(idxOB2)
+        bearObTop := high[idxOB2]
+        bearObBot := low[idxOB2]
+        bearObActive := true
+        if not na(bearObBox)
+            box.delete(bearObBox)
+            bearObBox := na
+        if showOB
+            bearObBox := box.new(bar_index[idxOB2], bearObTop, bar_index, bearObBot, border_color=color.new(color.purple,40), bgcolor=color.new(color.purple,88), extend=extend.right)
+
+if bullObActive and close < bullObBot
+    bullObActive := false
+    if not na(bullObBox)
+        box.delete(bullObBox)
+        bullObBox := na
+
+if bearObActive and close > bearObTop
+    bearObActive := false
+    if not na(bearObBox)
+        box.delete(bearObBox)
+        bearObBox := na
+
+// ================= LIQUIDITY SWEEPS =================
+// P1 : compteurs barsSinceLiqSweepLow/High retires (write-only, jamais lus ;
+// la fraicheur des sweeps utilisee par le score passe par barsSinceLeBull/BearSweep).
+var float sweptLowLevel = na
+var float sweptHighLevel = na
+var label sweepLowLabel = na
+var label sweepHighLabel = na
+
+// B2 : detection brute (independante de l'affichage) puis gate d'affichage.
+// fixSweepGateOn=false -> on re-applique showLiq comme avant (baseline exacte).
+liqSweepLowRaw = not na(swingLowVal) and low < swingLowVal and close > swingLowVal and (na(sweptLowLevel) or swingLowVal != sweptLowLevel)
+liqSweepHighRaw = not na(swingHighVal) and high > swingHighVal and close < swingHighVal and (na(sweptHighLevel) or swingHighVal != sweptHighLevel)
+liqSweepLow = (fixSweepGateOn or showLiq) and liqSweepLowRaw
+liqSweepHigh = (fixSweepGateOn or showLiq) and liqSweepHighRaw
+
+if liqSweepLow
+    sweptLowLevel := swingLowVal
+    if showLiq
+        if not na(sweepLowLabel)
+            label.delete(sweepLowLabel)
+        sweepLowLabel := label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(color.aqua,70), textcolor=color.aqua, size=size.tiny)
+
+if liqSweepHigh
+    sweptHighLevel := swingHighVal
+    if showLiq
+        if not na(sweepHighLabel)
+            label.delete(sweepHighLabel)
+        sweepHighLabel := label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(color.fuchsia,70), textcolor=color.fuchsia, size=size.tiny)
+
+// ================= MODULE 2 : LIQUIDITY ENGINE =================
+// Zones de liquidite (EQH/EQL + PDH/PDL/PWH/PWL) et sweeps de ces zones.
+// Detection sur pivots confirmes et conditions de cloture uniquement -> zero
+// repaint. Les toggles d'affichage ne desactivent JAMAIS la detection (meme
+// philosophie que le fix v4 sur les Order Blocks).
+leAtr = atrGlobal  // reutilise l'ATR global (plus de double calcul)
+
+// ---- Previous Day / Week High-Low (periodes cloturees uniquement) ----
+[lePdh, lePdl] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[lePwh, lePwl] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+plot(leShowDaily ? lePdh : na, "PDH", color=color.new(color.orange, 30), style=plot.style_stepline)
+plot(leShowDaily ? lePdl : na, "PDL", color=color.new(color.orange, 30), style=plot.style_stepline)
+plot(leShowWeekly ? lePwh : na, "PWH", color=color.new(color.blue, 20), linewidth=2, style=plot.style_stepline)
+plot(leShowWeekly ? lePwl : na, "PWL", color=color.new(color.blue, 20), linewidth=2, style=plot.style_stepline)
+
+f_leLevelLabel(label old, float lvl, string txt, color col) =>
+    label.delete(old)
+    label.new(bar_index + 2, lvl, txt, style=label.style_label_left, color=color.new(color.white, 100), textcolor=col, size=size.tiny)
+
+var label lePdhLbl = na
+var label lePdlLbl = na
+var label lePwhLbl = na
+var label lePwlLbl = na
+if barstate.islast
+    if leShowDaily
+        lePdhLbl := f_leLevelLabel(lePdhLbl, lePdh, "PDH", color.orange)
+        lePdlLbl := f_leLevelLabel(lePdlLbl, lePdl, "PDL", color.orange)
+    if leShowWeekly
+        lePwhLbl := f_leLevelLabel(lePwhLbl, lePwh, "PWH", color.blue)
+        lePwlLbl := f_leLevelLabel(lePwlLbl, lePwl, "PWL", color.blue)
+
+// ---- Marquage des sweeps (source + sens + rejet) ----
+var array<label> leSweepLabels = array.new<label>()
+bool leBullSweep = false
+bool leBearSweep = false
+
+f_leMarkSweep(bool bull, string src) =>
+    if leShowSweeps
+        strongReject = bull ? close > (high + low) / 2 : close < (high + low) / 2
+        txt = "SWEEP " + src + (bull ? " ↑" : " ↓") + (strongReject ? " (rejet)" : "")
+        lb = label.new(bar_index, bull ? low : high, txt, style=bull ? label.style_label_up : label.style_label_down, color=color.new(bull ? color.aqua : color.fuchsia, 70), textcolor=bull ? color.aqua : color.fuchsia, size=size.tiny)
+        array.push(leSweepLabels, lb)
+        if array.size(leSweepLabels) > leMaxSweepLabels
+            label.delete(array.shift(leSweepLabels))
+
+// ---- Sweeps des niveaux journaliers / hebdomadaires (1 fois par periode) ----
+var bool lePdhSwept = false
+var bool lePdlSwept = false
+var bool lePwhSwept = false
+var bool lePwlSwept = false
+if lePdh != lePdh[1] or lePdl != lePdl[1]
+    lePdhSwept := false
+    lePdlSwept := false
+if lePwh != lePwh[1] or lePwl != lePwl[1]
+    lePwhSwept := false
+    lePwlSwept := false
+
+if not lePdhSwept and not na(lePdh) and high > lePdh and close < lePdh
+    lePdhSwept := true
+    leBearSweep := true
+    f_leMarkSweep(false, "PDH")
+if not lePdlSwept and not na(lePdl) and low < lePdl and close > lePdl
+    lePdlSwept := true
+    leBullSweep := true
+    f_leMarkSweep(true, "PDL")
+if not lePwhSwept and not na(lePwh) and high > lePwh and close < lePwh
+    lePwhSwept := true
+    leBearSweep := true
+    f_leMarkSweep(false, "PWH")
+if not lePwlSwept and not na(lePwl) and low < lePwl and close > lePwl
+    lePwlSwept := true
+    leBullSweep := true
+    f_leMarkSweep(true, "PWL")
+
+// ---- Equal Highs / Equal Lows (2 pivots quasi-egaux = poche de liquidite) ----
+var float leLastPh = na
+var int   leLastPhBar = na
+var float leLastPl = na
+var int   leLastPlBar = na
+
+var array<float> leEqhLvls  = array.new<float>()
+var array<line>  leEqhLines = array.new<line>()
+var array<float> leEqlLvls  = array.new<float>()
+var array<line>  leEqlLines = array.new<line>()
+var array<line>  leDeadLines = array.new<line>()
+
+f_leCapDead(line ln) =>
+    array.push(leDeadLines, ln)
+    if array.size(leDeadLines) > leMaxZones * 2
+        line.delete(array.shift(leDeadLines))
+
+if not na(ph)
+    if not na(leLastPh) and math.abs(ph - leLastPh) <= leAtr * leEqTolAtr
+        eqhLvl = math.max(ph, leLastPh)
+        line eqhLn = leShowZones ? line.new(leLastPhBar, eqhLvl, bar_index - swingLen, eqhLvl, color=color.new(color.fuchsia, 30), style=line.style_dotted, width=2, extend=extend.right) : line(na)
+        array.push(leEqhLvls, eqhLvl)
+        array.push(leEqhLines, eqhLn)
+        if array.size(leEqhLvls) > leMaxZones
+            array.remove(leEqhLvls, 0)
+            line.delete(array.shift(leEqhLines))
+    leLastPh := ph
+    leLastPhBar := bar_index - swingLen
+
+if not na(pl)
+    if not na(leLastPl) and math.abs(pl - leLastPl) <= leAtr * leEqTolAtr
+        eqlLvl = math.min(pl, leLastPl)
+        line eqlLn = leShowZones ? line.new(leLastPlBar, eqlLvl, bar_index - swingLen, eqlLvl, color=color.new(color.aqua, 30), style=line.style_dotted, width=2, extend=extend.right) : line(na)
+        array.push(leEqlLvls, eqlLvl)
+        array.push(leEqlLines, eqlLn)
+        if array.size(leEqlLvls) > leMaxZones
+            array.remove(leEqlLvls, 0)
+            line.delete(array.shift(leEqlLines))
+    leLastPl := pl
+    leLastPlBar := bar_index - swingLen
+
+// Sweep / consommation des zones EQH-EQL : la zone est retiree des que le prix
+// depasse le niveau ; c'est un sweep si la cloture revient sous/au-dessus.
+if array.size(leEqhLvls) > 0
+    for i = array.size(leEqhLvls) - 1 to 0
+        float lvl = array.get(leEqhLvls, i)
+        if high > lvl
+            line ln = array.get(leEqhLines, i)
+            if not na(ln)
+                line.set_x2(ln, bar_index)
+                line.set_extend(ln, extend.none)
+                f_leCapDead(ln)
+            if close < lvl
+                leBearSweep := true
+                f_leMarkSweep(false, "EQH")
+            array.remove(leEqhLvls, i)
+            array.remove(leEqhLines, i)
+
+if array.size(leEqlLvls) > 0
+    for i = array.size(leEqlLvls) - 1 to 0
+        float lvl = array.get(leEqlLvls, i)
+        if low < lvl
+            line ln = array.get(leEqlLines, i)
+            if not na(ln)
+                line.set_x2(ln, bar_index)
+                line.set_extend(ln, extend.none)
+                f_leCapDead(ln)
+            if close > lvl
+                leBullSweep := true
+                f_leMarkSweep(true, "EQL")
+            array.remove(leEqlLvls, i)
+            array.remove(leEqlLines, i)
+
+// ---- Regle "sweep -> BOS/CHoCH" ----
+// Combine les sweeps du module (EQH/EQL/PDH/PDL/PWH/PWL) avec les sweeps de
+// swing deja existants (liqSweepLow/High). Une cassure de structure precedee
+// d'un sweep recent = cassure "adossee a la liquidite" (losange sur le chart).
+// ---- QUALITE DU SWEEP : eliminer les faux sweeps (mèche sans conviction) ----
+// Un vrai grab de liquidite institutionnel a une signature : (1) EXPANSION de
+// volatilite (la bougie de sweep est large, pas une micro-mèche), et (2) un
+// REJET FORT (cloture revenue du bon cote, dans la moitie opposee du range).
+// La simple "mèche de rejet" sans expansion est filtree. Evalue sur la bougie
+// de sweep -> aucun repaint, aucun look-ahead. OFF = comportement d'origine.
+sweepQualityOn = input.bool(true, "Filtrer les faux sweeps (expansion + rejet fort)", group=grpE2, tooltip="Ne valide un sweep que s'il montre une vraie signature de grab institutionnel : expansion de volatilite (bougie assez large) ET rejet fort (cloture dans la moitie opposee). Elimine les fausses mèches de rejet sans conviction. OFF = comportement d'origine (toute mèche + cloture de rejet compte).")
+sweepRangeAtr = input.float(0.5, "Sweep - expansion minimum (x ATR)", minval=0.0, step=0.1, group=grpE2, tooltip="La bougie de sweep doit avoir un range >= cette fraction de l'ATR (expansion de volatilite = vrai grab). 0 = pas de contrainte de taille.")
+sweepRejFrac = input.float(0.5, "Sweep - force du rejet (0-1)", minval=0.0, maxval=1.0, step=0.05, group=grpE2, tooltip="Position minimum de la cloture dans le range : 0.5 = cloture dans la moitie opposee a la mèche (rejet net). Plus haut = plus strict.")
+float sweepRng = high - low
+bool sweepExpOK = sweepRng >= sweepRangeAtr * atrGlobal
+sweepBullQual = not sweepQualityOn or (sweepExpOK and (close - low) >= sweepRejFrac * sweepRng)
+sweepBearQual = not sweepQualityOn or (sweepExpOK and (high - close) >= sweepRejFrac * sweepRng)
+leBullSweepAny = (leBullSweep or liqSweepLow) and sweepBullQual
+leBearSweepAny = (leBearSweep or liqSweepHigh) and sweepBearQual
+
+var int barsSinceLeBullSweep = 9999
+var int barsSinceLeBearSweep = 9999
+barsSinceLeBullSweep += 1
+barsSinceLeBearSweep += 1
+if leBullSweepAny
+    barsSinceLeBullSweep := 0
+if leBearSweepAny
+    barsSinceLeBearSweep := 0
+
+leBullSweepBacked = (bullBOS or bullCHoCH) and barsSinceLeBullSweep <= leSweepWindow
+leBearSweepBacked = (bearBOS or bearCHoCH) and barsSinceLeBearSweep <= leSweepWindow
+
+var int barsSinceBullSweepBreak = 9999
+var int barsSinceBearSweepBreak = 9999
+barsSinceBullSweepBreak += 1
+barsSinceBearSweepBreak += 1
+if leBullSweepBacked
+    barsSinceBullSweepBreak := 0
+if leBearSweepBacked
+    barsSinceBearSweepBreak := 0
+
+leBullBonusActive = barsSinceBullSweepBreak <= structLookback
+leBearBonusActive = barsSinceBearSweepBreak <= structLookback
+
+// Filtre strict optionnel (defaut OFF -> aucun changement de comportement)
+leBullOK = not leRequireSweep or leBullBonusActive
+leBearOK = not leRequireSweep or leBearBonusActive
+
+plotshape(leBullSweepBacked, title="Sweep→BOS/CHoCH bull", style=shape.diamond, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny)
+plotshape(leBearSweepBacked, title="Sweep→BOS/CHoCH bear", style=shape.diamond, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny)
+
+// ================= MODULE 3 : SMART MONEY CONCEPTS =================
+// Les OB et FVG existants sont conserves tels quels (ce sont deja les zones
+// institutionnelles du moteur). Ce module ajoute : Breaker Blocks, bougies
+// d'imbalance, Premium/Discount et le marquage des setups A+.
+// Toutes les detections se font sur cloture de barre -> aucun repaint.
+
+// ---- Breaker Blocks : un OB invalide s'inverse ----
+// OB haussier casse a la baisse -> breaker BAISSIER (resistance au retest)
+// OB baissier casse a la hausse -> breaker HAUSSIER (support au retest)
+var float smcBullBrkTop = na
+var float smcBullBrkBot = na
+var bool  smcBullBrkActive = false
+var box   smcBullBrkBox = na
+
+var float smcBearBrkTop = na
+var float smcBearBrkBot = na
+var bool  smcBearBrkActive = false
+var box   smcBearBrkBox = na
+
+if bearObActive[1] and not bearObActive and close > bearObTop
+    smcBullBrkTop := bearObTop
+    smcBullBrkBot := bearObBot
+    smcBullBrkActive := true
+    box.delete(smcBullBrkBox)
+    smcBullBrkBox := na
+    if smcShowBreakers
+        smcBullBrkBox := box.new(bar_index, smcBullBrkTop, bar_index + 1, smcBullBrkBot, border_color=color.new(color.teal, 20), bgcolor=color.new(color.teal, 85), extend=extend.right, text="BREAKER ↑", text_color=color.new(color.teal, 30), text_size=size.tiny, text_halign=text.align_right)
+
+if bullObActive[1] and not bullObActive and close < bullObBot
+    smcBearBrkTop := bullObTop
+    smcBearBrkBot := bullObBot
+    smcBearBrkActive := true
+    box.delete(smcBearBrkBox)
+    smcBearBrkBox := na
+    if smcShowBreakers
+        smcBearBrkBox := box.new(bar_index, smcBearBrkTop, bar_index + 1, smcBearBrkBot, border_color=color.new(color.maroon, 20), bgcolor=color.new(color.maroon, 85), extend=extend.right, text="BREAKER ↓", text_color=color.new(color.maroon, 30), text_size=size.tiny, text_halign=text.align_right)
+
+if smcBullBrkActive and close < smcBullBrkBot
+    smcBullBrkActive := false
+    box.delete(smcBullBrkBox)
+    smcBullBrkBox := na
+
+if smcBearBrkActive and close > smcBearBrkTop
+    smcBearBrkActive := false
+    box.delete(smcBearBrkBox)
+    smcBearBrkBox := na
+
+// ---- Imbalances (bougies de displacement, corps >= ATR x seuil) ----
+smcBullImb = close > open and (close - open) >= leAtr * smcImbMult
+smcBearImb = close < open and (open - close) >= leAtr * smcImbMult
+plotshape(smcShowImb and smcBullImb, title="Imbalance bull", style=shape.square, location=location.belowbar, color=color.new(color.teal, 40), size=size.tiny)
+plotshape(smcShowImb and smcBearImb, title="Imbalance bear", style=shape.square, location=location.abovebar, color=color.new(color.maroon, 40), size=size.tiny)
+
+// ---- Premium / Discount ----
+// Range = dernier swing high / dernier swing low confirmes (pivots existants).
+// Equilibre a 50% : au-dessus = premium (zone de vente), en dessous = discount
+// (zone d'achat). Affichage redessine uniquement sur la derniere barre.
+smcRangeTop = math.max(swingHighVal, swingLowVal)
+smcRangeBot = math.min(swingHighVal, swingLowVal)
+smcEq = (smcRangeTop + smcRangeBot) / 2
+smcPdReady = not na(smcEq)
+smcInPremium = smcPdReady and close > smcEq
+smcInDiscount = smcPdReady and close < smcEq
+
+// Filtre optionnel (defaut OFF -> aucun changement de comportement)
+smcBullPdOK = not smcUsePdFilter or smcInDiscount
+smcBearPdOK = not smcUsePdFilter or smcInPremium
+
+var box   smcPremBox = na
+var box   smcDiscBox = na
+var line  smcEqLine = na
+var label smcEqLbl = na
+if barstate.islast
+    box.delete(smcPremBox)
+    box.delete(smcDiscBox)
+    line.delete(smcEqLine)
+    label.delete(smcEqLbl)
+    if smcShowPD and smcPdReady
+        int smcLeftBar = math.min(swingHighBar, swingLowBar)
+        smcPremBox := box.new(smcLeftBar, smcRangeTop, bar_index + 5, smcEq, border_color=color.new(color.red, 75), bgcolor=color.new(color.red, 93), text="PREMIUM", text_color=color.new(color.red, 40), text_size=size.tiny, text_halign=text.align_right)
+        smcDiscBox := box.new(smcLeftBar, smcEq, bar_index + 5, smcRangeBot, border_color=color.new(color.green, 75), bgcolor=color.new(color.green, 93), text="DISCOUNT", text_color=color.new(color.green, 40), text_size=size.tiny, text_halign=text.align_right)
+        smcEqLine := line.new(smcLeftBar, smcEq, bar_index + 5, smcEq, color=color.new(color.gray, 30), style=line.style_dashed)
+        smcEqLbl := label.new(bar_index + 5, smcEq, "EQ 50%", style=label.style_label_left, color=color.new(color.white, 100), textcolor=color.gray, size=size.tiny)
+
+// ================= MODULE 4 : WYCKOFF =================
+// Identification des phases des gros acteurs. Un range = periode sans cassure
+// de structure (reutilise barsSinceBullBreak/barsSinceBearBreak du moteur
+// existant), borne par les derniers swings confirmes. Toutes les detections
+// se font sur cloture de barre -> aucun repaint.
+var bool   wyRanging = false
+var float  wyRangeTop = na
+var float  wyRangeBot = na
+var string wyPriorTrend = "neutral"
+var string wyPhase = "—"
+var string wyLastRangePhase = "—"
+var box    wyBox = na
+var array<box> wyOldBoxes = array.new<box>()
+var array<label> wyFigLabels = array.new<label>()
+
+var int wyBarsSinceResolve = 9999
+var int wyBarsSinceSpring = 9999
+var int wyBarsSinceUpthrust = 9999
+var int wyBarsSinceSOS = 9999
+var int wyBarsSinceSOW = 9999
+wyBarsSinceResolve += 1
+wyBarsSinceSpring += 1
+wyBarsSinceUpthrust += 1
+wyBarsSinceSOS += 1
+wyBarsSinceSOW += 1
+
+// ta.* hors des blocs conditionnels (coherence v6)
+wyMid = (wyRangeTop + wyRangeBot) / 2
+wyCrossUpMid = ta.crossover(close, wyMid)
+wyCrossDnMid = ta.crossunder(close, wyMid)
+
+f_wyMark(bool bull, string txt) =>
+    if wyShowFigures
+        lb = label.new(bar_index, bull ? low : high, txt, style=bull ? label.style_label_up : label.style_label_down, color=color.new(bull ? color.green : color.red, 60), textcolor=bull ? color.lime : color.orange, size=size.tiny)
+        array.push(wyFigLabels, lb)
+        if array.size(wyFigLabels) > wyMaxFigLabels
+            label.delete(array.shift(wyFigLabels))
+
+// ---- Entree en range ----
+if not wyRanging and barsSinceBullBreak >= wyMinQuiet and barsSinceBearBreak >= wyMinQuiet and wyBarsSinceResolve >= wyMinQuiet and not na(swingHighVal) and not na(swingLowVal) and swingHighVal > swingLowVal and close <= swingHighVal and close >= swingLowVal
+    wyRanging := true
+    wyRangeTop := swingHighVal
+    wyRangeBot := swingLowVal
+    wyPriorTrend := structTrend
+    wyPhase := structTrend == "bearish" ? "Accumulation ?" : structTrend == "bullish" ? "Distribution ?" : "Range"
+    if wyShowRange
+        wyBox := box.new(bar_index - wyMinQuiet, wyRangeTop, bar_index, wyRangeBot, border_color=color.new(color.gray, 40), bgcolor=color.new(color.gray, 92), text=wyPhase, text_color=color.new(color.silver, 20), text_size=size.tiny)
+
+// ---- Figures Wyckoff (uniquement dans un range) ----
+wyBody = math.abs(close - open)
+wyDisp = wyBody >= leAtr * wyImpMult
+bool wySpring = false
+bool wyUpthrust = false
+bool wySOS = false
+bool wySOW = false
+
+if wyRanging
+    // Spring : meche sous le bas du range + cloture de retour au-dessus
+    wySpring := low < wyRangeBot and close > wyRangeBot
+    // Upthrust : meche au-dessus du haut du range + cloture de retour dessous
+    wyUpthrust := high > wyRangeTop and close < wyRangeTop
+    // SOS : bougie haussiere en displacement franchissant le milieu ou le haut
+    wySOS := close > open and wyDisp and (wyCrossUpMid or close > wyRangeTop)
+    // SOW : bougie baissiere en displacement franchissant le milieu ou le bas
+    wySOW := close < open and wyDisp and (wyCrossDnMid or close < wyRangeBot)
+
+    if wySpring
+        wyBarsSinceSpring := 0
+        f_wyMark(true, "SPRING")
+    if wyUpthrust
+        wyBarsSinceUpthrust := 0
+        f_wyMark(false, "UPTHRUST")
+    if wySOS
+        wyBarsSinceSOS := 0
+        f_wyMark(true, "SOS")
+    if wySOW
+        wyBarsSinceSOW := 0
+        f_wyMark(false, "SOW")
+
+    // Les figures confirment / reclassent la phase
+    if wySpring or wySOS
+        wyPhase := wyPriorTrend == "bullish" ? "Reaccumulation" : "Accumulation"
+    if wyUpthrust or wySOW
+        wyPhase := wyPriorTrend == "bearish" ? "Redistribution" : "Distribution"
+
+    if not na(wyBox)
+        box.set_right(wyBox, bar_index)
+        box.set_text(wyBox, wyPhase)
+
+// ---- Resolution du range ----
+wyResolvedUp = wyRanging and (close > wyRangeTop or bullBOS or bullCHoCH)
+wyResolvedDown = wyRanging and (close < wyRangeBot or bearBOS or bearCHoCH)
+
+if wyResolvedUp or wyResolvedDown
+    wyLastRangePhase := wyPhase
+    wyPhase := wyResolvedUp ? "Markup" : "Markdown"
+    wyRanging := false
+    wyRangeTop := na
+    wyRangeBot := na
+    wyBarsSinceResolve := 0
+    if not na(wyBox)
+        array.push(wyOldBoxes, wyBox)
+        if array.size(wyOldBoxes) > 4
+            box.delete(array.shift(wyOldBoxes))
+        wyBox := na
+
+// ---- Contexte + filtre ----
+wyBullCtx = wyPhase == "Accumulation" or wyPhase == "Accumulation ?" or wyPhase == "Reaccumulation"
+wyBearCtx = wyPhase == "Distribution" or wyPhase == "Distribution ?" or wyPhase == "Redistribution"
+
+// Le filtre ne bloque que les signaux CONTRAIRES a la phase en cours ;
+// hors range (Markup/Markdown/—), aucun blocage.
+wyBuyOK = not wyUseFilter or not wyBearCtx
+wySellOK = not wyUseFilter or not wyBullCtx
+
+// Contexte etendu pour les setups forts : la resolution du range (CHoCH/BOS)
+// fait passer la phase en Markup/Markdown au moment meme ou le signal peut se
+// declencher -> on garde le contexte de l'ancien range quelques barres.
+wyBullSetupCtx = wyBullCtx or (wyPhase == "Markup" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Accumulation" or wyLastRangePhase == "Accumulation ?" or wyLastRangePhase == "Reaccumulation"))
+wyBearSetupCtx = wyBearCtx or (wyPhase == "Markdown" and wyBarsSinceResolve <= wyFigWindow and (wyLastRangePhase == "Distribution" or wyLastRangePhase == "Distribution ?" or wyLastRangePhase == "Redistribution"))
+
+// ================= MODULE 5 : FILTRES PRO =================
+// Volume / VWAP / ATR / Sessions. Chaque filtre est independant, desactivable,
+// et laisse passer le signal si sa donnee est indisponible (na) : on ameliore
+// la qualite sans jamais bloquer par manque de donnees.
+
+// ---- 1. VOLUME : confirmation des cassures / faux breakouts ----
+// Volume natif du symbole affiche (tick spot). L'ancienne option "volume reel
+// GC1! (COMEX)" a ete retiree avec le module 13 pour ne plus exiger d'abonnement
+// aux donnees CME (elle empechait la creation d'alertes).
+volSrc = volume
+pfVolSma = ta.sma(volSrc, pfVolLen)
+pfVolDataOK = not na(volSrc) and not na(pfVolSma) and pfVolSma > 0
+pfVolRatio = pfVolDataOK ? volSrc / pfVolSma : na
+
+// Le ratio de volume est memorise au moment de chaque cassure de structure :
+// c'est la cassure qu'on valide, pas la barre de retracement du signal.
+var float pfBullBreakVolRatio = na
+var float pfBearBreakVolRatio = na
+var array<label> pfFakeLabels = array.new<label>()
+
+f_pfFakeLabel(bool bull) =>
+    if pfShowFake
+        lb = label.new(bar_index, bull ? low : high, "FAKE?", style=bull ? label.style_label_up : label.style_label_down, color=color.new(color.yellow, 70), textcolor=color.yellow, size=size.tiny)
+        array.push(pfFakeLabels, lb)
+        if array.size(pfFakeLabels) > pfMaxFakeLabels
+            label.delete(array.shift(pfFakeLabels))
+
+if bullBOS or bullCHoCH
+    pfBullBreakVolRatio := pfVolRatio
+    if pfVolDataOK and pfVolRatio < pfVolFakeMult
+        f_pfFakeLabel(true)
+if bearBOS or bearCHoCH
+    pfBearBreakVolRatio := pfVolRatio
+    if pfVolDataOK and pfVolRatio < pfVolFakeMult
+        f_pfFakeLabel(false)
+
+pfBullVolOK = not pfUseVolFilter or na(pfBullBreakVolRatio) or pfBullBreakVolRatio >= pfVolFakeMult
+pfBearVolOK = not pfUseVolFilter or na(pfBearBreakVolRatio) or pfBearBreakVolRatio >= pfVolFakeMult
+
+// ---- 2. VWAP : position du prix + biais ----
+pfVwap = ta.vwap(hlc3)
+plot(pfShowVwap ? pfVwap : na, "VWAP", color=color.new(color.yellow, 20), linewidth=2)
+pfVwapBull = not na(pfVwap) and close > pfVwap
+pfVwapBear = not na(pfVwap) and close < pfVwap
+pfVwapBullOK = not pfUseVwapFilter or na(pfVwap) or pfVwapBull
+pfVwapBearOK = not pfUseVwapFilter or na(pfVwap) or pfVwapBear
+
+// ---- 3. ATR : filtre de volatilite (eviter les marches trop calmes) ----
+pfAtrSma = ta.sma(leAtr, pfAtrLen)
+pfVolatLow = not na(pfAtrSma) and leAtr < pfAtrSma * pfAtrMinMult
+pfAtrOK = not pfUseAtrFilter or na(pfAtrSma) or not pfVolatLow
+
+// ---- 4. SESSIONS : Londres / New York / Kill Zones ----
+pfInLdn = not na(time(timeframe.period, pfLdnSess, "Europe/London"))
+pfInNy = not na(time(timeframe.period, pfNySess, "America/New_York"))
+pfInLdnKz = not na(time(timeframe.period, pfLdnKz, "Europe/London"))
+pfInNyKz = not na(time(timeframe.period, pfNyKz, "America/New_York"))
+pfInKz = pfInLdnKz or pfInNyKz
+
+pfSessColor = pfInKz ? color.new(color.purple, 82) : pfInLdn ? color.new(color.blue, 93) : pfInNy ? color.new(color.orange, 93) : na
+bgcolor(pfShowSessions ? pfSessColor : na, title="Sessions / Kill zones")
+
+pfSessionOK = pfSessMode == "Off" ? true : pfSessMode == "London + New York" ? (pfInLdn or pfInNy) : pfInKz
+
+// ================= MODULE 6 : MOTEUR DE DECISION (SCORE /100) =================
+// Aucun signal ne repose sur un seul indicateur : chaque composant note le
+// contexte et seul le score TOTAL decide. Deux regles ELIMINATOIRES :
+//   1. aucun sweep de liquidite recent          -> aucun signal
+//   2. aucune confirmation structurelle recente -> aucun signal
+// Bareme fixe (total 100) :
+//   Liquidite 20 | BOS/CHoCH 20 | OB/FVG 15 | Wyckoff 15 | Tendance HTF 10 |
+//   Volume 5 | VWAP 5 | ATR+Session 10
+// Niveaux : >= seuil A+ (85) -> signal A+ affiche + alerte TradingView
+//           >= seuil affichage (80) -> signal affiche, PAS d'alerte
+//           en dessous -> aucun signal
+// Un composant dont la donnee est indisponible (volume absent, VWAP na,
+// ATR moyen na) recoit une note neutre partielle : on ne penalise jamais
+// un signal par manque de donnees (meme philosophie que le module 5).
+
+// ---- 1. LIQUIDITE (20 pts) : sweep recent (10) + cassure de structure
+//         adossee a ce sweep, regle sweep -> BOS/CHoCH du module 2 (10) ----
+deBullSweepRecent = barsSinceLeBullSweep <= deSweepWindow
+deBearSweepRecent = barsSinceLeBearSweep <= deSweepWindow
+deBullLiqPts = (deBullSweepRecent ? 10 : 0) + (leBullBonusActive ? 10 : 0)
+deBearLiqPts = (deBearSweepRecent ? 10 : 0) + (leBearBonusActive ? 10 : 0)
+
+// ---- 2. STRUCTURE BOS/CHoCH (20 pts) : cassure recente (15) + structure
+//         du graphique alignee avec le sens du signal (5) ----
+deBullStructRecent = barsSinceBullBreak <= structLookback
+deBearStructRecent = barsSinceBearBreak <= structLookback
+deBullStructPts = deBullStructRecent ? 15 + (structTrend == "bullish" ? 5 : 0) : 0
+deBearStructPts = deBearStructRecent ? 15 + (structTrend == "bearish" ? 5 : 0) : 0
+
+// ---- 3. ORDER BLOCK / FVG (15 pts) : prix dans une zone institutionnelle
+//         active (12), dans les deux zones a la fois (15) ----
+deBullObTouch = bullObActive and low <= bullObTop and high >= bullObBot
+deBullFvgTouch = bullFvgActive and low <= bullFvgTop and high >= bullFvgBot
+deBearObTouch = bearObActive and high >= bearObBot and low <= bearObTop
+deBearFvgTouch = bearFvgActive and high >= bearFvgBot and low <= bearFvgTop
+deBullZonePts = deBullObTouch and deBullFvgTouch ? 15 : deBullObTouch or deBullFvgTouch ? 12 : 0
+deBearZonePts = deBearObTouch and deBearFvgTouch ? 15 : deBearObTouch or deBearFvgTouch ? 12 : 0
+
+// ---- 4. WYCKOFF (15 pts) : phase favorable (10) / neutre (5) / contraire
+//         (0, y compris le bonus) + figure recente alignee (5) ----
+deBullWyFig = wyBarsSinceSpring <= wyFigWindow or wyBarsSinceSOS <= wyFigWindow
+deBearWyFig = wyBarsSinceUpthrust <= wyFigWindow or wyBarsSinceSOW <= wyFigWindow
+// TODO (Phase MOYEN, apres backtest) : Wyckoff agit a la fois comme FILTRE
+// (wyUseFilter bloque le contre-cycle) ET dans le SCORE (15 pts ici). Double
+// emploi potentiel -> evaluer si garder le filtre OU le score, pas les deux.
+// Ne rien changer avant d'avoir mesure l'effet de chacun en backtest.
+deBullWyPts = wyBearSetupCtx ? 0 : (wyBullSetupCtx ? 10 : 5) + (deBullWyFig ? 5 : 0)
+deBearWyPts = wyBullSetupCtx ? 0 : (wyBearSetupCtx ? 10 : 5) + (deBearWyFig ? 5 : 0)
+
+// ---- 5. TENDANCE HTF (10 pts) : EMA du timeframe superieur (5) +
+//         structure du timeframe de contexte du module 1 (5) ----
+deBullHtfPts = (htfClose > htfEma ? 5 : 0) + (msCtxTrend == 1 ? 5 : 0)
+deBearHtfPts = (htfClose < htfEma ? 5 : 0) + (msCtxTrend == -1 ? 5 : 0)
+
+// ---- 6. VOLUME (5 pts) : ratio memorise sur la derniere cassure de
+//         structure (module 5) ; fort (5) / correct (3) / suspect FAKE? (0)
+f_deVolPts(float ratio) =>
+    na(ratio) ? 3 : ratio >= 1.0 ? 5 : ratio >= pfVolFakeMult ? 3 : 0
+deBullVolPts = f_deVolPts(pfBullBreakVolRatio)
+deBearVolPts = f_deVolPts(pfBearBreakVolRatio)
+
+// ---- 7. VWAP (5 pts) : prix du bon cote du VWAP de session ----
+deBullVwapPts = na(pfVwap) ? 3 : close > pfVwap ? 5 : 0
+deBearVwapPts = na(pfVwap) ? 3 : close < pfVwap ? 5 : 0
+
+// ---- 8. ATR + SESSION (10 pts) : volatilite suffisante (5) + kill zone
+//         (5) ou session Londres / New York (3) ; identique bull/bear ----
+deAtrPts = na(pfAtrSma) ? 3 : not pfVolatLow ? 5 : 0
+deSessPts = pfInKz ? 5 : pfInLdn or pfInNy ? 3 : 0
+deCtxPts = deAtrPts + deSessPts
+
+// ================= MODULE 9 : FIBONACCI INTERNE (INVISIBLE) =================
+// Detecte le dernier swing important (dernier pivot haut / bas confirmes) et
+// calcule les retracements 0.5 / 0.618 / 0.705 / 0.786 / 1.0 EN INTERNE. N'affiche
+// RIEN (aucune ligne / boite / label). Ajoute des points au score (max 10)
+// UNIQUEMENT quand le prix reagit dans une zone Fibonacci ET qu'au moins une
+// confluence est presente (BOS/CHoCH, sweep, OB, FVG, Premium/Discount, HTF).
+// Ne peut donc jamais declencher un trade a lui seul. Quand fibUse = false, la
+// contribution est nulle -> comportement strictement identique a avant.
+fibHi = swingHighVal
+fibLo = swingLowVal
+fibRng = not na(fibHi) and not na(fibLo) ? fibHi - fibLo : na
+fibReady = fibUse and not na(fibRng) and fibRng > 0
+
+// Points selon la zone atteinte par le repli (ratio de retracement r).
+f_fibZonePts(float r) =>
+    pts = 0
+    if math.abs(r - 0.705) <= fibTol
+        pts := 7
+    else if math.abs(r - 0.618) <= fibTol
+        pts := 5
+    else if math.abs(r - 0.786) <= fibTol
+        pts := 5
+    else if math.abs(r - 0.50) <= fibTol
+        pts := 3
+    math.min(10, pts)
+
+// BUY : repli dans la jambe haussiere ; r = (haut - meche basse) / amplitude
+fibBullR = fibReady ? (fibHi - low) / fibRng : na
+bullFibConfluence = deBullStructRecent or deBullSweepRecent or bullObActive or bullFvgActive or smcInDiscount or htfClose > htfEma or msCtxTrend == 1
+deBullFibPts = fibReady and bullFibConfluence ? f_fibZonePts(fibBullR) : 0
+
+// SELL : repli dans la jambe baissiere ; r = (meche haute - bas) / amplitude
+fibBearR = fibReady ? (high - fibLo) / fibRng : na
+bearFibConfluence = deBearStructRecent or deBearSweepRecent or bearObActive or bearFvgActive or smcInPremium or htfClose < htfEma or msCtxTrend == -1
+deBearFibPts = fibReady and bearFibConfluence ? f_fibZonePts(fibBearR) : 0
+
+// ================= MODULE 12 : FILTRES DE CONTEXTE MACRO & NEWS =================
+// Filtres de CONTEXTE, JAMAIS des declencheurs : le SMC (BOS, CHoCH, sweep, OB,
+// FVG, Premium/Discount, MTF, VWAP, ATR...) reste le critere PRINCIPAL et les
+// deux verrous eliminatoires sont inchanges. Ces filtres ne font qu'ajuster la
+// CONFIANCE (le score) et signaler le risque news. Ultra-leger : 3 requetes
+// security au total (DXY + 10Y + 2Y), les news ne coutent aucune requete.
+//
+// 1) DXY (Dollar Index, correlation inverse avec l'or) - filtre bidirectionnel :
+//    DXY haussier  -> petit MALUS sur BUY + petit bonus sur SELL
+//    DXY baissier  -> petit bonus sur BUY + petit malus sur SELL
+// 2) Yield Spread 10Y-2Y (bonus uniquement) : taux en baisse + pentification
+//    -> favorable a l'or (bonus BUY) ; inverse -> bonus SELL.
+// 3) News : fenetre autour d'annonces majeures (CPI/NFP/FOMC/taux) -> signale
+//    le risque, et peut bloquer les signaux pendant cette fenetre (au choix).
+//
+// PROTECTION A+ : un setup SMC dont le score PUR (hors macro) atteint deja le
+// niveau A+ ne peut JAMAIS etre degrade par un malus macro -> on n'annule jamais
+// un excellent setup a cause du contexte macro.
+grpMACRO = "⚙️ Expert — Module 12 - Filtres macro & news (contexte)"
+// --- DXY ---
+dxyOn     = input.bool(true, "Filtre DXY (Dollar Index)", group=grpE3, tooltip="Contexte macro base sur la correlation inverse or / dollar. DXY haussier -> reduit legerement la confiance des BUY et favorise les SELL ; DXY baissier -> l'inverse. Jamais un signal a lui seul. Impact ~10-15 % du score. Un setup SMC deja A+ n'est jamais degrade.")
+dxyRes    = input.string("60", "DXY - unite de temps de tendance", options=["60", "240", "D"], group=grpMACRO, tooltip="60 = H1 (reactif intraday, adapte M5/M15). 240 = H4. D = journalier (contexte lent).")
+dxyEmaLen = input.int(50, "DXY - lissage (EMA)", minval=5, group=grpMACRO)
+dxyPts    = input.int(10, "DXY - poids (points)", minval=0, maxval=15, group=grpMACRO)
+// --- Yield Spread ---
+macroOn     = input.bool(true, "Filtre Yield Spread 10Y-2Y", group=grpE3, tooltip="Taux US 10 ans sous sa moyenne + spread 10Y-2Y en pentification = contexte favorable a l'or -> petit BONUS sur BUY. Inverse -> bonus SELL. Bonus uniquement, ne bloque jamais un setup. Impact ~5-10 %.")
+macroPts    = input.int(8, "Yield - poids (points de bonus)", minval=0, maxval=10, group=grpMACRO)
+macroEmaLen = input.int(20, "Yield - lissage (jours)", minval=5, group=grpMACRO)
+// --- News / volatilite ---
+newsOn     = input.bool(true, "Filtre news (volatilite)", group=grpE3, tooltip="Protege des pics de volatilite autour des annonces majeures (CPI, NFP, FOMC, decisions de taux). Renseigne la date/heure de chaque annonce ci-dessous ; le filtre agit dans la fenetre [avant ; apres].")
+newsMode   = input.string("Signaler seulement", "News - action", options=["Signaler seulement", "Bloquer les signaux"], group=grpE3, tooltip="Signaler seulement : affiche 'Risque news : eleve' sans toucher aux signaux. Bloquer : suspend l'emission des signaux (et alertes) pendant la fenetre.")
+newsBefore = input.int(15, "News - minutes AVANT", minval=0, maxval=240, group=grpE3)
+newsAfter  = input.int(15, "News - minutes APRES", minval=0, maxval=240, group=grpE3)
+news1 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 1 (date/heure)", group=grpE3)
+news2 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 2 (date/heure)", group=grpE3)
+news3 = input.time(timestamp("2020-01-01 00:00 +0000"), "Annonce 3 (date/heure)", group=grpE3)
+newsAutoOn  = input.bool(false, "News auto - NFP (1er vendredi)", group=grpE3, tooltip="Detecte automatiquement le NFP (Non-Farm Payrolls) : 1er vendredi du mois a l'heure ci-dessous (heure de New York, DST gere). Applique la meme fenetre [avant ; apres] et la meme action (Signaler/Bloquer) que les annonces manuelles. Seul le NFP est calculable par regle fiable en Pine ; CPI/FOMC/PPI restent en saisie manuelle (Annonces 1-3). OFF par defaut = comportement actuel inchange.")
+newsNfpHour = input.int(8, "News auto - heure NFP (New York)", minval=0, maxval=23, group=grpE3)
+newsNfpMin  = input.int(30, "News auto - minute NFP (New York)", minval=0, maxval=59, group=grpE3)
+
+// ---- DXY (tendance vs EMA) ----
+[dxyClose, dxyEma] = request.security("TVC:DXY", dxyRes, [close[1], ta.ema(close, dxyEmaLen)[1]], lookahead=barmerge.lookahead_off)  // [1] = bougie CLOTUREE (zero repaint)
+dxyReady = dxyOn and not na(dxyClose) and not na(dxyEma)
+dxyBull  = dxyReady and dxyClose > dxyEma
+dxyBear  = dxyReady and dxyClose < dxyEma
+
+// ---- Yield Spread 10Y-2Y (journalier) ----
+[macro10y, macro10yEma] = request.security("TVC:US10Y", "D", [close[1], ta.ema(close, macroEmaLen)[1]], lookahead=barmerge.lookahead_off)  // [1] = jour CLOTURE
+[macro02y, macro02yEma] = request.security("TVC:US02Y", "D", [close[1], ta.ema(close, macroEmaLen)[1]], lookahead=barmerge.lookahead_off)  // [1] = jour CLOTURE
+macroReady = macroOn and not na(macro10y) and not na(macro10yEma) and not na(macro02y) and not na(macro02yEma)
+macroSpread = macroReady ? macro10y - macro02y : na
+macroSpreadEma = macroReady ? macro10yEma - macro02yEma : na
+macroYieldDown = macroReady and macro10y < macro10yEma
+macroSteepening = macroReady and macroSpread > macroSpreadEma
+macroBullish = macroReady and macroYieldDown and macroSteepening
+macroBearish = macroReady and not macroYieldDown and not macroSteepening
+
+// ---- Risque news : fenetre autour des annonces renseignees ----
+f_newsWin(int t) => t > timestamp("2021-01-01 00:00 +0000") and time >= t - newsBefore * 60000 and time <= t + newsAfter * 60000
+// News AUTO : NFP = 1er vendredi du mois a newsNfpHour:newsNfpMin (heure de New York, DST auto).
+// nfpTs est construit a partir de la DATE de la bougie courante -> deterministe, zero look-ahead,
+// zero repaint (aucune donnee future, valeur stable a chaque re-calcul de la bougie).
+newsNyDom = dayofmonth(time, "America/New_York")
+newsIsNfpDay = dayofweek(time, "America/New_York") == dayofweek.friday and newsNyDom <= 7
+newsNfpTs = newsIsNfpDay ? timestamp("America/New_York", year(time, "America/New_York"), month(time, "America/New_York"), newsNyDom, newsNfpHour, newsNfpMin) : na
+newsAutoRisk = newsAutoOn and not na(newsNfpTs) and time >= newsNfpTs - newsBefore * 60000 and time <= newsNfpTs + newsAfter * 60000
+newsRisk = newsOn and (newsAutoRisk or f_newsWin(news1) or f_newsWin(news2) or f_newsWin(news3))
+newsBlockActive = newsRisk and newsMode == "Bloquer les signaux"
+
+// ---- Ajustements de confiance (DXY bidirectionnel + Yield bonus) ----
+dxyBullAdj = not dxyReady ? 0 : dxyBear ? dxyPts : dxyBull ? -dxyPts : 0
+dxyBearAdj = not dxyReady ? 0 : dxyBull ? dxyPts : dxyBear ? -dxyPts : 0
+macroBullPts = macroBullish ? macroPts : 0
+macroBearPts = macroBearish ? macroPts : 0
+macroBullAdj = dxyBullAdj + macroBullPts
+macroBearAdj = dxyBearAdj + macroBearPts
+
+// ---- SCORE TOTAL /100 ----
+// 1) Score PUR SMC (+ bonus Fibonacci interne), plafonne a 100 : c'est le coeur
+//    de la methode, inchange. 2) Ajustement macro applique par-dessus, avec
+//    PROTECTION A+ : un score SMC pur deja A+ ne peut jamais recevoir de malus.
+deBullSmc = math.min(100, deBullLiqPts + deBullStructPts + deBullZonePts + deBullWyPts + deBullHtfPts + deBullVolPts + deBullVwapPts + deCtxPts + deBullFibPts)
+deBearSmc = math.min(100, deBearLiqPts + deBearStructPts + deBearZonePts + deBearWyPts + deBearHtfPts + deBearVolPts + deBearVwapPts + deCtxPts + deBearFibPts)
+macroAplusRef = math.max(deScoreAPlus, deScoreMin)
+macroBullAdjP = deBullSmc >= macroAplusRef ? math.max(0, macroBullAdj) : macroBullAdj
+macroBearAdjP = deBearSmc >= macroAplusRef ? math.max(0, macroBearAdj) : macroBearAdj
+deBullScore = math.min(100, math.max(0, deBullSmc + macroBullAdjP))
+deBearScore = math.min(100, math.max(0, deBearSmc + macroBearAdjP))
+
+// ---- REGLES ELIMINATOIRES + NIVEAUX ----
+// Le seuil A+ ne peut pas etre sous le seuil d'affichage.
+deAPlusLevel = math.max(deScoreAPlus, deScoreMin)
+deBullHardOK = deBullSweepRecent and deBullStructRecent
+deBearHardOK = deBearSweepRecent and deBearStructRecent
+// ---- TIMING D'ENTREE : eviter les entrees prematurees sur l'impulsion ----
+// Probleme : un signal pouvait se declencher sur la bougie meme de la cassure
+// (BOS/CHoCH), loin au-dessus/dessous de la zone -> on achete/vend le sommet de
+// l'impulsion, souvent suivi d'un retracement qui touche le stop. Solution : ne
+// valider que si le prix INTERAGIT avec une zone institutionnelle (retour dans
+// l'Order Block ou le FVG, ou position en discount/premium) -> on entre sur le
+// RETOUR en zone, pas sur l'extension. OFF = comportement d'origine.
+entryZoneGate = input.bool(true, "Exiger un retour en zone pour entrer (anti-entree prematuree)", group=grpE1, tooltip="ON : le signal n'est valide que si le prix est en interaction avec une zone (retour dans l'Order Block / le FVG, ou en discount pour un BUY / premium pour un SELL). Evite d'entrer sur la bougie d'impulsion apres un BOS/CHoCH. OFF = comportement d'origine exact. Ne change pas le score ; filtre uniquement le TIMING d'entree.")
+gateBuyZone = not entryZoneGate or deBullObTouch or deBullFvgTouch or smcInDiscount
+gateSellZone = not entryZoneGate or deBearObTouch or deBearFvgTouch or smcInPremium
+deBuyQualifies = deBullHardOK and deBullScore >= deScoreMin and gateBuyZone
+deSellQualifies = deBearHardOK and deBearScore >= deScoreMin and gateSellZone
+
+// Anti-spam conserve du moteur precedent : un seul signal par configuration
+// (reset sur nouvelle FVG / BOS / CHoCH) + cooldown en barres.
+var int barsSinceLastBuy = 9999
+var int barsSinceLastSell = 9999
+barsSinceLastBuy += 1
+barsSinceLastSell += 1
+
+var bool bullSignalFired = false
+var bool bearSignalFired = false
+
+if bullFVG or bullBOS or bullCHoCH
+    bullSignalFired := false
+if bearFVG or bearBOS or bearCHoCH
+    bearSignalFired := false
+
+// ---- Filtre anti-consolidation (ADX) : bloque les signaux en range / tendance faible ----
+// Directionnel-neutre (la consolidation n'a pas de sens) : meme gate pour BUY et SELL.
+// ta.dmi sur le timeframe courant, valeur finale a la cloture (signaux emis en
+// once_per_bar_close) -> aucun repaint/look-ahead nouveau. na -> laisse passer (jamais
+// aveugler par manque de donnee). N'affecte NI le score NI les TP/SL : seulement l'emission.
+[chopDiPlus, chopDiMinus, chopAdx] = ta.dmi(chopAdxLen, chopAdxLen)
+chopOK = not chopFilterOn or na(chopAdx) or chopAdx >= chopAdxMin
+// C1 : gate de confirmation (barstate.isconfirmed). Historique -> toujours vrai (backtest identique) ;
+//      barre en cours -> le signal n'est retenu qu'a la cloture (pas de repaint de la fleche).
+sigConfirmOK = not sigConfirmOn or barstate.isconfirmed
+buySignal = deBuyQualifies and not bullSignalFired and barsSinceLastBuy > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK
+sellSignal = deSellQualifies and not bearSignalFired and barsSinceLastSell > signalCooldown and not newsBlockActive and chopOK and sigConfirmOK
+
+if buySignal
+    bullSignalFired := true
+    barsSinceLastBuy := 0
+if sellSignal
+    bearSignalFired := true
+    barsSinceLastSell := 0
+
+deBuyAPlus = buySignal and deBullScore >= deAPlusLevel
+deSellAPlus = sellSignal and deBearScore >= deAPlusLevel
+
+// ---- RAISONS DU SIGNAL + NIVEAU DE CONFIANCE ----
+f_dePart(string nom, int pts, int maxPts) =>
+    nom + " " + str.tostring(pts) + "/" + str.tostring(maxPts)
+
+f_deReasons(int liq, int st, int zone, int wy, int htf, int vol, int vwap, string sep) =>
+    f_dePart("Liquidite", liq, 20) + sep + f_dePart("BOS/CHoCH", st, 20) + sep + f_dePart("OB/FVG", zone, 15) + sep + f_dePart("Wyckoff", wy, 15) + sep + f_dePart("HTF", htf, 10) + sep + f_dePart("Volume", vol, 5) + sep + f_dePart("VWAP", vwap, 5) + sep + f_dePart("ATR+Session", deCtxPts, 10)
+
+f_deConfiance(int score) =>
+    score >= deAPlusLevel ? "TRES ELEVEE (A+)" : "ELEVEE"
+
+// ---- LABEL DE SIGNAL : sens + score + confiance + raisons ----
+var array<label> deSignalLabels = array.new<label>()
+f_dePushSignalLabel(label lb) =>
+    array.push(deSignalLabels, lb)
+    if array.size(deSignalLabels) > deMaxSignalLabels
+        label.delete(array.shift(deSignalLabels))
+
+if buySignal
+    deBuyTxt = "BUY " + str.tostring(deBullScore) + "/100" + (deBuyAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBullScore) + (deShowReasons ? "\n" + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, "\n") : "")
+    f_dePushSignalLabel(label.new(bar_index, low - leAtr * 3, deBuyTxt, style=label.style_label_up, color=color.new(deBuyAPlus ? color.lime : color.green, deBuyAPlus ? 10 : 40), textcolor=deBuyAPlus ? color.black : color.white, size=size.small))
+
+if sellSignal
+    deSellTxt = "SELL " + str.tostring(deBearScore) + "/100" + (deSellAPlus ? " · A+" : "") + "\nConfiance : " + f_deConfiance(deBearScore) + (deShowReasons ? "\n" + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, "\n") : "")
+    f_dePushSignalLabel(label.new(bar_index, high + leAtr * 3, deSellTxt, style=label.style_label_down, color=color.new(deSellAPlus ? color.red : color.maroon, deSellAPlus ? 10 : 40), textcolor=color.white, size=size.small))
+
+// ================= MODULE 7 : POTENTIAL BUY / SELL ZONES (PRE-SIGNAL) =================
+// Zones "en construction" affichees AVANT le signal final, notees A+/A/B/C selon
+// leur confluence (sur 10 : Tendance HTF, Order Block, FVG, Premium/Discount,
+// Liquidite/Sweep, Structure BOS/CHoCH, VWAP, Volume, Fibonacci, Wyckoff).
+// Par defaut, SEULES les zones A+ et A (forte confluence) sont affichees ; B/C
+// s'activent dans les reglages. Chaque zone est RESSERREE a la volatilite (ATR)
+// pour rester precise, et une seule zone (la meilleure) par sens est conservee
+// -> pas de doublons, priorite a la plus forte confluence. Une zone invalidee
+// (bornes na, ou score deja alertable, ou signal tire) est supprimee
+// automatiquement. AFFICHAGE uniquement : ne touche ni aux signaux, ni au score,
+// ni aux TP/SL, et ne declenche JAMAIS d'alerte.
+
+// ---- Note de qualite d'une zone (AFFICHAGE) : plus il y a de confluences,
+//      plus la note est haute. A+ >= 8/10, A >= 6, B >= 5, C >= 4. ----
+f_pzGrade(int f) => f >= 8 ? "A+" : f >= 6 ? "A" : f >= 5 ? "B" : "C"
+f_pzGradeCol(int f) => f >= 8 ? color.rgb(0, 150, 60) : f >= 6 ? color.rgb(46, 204, 113) : f >= 5 ? color.rgb(241, 196, 15) : color.rgb(230, 126, 34)
+
+// ---- Les 10 facteurs de confluence, par sens (lecture de booleens deja calcules) ----
+pzBullHtf    = htfClose > htfEma or msCtxTrend == 1
+pzBullOb     = bullObActive
+pzBullFvg    = bullFvgActive
+pzBullPd     = smcInDiscount
+pzBullLiq    = deBullSweepRecent
+pzBullStruct = deBullStructRecent or structTrend == "bullish"
+pzBullVwap   = pfVwapBull
+pzBullVol    = pfBullVolOK
+pzBullFib    = deBullFibPts > 0
+pzBullWy     = wyBullSetupCtx
+pzBullFactors = (pzBullHtf ? 1 : 0) + (pzBullOb ? 1 : 0) + (pzBullFvg ? 1 : 0) + (pzBullPd ? 1 : 0) + (pzBullLiq ? 1 : 0) + (pzBullStruct ? 1 : 0) + (pzBullVwap ? 1 : 0) + (pzBullVol ? 1 : 0) + (pzBullFib ? 1 : 0) + (pzBullWy ? 1 : 0)
+
+pzBearHtf    = htfClose < htfEma or msCtxTrend == -1
+pzBearOb     = bearObActive
+pzBearFvg    = bearFvgActive
+pzBearPd     = smcInPremium
+pzBearLiq    = deBearSweepRecent
+pzBearStruct = deBearStructRecent or structTrend == "bearish"
+pzBearVwap   = pfVwapBear
+pzBearVol    = pfBearVolOK
+pzBearFib    = deBearFibPts > 0
+pzBearWy     = wyBearSetupCtx
+pzBearFactors = (pzBearHtf ? 1 : 0) + (pzBearOb ? 1 : 0) + (pzBearFvg ? 1 : 0) + (pzBearPd ? 1 : 0) + (pzBearLiq ? 1 : 0) + (pzBearStruct ? 1 : 0) + (pzBearVwap ? 1 : 0) + (pzBearVol ? 1 : 0) + (pzBearFib ? 1 : 0) + (pzBearWy ? 1 : 0)
+
+// ---- Bornes brutes (priorite : Order Block -> FVG -> Discount/Premium) ----
+pzBullTop0 = bullObActive ? bullObTop : bullFvgActive ? bullFvgTop : smcPdReady ? smcEq : na
+pzBullBot0 = bullObActive ? bullObBot : bullFvgActive ? bullFvgBot : smcPdReady ? smcRangeBot : na
+pzBearTop0 = bearObActive ? bearObTop : bearFvgActive ? bearFvgTop : smcPdReady ? smcRangeTop : na
+pzBearBot0 = bearObActive ? bearObBot : bearFvgActive ? bearFvgBot : smcPdReady ? smcEq : na
+
+// ---- Resserrement ATR : zone la plus etroite possible. On garde le bord PROXIMAL
+//      (cote reaction) et on rapproche le bord oppose a <= pzMaxWidthAtr x ATR. ----
+pzMaxW = leAtr * pzMaxWidthAtr
+pzBullTop = pzBullTop0
+pzBullBot = na(pzBullBot0) or na(pzBullTop0) ? na : math.max(pzBullBot0, pzBullTop0 - pzMaxW)
+pzBearBot = pzBearBot0
+pzBearTop = na(pzBearTop0) or na(pzBearBot0) ? na : math.min(pzBearTop0, pzBearBot0 + pzMaxW)
+
+// ---- Filtre qualite : A+/A toujours affichees ; B/C seulement si pzShowBC.
+//      Zone ecartee si score deja alertable, si un signal vient de tirer, ou si
+//      les bornes sont invalides (zone institutionnelle deja invalidee -> na). ----
+pzBullShowGrade = pzBullFactors >= 6 or (pzShowBC and pzBullFactors >= 4)
+pzBearShowGrade = pzBearFactors >= 6 or (pzShowBC and pzBearFactors >= 4)
+pzBullDrawable = pzShow and pzBullShowGrade and deBullScore < deScoreAPlus and not buySignal and not na(pzBullTop) and not na(pzBullBot)
+pzBearDrawable = pzShow and pzBearShowGrade and deBearScore < deScoreAPlus and not sellSignal and not na(pzBearTop) and not na(pzBearBot)
+
+var box   pzBullBox = na
+var label pzBullLbl = na
+var box   pzBearBox = na
+var label pzBearLbl = na
+
+// Zone potentielle haussiere
+if pzBullDrawable
+    pzBullCol = pzBullFactors >= 8 ? color.rgb(0, 170, 75) : pzBullFactors >= 6 ? color.rgb(46, 204, 113) : color.rgb(120, 190, 130)
+    pzBullTxt = "BUY ZONE  " + f_pzGrade(pzBullFactors) + "  " + str.tostring(pzBullFactors) + "/10"
+    if na(pzBullBox)
+        pzBullBox := box.new(bar_index, pzBullTop, bar_index + 1, pzBullBot, border_color=pzBullCol, border_style=line.style_solid, bgcolor=color.new(pzBullCol, 88), extend=extend.right)
+        pzBullLbl := label.new(bar_index, pzBullTop, pzBullTxt, style=label.style_label_down, color=color.new(pzBullCol, 15), textcolor=color.white, size=size.tiny)
+    else
+        box.set_top(pzBullBox, pzBullTop)
+        box.set_bottom(pzBullBox, pzBullBot)
+        box.set_right(pzBullBox, bar_index + 1)
+        box.set_border_color(pzBullBox, pzBullCol)
+        box.set_bgcolor(pzBullBox, color.new(pzBullCol, 88))
+        label.set_xy(pzBullLbl, bar_index, pzBullTop)
+        label.set_text(pzBullLbl, pzBullTxt)
+        label.set_color(pzBullLbl, color.new(pzBullCol, 15))
+else
+    if not na(pzBullBox)
+        box.delete(pzBullBox)
+        pzBullBox := na
+        label.delete(pzBullLbl)
+        pzBullLbl := na
+
+// Zone potentielle baissiere
+if pzBearDrawable
+    pzBearCol = pzBearFactors >= 8 ? color.rgb(200, 30, 30) : pzBearFactors >= 6 ? color.rgb(231, 76, 60) : color.rgb(210, 130, 120)
+    pzBearTxt = "SELL ZONE  " + f_pzGrade(pzBearFactors) + "  " + str.tostring(pzBearFactors) + "/10"
+    if na(pzBearBox)
+        pzBearBox := box.new(bar_index, pzBearTop, bar_index + 1, pzBearBot, border_color=pzBearCol, border_style=line.style_solid, bgcolor=color.new(pzBearCol, 88), extend=extend.right)
+        pzBearLbl := label.new(bar_index, pzBearBot, pzBearTxt, style=label.style_label_up, color=color.new(pzBearCol, 15), textcolor=color.white, size=size.tiny)
+    else
+        box.set_top(pzBearBox, pzBearTop)
+        box.set_bottom(pzBearBox, pzBearBot)
+        box.set_right(pzBearBox, bar_index + 1)
+        box.set_border_color(pzBearBox, pzBearCol)
+        box.set_bgcolor(pzBearBox, color.new(pzBearCol, 88))
+        label.set_xy(pzBearLbl, bar_index, pzBearBot)
+        label.set_text(pzBearLbl, pzBearTxt)
+        label.set_color(pzBearLbl, color.new(pzBearCol, 15))
+else
+    if not na(pzBearBox)
+        box.delete(pzBearBox)
+        pzBearBox := na
+        label.delete(pzBearLbl)
+        pzBearLbl := na
+
+// ================= SIGNAL PLOTTING =================
+plotshape(buySignal, title="BUY", location=location.belowbar, style=shape.triangleup, size=size.small, color=color.lime, text="BUY", textcolor=color.white)
+plotshape(sellSignal, title="SELL", location=location.abovebar, style=shape.triangledown, size=size.small, color=color.red, text="SELL", textcolor=color.white)
+
+// Module 3 : setup SMC+ = sweep de liquidite -> BOS/CHoCH -> retour dans
+// OB/FVG (renomme depuis "A+" en v10 pour ne pas confondre avec le niveau
+// A+ du score /100). Purement visuel.
+plotshape(smcShowAPlus and buySignal and leBullBonusActive and (deBullObTouch or deBullFvgTouch), title="SMC+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.aqua, 20), text="SMC+", textcolor=color.black)
+plotshape(smcShowAPlus and sellSignal and leBearBonusActive and (deBearObTouch or deBearFvgTouch), title="SMC+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.fuchsia, 20), text="SMC+", textcolor=color.white)
+
+// Module 4 : setup Wyckoff fort = phase favorable + figure recente + cassure
+// adossee a un sweep (ex : Accumulation + Spring + Sweep + CHoCH = achat fort)
+wyStrongBuy = buySignal and wyBullSetupCtx and wyBarsSinceSpring <= wyFigWindow and leBullBonusActive
+wyStrongSell = sellSignal and wyBearSetupCtx and wyBarsSinceUpthrust <= wyFigWindow and leBearBonusActive
+plotshape(wyShowStrong and wyStrongBuy, title="WY+ BUY", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.new(color.lime, 10), text="WY+", textcolor=color.black)
+plotshape(wyShowStrong and wyStrongSell, title="WY+ SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 10), text="WY+", textcolor=color.black)
+
+// ================= MODULE 8 : TP ENGINE (cibles dynamiques structurelles) =================
+// Aucun TP fixe en points. Chaque cible est une ancre en multiple d'ATR (donc
+// adaptee au timeframe courant et a la volatilite), calee sur le niveau
+// STRUCTUREL le plus proche du bon cote (liquidite EQH/EQL, PDH/PDL, PWH/PWL,
+// swings, Order Blocks, FVG, bornes de range). Le mode (Conservateur / Equilibre
+// / Agressif) echelonne la distance des ancres. Resultat : des objectifs
+// realistes pour l'horizon de trading, valides par la structure et l'ATR.
+atrVal = atrGlobal  // reutilise l'ATR global (plus de double calcul)
+
+// ================= FILTRE SECONDAIRE : AVERTISSEMENT ENTREE TARDIVE =================
+// INFO UNIQUEMENT - ne bloque JAMAIS un trade et ne modifie NI le signal, NI le
+// score, NI l'entree, NI les filtres/confirmations. Detecte les entrees
+// techniquement valides mais potentiellement TARDIVES (prix deja en fin
+// d'impulsion) et affiche un avertissement INDEPENDANT du score de confiance :
+// un signal peut rester a 85-90 % ET recevoir l'avertissement s'il est sur-etendu.
+// Trois axes evalues (aucun ne touche au score) :
+//   1) Sur-extension vs ATR : distance parcourue depuis le debut de l'impulsion
+//      (plus bas/haut recent) rapportee a l'ATR.
+//   2) Distance a la derniere structure : le plus bas/haut recent sert de zone de
+//      reference ; une entree trop loin de cette zone = tardive (meme mesure ATR).
+//   3) Acheter trop haut / vendre trop bas : position dans le range premium/
+//      discount (BUY en premium profond, SELL en discount profond).
+grpLW = "⚙️ Expert — Avertissement entree tardive (info, ne bloque pas)"
+lwOn          = input.bool(true, "Avertir si entree tardive / sur-extension", group=grpE2, tooltip="INFO uniquement : n'annule JAMAIS un signal et ne touche NI au score, NI aux filtres, NI a l'entree. Affiche '⚠️ Trade a risque - Entree tardive' quand un signal valide arrive alors que le prix est deja en fin d'impulsion (sur-etendu, ou achat en premium profond / vente en discount profond).")
+lwImpulseLook = input.int(20, "Fenetre de l'impulsion (barres)", minval=3, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. Mesure l'extension du mouvement en cours : du plus bas (BUY) / plus haut (SELL) sur ces N dernieres barres jusqu'au prix actuel.")
+lwExtAtr      = input.float(4.0, "Sur-extension : mouvement > x ATR", minval=0.5, step=0.5, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. Si le prix a parcouru plus de X ATR depuis le debut de l'impulsion, l'entree est jugee tardive. Plus grand = moins d'avertissements.")
+lwPremiumPct  = input.float(75, "Achat/vente hors zone : > x % du range", minval=50, maxval=100, step=1, group=grpLW, tooltip="Utilise si le calibrage auto est OFF. BUY juge tardif si l'entree est au-dela de ce % du range (premium profond) ; SELL si sous les (100 - x) % (discount profond). 100 = desactive cet axe (uniquement la sur-extension ATR).")
+lwAutoTf      = input.bool(true, "Calibrage auto par timeframe (M1/M5/M15/M30/H1)", group=grpLW, tooltip="ON : les 3 seuils sont choisis AUTOMATIQUEMENT selon l'unite de temps du graphique (presets calibres pour l'or) -> M1: 30/3.5/80, M5: 25/4.0/78, M15: 20/4.5/75, M30: 18/5.0/73, H1: 15/5.5/70 (fenetre barres / sur-extension ATR / premium %). Les UT hors liste prennent le preset le plus proche (sous-M1 -> M1, au-dessus H1 -> H1). OFF : utilise tes valeurs manuelles ci-dessus.")
+
+// Presets par timeframe (calibres or). tfSec est 'simple' (constant par graphique)
+// -> lwLookEff reste un entier simple, compatible avec ta.lowest/ta.highest.
+lwTfSec  = timeframe.in_seconds(timeframe.period)
+lwLookEff = lwAutoTf ? (lwTfSec <= 60 ? 30 : lwTfSec <= 300 ? 25 : lwTfSec <= 900 ? 20 : lwTfSec <= 1800 ? 18 : 15) : lwImpulseLook
+lwExtEff  = lwAutoTf ? (lwTfSec <= 60 ? 3.5 : lwTfSec <= 300 ? 4.0 : lwTfSec <= 900 ? 4.5 : lwTfSec <= 1800 ? 5.0 : 5.5) : lwExtAtr
+lwPremEff = lwAutoTf ? (lwTfSec <= 60 ? 80.0 : lwTfSec <= 300 ? 78.0 : lwTfSec <= 900 ? 75.0 : lwTfSec <= 1800 ? 73.0 : 70.0) : lwPremiumPct
+
+// Bornes de l'impulsion recente (calculees a chaque barre pour la coherence).
+lwLowN  = ta.lowest(low, lwLookEff)
+lwHighN = ta.highest(high, lwLookEff)
+// Extension du mouvement en cours, en multiples d'ATR (proxy prix = close).
+lwBuyExt  = atrVal > 0 ? (close - lwLowN) / atrVal : 0.0
+lwSellExt = atrVal > 0 ? (lwHighN - close) / atrVal : 0.0
+// Position dans le range premium/discount (0 % = bas/discount, 100 % = haut/premium).
+lwRange   = smcRangeTop - smcRangeBot
+lwBuyPos  = not na(lwRange) and lwRange > 0 ? (close - smcRangeBot) / lwRange * 100.0 : na
+lwSellPos = not na(lwRange) and lwRange > 0 ? (smcRangeTop - close) / lwRange * 100.0 : na
+// Entree tardive = sur-extension ATR OU achat trop haut / vente trop bas. Independant du score.
+lwLateBuy  = lwOn and (lwBuyExt  >= lwExtEff or (not na(lwBuyPos)  and lwBuyPos  >= lwPremEff))
+lwLateSell = lwOn and (lwSellExt >= lwExtEff or (not na(lwSellPos) and lwSellPos >= lwPremEff))
+// Avertissement affiche uniquement AU MOMENT d'un signal - le trade reste pris.
+lwWarnBuy  = buySignal  and lwLateBuy
+lwWarnSell = sellSignal and lwLateSell
+plotshape(lwWarnBuy,  title="Entree tardive BUY",  location=location.belowbar, style=shape.labelup,   size=size.tiny, color=color.new(color.orange, 0), text="⚠️ Tardif", textcolor=color.black)
+plotshape(lwWarnSell, title="Entree tardive SELL", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.new(color.orange, 0), text="⚠️ Tardif", textcolor=color.black)
+
+// Cherche la distance structurelle la plus proche d'une ancre, dans une fenetre
+// [anchor*lo, anchor*hi]. Si aucune structure ne tombe dans la fenetre, retourne
+// l'ancre elle-meme (basee sur l'ATR -> jamais un nombre de points fige).
+f_tpSnap(array<float> d, float anchor, float lo, float hi) =>
+    best = anchor
+    bestDiff = -1.0
+    if array.size(d) > 0
+        for i = 0 to array.size(d) - 1
+            v = array.get(d, i)
+            if v >= anchor * lo and v <= anchor * hi
+                diff = math.abs(v - anchor)
+                if bestDiff < 0 or diff < bestDiff
+                    bestDiff := diff
+                    best := v
+    best
+
+// raw = niveaux structurels du bon cote ; atr adapte les cibles a l'unite de
+// temps et a la volatilite. Retourne [tp1, tp2, tpFinal] en PRIX. Chaque cible
+// est une ancre ATR (echelonnee par le mode) CALEE sur la structure la plus
+// proche -> objectifs realistes sur TOUTES les unites de temps (M1 -> W1),
+// sans aucune valeur codee en dur, et valides par la structure.
+f_tpEngine(array<float> raw, float entry, float risk, bool isBuy, string mode, float atr) =>
+    // Ancres de distance en multiples d'ATR selon le mode
+    m1 = mode == "Conservateur" ? 1.0 : mode == "Agressif" ? 2.0 : 1.5
+    m2 = mode == "Conservateur" ? 1.8 : mode == "Agressif" ? 4.0 : 3.0
+    m3 = mode == "Conservateur" ? 3.0 : mode == "Agressif" ? 7.0 : 5.0
+    unit = na(atr) or atr <= 0 ? risk : atr
+    a1 = unit * m1
+    a2 = unit * m2
+    a3 = unit * m3
+    // Distances structurelles disponibles (du bon cote, au-dela de 0.3 R)
+    d = array.new<float>()
+    if array.size(raw) > 0
+        for i = 0 to array.size(raw) - 1
+            lvl = array.get(raw, i)
+            dist = isBuy ? lvl - entry : entry - lvl
+            if dist > risk * 0.3
+                array.push(d, dist)
+    // Chaque cible : ancre ATR calee sur la structure la plus proche dans sa fenetre
+    t1 = f_tpSnap(d, a1, 0.6, 1.6)
+    t2 = f_tpSnap(d, a2, 0.6, 1.6)
+    t3 = f_tpSnap(d, a3, 0.6, 1.8)
+    // Ordre strict + ecart minimal (0.5 R) pour garder un bon R:R et 3 cibles distinctes
+    t1 := math.max(t1, risk * 0.8)
+    t2 := math.max(t2, t1 + risk * 0.5)
+    t3 := math.max(t3, t2 + risk * 0.5)
+    [isBuy ? entry + t1 : entry - t1, isBuy ? entry + t2 : entry - t2, isBuy ? entry + t3 : entry - t3]
+
+f_tpLine(line old, float y, color col, string style) =>
+    line.delete(old)
+    tpShowLines and not na(y) ? line.new(bar_index - 1, y, bar_index + 30, y, color=col, style=style, width=1, extend=extend.right) : line(na)
+
+// ---- Suivi de la position en cours (pour la progression) ----
+var float tmEntry = na
+var float tmSL    = na
+var float tmT1    = na
+var float tmT2    = na
+var float tmT3    = na
+var bool  tmIsBuy = false
+var bool  tmActive = false
+// Suivi d'atteinte des TP (AFFICHAGE uniquement : n'affecte ni les signaux ni
+// les scores). Remis a false a chaque nouveau signal.
+var bool  tmT1Hit = false
+var bool  tmT2Hit = false
+var bool  tmT3Hit = false
+
+var label bullRiskLabel = na
+var label bearRiskLabel = na
+var line  lnEntry = na
+var line  lnSL = na
+var line  lnT1 = na
+var line  lnT2 = na
+var line  lnT3 = na
+
+f_px(float x) => str.tostring(x, "#.##")
+f_pips(float dist) => str.tostring(math.abs(dist) / tpPipSize, "#")
+f_rr(float dist, float risk) => str.tostring(math.abs(dist) / risk, "#.##")
+
+// ================= PRECISION ENGINE (execution institutionnelle) =================
+// Raffine UNIQUEMENT les niveaux d'execution (Entry / SL) des signaux : la
+// decision (score, verrous, seuils, alertes, cooldown) est STRICTEMENT identique.
+//   - Entree : placee sur le niveau institutionnel exact (bord proximal de
+//     l'Order Block, milieu du FVG) comme un ordre LIMITE, au lieu du prix de
+//     cloture. Bornee a 1.2 x ATR du prix (sinon retour au prix de cloture).
+//   - Stop Loss : derriere le VRAI point d'invalidation structurel (bas/haut de
+//     l'OB ou du FVG, meche du signal), avec une marge serree en ATR.
+// Resultat : meilleur prix d'entree, SL plus juste, R:R superieur - comme un
+// desk institutionnel. Desactivable pour retrouver l'ancien comportement exact.
+grpPE = "⚙️ Expert — Precision Engine (execution institutionnelle)"
+pePrecision = input.bool(true, "Entree & Stop Loss de precision", group=grpE2, tooltip="ON : l'entree est calee sur la zone institutionnelle exacte (bord d'Order Block / milieu de FVG, style ordre limite) et le SL derriere le vrai point d'invalidation structurel, avec marge ATR serree. OFF : comportement d'origine (entree = cloture, SL = meche +/- ATR). Ne modifie NI le score, NI les conditions de signal, NI les alertes : uniquement les niveaux d'execution.")
+peMaxPull = input.float(1.2, "Distance max entree limite (x ATR)", minval=0.3, step=0.1, group=grpPE, tooltip="Si le niveau institutionnel est plus loin que cette distance, l'entree retombe sur le prix de cloture (ordre au marche) pour ne pas rater le mouvement.")
+peSlMargin = input.float(0.5, "Marge du SL structurel (x ATR)", minval=0.1, step=0.1, group=grpPE, tooltip="Marge ajoutee derriere le point d'invalidation structurel (bas/haut de l'OB, du FVG ou de la meche du signal). Utilise seulement si le Stop-Loss Engine est OFF.")
+
+// ================= STOP-LOSS ENGINE (placement structurel anti chasse) =================
+// Ameliore UNIQUEMENT le placement du stop (les signaux et le score sont
+// inchanges). Probleme resolu : le SL touche sur une simple meche de chasse aux
+// stops avant que le prix parte au TP. Solution : placer le SL AU-DELA du vrai
+// creux (BUY) / sommet (SELL) de structure ET de liquidite - le niveau meme que
+// la meche de chasse viendrait balayer - plus un buffer ATR. Le stop est ensuite
+// BORNE entre une distance minimale (jamais trop serre) et maximale (protege le
+// R:R et le risque). OFF -> ancien placement exact.
+grpSL2 = "⚙️ Expert — Stop-Loss Engine (placement structurel anti chasse)"
+slSmartOn   = input.bool(true, "SL structurel anti chasse aux stops", group=grpE2, tooltip="Place le stop AU-DELA du vrai creux/sommet de structure et de liquidite (le niveau qu'une meche de chasse viendrait balayer) + un buffer ATR, borne entre min et max ATR. OFF = ancien placement (sous la bougie / OB). N'affecte PAS les signaux ni le score : uniquement le niveau du stop.")
+slProtLook  = input.int(10, "Fenetre de protection (barres)", minval=2, group=grpSL2, tooltip="Cherche le creux/sommet extreme (incluant la meche de sweep) sur ces N dernieres barres pour placer le stop juste au-dela.")
+slBufferAtr = input.float(0.4, "Buffer ATR au-dela de la structure", minval=0.0, step=0.1, group=grpSL2, tooltip="Marge ajoutee sous le creux (BUY) / au-dessus du sommet (SELL) pour absorber les meches de chasse aux stops. Plus grand = stop plus a l'abri, mais risque plus large.")
+slMinAtr    = input.float(0.5, "Distance minimum du SL (x ATR)", minval=0.1, step=0.1, group=grpSL2, tooltip="Le stop n'est jamais plus proche que ceci -> evite un stop trop serre facile a chasser.")
+slMaxAtr    = input.float(2.8, "Distance maximum du SL (x ATR)", minval=0.5, step=0.1, group=grpSL2, tooltip="Le stop n'est jamais plus loin que ceci -> protege le risque et garde un bon ratio R:R.")
+
+// Extremes recents (calcules a chaque barre) : capturent la meche de sweep.
+slSwingLow  = ta.lowest(low, slProtLook)
+slSwingHigh = ta.highest(high, slProtLook)
+
+// SL structurel BUY : au-dela du plus bas protecteur + buffer, borne min/max ATR.
+f_slBuySmart(float entry, float atr, float protLow) =>
+    float raw = protLow - atr * slBufferAtr
+    float capped = math.max(raw, entry - atr * slMaxAtr)   // jamais trop loin (protege le R:R)
+    math.min(capped, entry - atr * slMinAtr)               // jamais trop serre
+f_slSellSmart(float entry, float atr, float protHigh) =>
+    float raw = protHigh + atr * slBufferAtr
+    float capped = math.min(raw, entry + atr * slMaxAtr)
+    math.max(capped, entry + atr * slMinAtr)
+
+// ================= BUFFER D'EXECUTION COMPTE REEL (SL) =================
+// Adapte le stop aux conditions REELLES d'execution (spread, slippage, bruit,
+// petite meche) sans toucher aux signaux, au score ni a l'entree. Le SL est
+// legerement eloigne de l'entree, puis CHAQUE take-profit est recalcule pour
+// conserver EXACTEMENT le meme ratio R:R qu'avant l'ajustement (voir application
+// dans les blocs buySignal / sellSignal). Buffer ADAPTATIF a la volatilite :
+//   buffer = max( ATR x mult (composante volatilite, plafonnee) , plancher spread )
+// -> se resserre quand le marche est calme, s'elargit quand il bouge, sans
+// jamais descendre sous le cout d'execution reel du broker.
+grpXB = "⚙️ Expert — Buffer d'execution compte reel (SL)"
+slExecBufOn     = input.bool(true, "SL : buffer d'execution (compte reel)", group=grpE2, tooltip="Ajoute une petite marge au SL pour absorber le spread, le slippage et le bruit a l'execution reelle. Les TP sont recalcules pour garder EXACTEMENT le meme ratio R:R -> aucune degradation du risque/rendement. N'affecte NI les signaux, NI le score, NI l'entree. OFF = SL d'origine exact.")
+slExecBufAtr    = input.float(0.10, "Buffer execution — x ATR (adaptatif)", minval=0.0, step=0.05, group=grpXB, tooltip="Composante ADAPTATIVE : fraction de l'ATR ajoutee au SL (0.10 = 10 % de l'ATR). S'ajuste automatiquement a la volatilite. Reste faible pour ne pas trop elargir le risque absolu (le R:R, lui, est preserve).")
+slExecBufSpread = input.float(0.0, "Buffer execution — plancher spread/slippage (prix)", minval=0.0, step=0.01, group=grpXB, tooltip="Plancher FIXE en prix (ex : 0.20 = 20 cents sur l'or). Mets-y le spread + slippage typique de ton broker : le buffer ne descendra jamais sous cette valeur, meme en marche tres calme. 0 = uniquement la composante ATR.")
+slExecBufMaxAtr = input.float(0.5, "Buffer execution — plafond (x ATR)", minval=0.0, step=0.1, group=grpXB, tooltip="Plafonne la composante volatilite a cette fraction de l'ATR : le buffer n'elargit jamais trop le SL en forte volatilite (securite anti-derapage du risque). Le plancher spread reste toujours respecte.")
+
+// Buffer effectif (distance en prix), robuste si ATR indisponible (na -> 0, on
+// garde alors le seul plancher spread). Plafonne la composante volatilite,
+// puis applique le plancher spread comme minimum absolu.
+f_slExecBuf(float atr) =>
+    float a = na(atr) ? 0.0 : atr
+    float volc = a * math.min(slExecBufAtr, slExecBufMaxAtr)
+    slExecBufOn ? math.max(volc, slExecBufSpread) : 0.0
+
+// ================= 🔁 BACKTEST : ETAT DU PLAN DE TRADE + ORDRES EN ATTENTE =================
+// Memorise le plan (entree / SL / TP) du trade en cours pour pouvoir replacer
+// les ordres de sortie a chaque barre, gerer le break-even et annuler les ordres
+// limites perimes. AUCUNE de ces variables n'est lue par la logique de signal.
+var float btEntryPx  = na
+var float btSLPx     = na
+var float btT1Px     = na
+var float btT2Px     = na
+var float btT3Px     = na
+var float btQtyOpen  = na
+var bool  btBeDone   = false
+var bool  btPendLong = false
+var bool  btPendShort= false
+var int   btPendBars = 0
+
+// Periode de backtest
+btInRange = not btUseRange or (time >= btFrom and time <= btTo)
+
+// Etat de la position courante
+btPosLong  = strategy.position_size > 0
+btPosShort = strategy.position_size < 0
+
+// Repartition des TP bornee : TP1 + TP2 <= 95 % pour toujours laisser un
+// reliquat au TP Final (sinon le TP Final ne fermerait plus rien).
+btP1 = math.max(0.0, math.min(btTp1Pct, 95.0))
+btP2 = math.max(0.0, math.min(btTp2Pct, 95.0 - btP1))
+
+// Taille de position : soit la quantite fixe, soit la quantite qui fait
+// correspondre la distance Entree->SL au pourcentage de capital risque.
+f_btQty(float riskDist) =>
+    float pv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+    float q = 0.0
+    if btSizeMode == "Quantite fixe"
+        q := btFixedQty
+    else
+        float capital  = math.max(0.0, strategy.equity)
+        float riskCash = capital * btRiskPct / 100.0
+        q := riskDist > 0 ? riskCash / (riskDist * pv) : 0.0
+    if btMaxQty > 0
+        q := math.min(q, btMaxQty)
+    na(q) or q <= 0 ? 0.0 : q
+
+// Autorisation d'ouvrir : periode + filtre A+ + regle du signal oppose.
+// (En mode "Inverser", un signal contraire est autorise a solder et retourner.)
+btOppInvert  = btOppMode == "Inverser la position"
+btBuyAllowed  = btInRange and (not btOnlyAPlus or deBuyAPlus)  and (btOppInvert or not btPosShort) and not btPosLong
+btSellAllowed = btInRange and (not btOnlyAPlus or deSellAPlus) and (btOppInvert or not btPosLong)  and not btPosShort
+
+// "Fermer sans inverser" : le signal contraire solde la position, sans en ouvrir.
+if btOppMode == "Fermer sans inverser"
+    if sellSignal and btPosLong
+        strategy.close("LONG", comment="Signal oppose")
+    if buySignal and btPosShort
+        strategy.close("SHORT", comment="Signal oppose")
+
+// Ordres limites en attente : remplis, perimes, ou hors periode -> on nettoie.
+if btPendLong
+    if btPosLong
+        btPendLong := false
+    else if not btInRange
+        strategy.cancel("LONG")
+        btPendLong := false
+    else
+        btPendBars += 1
+        if btPendBars > btLimitBars
+            strategy.cancel("LONG")
+            btPendLong := false
+if btPendShort
+    if btPosShort
+        btPendShort := false
+    else if not btInRange
+        strategy.cancel("SHORT")
+        btPendShort := false
+    else
+        btPendBars += 1
+        if btPendBars > btLimitBars
+            strategy.cancel("SHORT")
+            btPendShort := false
+
+if buySignal
+    // ---- Entree de precision : meilleur niveau institutionnel sous le prix ----
+    float peLvl = na
+    if pePrecision
+        if bullObActive and not na(bullObTop) and bullObTop <= close
+            peLvl := bullObTop
+        if bullFvgActive and not na(bullFvgTop) and not na(bullFvgBot)
+            fvgMid = (bullFvgTop + bullFvgBot) / 2
+            if fvgMid <= close and (na(peLvl) or fvgMid > peLvl)
+                peLvl := fvgMid
+    entry = not na(peLvl) and close - peLvl <= atrVal * peMaxPull ? peLvl : close
+    // ---- SL structurel anti chasse : au-dela du VRAI creux de structure/liquidite ----
+    float peInval = low
+    if pePrecision
+        if bullObActive and not na(bullObBot)
+            peInval := math.min(peInval, bullObBot)
+        if bullFvgActive and not na(bullFvgBot)
+            peInval := math.min(peInval, bullFvgBot)
+    // Plus bas protecteur = extreme recent (meche de sweep) + OB/FVG + swing structurel
+    float protLow = math.min(slSwingLow, peInval)
+    if not na(swingLowVal) and swingLowVal < entry
+        protLow := math.min(protLow, swingLowVal)
+    slLevel = slSmartOn ? f_slBuySmart(entry, atrVal, protLow) : (pePrecision ? peInval - atrVal * peSlMargin : low - atrVal * slAtrMult)
+    riskDist = math.max(entry - slLevel, syminfo.mintick)
+    rawUp = array.new<float>()
+    if not na(swingHighVal) and swingHighVal > entry
+        array.push(rawUp, swingHighVal)
+    if not na(lePdh) and lePdh > entry
+        array.push(rawUp, lePdh)
+    if not na(lePwh) and lePwh > entry
+        array.push(rawUp, lePwh)
+    if bearObActive and not na(bearObBot) and bearObBot > entry
+        array.push(rawUp, bearObBot)
+    if bearFvgActive and not na(bearFvgBot) and bearFvgBot > entry
+        array.push(rawUp, bearFvgBot)
+    if not na(smcRangeTop) and smcRangeTop > entry
+        array.push(rawUp, smcRangeTop)
+    if array.size(leEqhLvls) > 0
+        for i = 0 to array.size(leEqhLvls) - 1
+            lv = array.get(leEqhLvls, i)
+            if lv > entry
+                array.push(rawUp, lv)
+    [t1, t2, t3] = f_tpEngine(rawUp, entry, riskDist, true, tpMode, atrVal)
+    // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
+    // On memorise le multiple R de chaque TP AVANT d'elargir le stop, puis on
+    // reprojette les TP sur le nouveau risque -> R:R strictement conserve.
+    float xbBuy = f_slExecBuf(atrVal)
+    if not na(xbBuy) and xbBuy > 0
+        float rr1 = (t1 - entry) / riskDist
+        float rr2 = (t2 - entry) / riskDist
+        float rr3 = (t3 - entry) / riskDist
+        slLevel := slLevel - xbBuy
+        riskDist := math.max(entry - slLevel, syminfo.mintick)
+        // B3 OFF (baseline) : reprojection des TP -> R:R conserve. ON : TP inchanges (restent sur la structure).
+        if not fixTpSnapOn
+            t1 := entry + rr1 * riskDist
+            t2 := entry + rr2 * riskDist
+            t3 := entry + rr3 * riskDist
+    tmEntry := entry
+    tmSL := slLevel
+    tmT1 := t1
+    tmT2 := t2
+    tmT3 := t3
+    tmIsBuy := true
+    tmActive := true
+    tmT1Hit := false
+    tmT2Hit := false
+    tmT3Hit := false
+    // ---- 🔁 BACKTEST : ouverture de la position LONG ----
+    // Utilise EXACTEMENT les niveaux calcules ci-dessus (entry / slLevel /
+    // t1 / t2 / t3), buffer d'execution inclus. Rien n'est recalcule.
+    if btBuyAllowed
+        float btQ = f_btQty(riskDist)
+        if btQ > 0
+            strategy.cancel("SHORT")
+            btPendShort := false
+            btEntryPx := entry
+            btSLPx    := slLevel
+            btT1Px    := t1
+            btT2Px    := t2
+            btT3Px    := t3
+            btQtyOpen := btQ
+            btBeDone  := false
+            btPendBars := 0
+            btPendLong := btEntryMode == "Limite (prix de precision)"
+            if btPendLong
+                strategy.entry("LONG", strategy.long, qty=btQ, limit=entry, comment="BUY " + str.tostring(deBullScore))
+            else
+                strategy.entry("LONG", strategy.long, qty=btQ, comment="BUY " + str.tostring(deBullScore))
+            // Sorties attachees des l'envoi de l'entree : avec un ordre au
+            // marche le SL/TP protege la position des la bougie suivante,
+            // sans attendre le replacement periodique plus bas.
+            if btP1 > 0
+                strategy.exit("TP1 L", from_entry="LONG", qty=btQ * btP1 / 100.0, limit=t1, stop=slLevel, comment_profit="TP1", comment_loss="SL")
+            if btP2 > 0
+                strategy.exit("TP2 L", from_entry="LONG", qty=btQ * btP2 / 100.0, limit=t2, stop=slLevel, comment_profit="TP2", comment_loss="SL")
+            strategy.exit("TP3 L", from_entry="LONG", limit=t3, stop=slLevel, comment_profit="TP Final", comment_loss="SL")
+    if showRiskLabels
+        if not na(bullRiskLabel)
+            label.delete(bullRiskLabel)
+        txt = "BUY  Entry " + f_px(entry) + "\nSL " + f_px(slLevel) + "  (" + f_pips(riskDist) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(t1 - entry) + "p  " + f_rr(t1 - entry, riskDist) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(t2 - entry) + "p  " + f_rr(t2 - entry, riskDist) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(t3 - entry) + "p  " + f_rr(t3 - entry, riskDist) + "R" + (lwLateBuy ? "\n⚠️ Trade a risque - Entree tardive" : "")
+        bullRiskLabel := label.new(bar_index, low - atrVal * 2, txt, style=label.style_label_up, color=color.new(color.lime, 85), textcolor=color.lime, size=size.tiny)
+    lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
+    lnSL := f_tpLine(lnSL, slLevel, color.new(color.red, 0), line.style_solid)
+    lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
+    lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
+    lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
+    if sendNotifications and deBuyAPlus
+        alert("XAUUSD BUY A+ | Score " + str.tostring(deBullScore) + "/100 | Confiance " + f_deConfiance(deBullScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel) + " | TP1 " + f_px(t1) + " (" + f_rr(t1 - entry, riskDist) + "R) | TP2 " + f_px(t2) + " (" + f_rr(t2 - entry, riskDist) + "R) | TP Final " + f_px(t3) + " (" + f_rr(t3 - entry, riskDist) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBullLiqPts, deBullStructPts, deBullZonePts, deBullWyPts, deBullHtfPts, deBullVolPts, deBullVwapPts, ", ") + (lwLateBuy ? " | ⚠️ ENTREE TARDIVE (sur-extension)" : ""), alert.freq_once_per_bar_close)
+
+if sellSignal
+    // ---- Entree de precision : meilleur niveau institutionnel au-dessus du prix ----
+    float peLvlS = na
+    if pePrecision
+        if bearObActive and not na(bearObBot) and bearObBot >= close
+            peLvlS := bearObBot
+        if bearFvgActive and not na(bearFvgTop) and not na(bearFvgBot)
+            fvgMidS = (bearFvgTop + bearFvgBot) / 2
+            if fvgMidS >= close and (na(peLvlS) or fvgMidS < peLvlS)
+                peLvlS := fvgMidS
+    entry = not na(peLvlS) and peLvlS - close <= atrVal * peMaxPull ? peLvlS : close
+    // ---- SL structurel anti chasse : au-dela du VRAI sommet de structure/liquidite ----
+    float peInvalS = high
+    if pePrecision
+        if bearObActive and not na(bearObTop)
+            peInvalS := math.max(peInvalS, bearObTop)
+        if bearFvgActive and not na(bearFvgTop)
+            peInvalS := math.max(peInvalS, bearFvgTop)
+    // Plus haut protecteur = extreme recent (meche de sweep) + OB/FVG + swing structurel
+    float protHigh = math.max(slSwingHigh, peInvalS)
+    if not na(swingHighVal) and swingHighVal > entry
+        protHigh := math.max(protHigh, swingHighVal)
+    slLevel2 = slSmartOn ? f_slSellSmart(entry, atrVal, protHigh) : (pePrecision ? peInvalS + atrVal * peSlMargin : high + atrVal * slAtrMult)
+    riskDist2 = math.max(slLevel2 - entry, syminfo.mintick)
+    rawDn = array.new<float>()
+    if not na(swingLowVal) and swingLowVal < entry
+        array.push(rawDn, swingLowVal)
+    if not na(lePdl) and lePdl < entry
+        array.push(rawDn, lePdl)
+    if not na(lePwl) and lePwl < entry
+        array.push(rawDn, lePwl)
+    if bullObActive and not na(bullObTop) and bullObTop < entry
+        array.push(rawDn, bullObTop)
+    if bullFvgActive and not na(bullFvgTop) and bullFvgTop < entry
+        array.push(rawDn, bullFvgTop)
+    if not na(smcRangeBot) and smcRangeBot < entry
+        array.push(rawDn, smcRangeBot)
+    if array.size(leEqlLvls) > 0
+        for i = 0 to array.size(leEqlLvls) - 1
+            lv = array.get(leEqlLvls, i)
+            if lv < entry
+                array.push(rawDn, lv)
+    [t1, t2, t3] = f_tpEngine(rawDn, entry, riskDist2, false, tpMode, atrVal)
+    // ---- Buffer d'execution compte reel : eloigne le SL, TP rescales a R:R identique ----
+    float xbSell = f_slExecBuf(atrVal)
+    if not na(xbSell) and xbSell > 0
+        float rr1 = (entry - t1) / riskDist2
+        float rr2 = (entry - t2) / riskDist2
+        float rr3 = (entry - t3) / riskDist2
+        slLevel2 := slLevel2 + xbSell
+        riskDist2 := math.max(slLevel2 - entry, syminfo.mintick)
+        // B3 OFF (baseline) : reprojection des TP -> R:R conserve. ON : TP inchanges (restent sur la structure).
+        if not fixTpSnapOn
+            t1 := entry - rr1 * riskDist2
+            t2 := entry - rr2 * riskDist2
+            t3 := entry - rr3 * riskDist2
+    tmEntry := entry
+    tmSL := slLevel2
+    tmT1 := t1
+    tmT2 := t2
+    tmT3 := t3
+    tmIsBuy := false
+    tmActive := true
+    tmT1Hit := false
+    tmT2Hit := false
+    tmT3Hit := false
+    // ---- 🔁 BACKTEST : ouverture de la position SHORT ----
+    // Utilise EXACTEMENT les niveaux calcules ci-dessus (entry / slLevel2 /
+    // t1 / t2 / t3), buffer d'execution inclus. Rien n'est recalcule.
+    if btSellAllowed
+        float btQs = f_btQty(riskDist2)
+        if btQs > 0
+            strategy.cancel("LONG")
+            btPendLong := false
+            btEntryPx := entry
+            btSLPx    := slLevel2
+            btT1Px    := t1
+            btT2Px    := t2
+            btT3Px    := t3
+            btQtyOpen := btQs
+            btBeDone  := false
+            btPendBars := 0
+            btPendShort := btEntryMode == "Limite (prix de precision)"
+            if btPendShort
+                strategy.entry("SHORT", strategy.short, qty=btQs, limit=entry, comment="SELL " + str.tostring(deBearScore))
+            else
+                strategy.entry("SHORT", strategy.short, qty=btQs, comment="SELL " + str.tostring(deBearScore))
+            // Sorties attachees des l'envoi de l'entree (voir bloc BUY).
+            if btP1 > 0
+                strategy.exit("TP1 S", from_entry="SHORT", qty=btQs * btP1 / 100.0, limit=t1, stop=slLevel2, comment_profit="TP1", comment_loss="SL")
+            if btP2 > 0
+                strategy.exit("TP2 S", from_entry="SHORT", qty=btQs * btP2 / 100.0, limit=t2, stop=slLevel2, comment_profit="TP2", comment_loss="SL")
+            strategy.exit("TP3 S", from_entry="SHORT", limit=t3, stop=slLevel2, comment_profit="TP Final", comment_loss="SL")
+    if showRiskLabels
+        if not na(bearRiskLabel)
+            label.delete(bearRiskLabel)
+        txt = "SELL  Entry " + f_px(entry) + "\nSL " + f_px(slLevel2) + "  (" + f_pips(riskDist2) + "p)" + "\nTP1 " + f_px(t1) + "  " + f_pips(entry - t1) + "p  " + f_rr(entry - t1, riskDist2) + "R" + "\nTP2 " + f_px(t2) + "  " + f_pips(entry - t2) + "p  " + f_rr(entry - t2, riskDist2) + "R" + "\nTP Final " + f_px(t3) + "  " + f_pips(entry - t3) + "p  " + f_rr(entry - t3, riskDist2) + "R" + (lwLateSell ? "\n⚠️ Trade a risque - Entree tardive" : "")
+        bearRiskLabel := label.new(bar_index, high + atrVal * 2, txt, style=label.style_label_down, color=color.new(color.red, 85), textcolor=color.red, size=size.tiny)
+    lnEntry := f_tpLine(lnEntry, entry, color.new(color.gray, 20), line.style_dotted)
+    lnSL := f_tpLine(lnSL, slLevel2, color.new(color.red, 0), line.style_solid)
+    lnT1 := f_tpLine(lnT1, t1, color.new(color.lime, 20), line.style_dashed)
+    lnT2 := f_tpLine(lnT2, t2, color.new(color.green, 10), line.style_dashed)
+    lnT3 := f_tpLine(lnT3, t3, color.new(color.aqua, 0), line.style_dashed)
+    if sendNotifications and deSellAPlus
+        alert("XAUUSD SELL A+ | Score " + str.tostring(deBearScore) + "/100 | Confiance " + f_deConfiance(deBearScore) + " | Entree " + f_px(entry) + " | SL " + f_px(slLevel2) + " | TP1 " + f_px(t1) + " (" + f_rr(entry - t1, riskDist2) + "R) | TP2 " + f_px(t2) + " (" + f_rr(entry - t2, riskDist2) + "R) | TP Final " + f_px(t3) + " (" + f_rr(entry - t3, riskDist2) + "R) | Mode " + tpMode + " | Raisons " + f_deReasons(deBearLiqPts, deBearStructPts, deBearZonePts, deBearWyPts, deBearHtfPts, deBearVolPts, deBearVwapPts, ", ") + (lwLateSell ? " | ⚠️ ENTREE TARDIVE (sur-extension)" : ""), alert.freq_once_per_bar_close)
+
+// ================= 🔁 BACKTEST : GESTION DES SORTIES (SL + TP1 / TP2 / TP Final) =================
+// Les ordres de sortie sont (re)places a CHAQUE barre tant qu'une position est
+// ouverte : c'est ce qui permet de deplacer le stop au break-even apres le TP1.
+// Les trois sorties partagent le MEME stop -> quel que soit le reliquat, la
+// totalite de la position est protegee. Niveaux strictement identiques a ceux
+// affiches par l'indicateur (aucun recalcul).
+// POINT DELICAT : un strategy.exit rappele avec le MEME identifiant apres avoir
+// ete rempli recreerait un ordre (le TP1 deja pris fermerait une seconde tranche
+// au prix courant). On detecte donc les tranches DEJA executees en comparant la
+// quantite restante a la quantite d'origine, et on ne replace que ce qui reste.
+if strategy.position_size != 0 and not na(btEntryPx) and not na(btSLPx)
+    bool  btIsLong = strategy.position_size > 0
+    float btRem    = math.abs(strategy.position_size)
+    float btQtyRef = na(btQtyOpen) or btQtyOpen <= 0 ? btRem : btQtyOpen
+    float btQ1     = btQtyRef * btP1 / 100.0
+    float btQ2     = btQtyRef * btP2 / 100.0
+    float btEps    = math.max(btQtyRef * 0.001, 1e-9)
+    float btClosed = math.max(0.0, btQtyRef - btRem)
+    bool  btT1Done = btQ1 <= 0 or btClosed >= btQ1 - btEps
+    bool  btT2Done = btQ2 <= 0 or btClosed >= btQ1 + btQ2 - btEps
+    // Break-even : declenche par le TP1 touche sur la barre en cours ; le stop
+    // modifie s'applique a partir de la barre suivante (aucun look-ahead).
+    if btBeOn and not btBeDone and not na(btT1Px) and ((btIsLong and high >= btT1Px) or (not btIsLong and low <= btT1Px))
+        btBeDone := true
+    float btBeOff = na(atrVal) ? 0.0 : atrVal * btBeOffAtr
+    float btSlNow = btSLPx
+    if btBeDone
+        btSlNow := btIsLong ? math.max(btSLPx, btEntryPx + btBeOff) : math.min(btSLPx, btEntryPx - btBeOff)
+    // Quantites effectivement replacables (jamais plus que le reliquat ouvert)
+    float btQ1eff = btT1Done ? 0.0 : math.min(btQ1, btRem)
+    float btQ2eff = btT2Done ? 0.0 : math.min(btQ2, btRem - btQ1eff)
+    if btIsLong
+        if btQ1eff > 0
+            strategy.exit("TP1 L", from_entry="LONG", qty=btQ1eff, limit=btT1Px, stop=btSlNow, comment_profit="TP1", comment_loss="SL")
+        if btQ2eff > 0
+            strategy.exit("TP2 L", from_entry="LONG", qty=btQ2eff, limit=btT2Px, stop=btSlNow, comment_profit="TP2", comment_loss="SL")
+        strategy.exit("TP3 L", from_entry="LONG", limit=btT3Px, stop=btSlNow, comment_profit="TP Final", comment_loss="SL")
+    else
+        if btQ1eff > 0
+            strategy.exit("TP1 S", from_entry="SHORT", qty=btQ1eff, limit=btT1Px, stop=btSlNow, comment_profit="TP1", comment_loss="SL")
+        if btQ2eff > 0
+            strategy.exit("TP2 S", from_entry="SHORT", qty=btQ2eff, limit=btT2Px, stop=btSlNow, comment_profit="TP2", comment_loss="SL")
+        strategy.exit("TP3 S", from_entry="SHORT", limit=btT3Px, stop=btSlNow, comment_profit="TP Final", comment_loss="SL")
+
+// Position a plat : on reinitialise l'etat du break-even pour le trade suivant.
+if strategy.position_size == 0 and not btPendLong and not btPendShort
+    btBeDone := false
+
+// Fin de la periode de backtest : on solde tout ce qui reste ouvert.
+if btUseRange and time > btTo
+    if strategy.position_size != 0
+        strategy.close_all(comment="Fin de periode")
+
+// ---- Invalidation du suivi si le Stop Loss est touche ----
+if tmActive and ((tmIsBuy and close < tmSL) or (not tmIsBuy and close > tmSL))
+    tmActive := false
+
+// ---- Detection d'atteinte des TP (AFFICHAGE uniquement) ----
+// Ne ferme rien, ne touche ni aux signaux ni aux scores : sert juste a colorer
+// les TP atteints et a afficher les messages de gestion (BE, trade termine).
+if tmActive
+    if tmIsBuy
+        if not na(tmT1) and high >= tmT1
+            tmT1Hit := true
+        if not na(tmT2) and high >= tmT2
+            tmT2Hit := true
+        if not na(tmT3) and high >= tmT3
+            tmT3Hit := true
+    else
+        if not na(tmT1) and low <= tmT1
+            tmT1Hit := true
+        if not na(tmT2) and low <= tmT2
+            tmT2Hit := true
+        if not na(tmT3) and low <= tmT3
+            tmT3Hit := true
+
+// ================= PANNEAU PRINCIPAL : 🎯 TRADE SIGNAL =================
+// AFFICHAGE uniquement. Mode Simple = essentiel ; Mode Expert = complet.
+if barstate.islast and uiShowMain
+    hasSig = not na(tmEntry)
+    mainIsBuy = hasSig ? tmIsBuy : deBullScore >= deBearScore
+    mainScore = mainIsBuy ? deBullScore : deBearScore
+    tmRisk = hasSig ? (tmIsBuy ? tmEntry - tmSL : tmSL - tmEntry) : na
+    dirTxt = not hasSig ? "⏳ ATTENTE" : tmIsBuy ? "🟢 BUY" : "🔴 SELL"
+    dirCol = not hasSig ? color.gray : tmIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+    gradeCol = f_gradeCol(mainScore)
+    // Cellules TP : prix + R:R + statut (avant TP = ⏳, atteint = ✅ / 🎯)
+    tp1Txt = not hasSig ? "—" : f_px(tmT1) + "  " + f_rr(tmT1 - tmEntry, tmRisk) + "R  " + (tmT1Hit ? "✅" : "⏳")
+    tp2Txt = not hasSig ? "—" : f_px(tmT2) + "  " + f_rr(tmT2 - tmEntry, tmRisk) + "R  " + (tmT2Hit ? "✅" : "⏳")
+    tp3Txt = not hasSig ? "—" : f_px(tmT3) + "  " + f_rr(tmT3 - tmEntry, tmRisk) + "R  " + (tmT3Hit ? "🎯" : "⏳")
+    tp1Col = not hasSig ? color.gray : tmT1Hit ? color.rgb(46, 204, 113) : color.silver
+    tp2Col = not hasSig ? color.gray : tmT2Hit ? color.rgb(46, 204, 113) : color.silver
+    tp3Col = not hasSig ? color.gray : tmT3Hit ? color.rgb(46, 204, 113) : color.aqua
+    // Gestion du trade (message de suivi)
+    gestTxt = not hasSig ? "aucun trade" : not tmActive ? "❌ Stop Loss touche" : tmT3Hit ? "🎯 Trade termine" : tmT2Hit ? "✅ TP2 atteint" : tmT1Hit ? "✅ TP1 · SL au Break Even" : "🟢 SL actif · en cours"
+    gestCol = not hasSig ? color.gray : not tmActive ? color.rgb(231, 76, 60) : tmT1Hit or tmT2Hit or tmT3Hit ? color.rgb(46, 204, 113) : color.aqua
+    manqueVal = deAPlusLevel - mainScore
+    htfTxt = htfClose > htfEma ? "Bullish" : "Bearish"
+    htfCol = htfClose > htfEma ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+    rsiTxt = str.tostring(rsiVal, "#.#") + (rsiVal <= oscOversold ? " (survente)" : rsiVal >= oscOverbought ? " (surachat)" : "")
+    rsiCol = rsiVal <= oscOversold ? color.rgb(46, 204, 113) : rsiVal >= oscOverbought ? color.rgb(231, 76, 60) : uiValCol
+    // Contexte additionnel (valeurs) -- lecture de variables deja calculees
+    sessTxt = pfInKz ? "Kill Zone" : (pfInLdn and pfInNy) ? "Londres + NY" : pfInLdn ? "Londres" : pfInNy ? "New York" : "Hors session"
+    sessCol = pfInKz ? uiAccent : (pfInLdn or pfInNy) ? color.rgb(46, 204, 113) : color.gray
+    atrTxt = na(leAtr) ? "—" : f_px(leAtr) + "  (" + f_pips(leAtr) + "p)"
+    vwapValTxt = na(pfVwap) ? "—" : f_px(pfVwap) + (close > pfVwap ? "  ▲" : "  ▼")
+    vwapValCol = na(pfVwap) ? color.gray : close > pfVwap ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+    rrTxt = not hasSig ? "—" : f_rr(tmT1 - tmEntry, tmRisk) + " / " + f_rr(tmT2 - tmEntry, tmRisk) + " / " + f_rr(tmT3 - tmEntry, tmRisk)
+    pdValTxt = smcInDiscount ? "Discount" : smcInPremium ? "Premium" : "Equilibre"
+    pdValCol = smcInDiscount ? color.rgb(46, 204, 113) : smcInPremium ? color.rgb(231, 76, 60) : color.gray
+    // Confirmations (lecture de booleens deja calcules, cote en tete)
+    ckSweepOk = mainIsBuy ? deBullSweepRecent : deBearSweepRecent
+    ckBosOk = mainIsBuy ? deBullStructRecent : deBearStructRecent
+    ckChochOk = mainIsBuy ? structTrend == "bullish" : structTrend == "bearish"
+    ckObOk = mainIsBuy ? bullObActive : bearObActive
+    ckFvgOk = mainIsBuy ? bullFvgActive : bearFvgActive
+    ckVwapOk = mainIsBuy ? pfVwapBull : pfVwapBear
+    ckWyOk = mainIsBuy ? wyBullSetupCtx : wyBearSetupCtx
+    ckFibOk = mainIsBuy ? deBullFibPts > 0 : deBearFibPts > 0
+    ckHtfOk = mainIsBuy ? (htfClose > htfEma or msCtxTrend == 1) : (htfClose < htfEma or msCtxTrend == -1)
+    ckPdOk = mainIsBuy ? smcInDiscount : smcInPremium
+    ckVolOk = mainIsBuy ? pfBullVolOK : pfBearVolOK
+    // Textes Market Structure + Macro (calcules avant le rendu)
+    msCtxTxt = msCtxTrend == 1 ? "Bullish" : msCtxTrend == -1 ? "Bearish" : "Neutral"
+    msCtxCol = msCtxTrend == 1 ? color.rgb(46, 204, 113) : msCtxTrend == -1 ? color.rgb(231, 76, 60) : color.gray
+    stTxt = structTrend == "bullish" ? "Bullish" : structTrend == "bearish" ? "Bearish" : "Neutral"
+    stCol = structTrend == "bullish" ? color.rgb(46, 204, 113) : structTrend == "bearish" ? color.rgb(231, 76, 60) : color.gray
+    bosCol = msLastBOS == "haussier" ? color.rgb(46, 204, 113) : msLastBOS == "baissier" ? color.rgb(231, 76, 60) : color.gray
+    chochCol = msLastCHoCH == "haussier" ? color.rgb(46, 204, 113) : msLastCHoCH == "baissier" ? color.rgb(231, 76, 60) : color.gray
+    dxyTxt = not dxyOn ? "OFF" : not dxyReady ? "n/a" : dxyBull ? "Bull (+SELL)" : dxyBear ? "Bear (+BUY)" : "Neutral"
+    dxyColU = not dxyOn or not dxyReady ? color.gray : dxyBull ? color.rgb(231, 76, 60) : dxyBear ? color.rgb(46, 204, 113) : color.silver
+    macroTxt = not macroOn ? "OFF" : not macroReady ? "n/a" : macroBullish ? "Favorable" : macroBearish ? "Defavorable" : "Neutre"
+    macroCol = not macroOn or not macroReady ? color.gray : macroBullish ? color.rgb(46, 204, 113) : macroBearish ? color.rgb(231, 76, 60) : color.silver
+    newsTxt = not newsOn ? "OFF" : newsRisk ? (newsBlockActive ? "ELEVE (bloque)" : "ELEVE") : "Normal"
+    newsColU = not newsOn ? color.gray : newsRisk ? color.rgb(231, 76, 60) : color.rgb(46, 204, 113)
+    lwCtxLate = mainIsBuy ? lwLateBuy : lwLateSell
+    lwCtxTxt = not lwOn ? "OFF" : lwCtxLate ? "⚠️ Tardif" : "OK"
+    lwCtxCol = not lwOn ? color.gray : lwCtxLate ? color.orange : color.rgb(46, 204, 113)
+    ecartTxt = manqueVal <= 0 ? "OK +" + str.tostring(-manqueVal) : "-" + str.tostring(manqueVal) + " pts"
+    ecartCol = manqueVal <= 0 ? color.rgb(46, 204, 113) : uiAccent
+    if uiFullPanel
+        // ===== SECTION A : TRADE (colonnes 0/1) =====
+        f_pHead(0, 0, "🎯 TRADE", f_tfLabel(), color.aqua)
+        f_pRow(0, 1, "Sens", dirTxt, dirCol)
+        table.cell(mainPanel, 0, 2, "Score", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, bgcolor=color.new(gradeCol, 82), text_size=uiTxtSize)
+        f_pRow(0, 3, "Confiance", f_conf(mainScore), f_statutCol(mainScore))
+        f_pRow(0, 4, "Probabilite", str.tostring(f_probShow(mainScore)) + " %", gradeCol)
+        f_pRow(0, 5, "Statut", f_statut(mainScore), f_statutCol(mainScore))
+        f_pRow(0, 6, "Trend", stTxt, stCol)
+        f_pRow(0, 7, "Entry", hasSig ? f_px(tmEntry) : "—", uiValCol)
+        f_pRow(0, 8, "Stop Loss", hasSig ? f_px(tmSL) : "—", color.rgb(231, 76, 60))
+        f_pRow(0, 9, "TP1", tp1Txt, tp1Col)
+        f_pRow(0, 10, "TP2", tp2Txt, tp2Col)
+        f_pRow(0, 11, "TP Final", tp3Txt, tp3Col)
+        f_pRow(0, 12, "Risk:Reward", rrTxt, color.aqua)
+        f_pRow(0, 13, "Etat", gestTxt, gestCol)
+        f_pRow(0, 14, "Mode TP", tpMode, uiValCol)
+        f_pRow(0, 15, "Min requis", str.tostring(deAPlusLevel), uiAccent)
+        f_pRow(0, 16, "Ecart", ecartTxt, ecartCol)
+        // ===== SECTION B : CONTEXTE + STRUCTURE (colonnes 2/3) =====
+        f_pSub(2, 0, "CONTEXTE")
+        f_pRow(2, 1, "HTF " + htfTimeframe, htfTxt, htfCol)
+        f_pRow(2, 2, "VWAP", vwapValTxt, vwapValCol)
+        f_pRow(2, 3, "ATR", atrTxt, uiValCol)
+        f_pRow(2, 4, "Session", sessTxt, sessCol)
+        f_pRow(2, 5, "RSI", rsiTxt, rsiCol)
+        f_pRow(2, 6, "Prem/Disc", pdValTxt, pdValCol)
+        f_pSub(2, 7, "STRUCTURE")
+        f_pRow(2, 8, "Structure", stTxt, stCol)
+        f_pRow(2, 9, "Contexte HTF", msCtxTxt, msCtxCol)
+        f_pRow(2, 10, "Dernier BOS", msLastBOS, bosCol)
+        f_pRow(2, 11, "Dernier CHoCH", msLastCHoCH, chochCol)
+        f_pRow(2, 12, "Phase Wyckoff", wyPhase, uiValCol)
+        f_pRow(2, 13, "Swing haut", na(swingHighVal) ? "—" : f_px(swingHighVal), uiValCol)
+        f_pRow(2, 14, "Swing bas", na(swingLowVal) ? "—" : f_px(swingLowVal), uiValCol)
+        // ===== SECTION C : CONFIRMATIONS + MACRO (colonnes 4/5) =====
+        f_pHead(4, 0, "✅ CONFIRM.", mainIsBuy ? "BUY" : "SELL", mainIsBuy ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60))
+        f_pRow(4, 1, "Liquidite", f_ok(ckSweepOk), f_okCol(ckSweepOk))
+        f_pRow(4, 2, "BOS", f_ok(ckBosOk), f_okCol(ckBosOk))
+        f_pRow(4, 3, "CHoCH", f_ok(ckChochOk), f_okCol(ckChochOk))
+        f_pRow(4, 4, "Order Block", f_ok(ckObOk), f_okCol(ckObOk))
+        f_pRow(4, 5, "FVG", f_ok(ckFvgOk), f_okCol(ckFvgOk))
+        f_pRow(4, 6, "Wyckoff", f_ok(ckWyOk), f_okCol(ckWyOk))
+        f_pRow(4, 7, "HTF", f_ok(ckHtfOk), f_okCol(ckHtfOk))
+        f_pRow(4, 8, "VWAP", f_ok(ckVwapOk), f_okCol(ckVwapOk))
+        f_pRow(4, 9, "Volume", f_ok(ckVolOk), f_okCol(ckVolOk))
+        f_pRow(4, 10, "Fibonacci", f_ok(ckFibOk), f_okCol(ckFibOk))
+        f_pRow(4, 11, mainIsBuy ? "Discount" : "Premium", f_ok(ckPdOk), f_okCol(ckPdOk))
+        f_pSub(4, 12, "MACRO & NEWS")
+        f_pRow(4, 13, "DXY", dxyTxt, dxyColU)
+        f_pRow(4, 14, "Yield 10-2Y", macroTxt, macroCol)
+        f_pRow(4, 15, "News", newsTxt, newsColU)
+        f_pRow(4, 16, "Contexte", lwCtxTxt, lwCtxCol)
+    else
+        // ===== MOBILE : compact 2 colonnes (essentiels) =====
+        table.cell(mainPanel, 0, 0, "🎯 SIGNAL", text_color=uiValCol, bgcolor=uiHeadBg, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 0, f_tfLabel(), text_color=color.aqua, bgcolor=uiHeadBg, text_size=uiTxtSize)
+        f_pRow(0, 1, "Sens", dirTxt, dirCol)
+        table.cell(mainPanel, 0, 2, "Score", text_color=uiLblCol, text_size=uiTxtSize)
+        table.cell(mainPanel, 1, 2, f_scoreLine(mainScore), text_color=gradeCol, text_size=uiTxtSize)
+        f_pRow(0, 3, "Proba", str.tostring(f_probShow(mainScore)) + " %", gradeCol)
+        f_pRow(0, 4, "Trend", stTxt, stCol)
+        f_pRow(0, 5, "HTF", htfTxt, htfCol)
+        f_pRow(0, 6, "Entry", hasSig ? f_px(tmEntry) : "—", uiValCol)
+        f_pRow(0, 7, "SL", hasSig ? f_px(tmSL) : "—", color.rgb(231, 76, 60))
+        f_pRow(0, 8, "TP1", tp1Txt, tp1Col)
+        f_pRow(0, 9, "TP2", tp2Txt, tp2Col)
+        f_pRow(0, 10, "TP Final", tp3Txt, tp3Col)
+        f_pRow(0, 11, "R:R", rrTxt, color.aqua)
+        f_pRow(0, 12, "Etat", gestTxt, gestCol)
+
+// Les anciens panneaux Confirmations et Market Structure sont maintenant FUSIONNES
+// dans le panneau principal (section "PANNEAU PRINCIPAL", mode Expert) : tout est
+// affiche sur un seul tableau. Les tables detailPanel / msPanel ne sont plus
+// remplies (elles restent declarees mais invisibles).
+
+
+// ================= ALERTS =================
+// Pour creer l'alerte TradingView : Creer une alerte sur ce graphique ->
+// condition = cet indicateur -> "Tout appel de fonction alert()". Seuls les
+// signaux A+ (score >= 85 par defaut) declenchent une alerte, avec le sens,
+// le score /100, le niveau de confiance et les niveaux dynamiques
+// Entree / SL / TP1 / TP2 / TP Final (avec leur R:R) dans le message.
+// alertcondition() retire volontairement : la coexistence avec alert() faisait
+// que TradingView n'affichait jamais clairement "Tout appel de fonction alert()"
+// dans le dialogue Creer une alerte. Avec alert() seul, cette option devient la
+// seule disponible.
+
+// ================= DASHBOARD =================
+// L'ancien tableau unique (infoTable) et la table TP (tpTable) sont remplaces par
+// le PANNEAU PRINCIPAL (essentiels + TP integres) et le PANNEAU DETAILS, definis
+// plus haut. Interface responsive : voir la section "HELPERS PANNEAUX".
+
+
+// ================= MODULE 10 : ZONES INSTITUTIONNELLES PREDICTIVES =================
+// Moteur 100% AUTONOME et NON INTRUSIF. Il ne modifie AUCUNE logique existante :
+// ni les signaux BUY/SELL, ni le score, ni le TP Engine, ni le Fibonacci interne,
+// ni le Wyckoff, ni le VWAP, ni les alertes, ni les TP/SL, ni les confirmations.
+// Il se contente de LIRE des variables deja calculees plus haut et d'afficher des
+// zones a l'avance.
+//
+// Objectif : anticiper, plusieurs heures voire plusieurs jours a l'avance, les
+// meilleures zones Buy Limit / Sell Limit ou le prix a une forte probabilite de
+// reagir, afin de preparer ses trades. Quand le prix arrive dans une zone, le
+// moteur affiche "🟡 Zone active" MAIS ne declenche AUCUN trade : c'est la
+// strategie existante (confirmations : BOS/CHoCH/Sweep/OB/FVG/P-D/Wyckoff/VWAP/
+// Fibonacci/Volume/ATR) qui valide ou refuse le signal quand le prix y arrive.
+//
+// Analyse multi-timeframe INTELLIGENTE et PONDEREE (pas d'alignement obligatoire
+// a 100%) : D1 et H4 (les plus influents), H1/contexte, structure du graphique.
+// Chaque zone a son PROPRE score /100, independant du score des signaux.
+
+grpPZO = "⚙️ Expert — Module 10 - Zones institutionnelles predictives"
+pzoOn        = input.bool(true,  "Activer le moteur de zones predictives", group=grpPZO)
+pzoMinScore  = input.int(84,     "Score minimum d'une zone (A+/A)", minval=50, maxval=99, group=grpPZO)
+pzoShowBC    = input.bool(false, "Afficher aussi les zones B / C", group=grpPZO)
+pzoMaxPerSide= input.int(4,      "Nombre max de zones par sens", minval=1, maxval=6, group=grpPZO)
+pzoValidDays = input.float(3.0,  "Duree de validite (jours)", minval=0.5, step=0.5, group=grpPZO)
+pzoDedupAtr  = input.float(1.0,  "Distance min entre 2 zones (x ATR)", minval=0.2, step=0.1, group=grpPZO)
+pzoSlAtr     = input.float(0.5,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpPZO)
+pzoTp1R      = input.float(1.5,  "TP1 (x risque)", minval=0.5, step=0.1, group=grpPZO)
+pzoTp2R      = input.float(3.0,  "TP2 (x risque)", minval=1.0, step=0.1, group=grpPZO)
+pzoTp3R      = input.float(5.0,  "TP Final (x risque)", minval=1.0, step=0.1, group=grpPZO)
+pzoEmaLen    = input.int(50,     "EMA de reference multi-timeframe", minval=10, group=grpPZO)
+pzoShowCard  = input.bool(true,  "Afficher la fiche detaillee sur chaque zone", group=grpPZO)
+pzoShowTable = input.bool(true,  "Afficher le tableau recapitulatif des zones", group=grpPZO)
+pzoTblPos    = input.string("Bas gauche", "Position du tableau des zones", options=["Haut gauche","Haut droite","Milieu droite","Bas droite","Bas gauche"], group=grpPZO, tooltip="A placer dans un coin DIFFERENT du panneau principal (qui est par defaut 'Milieu droite'), sinon les deux tableaux se superposent au meme endroit.")
+// Duree de validite convertie en millisecondes (expiration basee sur le temps,
+// donc identique quel que soit le timeframe).
+pzoValidMs = pzoValidDays * 86400000.0
+
+// ---- Structure d'une zone predictive ----
+type PZone
+    float top
+    float bot
+    float entry
+    float sl
+    float tp1
+    float tp2
+    float tp3
+    int   score
+    int   createBar
+    int   createTime
+    bool  isBuy
+    bool  active
+    bool  touched
+    box   bx
+    label lb
+
+var array<PZone> pzoBuy  = array.new<PZone>()
+var array<PZone> pzoSell = array.new<PZone>()
+var table        pzoTbl  = na
+
+// ---- Helpers : note, couleurs, transparence, libelle ----
+f_pzoGrade(int s) => s >= 94 ? "A+" : s >= 84 ? "A" : s >= 74 ? "B" : s >= 62 ? "C" : "-"
+f_pzoBuyCol(int s)  => s >= 94 ? color.rgb(0, 170, 75) : s >= 84 ? color.rgb(46, 204, 113) : s >= 74 ? color.rgb(120, 190, 130) : color.rgb(165, 205, 175)
+f_pzoSellCol(int s) => s >= 94 ? color.rgb(200, 30, 30) : s >= 84 ? color.rgb(231, 76, 60) : s >= 74 ? color.rgb(210, 130, 120) : color.rgb(220, 175, 170)
+f_pzoTransp(int s)  => int(math.max(62, 88 - (s - 60) * 0.55))   // score eleve -> plus opaque (plus visible)
+f_pzoQual(int s)    => s >= 94 ? "Institutional" : s >= 84 ? "Elevee" : s >= 74 ? "Moyenne" : "Basse"
+// Largeur de zone RESSERREE selon la confluence : plus il y a de facteurs (0..10),
+// plus la zone est etroite -> le veritable point d'entree institutionnel.
+f_pzoWidth(int factors) => leAtr * math.max(0.06, 0.40 - 0.035 * factors)
+
+// Etat lisible d'une zone (statut).
+f_pzoEtat(PZone z) => z.active ? "ZONE ACTIVE" : z.touched ? "TOUCHEE" : "EN ATTENTE"
+
+// Fiche detaillee (multi-lignes) affichee a cote de la zone (style maquette).
+f_pzoCard(PZone z) =>
+    string t = (z.isBuy ? "🟢 BUY LIMIT ZONE" : "🔴 SELL LIMIT ZONE")
+    t + "\n" + "Score : " + str.tostring(z.score) + "/100   " + f_pzoGrade(z.score) + " (" + f_pzoQual(z.score) + ")" + "\n" + "Entree : " + f_px(z.entry) + "\n" + "Zone : " + f_px(z.bot) + " - " + f_px(z.top) + "\n" + "SL : " + f_px(z.sl) + "\n" + "TP1 : " + f_px(z.tp1) + "\n" + "TP2 : " + f_px(z.tp2) + "\n" + "TP Final : " + f_px(z.tp3) + "\n" + "Creee : " + str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone) + "\n" + "Valable : " + str.tostring(pzoValidDays, "#.#") + " j" + "\n" + "● " + f_pzoEtat(z)
+
+// Libelle court (si la fiche detaillee est desactivee).
+f_pzoLabelShort(PZone z) =>
+    string emo = z.isBuy ? "🟢 " : "🔴 "
+    string typ = z.isBuy ? "BUY LIMIT" : "SELL LIMIT"
+    emo + typ + "  " + f_pzoGrade(z.score) + "  " + str.tostring(z.score) + "/100" + (z.active ? "  • ACTIVE" : "")
+
+f_pzoLabel(PZone z) => pzoShowCard ? f_pzoCard(z) : f_pzoLabelShort(z)
+
+// Cree la boite + la fiche d'une zone (appele une seule fois a la creation).
+// La boite = zone verte/rouge resserree ; la fiche flotte a droite, au niveau de
+// la zone (fond sombre, texte clair) -> lisible et discret, style terminal pro.
+f_pzoAttach(PZone z) =>
+    color col = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
+    int   tp  = f_pzoTransp(z.score)
+    z.bx := box.new(z.createBar, z.top, bar_index + 1, z.bot, border_color=col, border_width=2, bgcolor=color.new(col, tp), extend=extend.right)
+    z.lb := label.new(bar_index, (z.top + z.bot) / 2, f_pzoLabel(z), xloc=xloc.bar_index, style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=color.rgb(233, 238, 244), size=pzoShowCard ? size.small : size.tiny)
+
+f_pzoPos(string s) => s == "Haut gauche" ? position.top_left : s == "Haut droite" ? position.top_right : s == "Bas droite" ? position.bottom_right : s == "Bas gauche" ? position.bottom_left : position.middle_right
+
+// Remplit une colonne du tableau des zones (desktop = complet, mobile = compact).
+f_pzoFillCol(table t, int col, PZone z, bool mob) =>
+    color zc = z.isBuy ? f_pzoBuyCol(z.score) : f_pzoSellCol(z.score)
+    float remD = math.max(0.0, (z.createTime + pzoValidMs - time) / 86400000.0)
+    string remTxt = str.tostring(remD, "#.#") + " j"
+    string etat = f_pzoEtat(z)
+    color etatC = z.active ? color.rgb(235, 160, 40) : z.touched ? color.silver : color.gray
+    color slC = color.rgb(231, 76, 60)
+    color tpC = color.rgb(46, 204, 113)
+    string dist = f_pips(math.abs(close - z.entry)) + " p"
+    if mob
+        table.cell(t, col, 0, z.isBuy ? "🟢 BUY" : "🔴 SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+        table.cell(t, col, 1, str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 2, f_pzoGrade(z.score), text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 3, f_px(z.entry), text_color=color.white, text_size=size.tiny)
+        table.cell(t, col, 4, f_px(z.sl), text_color=slC, text_size=size.tiny)
+        table.cell(t, col, 5, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 6, etat, text_color=etatC, text_size=size.tiny)
+        table.cell(t, col, 7, remTxt, text_color=color.silver, text_size=size.tiny)
+    else
+        table.cell(t, col, 0, z.isBuy ? "🟢 BUY" : "🔴 SELL", text_color=color.white, text_size=size.tiny, bgcolor=color.new(zc, 25))
+        table.cell(t, col, 1, str.tostring(z.score) + "/100", text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 2, f_pzoGrade(z.score) + " · " + f_pzoQual(z.score), text_color=zc, text_size=size.tiny)
+        table.cell(t, col, 3, f_px(z.entry), text_color=color.white, text_size=size.tiny)
+        table.cell(t, col, 4, f_px(z.bot) + " - " + f_px(z.top), text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 5, dist, text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 6, f_px(z.sl), text_color=slC, text_size=size.tiny)
+        table.cell(t, col, 7, f_px(z.tp1), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 8, f_px(z.tp2), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 9, f_px(z.tp3), text_color=tpC, text_size=size.tiny)
+        table.cell(t, col, 10, etat, text_color=etatC, text_size=size.tiny)
+        table.cell(t, col, 11, str.format_time(z.createTime, "dd/MM HH:mm", syminfo.timezone), text_color=color.silver, text_size=size.tiny)
+        table.cell(t, col, 12, remTxt, text_color=color.silver, text_size=size.tiny)
+
+// ================= ANALYSE MULTI-TIMEFRAME PONDEREE =================
+// Lecture NON intrusive de tendances superieures (nouvelles requetes, sans
+// impact sur le reste). Ponderation : D1 25, H4 20, H1 20, contexte 20, chart 15.
+pzoD1C = request.security(syminfo.tickerid, "1D",  close[1],                 lookahead=barmerge.lookahead_off)  // [1] zero repaint
+pzoD1E = request.security(syminfo.tickerid, "1D",  ta.ema(close, pzoEmaLen)[1], lookahead=barmerge.lookahead_off)
+pzoH4C = request.security(syminfo.tickerid, "240", close[1],                 lookahead=barmerge.lookahead_off)  // [1] zero repaint
+pzoH4E = request.security(syminfo.tickerid, "240", ta.ema(close, pzoEmaLen)[1], lookahead=barmerge.lookahead_off)
+
+pzoD1Bull = not na(pzoD1C) and not na(pzoD1E) and pzoD1C > pzoD1E
+pzoH4Bull = not na(pzoH4C) and not na(pzoH4E) and pzoH4C > pzoH4E
+pzoH1Bull = htfClose > htfEma
+pzoCtxBull= msCtxTrend == 1
+pzoChBull = structTrend == "bullish"
+
+pzoMtfBull = (pzoD1Bull ? 25 : 0) + (pzoH4Bull ? 20 : 0) + (pzoH1Bull ? 20 : 0) + (pzoCtxBull ? 20 : 0) + (pzoChBull ? 15 : 0)
+pzoMtfBear = ((not pzoD1Bull) ? 25 : 0) + ((not pzoH4Bull) ? 20 : 0) + ((not pzoH1Bull) ? 20 : 0) + (msCtxTrend == -1 ? 20 : 0) + (structTrend == "bearish" ? 15 : 0)
+
+// ---- Score /100 d'une zone = confluence (facteurs module 7, ponderes 55%)
+//      + biais multi-timeframe (ponderes 45%). Independant du score des signaux. ----
+pzoBuyScore  = int(math.round(0.55 * (pzBullFactors * 10) + 0.45 * pzoMtfBull))
+pzoSellScore = int(math.round(0.55 * (pzBearFactors * 10) + 0.45 * pzoMtfBear))
+
+pzoEffMin = pzoShowBC ? 62 : pzoMinScore
+
+// ---- Bornes candidates : Order Block prioritaire, sinon FVG ----
+pzoBuyTop  = bullObActive ? bullObTop : bullFvgActive ? bullFvgTop : na
+pzoBuyBot  = bullObActive ? bullObBot : bullFvgActive ? bullFvgBot : na
+pzoSellTop = bearObActive ? bearObTop : bearFvgActive ? bearFvgTop : na
+pzoSellBot = bearObActive ? bearObBot : bearFvgActive ? bearFvgBot : na
+
+// Candidate PREDICTIVE : la zone est encore SOUS le prix (buy) / AU-DESSUS (sell),
+// donc le prix n'y est pas encore -> on la prepare a l'avance.
+pzoBuyCand  = pzoOn and not na(pzoBuyTop)  and not na(pzoBuyBot)  and pzoBuyTop  < close and pzoBuyScore  >= pzoEffMin
+pzoSellCand = pzoOn and not na(pzoSellTop) and not na(pzoSellBot) and pzoSellBot > close and pzoSellScore >= pzoEffMin
+
+// ================= NETTOYAGE SI MOTEUR DESACTIVE =================
+if not pzoOn
+    if array.size(pzoBuy) > 0
+        for i = array.size(pzoBuy) - 1 to 0
+            zz = array.get(pzoBuy, i)
+            box.delete(zz.bx)
+            label.delete(zz.lb)
+            array.remove(pzoBuy, i)
+    if array.size(pzoSell) > 0
+        for i = array.size(pzoSell) - 1 to 0
+            zz = array.get(pzoSell, i)
+            box.delete(zz.bx)
+            label.delete(zz.lb)
+            array.remove(pzoSell, i)
+
+// ================= MISE A JOUR / PURGE DES ZONES EXISTANTES =================
+// Une zone est supprimee si : elle est traversee (cloture au-dela sans reaction),
+// ou expiree (trop ancienne). Sinon on met a jour son etat (active si le prix est
+// dedans) et son affichage.
+if pzoOn and array.size(pzoBuy) > 0
+    for i = array.size(pzoBuy) - 1 to 0
+        z = array.get(pzoBuy, i)
+        bool expired   = time - z.createTime > pzoValidMs
+        bool traversed = close < z.sl
+        if expired or traversed
+            box.delete(z.bx)
+            label.delete(z.lb)
+            array.remove(pzoBuy, i)
+        else
+            z.active := low <= z.top and high >= z.bot
+            if z.active
+                z.touched := true
+            color col = f_pzoBuyCol(z.score)
+            box.set_right(z.bx, bar_index + 1)
+            box.set_border_color(z.bx, col)
+            box.set_border_width(z.bx, z.active ? 3 : 2)
+            label.set_xy(z.lb, bar_index, (z.top + z.bot) / 2)
+            label.set_text(z.lb, f_pzoLabel(z))
+
+if pzoOn and array.size(pzoSell) > 0
+    for i = array.size(pzoSell) - 1 to 0
+        z = array.get(pzoSell, i)
+        bool expired   = time - z.createTime > pzoValidMs
+        bool traversed = close > z.sl
+        if expired or traversed
+            box.delete(z.bx)
+            label.delete(z.lb)
+            array.remove(pzoSell, i)
+        else
+            z.active := low <= z.top and high >= z.bot
+            if z.active
+                z.touched := true
+            color col = f_pzoSellCol(z.score)
+            box.set_right(z.bx, bar_index + 1)
+            box.set_border_color(z.bx, col)
+            box.set_border_width(z.bx, z.active ? 3 : 2)
+            label.set_xy(z.lb, bar_index, (z.top + z.bot) / 2)
+            label.set_text(z.lb, f_pzoLabel(z))
+
+// ================= CREATION DE NOUVELLES ZONES (avec dedup + priorite score) =================
+if pzoBuyCand
+    float mid = (pzoBuyTop + pzoBuyBot) / 2
+    bool dup = false
+    if array.size(pzoBuy) > 0
+        for i = 0 to array.size(pzoBuy) - 1
+            z = array.get(pzoBuy, i)
+            if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
+                dup := true
+    if not dup
+        float drawBot = math.max(pzoBuyBot, pzoBuyTop - f_pzoWidth(pzBullFactors))
+        float entry = pzoBuyTop
+        float sl    = pzoBuyBot - leAtr * pzoSlAtr
+        float risk  = entry - sl
+        PZone nz = PZone.new(pzoBuyTop, drawBot, entry, sl, entry + risk * pzoTp1R, entry + risk * pzoTp2R, entry + risk * pzoTp3R, pzoBuyScore, bar_index, time, true, false, false, na, na)
+        if array.size(pzoBuy) < pzoMaxPerSide
+            f_pzoAttach(nz)
+            array.push(pzoBuy, nz)
+        else
+            int wi = 0
+            int ws = 101
+            for i = 0 to array.size(pzoBuy) - 1
+                z = array.get(pzoBuy, i)
+                if z.score < ws
+                    ws := z.score
+                    wi := i
+            if pzoBuyScore > ws
+                zo = array.get(pzoBuy, wi)
+                box.delete(zo.bx)
+                label.delete(zo.lb)
+                array.remove(pzoBuy, wi)
+                f_pzoAttach(nz)
+                array.push(pzoBuy, nz)
+
+if pzoSellCand
+    float mid = (pzoSellTop + pzoSellBot) / 2
+    bool dup = false
+    if array.size(pzoSell) > 0
+        for i = 0 to array.size(pzoSell) - 1
+            z = array.get(pzoSell, i)
+            if math.abs((z.top + z.bot) / 2 - mid) < leAtr * pzoDedupAtr
+                dup := true
+    if not dup
+        float drawTop = math.min(pzoSellTop, pzoSellBot + f_pzoWidth(pzBearFactors))
+        float entry = pzoSellBot
+        float sl    = pzoSellTop + leAtr * pzoSlAtr
+        float risk  = sl - entry
+        PZone nz = PZone.new(drawTop, pzoSellBot, entry, sl, entry - risk * pzoTp1R, entry - risk * pzoTp2R, entry - risk * pzoTp3R, pzoSellScore, bar_index, time, false, false, false, na, na)
+        if array.size(pzoSell) < pzoMaxPerSide
+            f_pzoAttach(nz)
+            array.push(pzoSell, nz)
+        else
+            int wi = 0
+            int ws = 101
+            for i = 0 to array.size(pzoSell) - 1
+                z = array.get(pzoSell, i)
+                if z.score < ws
+                    ws := z.score
+                    wi := i
+            if pzoSellScore > ws
+                zo = array.get(pzoSell, wi)
+                box.delete(zo.bx)
+                label.delete(zo.lb)
+                array.remove(pzoSell, wi)
+                f_pzoAttach(nz)
+                array.push(pzoSell, nz)
+
+// ================= TABLEAU RECAPITULATIF DES ZONES =================
+// Design premium sombre. Desktop = tableau complet ; Mobile = version compacte
+// (moins de lignes, infos essentielles). Aucune couleur jaune : vert = buy,
+// rouge = sell, l'etat "Active" s'affiche en vert (jamais en rectangle jaune).
+if barstate.islast
+    if not na(pzoTbl)
+        table.delete(pzoTbl)
+        pzoTbl := na
+    int nZones = array.size(pzoBuy) + array.size(pzoSell)
+    if pzoOn and pzoShowTable and nZones > 0
+        bool mob = uiIsMobile
+        int nRows = mob ? 8 : 13
+        color hdBg = color.new(color.rgb(18, 27, 44), 0)
+        color lblC = color.rgb(140, 156, 173)
+        pzoTbl := table.new(f_pzoPos(pzoTblPos), 1 + nZones, nRows, bgcolor=color.new(color.rgb(13, 18, 26), 6), border_width=1, border_color=color.new(color.rgb(70, 84, 102), 55), frame_width=1, frame_color=color.new(color.rgb(70, 84, 102), 40))
+        table.cell(pzoTbl, 0, 0, "◆ ZONES", text_color=uiAccent, text_size=size.small, bgcolor=hdBg)
+        if mob
+            table.cell(pzoTbl, 0, 1, "Score",      text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 2, "Qualite",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 3, "Prix ideal", text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 4, "Stop Loss",  text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 5, "TP Final",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 6, "Etat",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 7, "Restant",    text_color=lblC, text_size=size.tiny)
+        else
+            table.cell(pzoTbl, 0, 1,  "Score",      text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 2,  "Qualite",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 3,  "Prix ideal", text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 4,  "Zone",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 5,  "Distance",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 6,  "Stop Loss",  text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 7,  "TP1",        text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 8,  "TP2",        text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 9,  "TP Final",   text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 10, "Etat",       text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 11, "Cree le",    text_color=lblC, text_size=size.tiny)
+            table.cell(pzoTbl, 0, 12, "Restant",    text_color=lblC, text_size=size.tiny)
+        // Colonnes des zones : Buy d'abord (meilleur score en tete via priorite), puis Sell
+        int c = 1
+        if array.size(pzoBuy) > 0
+            for i = 0 to array.size(pzoBuy) - 1
+                f_pzoFillCol(pzoTbl, c, array.get(pzoBuy, i), mob)
+                c += 1
+        if array.size(pzoSell) > 0
+            for i = 0 to array.size(pzoSell) - 1
+                f_pzoFillCol(pzoTbl, c, array.get(pzoSell, i), mob)
+                c += 1
+
+// ================= MODULE 11 : ZONES D'ANTICIPATION HTF (TRES EN AVANCE) =================
+// AFFICHAGE UNIQUEMENT - aucune logique de trading modifiee. Ce module pose des
+// zones Buy Limit / Sell Limit LONGTEMPS a l'avance, sur les gros niveaux que le
+// prix met souvent des heures ou des jours a atteindre :
+//   - PDL / PDH : bas / haut de la VEILLE (liquidite journaliere)
+//   - PWL / PWH : bas / haut de la SEMAINE precedente (liquidite hebdomadaire)
+//   - Swings H4 : dernier pivot bas / haut confirme en 4 heures
+// Contour POINTILLE = zone d'anticipation (loin), contour PLEIN = zone predictive
+// du Module 10 (proche). Vert = achat, rouge = vente. Quand le prix entre dans la
+// zone, le statut passe a ACTIVE ; c'est TOUJOURS la strategie existante qui
+// valide ou refuse le trade. Score independant base sur la source du niveau et
+// l'alignement multi-timeframe du Module 10.
+grpAZ = "⚙️ Expert — Module 11 - Zones d'anticipation HTF (tres en avance)"
+azOn       = input.bool(true,  "Activer les zones d'anticipation", group=grpAZ)
+azUseDaily = input.bool(true,  "Zones sur PDH / PDL (veille)", group=grpAZ)
+azUseWeekly= input.bool(true,  "Zones sur PWH / PWL (semaine)", group=grpAZ)
+azUseH4    = input.bool(true,  "Zones sur swings H4", group=grpAZ)
+azWidthAtr = input.float(0.15, "Demi-largeur de zone (x ATR)", minval=0.05, step=0.05, group=grpAZ, tooltip="Zone volontairement TRES fine autour du niveau exact (PDH/PDL/PWH/PWL/swing H4). Une ligne pointillee marque le prix d'entree exact au centre. Les zones a score eleve sont encore resserrees automatiquement.")
+azMinDist  = input.float(1.0,  "Distance minimum au prix (x ATR)", minval=0.0, step=0.25, group=grpAZ, tooltip="La zone ne s'affiche que si le niveau est au moins a cette distance du prix : on ne montre que ce qui est vraiment EN AVANCE. 0 = toujours montrer.")
+azSlAtr    = input.float(0.6,  "Marge du Stop Loss (x ATR)", minval=0.1, step=0.1, group=grpAZ)
+azShowCard = input.bool(true,  "Fiche detaillee sur les zones d'anticipation", group=grpAZ)
+
+// ---- Swings H4 confirmes (pivots 5/5), memorises via fixnan ----
+azH4H = request.security(syminfo.tickerid, "240", fixnan(ta.pivothigh(high, 5, 5)), lookahead=barmerge.lookahead_off)
+azH4L = request.security(syminfo.tickerid, "240", fixnan(ta.pivotlow(low, 5, 5)),  lookahead=barmerge.lookahead_off)
+
+// ---- Score d'une zone d'anticipation : base selon la source + alignement MTF ----
+f_azScore(bool isBuy, int base) =>
+    int mtf = isBuy ? pzoMtfBull : pzoMtfBear
+    math.min(100, base + int(math.round(mtf * 0.15)))
+
+// ---- Fiche / libelle ----
+f_azText(bool isBuy, string src, int sc, float lvl, float slv, float t1, float t2, float t3, bool act) =>
+    string head = (isBuy ? "🟢 BUY LIMIT" : "🔴 SELL LIMIT") + " · " + src + "  " + f_pzoGrade(sc) + "  " + str.tostring(sc) + "/100" + (act ? "  • ACTIVE" : "")
+    azShowCard ? head + "\nEntree : " + f_px(lvl) + "\nSL : " + f_px(slv) + "\nTP1 : " + f_px(t1) + "  TP2 : " + f_px(t2) + "\nTP Final : " + f_px(t3) : head
+
+// ---- Une zone par source : dessin / mise a jour / suppression ----
+// PRECISION : zone tres fine centree sur le niveau EXACT + resserrage
+// automatique selon le score (A+ = encore plus fine) + ligne pointillee au
+// prix d'entree exact au centre de la zone.
+f_azDraw(box bx, label lb, line ex, bool enabled, bool isBuy, float lvl, string src, int base) =>
+    box   b = bx
+    label l = lb
+    line  e = ex
+    bool okSide = isBuy ? lvl < close : lvl > close
+    bool okDist = math.abs(close - lvl) >= leAtr * azMinDist
+    bool okShow = azOn and enabled and not na(lvl) and okSide and (okDist or (low <= lvl + leAtr * azWidthAtr and high >= lvl - leAtr * azWidthAtr))
+    if okShow
+        int   sc  = f_azScore(isBuy, base)
+        float w   = leAtr * azWidthAtr * (sc >= 94 ? 0.7 : sc >= 84 ? 0.85 : 1.0)
+        float top = lvl + w
+        float bot = lvl - w
+        bool  act = low <= top and high >= bot
+        float slv = isBuy ? lvl - leAtr * azSlAtr : lvl + leAtr * azSlAtr
+        float rk  = math.abs(lvl - slv)
+        float t1  = isBuy ? lvl + rk * pzoTp1R : lvl - rk * pzoTp1R
+        float t2  = isBuy ? lvl + rk * pzoTp2R : lvl - rk * pzoTp2R
+        float t3  = isBuy ? lvl + rk * pzoTp3R : lvl - rk * pzoTp3R
+        color col = isBuy ? f_pzoBuyCol(sc) : f_pzoSellCol(sc)
+        string txt = f_azText(isBuy, src, sc, lvl, slv, t1, t2, t3, act)
+        if na(b)
+            b := box.new(bar_index - 1, top, bar_index + 1, bot, border_color=col, border_width=act ? 3 : 2, border_style=line.style_dashed, bgcolor=color.new(col, 88), extend=extend.right)
+            e := line.new(bar_index - 1, lvl, bar_index + 1, lvl, color=color.new(col, 0), style=line.style_dotted, width=1, extend=extend.right)
+            l := label.new(bar_index, lvl, txt, style=label.style_label_left, color=color.new(color.rgb(16, 22, 32), 6), textcolor=color.rgb(233, 238, 244), size=size.tiny)
+        else
+            box.set_top(b, top)
+            box.set_bottom(b, bot)
+            box.set_right(b, bar_index + 1)
+            box.set_border_color(b, col)
+            box.set_border_width(b, act ? 3 : 2)
+            box.set_bgcolor(b, color.new(col, 88))
+            line.set_xy1(e, bar_index - 1, lvl)
+            line.set_xy2(e, bar_index + 1, lvl)
+            line.set_color(e, color.new(col, 0))
+            label.set_xy(l, bar_index, lvl)
+            label.set_text(l, txt)
+    else
+        if not na(b)
+            box.delete(b)
+            b := na
+            label.delete(l)
+            l := na
+            line.delete(e)
+            e := na
+    [b, l, e]
+
+var box   azPdlBx = na
+var label azPdlLb = na
+var line  azPdlLn = na
+var box   azPwlBx = na
+var label azPwlLb = na
+var line  azPwlLn = na
+var box   azH4LBx = na
+var label azH4LLb = na
+var line  azH4LLn = na
+var box   azPdhBx = na
+var label azPdhLb = na
+var line  azPdhLn = na
+var box   azPwhBx = na
+var label azPwhLb = na
+var line  azPwhLn = na
+var box   azH4HBx = na
+var label azH4HLb = na
+var line  azH4HLn = na
+
+[azPdlBx2, azPdlLb2, azPdlLn2] = f_azDraw(azPdlBx, azPdlLb, azPdlLn, azUseDaily,  true,  lePdl, "PDL",      80)
+azPdlBx := azPdlBx2
+azPdlLb := azPdlLb2
+azPdlLn := azPdlLn2
+[azPwlBx2, azPwlLb2, azPwlLn2] = f_azDraw(azPwlBx, azPwlLb, azPwlLn, azUseWeekly, true,  lePwl, "PWL",      84)
+azPwlBx := azPwlBx2
+azPwlLb := azPwlLb2
+azPwlLn := azPwlLn2
+[azH4LBx2, azH4LLb2, azH4LLn2] = f_azDraw(azH4LBx, azH4LLb, azH4LLn, azUseH4,     true,  azH4L, "Swing H4", 76)
+azH4LBx := azH4LBx2
+azH4LLb := azH4LLb2
+azH4LLn := azH4LLn2
+[azPdhBx2, azPdhLb2, azPdhLn2] = f_azDraw(azPdhBx, azPdhLb, azPdhLn, azUseDaily,  false, lePdh, "PDH",      80)
+azPdhBx := azPdhBx2
+azPdhLb := azPdhLb2
+azPdhLn := azPdhLn2
+[azPwhBx2, azPwhLb2, azPwhLn2] = f_azDraw(azPwhBx, azPwhLb, azPwhLn, azUseWeekly, false, lePwh, "PWH",      84)
+azPwhBx := azPwhBx2
+azPwhLb := azPwhLb2
+azPwhLn := azPwhLn2
+[azH4HBx2, azH4HLb2, azH4HLn2] = f_azDraw(azH4HBx, azH4HLb, azH4HLn, azUseH4,     false, azH4H, "Swing H4", 76)
+azH4HBx := azH4HBx2
+azH4HLb := azH4HLb2
+azH4HLn := azH4HLn2

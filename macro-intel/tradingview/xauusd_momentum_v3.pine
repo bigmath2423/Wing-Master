@@ -1,0 +1,406 @@
+//@version=6
+// ============================================================
+// XAU/USD — MOMENTUM v3 · biais multi-timeframe + zones OB / FVG / CHoCH
+// ------------------------------------------------------------
+// Ajouts par rapport a v1, chacun soumis a la meme mesure que le reste :
+//
+//   BIAIS D1 + W1 -> RETENU comme FILTRE.
+//     Effet directionnel mesure (ecart haussier-baissier, ATR a 20 barres) :
+//       biais W1 (EMA10) : +0.125 apprentissage / +0.280 validation (t +2.0 / +3.9)
+//       D1 + W1 alignes  : +0.083 apprentissage / +0.231 validation
+//     Effet sur les trades reellement pris :
+//       sans biais      : 306 trades/an · PF 1.13 · esperance +0.064 R · DD -28.8 R · 4/4 periodes
+//       + biais D1+W1   : 149 trades/an · PF 1.28 · esperance +0.130 R · DD -18.8 R · 4/4 periodes
+//     -> esperance doublee, drawdown reduit d'un tiers, stabilite conservee,
+//        au prix de la moitie des trades. Active par defaut.
+//
+//   ZONES OB / FVG / CHoCH -> AFFICHAGE SEUL (elles remplacent le S/R de v2).
+//     Effet directionnel mesure (ecart haussier-baissier, ATR a 20 barres) :
+//       Order Block (touche) : -0.188 apprentissage / +0.378 validation
+//       FVG (touche)         : +0.134 apprentissage / -0.028 validation
+//       CHoCH                : -0.187 apprentissage / +0.080 validation
+//     Les trois changent de SIGNE entre les deux periodes et aucun n'est
+//     significatif : ce sont des reperes de lecture, pas des predicteurs. Ils
+//     sont donc traces sur le graphique et n'entrent dans AUCUNE condition
+//     d'entree. A titre de comparaison, le BOS retenu comme declencheur fait
+//     +0.224 puis +0.517 (t +1.4 puis +2.8) : meme sens, effet qui se renforce.
+//     Rappel de frequence : CHoCH 1.37 % des bougies, BOS 2.97 %.
+// ------------------------------------------------------------
+// Base : XAU/USD — MOMENTUM v1 · construit uniquement sur des effets mesures
+// ------------------------------------------------------------
+// Ce fichier ne reprend AUCUN concept par tradition. Chaque element present a
+// ete retenu parce qu'il a produit un effet positif MESURE sur 100 396 bougies
+// M15 (avril 2022 -> aout 2026), sur la periode d'apprentissage ET sur la
+// periode de validation. Tout le reste a ete supprime.
+//
+// ---- CE QUI A ETE MESURE (ecart en ATR a 20 barres entre signal haussier et
+//      signal baissier ; la derive du marche s'annule dans la difference) ----
+//
+//   RETENU                     apprentissage   validation
+//     BOS (cassure)                 +0.224       +0.517     <- le seul effet fort
+//     Displacement                  +0.167       +0.230
+//     Tendance de structure         +0.046       +0.290
+//     VWAP de session               +0.044       +0.161
+//     Tendance HTF (H1)             +0.016       +0.096
+//
+//   SUPPRIME (effet NEGATIF dans les DEUX periodes)
+//     Wyckoff                       -0.084       -0.278
+//     Sweep de liquidite            -0.087       -0.178
+//     Premium / Discount            -0.086       -0.193
+//     Fibonacci                     -0.101       -0.086
+//     Breaker Block                 -0.090       -0.171
+//
+//   SUPPRIME (signe instable entre les deux periodes)
+//     Order Block (touche)          -0.188       +0.378
+//     FVG (touche)                  +0.134       -0.028
+//
+// Consequence directe : les deux regles ELIMINATOIRES de la version precedente
+// (aucun signal sans sweep de liquidite, entree exigee en discount/premium)
+// avaient toutes deux un effet negatif. Elles ne filtraient pas les mauvais
+// trades, elles les selectionnaient. Elles ont disparu.
+//
+// ---- LA SORTIE COMPTE PLUS QUE LE SIGNAL ----
+// A signal IDENTIQUE, sur quatre sous-periodes d'un an :
+//     stop 1.5 ATR + TP 1/2/3 R (ancien) : -0.032 / -0.134 / +0.027 / +0.003
+//     stop 2.5 ATR + trailing 1 R        : +0.030 / +0.018 / +0.090 / +0.113
+// Les sorties partielles multipliaient les remplissages donc les frais :
+// 0.061 R par trade contre 0.028 R, soit 2.9 fois l'esperance de l'ancien
+// systeme. Il n'y a donc plus de TP partiels : une seule sortie, en trailing.
+//
+// ---- RESULTAT MESURE (4.3 ans, cout 0.20 $ aller-retour inclus) ----
+//     1 306 trades | WR 50.9 % | PF 1.13 | esperance +0.064 R
+//     +19.5 R/an (soit +19.5 %/an a 1 % de risque) | drawdown max -28.8 R
+//     positif sur les QUATRE sous-periodes d'un an
+//
+// ---- CE QUI N'EST PAS PROUVE, ET QU'IL FAUT SAVOIR ----
+//   * t = +1.79, intervalle de confiance a 95 % = [-0.004 ; +0.131] : le zero
+//     est encore dans l'intervalle. L'argument solide n'est pas la
+//     significativite, c'est la STABILITE (4 sous-periodes sur 4).
+//   * La configuration de sortie a ete choisie apres observation des resultats
+//     sur l'ensemble de la periode : c'est une selection in-sample, legere mais
+//     reelle. Une validation sur 2019-2022 reste a faire.
+//   * WR ~51 % et PF ~1.13 : tres loin d'un objectif 70-80 % / PF > 2. Rien
+//     dans ces 100 000 bougies ne soutient de telles cibles.
+//   * Calibre sur XAUUSD en M15. Aucune raison de supposer que cela se
+//     transpose a un autre symbole ou a une autre unite de temps sans remesure.
+// ============================================================
+strategy("XAUUSD Momentum v3 — biais + zones SMC", shorttitle="XAU Momentum v3", overlay=true,
+     max_labels_count=200, max_lines_count=200, initial_capital=10000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1, pyramiding=0,
+     calc_on_every_tick=false, process_orders_on_close=true,
+     margin_long=0, margin_short=0, commission_type=strategy.commission.percent,
+     commission_value=0.0, slippage=0)
+
+// ================= PARAMETRES =================
+// Les valeurs par defaut sont celles qui ont servi a la mesure. Les modifier
+// invalide les chiffres ci-dessus tant qu'un nouveau backtest n'a pas ete fait.
+grpS = "① Signal (modules mesures)"
+swingLen  = input.int(10,  "Longueur de detection des swings", minval=2, group=grpS)
+atrLen    = input.int(14,  "Longueur ATR", minval=2, group=grpS)
+htfTf     = input.timeframe("60", "Unite de temps superieure", group=grpS)
+htfEmaLen = input.int(50,  "EMA de l'unite superieure", minval=2, group=grpS)
+cooldown  = input.int(10,  "Barres minimum entre deux signaux", minval=0, group=grpS)
+
+grpF = "② Confluences exigees"
+// Chacune est desactivable pour reproduire l'ablation qui a servi a les retenir.
+useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="Effet mesure : +0.046 (apprentissage) / +0.290 (validation).")
+useHtf    = input.bool(true, "Tendance H1 alignee",           group=grpF, tooltip="Effet mesure : +0.016 / +0.096.")
+useVwap   = input.bool(true, "Bon cote du VWAP de session",   group=grpF, tooltip="Effet mesure : +0.044 / +0.161.")
+useImb    = input.bool(false,"Accepter aussi le displacement seul", group=grpF, tooltip="MESURE : degrade le systeme. Ajoute des trades (394/an au lieu de 306) mais fait tomber le PF de 1.13 a 1.08 et la stabilite de 4/4 a 2/4 sous-periodes. Laisse desactive.")
+useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grpF, tooltip="MESURE : ameliore le systeme. Esperance +0.064 -> +0.130 R, PF 1.13 -> 1.28, drawdown -28.8 -> -18.8 R, stabilite maintenue a 4/4 sous-periodes, pour moitie moins de trades (306 -> 149 par an). Un BUY exige que la cloture D1 soit au-dessus de son EMA20 ET la cloture W1 au-dessus de son EMA10.")
+biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF)
+biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF)
+
+grpZ = "③ Zones SMC : OB / FVG / CHoCH (AFFICHAGE SEUL — ne filtrent rien)"
+zShowOB   = input.bool(true, "Order Blocks", group=grpZ, tooltip="AFFICHAGE UNIQUEMENT. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif. Trace pour la lecture, ne bloque aucun signal.")
+zShowFVG  = input.bool(true, "Fair Value Gaps", group=grpZ, tooltip="AFFICHAGE UNIQUEMENT. Effet mesure : +0.134 puis -0.028. Signe qui s'inverse, non significatif.")
+zShowBrk  = input.bool(true, "Marqueurs BOS / CHoCH", group=grpZ, tooltip="Le BOS est le declencheur du systeme (effet mesure +0.224 puis +0.517). Le CHoCH est marque d'une couleur differente mais ne declenche rien de plus : mesure a -0.187 puis +0.080, signe instable.")
+zFvgMinAtr = input.float(0.10, "FVG — taille minimum (x ATR)", minval=0.0, step=0.05, group=grpZ, tooltip="Ignore les micro-gaps sans signification.")
+
+grpX = "③ Sortie (la partie qui compte le plus)"
+slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.")
+trailStartR = input.float(1.0, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX)
+trailDistR  = input.float(1.0, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX)
+riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
+
+grpU = "④ Affichage"
+showPanel = input.bool(true,  "Afficher le panneau", group=grpU)
+showLvls  = input.bool(true,  "Tracer Entree / SL / TP1 / TP2", group=grpU)
+uiPos     = input.string("top_right", "Position du panneau", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
+
+// ================= MODULES RETENUS =================
+atrV = ta.atr(atrLen)
+
+// --- Structure : swings confirmes puis cassure sur niveau STABLE ---
+// La garde de stabilite evite le faux BOS declenche par la simple mise a jour
+// d'un pivot sous le prix : sans elle, le "croisement" ne traduit aucune cassure.
+float ph = ta.pivothigh(high, swingLen, swingLen)
+float pl = ta.pivotlow(low, swingLen, swingLen)
+var float swingHigh = na
+var float swingLow  = na
+if not na(ph)
+    swingHigh := ph
+if not na(pl)
+    swingLow := pl
+
+crossUp = ta.crossover(close, swingHigh) and swingHigh == swingHigh[1]
+crossDn = ta.crossunder(close, swingLow) and swingLow == swingLow[1]
+
+var int trend = 0
+bullBos = not na(swingHigh) and crossUp
+bearBos = not na(swingLow) and crossDn
+if bullBos
+    trend := 1
+if bearBos
+    trend := -1
+
+// --- Displacement : corps de bougie >= 1.5 ATR ---
+bullImb = (close - open) >= 1.5 * atrV
+bearImb = (open - close) >= 1.5 * atrV
+
+// --- Tendance de l'unite superieure (bougies CLOTUREES : aucun repaint) ---
+htfClose = request.security(syminfo.tickerid, htfTf, close[1], lookahead=barmerge.lookahead_off)
+htfEma   = request.security(syminfo.tickerid, htfTf, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfBull  = not na(htfEma) and htfClose > htfEma
+htfBear  = not na(htfEma) and htfClose < htfEma
+
+// --- VWAP de session ---
+vwapV    = ta.vwap(hlc3)
+aboveVwap = not na(vwapV) and close > vwapV
+belowVwap = not na(vwapV) and close < vwapV
+
+// --- Biais journalier et hebdomadaire (bougies CLOTUREES : aucun repaint) ---
+// Le seul ajout de v2 qui FILTRE, parce que le seul qui l'a merite a la mesure.
+// On renvoie l'ECART (cloture - EMA) en flottant plutot qu'un booleen : Pine
+// n'accepte pas na() sur un booleen renvoye par request.security, et le
+// flottant propage naturellement l'absence de donnee tant que l'EMA n'est pas
+// formee. Le SIGNE de l'ecart donne le biais.
+biasD = request.security(syminfo.tickerid, "D", close[1] - ta.ema(close, biasDLen)[1], lookahead=barmerge.lookahead_off)
+biasW = request.security(syminfo.tickerid, "W", close[1] - ta.ema(close, biasWLen)[1], lookahead=barmerge.lookahead_off)
+biasReady = not na(biasD) and not na(biasW)
+biasBull = biasReady and biasD > 0 and biasW > 0
+biasBear = biasReady and biasD < 0 and biasW < 0
+biasTxt  = not biasReady ? "—" : biasBull ? "Haussier (D1+W1)" : biasBear ? "Baissier (D1+W1)" : "Divergent"
+
+// --- Zones SMC : Order Blocks, Fair Value Gaps, marqueurs BOS / CHoCH ---
+// AFFICHAGE SEUL. Aucune de ces zones n'entre dans une condition d'entree :
+// mesure faite, leur effet change de signe entre les deux periodes testees.
+// Elles servent a LIRE le graphique, pas a decider.
+
+// Distinction BOS / CHoCH : il faut la tendance AVANT sa mise a jour. Comme
+// `trend` a deja ete reaffecte plus haut sur cette bougie, on lit sa valeur de
+// la bougie precedente (trend[1]) — sinon aucun CHoCH ne serait jamais detecte.
+bullChoch = bullBos and trend[1] == -1
+bearChoch = bearBos and trend[1] == 1
+
+// Order Block : derniere bougie de sens oppose avant la cassure.
+var float obBullTop = na
+var float obBullBot = na
+var box   obBullBox = na
+var float obBearTop = na
+var float obBearBot = na
+var box   obBearBox = na
+
+if bullBos
+    for i = 1 to swingLen
+        if close[i] < open[i]
+            obBullTop := high[i]
+            obBullBot := low[i]
+            box.delete(obBullBox)
+            obBullBox := zShowOB ? box.new(bar_index - i, obBullTop, bar_index, obBullBot, border_color=color.new(color.blue, 35), bgcolor=color.new(color.blue, 88), extend=extend.right, text="OB", text_color=color.new(color.blue, 20), text_size=size.tiny, text_halign=text.align_right) : na
+            break
+if bearBos
+    for i = 1 to swingLen
+        if close[i] > open[i]
+            obBearTop := high[i]
+            obBearBot := low[i]
+            box.delete(obBearBox)
+            obBearBox := zShowOB ? box.new(bar_index - i, obBearTop, bar_index, obBearBot, border_color=color.new(color.purple, 35), bgcolor=color.new(color.purple, 88), extend=extend.right, text="OB", text_color=color.new(color.purple, 20), text_size=size.tiny, text_halign=text.align_right) : na
+            break
+
+// Un Order Block traverse en cloture n'a plus de sens : on l'efface.
+if not na(obBullBot) and close < obBullBot
+    box.delete(obBullBox)
+    obBullBox := na
+    obBullBot := na
+if not na(obBearTop) and close > obBearTop
+    box.delete(obBearBox)
+    obBearBox := na
+    obBearTop := na
+
+// Fair Value Gap : ecart de prix laisse par trois bougies consecutives.
+var box fvgBullBox = na
+var box fvgBearBox = na
+var float fvgBullBot = na
+var float fvgBearTop = na
+minGap = zFvgMinAtr * atrV
+if (low - high[2]) > math.max(minGap, 0)
+    fvgBullBot := high[2]
+    box.delete(fvgBullBox)
+    fvgBullBox := zShowFVG ? box.new(bar_index - 2, low, bar_index, high[2], border_color=color.new(color.teal, 45), bgcolor=color.new(color.teal, 90), extend=extend.right, text="FVG", text_color=color.new(color.teal, 25), text_size=size.tiny, text_halign=text.align_left) : na
+if (low[2] - high) > math.max(minGap, 0)
+    fvgBearTop := low[2]
+    box.delete(fvgBearBox)
+    fvgBearBox := zShowFVG ? box.new(bar_index - 2, low[2], bar_index, high, border_color=color.new(color.red, 45), bgcolor=color.new(color.red, 90), extend=extend.right, text="FVG", text_color=color.new(color.red, 25), text_size=size.tiny, text_halign=text.align_left) : na
+if not na(fvgBullBot) and close < fvgBullBot
+    box.delete(fvgBullBox)
+    fvgBullBox := na
+    fvgBullBot := na
+if not na(fvgBearTop) and close > fvgBearTop
+    box.delete(fvgBearBox)
+    fvgBearBox := na
+    fvgBearTop := na
+
+// Marqueurs de cassure : CHoCH (retournement) distingue du BOS (continuation).
+var array<label> brkLbls = array.new<label>()
+f_brk(bool up, string txt, color col) =>
+    if zShowBrk
+        lb = label.new(bar_index, up ? low : high, txt, style=up ? label.style_label_up : label.style_label_down, color=color.new(color.white, 100), textcolor=col, size=size.tiny)
+        array.push(brkLbls, lb)
+        if array.size(brkLbls) > 20
+            label.delete(array.shift(brkLbls))
+if bullBos
+    f_brk(true, bullChoch ? "CHoCH" : "BOS", bullChoch ? color.yellow : color.lime)
+if bearBos
+    f_brk(false, bearChoch ? "CHoCH" : "BOS", bearChoch ? color.orange : color.red)
+
+// ================= DECISION =================
+// La mesure a montre que ponderer ces elements en un score /100 n'apporte
+// RIEN par rapport a leur simple conjonction : quand les quatre sont alignes,
+// le score depasse mecaniquement tout seuil utile, et le filtre par score ne
+// retire jamais aucun trade (resultats strictement identiques). La conjonction
+// EST le score. On ne rajoute donc pas de ponderation decorative.
+alignLong  = (not useStruct or trend == 1)  and (not useHtf or htfBull) and (not useVwap or aboveVwap) and (not useBias or biasBull)
+alignShort = (not useStruct or trend == -1) and (not useHtf or htfBear) and (not useVwap or belowVwap) and (not useBias or biasBear)
+trigLong   = bullBos or (useImb and bullImb)
+trigShort  = bearBos or (useImb and bearImb)
+
+var int lastLong = -99999
+var int lastShort = -99999
+rawLong  = trigLong  and alignLong  and not na(atrV) and atrV > 0
+rawShort = trigShort and alignShort and not na(atrV) and atrV > 0
+buySignal  = rawLong  and (bar_index - lastLong)  > cooldown and barstate.isconfirmed
+sellSignal = rawShort and (bar_index - lastShort) > cooldown and barstate.isconfirmed
+if buySignal
+    lastLong := bar_index
+if sellSignal
+    lastShort := bar_index
+
+// Score AFFICHE, pondere par la regression ajustee sur l'apprentissage
+// (BOS 44.9 · displacement 33.5 · structure 7.2 · HTF 7.3 · VWAP 7.0).
+// Il est INFORMATIF : il ne filtre rien, puisque la mesure a montre qu'il
+// n'apporte rien de plus que la conjonction ci-dessus. L'afficher comme un
+// filtre serait reproduire exactement l'erreur de la version precedente.
+f_score(bool isLong) =>
+    float s = 0.0
+    s += (isLong ? bullBos : bearBos) ? 44.9 : 0.0
+    s += (isLong ? bullImb : bearImb) ? 33.5 : 0.0
+    s += (isLong ? trend == 1 : trend == -1) ? 7.2 : 0.0
+    s += (isLong ? htfBull : htfBear) ? 7.3 : 0.0
+    s += (isLong ? aboveVwap : belowVwap) ? 7.0 : 0.0
+    s
+
+// ================= EXECUTION =================
+var float ePx = na
+var float sPx = na
+var float rPx = na
+var bool  eLong = false
+
+f_qty(float risk) =>
+    float pv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+    risk > 0 ? math.max(0.0, strategy.equity * riskPct / 100.0) / (risk * pv) : 0.0
+
+if buySignal and strategy.position_size == 0
+    risk = slAtr * atrV
+    qty = f_qty(risk)
+    if qty > 0
+        ePx := close
+        rPx := risk
+        sPx := close - risk
+        eLong := true
+        strategy.entry("L", strategy.long, qty=qty, comment="BUY " + str.tostring(math.round(f_score(true))))
+
+if sellSignal and strategy.position_size == 0
+    risk = slAtr * atrV
+    qty = f_qty(risk)
+    if qty > 0
+        ePx := close
+        rPx := risk
+        sPx := close + risk
+        eLong := false
+        strategy.entry("S", strategy.short, qty=qty, comment="SELL " + str.tostring(math.round(f_score(false))))
+
+// Sortie unique en trailing : aucune prise partielle. Mesure : les sorties
+// partielles coutaient 0.061 R par trade contre 0.028 R, soit 2.9 fois
+// l'esperance de l'ancien systeme.
+if strategy.position_size != 0 and not na(rPx) and rPx > 0
+    bool isL = strategy.position_size > 0
+    float act = isL ? ePx + trailStartR * rPx : ePx - trailStartR * rPx
+    float off = math.max(1.0, trailDistR * rPx / syminfo.mintick)
+    if isL
+        strategy.exit("X", from_entry="L", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+    else
+        strategy.exit("X", from_entry="S", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+
+// ================= AFFICHAGE =================
+plotshape(buySignal,  title="BUY",  location=location.belowbar, style=shape.triangleup,   size=size.small, color=color.new(color.lime, 0), text="BUY",  textcolor=color.white)
+plotshape(sellSignal, title="SELL", location=location.abovebar, style=shape.triangledown, size=size.small, color=color.new(color.red, 0),  text="SELL", textcolor=color.white)
+plot(useHtf ? htfEma : na, "EMA H1", color=color.new(color.purple, 40), linewidth=2)
+plot(useVwap ? vwapV : na, "VWAP",   color=color.new(color.yellow, 30), linewidth=1)
+bgcolor(trend == 1 ? color.new(color.green, 96) : trend == -1 ? color.new(color.red, 96) : na, title="Tendance de structure")
+
+// TP1 / TP2 sont affiches comme REPERES de progression (1 R et 2 R). Ce ne sont
+// pas des ordres : la sortie reelle est le trailing, qui a mesure mieux.
+var line lnE = na
+var line lnS = na
+var line lnT1 = na
+var line lnT2 = na
+if showLvls and (buySignal or sellSignal)
+    line.delete(lnE)
+    line.delete(lnS)
+    line.delete(lnT1)
+    line.delete(lnT2)
+    dir = buySignal ? 1 : -1
+    lnE  := line.new(bar_index, ePx, bar_index + 40, ePx, color=color.new(color.gray, 20), style=line.style_dotted)
+    lnS  := line.new(bar_index, sPx, bar_index + 40, sPx, color=color.new(color.red, 0), width=2)
+    lnT1 := line.new(bar_index, ePx + dir * rPx,       bar_index + 40, ePx + dir * rPx,       color=color.new(color.lime, 30), style=line.style_dashed)
+    lnT2 := line.new(bar_index, ePx + dir * 2 * rPx,   bar_index + 40, ePx + dir * 2 * rPx,   color=color.new(color.aqua, 30), style=line.style_dashed)
+
+f_pos(string p) => p == "top_left" ? position.top_left : p == "top_right" ? position.top_right : p == "bottom_left" ? position.bottom_left : position.bottom_right
+var table tb = table.new(f_pos(uiPos), 2, 14, bgcolor=color.new(color.rgb(13, 18, 26), 15), border_width=1, border_color=color.new(color.gray, 60))
+f_row(int r, string k, string v, color c) =>
+    table.cell(tb, 0, r, k, text_color=color.rgb(140, 156, 173), text_size=size.small)
+    table.cell(tb, 1, r, v, text_color=c, text_size=size.small)
+f_ok(bool b) => b ? "✔" : "✘"
+f_okc(bool b) => b ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60)
+
+if barstate.islast and showPanel
+    bool isL = strategy.position_size > 0 or (strategy.position_size == 0 and f_score(true) >= f_score(false))
+    float sc = f_score(isL)
+    bool inPos = strategy.position_size != 0
+    string dir = inPos ? (strategy.position_size > 0 ? "🟢 LONG en cours" : "🔴 SHORT en cours") : (isL ? "⏳ Attente BUY" : "⏳ Attente SELL")
+    table.cell(tb, 0, 0, "XAU MOMENTUM v1", text_color=color.rgb(212, 175, 96), bgcolor=color.new(color.rgb(18, 27, 44), 0), text_size=size.small)
+    table.cell(tb, 1, 0, str.tostring(math.round(sc)) + "/100", text_color=sc >= 60 ? color.rgb(46, 204, 113) : color.silver, bgcolor=color.new(color.rgb(18, 27, 44), 0), text_size=size.small)
+    f_row(1, "Etat", dir, inPos ? color.rgb(46, 204, 113) : color.gray)
+    f_row(2, "Entree", inPos ? str.tostring(ePx, "#.##") : "—", color.white)
+    f_row(3, "Stop Loss", inPos ? str.tostring(sPx, "#.##") : "—", color.rgb(231, 76, 60))
+    f_row(4, "TP1 (1 R)", inPos ? str.tostring(eLong ? ePx + rPx : ePx - rPx, "#.##") : "—", color.rgb(46, 204, 113))
+    f_row(5, "TP2 (2 R)", inPos ? str.tostring(eLong ? ePx + 2 * rPx : ePx - 2 * rPx, "#.##") : "—", color.aqua)
+    f_row(6, "Sortie reelle", "Trailing " + str.tostring(trailDistR, "#.#") + " R", color.aqua)
+    table.cell(tb, 0, 7, "CONFLUENCES", text_color=color.rgb(212, 175, 96), bgcolor=color.new(color.rgb(26, 35, 50), 20), text_size=size.small)
+    table.cell(tb, 1, 7, isL ? "BUY" : "SELL", text_color=isL ? color.rgb(46, 204, 113) : color.rgb(231, 76, 60), bgcolor=color.new(color.rgb(26, 35, 50), 20), text_size=size.small)
+    f_row(8,  "BOS", f_ok(isL ? bullBos : bearBos), f_okc(isL ? bullBos : bearBos))
+    f_row(9,  "Structure", f_ok(isL ? trend == 1 : trend == -1), f_okc(isL ? trend == 1 : trend == -1))
+    f_row(10, "Tendance H1", f_ok(isL ? htfBull : htfBear), f_okc(isL ? htfBull : htfBear))
+    f_row(11, "VWAP", f_ok(isL ? aboveVwap : belowVwap), f_okc(isL ? aboveVwap : belowVwap))
+    bool bok = isL ? biasBull : biasBear
+    f_row(12, "Biais D1+W1", useBias ? f_ok(bok) + "  " + biasTxt : "off  " + biasTxt, useBias ? f_okc(bok) : color.gray)
+    bool obA = isL ? not na(obBullBot) : not na(obBearTop)
+    bool fgA = isL ? not na(fvgBullBot) : not na(fvgBearTop)
+    f_row(13, "Zones (info)", (obA ? "OB " : "") + (fgA ? "FVG" : "") + (not obA and not fgA ? "aucune" : ""), color.silver)
+
+// ================= ALERTES =================
+if buySignal
+    alert("XAUUSD BUY | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(close - slAtr * atrV, "#.##") + " | Sortie : trailing " + str.tostring(trailDistR, "#.#") + " R", alert.freq_once_per_bar_close)
+if sellSignal
+    alert("XAUUSD SELL | Entree " + str.tostring(close, "#.##") + " | SL " + str.tostring(close + slAtr * atrV, "#.##") + " | Sortie : trailing " + str.tostring(trailDistR, "#.#") + " R", alert.freq_once_per_bar_close)

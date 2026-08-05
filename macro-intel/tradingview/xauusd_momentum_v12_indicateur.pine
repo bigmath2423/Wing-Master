@@ -321,18 +321,41 @@ var array<line>  liqLn = array.new<line>()
 var array<label> liqLb = array.new<label>()
 var array<label> swLb  = array.new<label>()
 
+// CORRECTIF. La version precedente comparait `ph` a `ph[1]`, c'est-a-dire le
+// pivot de CETTE bougie a celui de la bougie PRECEDENTE. Or ta.pivothigh ne
+// renvoie une valeur que sur la bougie de confirmation et `na` partout
+// ailleurs : il aurait fallu deux pivots sur deux bougies consecutives, ce qui
+// n'arrive jamais avec swingLen = 10. La condition n'etait JAMAIS vraie et
+// aucune poche de liquidite n'apparaissait.
+// On memorise donc les DEUX DERNIERES VALEURS de pivot, pas les deux dernieres
+// bougies.
+var float phA = na
+var float phB = na
+var int   phAbar = na
+var float plA = na
+var float plB = na
+var int   plAbar = na
+if not na(ph)
+    phB := phA
+    phA := ph
+    phAbar := bar_index - swingLen
+if not na(pl)
+    plB := plA
+    plA := pl
+    plAbar := bar_index - swingLen
+
 float liqTol = atrV * liqTolAtr
-if not na(ph) and not na(ph[1]) and not na(liqTol)
-    if math.abs(ph - ph[1]) <= liqTol
-        array.push(eqhL, math.max(ph, ph[1]))
-        array.push(eqhB, bar_index - swingLen)
+if not na(ph) and not na(phB) and not na(liqTol)
+    if math.abs(phA - phB) <= liqTol
+        array.push(eqhL, math.max(phA, phB))
+        array.push(eqhB, phAbar)
         if array.size(eqhL) > liqMax
             array.shift(eqhL)
             array.shift(eqhB)
-if not na(pl) and not na(pl[1]) and not na(liqTol)
-    if math.abs(pl - pl[1]) <= liqTol
-        array.push(eqlL, math.min(pl, pl[1]))
-        array.push(eqlB, bar_index - swingLen)
+if not na(pl) and not na(plB) and not na(liqTol)
+    if math.abs(plA - plB) <= liqTol
+        array.push(eqlL, math.min(plA, plB))
+        array.push(eqlB, plAbar)
         if array.size(eqlL) > liqMax
             array.shift(eqlL)
             array.shift(eqlB)
@@ -462,17 +485,21 @@ var array<label> brkLb = array.new<label>()
 
 f_break(bool up, bool choch, float lvl, int fromBar) =>
     if brkShow and not na(lvl) and not na(fromBar)
+        // Le CHoCH est un RETOURNEMENT : trait plein et epais, en or.
+        // Le BOS est une CONTINUATION : trait fin, dans la couleur du sens.
         color col = choch ? cGold : (up ? cUp : cDn)
-        line ln = line.new(fromBar, lvl, bar_index, lvl, color=color.new(col, 35), width=1, style=line.style_solid)
+        line ln = line.new(fromBar, lvl, bar_index, lvl, color=color.new(col, choch ? 0 : 30), width=choch ? 2 : 1, style=choch ? line.style_solid : line.style_dashed)
         array.push(brkLn, ln)
-        if array.size(brkLn) > 12
+        if array.size(brkLn) > 14
             line.delete(array.shift(brkLn))
-        label dot = label.new(bar_index, lvl, "", style=label.style_circle, color=color.new(col, 20), size=size.tiny)
+        // CORRECTIF : l'etiquette etait placee sous la bougie, donc detachee de
+        // son trait. Elle est desormais AU BOUT du trait, a la hauteur du
+        // niveau casse : le trait et son nom se lisent d'un seul regard.
+        label tag = label.new(bar_index, lvl, choch ? " CHoCH" : " BOS", style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
+        array.push(brkLb, tag)
+        label dot = label.new(bar_index, lvl, "", style=label.style_circle, color=color.new(col, 15), size=size.tiny)
         array.push(brkLb, dot)
-        if brkLabels > 0
-            label tag = label.new(bar_index, up ? low - atrV * 0.6 : high + atrV * 0.6, choch ? "CHoCH" : "BOS", style=up ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
-            array.push(brkLb, tag)
-        while array.size(brkLb) > brkLabels * 2 + 12
+        while array.size(brkLb) > math.max(2, brkLabels) * 2
             label.delete(array.shift(brkLb))
 
 if bullBos
@@ -526,13 +553,16 @@ if barstate.islast
     zoneLb := na
 
     // ---- Liquidite : traits FINS, en arriere-plan, jamais de bloc ----
+    // Sommets egaux = BUY SIDE (les stops d'achat sont AU-DESSUS).
+    // Creux egaux  = SELL SIDE (les stops de vente sont EN DESSOUS).
+    // La version precedente inversait les deux.
     if liqShow
         if array.size(eqhL) > 0
             for i = 0 to array.size(eqhL) - 1
-                f_lvl(array.get(eqhL, i), color.new(cDn, 55), i == array.size(eqhL) - 1 ? "SSL" : "", line.style_solid)
+                f_lvl(array.get(eqhL, i), color.new(cUp, 40), "BSL", line.style_solid)
         if array.size(eqlL) > 0
             for i = 0 to array.size(eqlL) - 1
-                f_lvl(array.get(eqlL, i), color.new(cUp, 55), i == array.size(eqlL) - 1 ? "BSL" : "", line.style_solid)
+                f_lvl(array.get(eqlL, i), color.new(cDn, 40), "SSL", line.style_solid)
 
     // ---- Profil de la veille : le POC est le SEUL element saillant du fond ----
     if vShow

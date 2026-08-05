@@ -829,6 +829,11 @@ f_qty(float risk) =>
     float qMax = close > 0 ? maxLev * strategy.equity / close : 0.0
     math.min(q, qMax)
 
+// Le percentile ADX du moment est inscrit dans le commentaire de chaque
+// entree (suffixe "A"), UNIQUEMENT pour apparaitre dans la liste de trades
+// exportee. Il ne conditionne rien. But : le test en avant des six prochains
+// mois sert alors aussi de test hors echantillon du filtre de regime, sans
+// qu'il faille l'activer et donc sans rien risquer.
 if buySignal and strategy.position_size == 0
     risk = slAtr * atrV
     qty = f_qty(risk)
@@ -837,7 +842,7 @@ if buySignal and strategy.position_size == 0
         rPx := risk
         sPx := close - risk
         eLong := true
-        strategy.entry("L", strategy.long, qty=qty, comment="BUY " + str.tostring(math.round(f_score(true))))
+        strategy.entry("L", strategy.long, qty=qty, comment="BUY " + str.tostring(math.round(f_score(true))) + " A" + str.tostring(math.round(nz(fAdxPct, -1))))
 
 if sellSignal and strategy.position_size == 0
     risk = slAtr * atrV
@@ -847,7 +852,7 @@ if sellSignal and strategy.position_size == 0
         rPx := risk
         sPx := close + risk
         eLong := false
-        strategy.entry("S", strategy.short, qty=qty, comment="SELL " + str.tostring(math.round(f_score(false))))
+        strategy.entry("S", strategy.short, qty=qty, comment="SELL " + str.tostring(math.round(f_score(false))) + " A" + str.tostring(math.round(nz(fAdxPct, -1))))
 
 // Sortie unique en trailing : aucune prise partielle. Mesure : les sorties
 // partielles coutaient 0.061 R par trade contre 0.028 R, soit 2.9 fois

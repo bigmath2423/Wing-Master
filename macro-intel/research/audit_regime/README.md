@@ -39,11 +39,38 @@ Réponse en dose monotone sur 5 quintiles, insensible aux réglages (longueur
 présent dans chaque sous-groupe (session, volatilité, sens), 4/4 sous-périodes,
 plus fort en validation qu'en apprentissage.
 
-**Ce qui manque, et qui interdit de l'activer :** il a été trouvé en testant 12
-hypothèses sur des données déjà utilisées, et n'a jamais rencontré une période
-inédite. Le filtre est donc implémenté dans le Pine mais **désactivé par
-défaut** — décoché, le terme est court-circuité et le backtest de référence est
-identique bit à bit.
+### Ce que les tests de falsification ont donné (`crosstf.py`, `mech.py`, `perm.py`)
+
+**Le test de placebo confirme la significativité.** Décalage circulaire de la
+série ADX, 5000 tirages : la distribution nulle est centrée (moyenne −0,001,
+écart-type 0,111) et l'effet observé (+0,360 R) en est à 3,2 écarts-types,
+p = 0,0018. Le résultat n'est donc pas un artefact d'autocorrélation — le test
+de Student ne le surestimait pas.
+
+**Mais le mécanisme proposé est RÉFUTÉ.** L'explication avancée était : « un BOS
+dans une tendance déjà établie est une continuation tardive ». Trois mesures de
+l'avancement du mouvement construites sans aucun ADX (barres depuis le dernier
+changement de tendance, amplitude déjà parcourue, étendue des 24 h) confirment
+bien que l'ADX haut correspond à un mouvement plus avancé (p = 0,011) — mais
+**aucune des trois ne prédit le résultat** (écarts −0,119 / −0,040 / +0,054 R,
+tous non significatifs). Et l'effet ADX survit intact dans chaque sous-groupe
+d'avancement. L'ADX capte donc quelque chose de réel, mais pas ce qui avait été
+annoncé. Le mécanisme reste inconnu.
+
+**La réplication croisée n'apporte rien.** M5 : −0,042 R (p = 0,75), mais la
+stratégie de base n'y a aucun edge. M30 : +0,181 R (p = 0,22). H1 : +0,061 R
+(p = 0,76). Ces deux dernières sont trop peu puissantes pour trancher (effet
+minimum détectable 0,46 et 0,59 R). Ni confirmation ni réfutation.
+
+**Ce qui manque, et qui interdit de l'activer :** trouvé en testant 12
+hypothèses sur des données déjà utilisées, jamais confronté à une période
+inédite, et sans mécanisme compris. Le filtre est implémenté dans le Pine mais
+**désactivé par défaut** — décoché, le terme est court-circuité et le backtest
+de référence est identique bit à bit.
+
+Le percentile ADX est en revanche inscrit dans le commentaire de chaque entrée
+(suffixe `A`). Le test en avant des six prochains mois produit donc, sans rien
+activer et sans rien risquer, un échantillon hors données pour trancher.
 
 ## Ce qui a été rejeté
 

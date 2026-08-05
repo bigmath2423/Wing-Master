@@ -380,6 +380,17 @@ useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grp
 biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF)
 biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF)
 
+// --- Expression du biais journalier. Les deux formes mesurent la MEME chose :
+// correlation +0.819, et quand le ruban D1 est haussier la paire D1+W1 l'est
+// aussi dans 86.6 % des bougies. Le ruban le dit en UNE condition au lieu de
+// deux, ce qui laisse passer plus de trades a esperance egale (849 contre 615,
+// +159.6 R contre +113.6). L'ecart n'est PAS significatif (p = 0.96) : c'est un
+// meilleur emballage, pas une meilleure information.
+biasMode = input.string("D1 EMA20 + W1 EMA10 (actuel)", "Forme du biais journalier", options=["D1 EMA20 + W1 EMA10 (actuel)", "Ruban D1 (5/20/50)"], group=grpF, tooltip="MESURE, 2022-2026.\n\nD1 EMA20 + W1 EMA10 : 615 trades, PF 1.329, esperance +0.185 R, total +113.6 R.\nRuban D1 5>20>50, SEUL (H1, VWAP et POC decoches) : 849 trades, PF 1.339, esperance +0.188 R, total +159.6 R, t = +3.98.\n\nUne condition remplace cinq. L'esperance est identique (ecart +0.003 R, p = 0.96) mais le systeme laisse passer 38 % de trades en plus, donc rapporte davantage au total. Plateau verifie sur 8 jeux de periodes (3/10/30 a 10/30/60) : toutes donnent 4/4 sous-periodes positives, aucune n'est un pic.\n\nCe reglage n'a PAS ete confronte a 2020-2022. A tester avant d'y toucher.")
+ribF = input.int(5,   "Ruban D1 — rapide", minval=2, group=grpF)
+ribM = input.int(20,  "Ruban D1 — moyenne", minval=3, group=grpF)
+ribS = input.int(50,  "Ruban D1 — lente", minval=5, group=grpF)
+
 // --- Filtre de regime ADX : TESTE, REFUTE, RETIRE (aout 2026) ------------
 // Sur 2022-2026 il paraissait excellent : PF 1.33 -> 1.65, WR 45.4 -> 50.8 %,
 // esperance +0.185 -> +0.332 R, 4/4 sous-periodes, gradient monotone sur 5
@@ -520,9 +531,16 @@ fAdxPct  = ta.percentrank(fAdxV, 500)
 // formee. Le SIGNE de l'ecart donne le biais.
 biasD = request.security(syminfo.tickerid, "D", close[1] - ta.ema(close, biasDLen)[1], lookahead=barmerge.lookahead_off)
 biasW = request.security(syminfo.tickerid, "W", close[1] - ta.ema(close, biasWLen)[1], lookahead=barmerge.lookahead_off)
-biasReady = not na(biasD) and not na(biasW)
-biasBull = biasReady and biasD > 0 and biasW > 0
-biasBear = biasReady and biasD < 0 and biasW < 0
+// Ruban journalier : trois EMA sur les CLOTURES D1, lues sur la bougie
+// journaliere precedente. Aucune valeur future, aucun repaint.
+ribA = request.security(syminfo.tickerid, "D", ta.ema(close, ribF)[1], lookahead=barmerge.lookahead_off)
+ribB = request.security(syminfo.tickerid, "D", ta.ema(close, ribM)[1], lookahead=barmerge.lookahead_off)
+ribC = request.security(syminfo.tickerid, "D", ta.ema(close, ribS)[1], lookahead=barmerge.lookahead_off)
+bool useRib   = biasMode == "Ruban D1 (5/20/50)"
+bool ribReady = not na(ribA) and not na(ribB) and not na(ribC)
+biasReady = useRib ? ribReady : (not na(biasD) and not na(biasW))
+biasBull  = useRib ? (ribReady and ribA > ribB and ribB > ribC) : (biasReady and biasD > 0 and biasW > 0)
+biasBear  = useRib ? (ribReady and ribA < ribB and ribB < ribC) : (biasReady and biasD < 0 and biasW < 0)
 biasTxt  = not biasReady ? "—" : biasBull ? "Haussier (D1+W1)" : biasBear ? "Baissier (D1+W1)" : "Divergent"
 
 // --- Zones SMC : Order Blocks, Fair Value Gaps, marqueurs BOS / CHoCH ---

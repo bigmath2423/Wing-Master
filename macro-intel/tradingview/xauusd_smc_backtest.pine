@@ -293,6 +293,7 @@ btSizeMode = input.string("Risque % du capital", "Taille de position", options=[
 btRiskPct   = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, maxval=100.0, step=0.1, group=grpBT, tooltip="Pourcentage du capital perdu si le Stop Loss est touche a 100 % de la position. 1 % = standard institutionnel.")
 btFixedQty  = input.float(1.0, "Quantite fixe (si mode Quantite fixe)", minval=0.0, step=0.1, group=grpBT)
 btMaxQty    = input.float(0.0, "Quantite maximum (0 = illimitee)", minval=0.0, step=0.1, group=grpBT, tooltip="Plafonne la taille calculee par le risque %, pour eviter des positions absurdes quand le Stop Loss est tres serre. 0 = aucun plafond.")
+btMaxLev    = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpBT, tooltip="SECURITE, ajoutee apres un incident reel sur TVC:GOLD. syminfo.pointvalue n'a pas la meme signification sur un INDICE non negociable que sur un symbole broker : la conversion risque -> quantite est faussee et la taille explose. Sans plafond, le levier atteignait 20x en median et 128x au pire, et une perte coutait 2.72 % du capital au lieu du 1 % configure — tous les resultats etaient gonfles d'un facteur ~2.7 dans les deux sens. Ce plafond rend l'erreur impossible quel que soit le symbole.")
 
 // ---- Type d'ordre d'entree ----
 btEntryMode = input.string("Limite (prix de precision)", "Ordre d'entree", options=["Limite (prix de precision)", "Marche (cloture du signal)"], group=grpBT, tooltip="Limite : place un ordre au prix d'entree calcule par le Precision Engine (bord d'Order Block / milieu de FVG) -> fidele a la strategie, mais certains signaux ne seront jamais remplis, et TradingView n'attache le SL/TP qu'a partir de la bougie suivant le remplissage. Marche : entre a la cloture de la bougie du signal -> tous les signaux sont pris et le SL/TP est actif immediatement (execution la plus fidele pour le moteur de backtest).")
@@ -2058,6 +2059,11 @@ f_btQty(float riskDist) =>
         q := riskDist > 0 ? riskCash / (riskDist * pv) : 0.0
     if btMaxQty > 0
         q := math.min(q, btMaxQty)
+    // Plafond de levier : le notionnel ne peut jamais depasser btMaxLev fois le
+    // capital, quel que soit ce que renvoie syminfo.pointvalue.
+    float qLev = close > 0 ? btMaxLev * math.max(0.0, strategy.equity) / close : 0.0
+    if btMaxLev > 0
+        q := math.min(q, qLev)
     na(q) or q <= 0 ? 0.0 : q
 
 // I2 : distance Entree->SL minimale pour que le cout d'execution reste supportable.
@@ -2369,6 +2375,21 @@ if strategy.position_size != 0 and not na(btEntryPx) and not na(btSLPx)
     float btSlNow = btSLPx
     if btBeDone
         btSlNow := btIsLong ? math.max(btSLPx, btEntryPx + btBeOff) : math.min(btSLPx, btEntryPx - btBeOff)
+    // RELIQUAT D'ARRONDI — corrige un blocage total du backtest.
+    // Les trois tranches sont arrondies au pas de lot par le broker : leur somme
+    // peut donc etre INFERIEURE a la position. Exemple reel : position 14.1,
+    // tranches remplies 7.0 + 4.1 + 2.9 = 14.0, et 0.1 orphelin. Aucun ordre ne
+    // couvrait cette miette, elle restait ouverte, et comme pyramiding = 0 elle
+    // bloquait TOUTES les entrees suivantes. Sur l'export M5 2020-2026, le
+    // backtest s'arretait ainsi le 23/04/2020 : 40 tranches en deux mois, puis
+    // une position de 0.1 lot tenue six ans.
+    // On ferme donc ce qui ne peut etre qu'un reliquat : les deux premieres
+    // tranches servies, et un reste inferieur au dixieme de la derniere.
+    float btLastQ = btQtyRef * math.max(0.0, 100.0 - btP1 - btP2) / 100.0
+    bool  btResid = btRem > 0 and btT1Done and btT2Done and (btLastQ <= 0 or btRem <= btLastQ * 0.10)
+    if btResid
+        strategy.close(btIsLong ? "LONG" : "SHORT", comment="Reliquat")
+
     // Quantites effectivement replacables (jamais plus que le reliquat ouvert)
     float btQ1eff = btT1Done ? 0.0 : math.min(btQ1, btRem)
     float btQ2eff = btT2Done ? 0.0 : math.min(btQ2, btRem - btQ1eff)

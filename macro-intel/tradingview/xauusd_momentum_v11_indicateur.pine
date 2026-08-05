@@ -359,7 +359,20 @@ cooldown  = input.int(10,  "Barres minimum entre deux signaux", minval=0, group=
 
 grpF = "② Confluences exigees"
 // Chacune est desactivable pour reproduire l'ablation qui a servi a les retenir.
-useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="Effet mesure : +0.046 (apprentissage) / +0.290 (validation).")
+// --- DECLENCHEUR. Le BOS et la cassure de plus haut sur N bougies mesurent le
+// MEME evenement : l'ecart d'esperance entre les deux n'est pas significatif
+// (+0.011 R, p = 0.89). La cassure Donchian l'exprime en une ligne au lieu
+// d'une machine a etats sur pivots, et se comporte de facon nettement plus
+// homogene dans le temps. Reglage par defaut : le BOS, pour ne rien changer.
+trigMode = input.string("BOS (actuel)", "Declencheur", options=["BOS (actuel)", "Cassure Donchian"], group=grpF, tooltip="MESURE, 2022-2026.\n\nBOS + les 5 filtres : 615 trades, WR 45.4 %, PF 1.329, esperance +0.185 R, drawdown -17.4 R, total +113.6 R. Ecart apprentissage/validation : 0.136.\n\nDonchian 48 + H1 + biais D1 + biais W1 (4 composants au lieu de 6) : 695 trades, WR 45.8 %, PF 1.352, esperance +0.196 R, drawdown -14.4 R, total +136.1 R. Ecart apprentissage/validation : 0.004.\n\nL'ecart d'esperance n'est PAS significatif : les deux mesurent le meme edge. Ce qui est etabli, c'est 13 % de trades en plus, 17 % de drawdown en moins, et une regularite dans le temps sans commune mesure.\n\nPOUR LA CONFIGURATION SIMPLIFIEE, decocher aussi : tendance de structure, VWAP, et POC. Le detail est dans macro-intel/research/audit_regime.")
+donLen   = input.int(48, "Donchian — nombre de bougies", minval=12, maxval=200, group=grpF, tooltip="48 bougies = 12 h en M15. Plateau mesure de 32 a 56 : toute cette plage fait aussi bien ou mieux que le BOS. 48 est le milieu du plateau, pas un optimum choisi.")
+
+// --- Tendance de structure. ATTENTION : avec le declencheur BOS ce filtre est
+// une TAUTOLOGIE. `trend` est mis a jour PAR le BOS lui-meme, donc la condition
+// `trend == 1` est toujours vraie quand un BOS haussier vient de se produire.
+// Mesure : le retirer laisse un resultat identique au chiffre pres (615 trades,
+// PF 1.329 dans les deux cas). Il ne devient un vrai filtre qu'avec Donchian.
+useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="TAUTOLOGIE avec le declencheur BOS : la tendance est mise a jour par le BOS lui-meme, donc la condition est toujours vraie au moment ou elle est testee. Le retirer ne change RIEN (mesure : 615 trades et PF 1.329 avec comme sans). Ce filtre ne mord que si le declencheur est la cassure Donchian.")
 useHtf    = input.bool(true, "Tendance H1 alignee",           group=grpF, tooltip="Effet mesure : +0.016 / +0.096.")
 useVwap   = input.bool(true, "Bon cote du VWAP de session",   group=grpF, tooltip="Effet mesure : +0.044 / +0.161.")
 useImb    = input.bool(false,"Accepter aussi le displacement seul", group=grpF, tooltip="MESURE : degrade le systeme. Ajoute des trades (394/an au lieu de 306) mais fait tomber le PF de 1.13 a 1.08 et la stabilite de 4/4 a 2/4 sous-periodes. Laisse desactive.")
@@ -824,8 +837,11 @@ if barstate.islast
 // EST le score. On ne rajoute donc pas de ponderation decorative.
 alignLong  = (not useStruct or trend == 1)  and (not useHtf or htfBull) and (not useVwap or aboveVwap) and (not useBias or biasBull) and (not vUsePoc or abovePoc)
 alignShort = (not useStruct or trend == -1) and (not useHtf or htfBear) and (not useVwap or belowVwap) and (not useBias or biasBear) and (not vUsePoc or belowPoc)
-trigLong   = bullBos or (useImb and bullImb)
-trigShort  = bearBos or (useImb and bearImb)
+bool donUp = close > ta.highest(high, donLen)[1]
+bool donDn = close < ta.lowest(low, donLen)[1]
+bool useDon = trigMode == "Cassure Donchian"
+trigLong   = useDon ? donUp : (bullBos or (useImb and bullImb))
+trigShort  = useDon ? donDn : (bearBos or (useImb and bearImb))
 
 var int lastLong = -99999
 var int lastShort = -99999

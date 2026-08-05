@@ -62,15 +62,40 @@ stratégie de base n'y a aucun edge. M30 : +0,181 R (p = 0,22). H1 : +0,061 R
 (p = 0,76). Ces deux dernières sont trop peu puissantes pour trancher (effet
 minimum détectable 0,46 et 0,59 R). Ni confirmation ni réfutation.
 
-**Ce qui manque, et qui interdit de l'activer :** trouvé en testant 12
-hypothèses sur des données déjà utilisées, jamais confronté à une période
-inédite, et sans mécanisme compris. Le filtre est implémenté dans le Pine mais
-**désactivé par défaut** — décoché, le terme est court-circuité et le backtest
-de référence est identique bit à bit.
+### VERDICT FINAL — RÉFUTÉ, RETIRÉ DU CODE (`newrun.py`, `oos_final.py`)
 
-Le percentile ADX est en revanche inscrit dans le commentaire de chaque entrée
-(suffixe `A`). Le test en avant des six prochains mois produit donc, sans rien
-activer et sans rien risquer, un échantillon hors données pour trancher.
+Un export TradingView remontant à **avril 2020** a fourni 200 trades jamais
+utilisés pour construire le filtre. Le percentile ADX y était déjà inscrit dans
+le commentaire de chaque entrée, ce qui permet une partition directe, sans
+aucune reconstruction.
+
+**L'effet s'inverse.**
+
+| Période | Ce que le filtre garde | Ce qu'il jette | Écart |
+|---|---|---|---|
+| **2020-04 → 2022-04 (inédit)** | PF 0,874 · **−0,010 R** | PF 1,415 · **+0,271 R** | **−0,281 R** |
+| 2022-04 → 2026-07 (déjà utilisé) | PF 1,468 · +0,257 R | PF 1,002 · +0,009 R | +0,248 R |
+| **Ensemble 2020-2026** | PF 1,331 · +0,188 R | PF 1,070 · +0,074 R | **+0,114 R, p = 0,33** |
+
+Le gradient par quintile s'inverse lui aussi, et de façon monotone : hors
+échantillon, Q1 (ADX le plus bas) rend **−0,443 R** et Q5 **+0,341 R** — l'exact
+opposé du gradient qui avait servi d'argument.
+
+Par année : −0,497 · −0,065 · +0,005 · −0,003 · +0,475 · +0,196 · +0,324. L'effet
+n'existait que sur 2024-2026, c'est-à-dire sur la moitié récente de la fenêtre
+où il a été cherché. Sur l'ensemble, l'IC95 couvre zéro.
+
+**Le filtre a été retiré du Pine.** Le percentile ADX reste inscrit dans le
+commentaire des entrées : utile à mesurer, inutile à filtrer.
+
+### La leçon
+
+Ce filtre avait passé : gradient monotone sur 5 quintiles, insensibilité aux
+réglages (12 combinaisons), absence de corrélation aux modules existants,
+survie dans chaque sous-groupe, 4/4 sous-périodes, effet plus fort en
+validation qu'en apprentissage, et un placebo par décalage circulaire à
+p = 0,0018. Tout cela n'a pas suffi. Seules des données réellement inédites
+ont tranché.
 
 ## Ce qui a été rejeté
 

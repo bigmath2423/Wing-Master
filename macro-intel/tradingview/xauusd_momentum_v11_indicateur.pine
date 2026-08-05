@@ -367,14 +367,18 @@ useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grp
 biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF)
 biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF)
 
-// --- Filtre de regime : n'entrer que quand la tendance n'est PAS deja etablie.
-// DESACTIVE PAR DEFAUT. Tant qu'il est decoche, le systeme est bit a bit
-// identique a la version de reference (589 trades, PF 1.26) : le terme est
-// court-circuite dans la conjonction. Ne l'active que pour tester.
-useAdxReg = input.bool(false, "Regime : refuser les entrees en tendance deja etablie", group=grpF, tooltip="EN COURS DE VALIDATION — laisse DECOCHE tant qu'un test sur donnees inedites n'a pas ete fait.\n\nMESURE (2022-2026, deux moteurs independants) : un BOS qui sort d'un marche calme est une VRAIE cassure ; un BOS dans une tendance deja etablie est une continuation tardive, deja payee. Garder les entrees dont l'ADX est sous sa mediane glissante donne PF 1.33 -> 1.65, WR 45.4 -> 50.8 %, esperance +0.185 -> +0.332 R, drawdown -17.4 -> -13.1 R, pour 59 % des trades conserves (143 -> 85 par an). Effet present sur 4/4 sous-periodes, plus fort en validation qu'en apprentissage, IC95 de l'ecart [+0.14 ; +0.58] R, insensible aux reglages (longueur 10/14/20, fenetre 250 a 2000), non correle aux autres modules (|r| <= 0.17) et present dans CHAQUE sous-groupe (session, volatilite, sens).\n\nCE QUI MANQUE : il a ete trouve en testant 12 hypotheses sur des donnees deja utilisees, et n'a jamais ete confronte a une periode inedite. Tant que ce test n'est pas fait, l'activer, c'est parier.")
-adxRegLen = input.int(14,  "Regime — longueur ADX", minval=5, group=grpF)
-adxRegWin = input.int(500, "Regime — fenetre du percentile", minval=100, group=grpF, tooltip="Percentile GLISSANT plutot que seuil fixe : la version a seuil fixe (ADX <= 25) ne tient que sur 3 sous-periodes sur 4, la version en percentile sur 4/4. La difference est reelle et mesuree, pas cosmetique.")
-adxRegMax = input.float(50, "Regime — percentile ADX maximum", minval=10, maxval=100, step=5, group=grpF)
+// --- Filtre de regime ADX : TESTE, REFUTE, RETIRE (aout 2026) ------------
+// Sur 2022-2026 il paraissait excellent : PF 1.33 -> 1.65, WR 45.4 -> 50.8 %,
+// esperance +0.185 -> +0.332 R, 4/4 sous-periodes, gradient monotone sur 5
+// quintiles, insensible aux reglages, survivant a un placebo par decalage
+// circulaire (p = 0.0018).
+// Confronte a 2020-2022 (200 trades jamais utilises pour le construire), il
+// s'inverse : ce qu'il gardait rend -0.010 R (PF 0.87) et ce qu'il jetait
+// +0.271 R (PF 1.42). Le gradient par quintile s'inverse lui aussi, de facon
+// monotone. Sur l'ensemble 2020-2026 : ecart +0.114 R, p = 0.33, IC95 couvrant
+// zero. L'effet n'existait que sur 2024-2026.
+// NE PAS LE REINTRODUIRE. Le percentile ADX reste inscrit dans le commentaire
+// des entrees : c'est utile a mesurer, ce n'est pas utile a filtrer.
 
 grpZ = "③ Zones SMC : OB / FVG / CHoCH (AFFICHAGE SEUL — ne filtrent rien)"
 zShowOB0 = input.bool(true, "Order Blocks", group=grpZ, tooltip="AFFICHAGE UNIQUEMENT. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif. Trace pour la lecture, ne bloque aucun signal.")
@@ -482,14 +486,12 @@ vwapV    = ta.vwap(hlc3)
 aboveVwap = not na(vwapV) and close > vwapV
 belowVwap = not na(vwapV) and close < vwapV
 
-// --- Regime d'entree : ou en est la tendance au moment ou la cassure arrive ?
-// Le percentile ne regarde que les `adxRegWin` dernieres bougies : la valeur ne
-// depend donc pas de la profondeur du graphique, et le resultat est reproductible
-// d'un backtest a l'autre. Quand `useAdxReg` est faux, `adxRegOk` vaut true et
-// disparait de la conjonction : aucun trade n'est modifie.
-[fDiP, fDiM, fAdxV] = ta.dmi(adxRegLen, adxRegLen)
-fAdxPct  = ta.percentrank(fAdxV, adxRegWin)
-adxRegOk = not useAdxReg or (not na(fAdxPct) and fAdxPct <= adxRegMax)
+// --- Percentile ADX : MESURE SEULE, aucune condition ne le lit.
+// Il est inscrit dans le commentaire de chaque entree (suffixe "A") pour que
+// la liste de trades exportee permette de re-tester des hypotheses de regime
+// sans jamais modifier le systeme.
+[fDiP, fDiM, fAdxV] = ta.dmi(14, 14)
+fAdxPct  = ta.percentrank(fAdxV, 500)
 
 // --- Biais journalier et hebdomadaire (bougies CLOTUREES : aucun repaint) ---
 // Le seul ajout de v2 qui FILTRE, parce que le seul qui l'a merite a la mesure.
@@ -814,8 +816,8 @@ if barstate.islast
 // le score depasse mecaniquement tout seuil utile, et le filtre par score ne
 // retire jamais aucun trade (resultats strictement identiques). La conjonction
 // EST le score. On ne rajoute donc pas de ponderation decorative.
-alignLong  = (not useStruct or trend == 1)  and (not useHtf or htfBull) and (not useVwap or aboveVwap) and (not useBias or biasBull) and (not vUsePoc or abovePoc) and adxRegOk
-alignShort = (not useStruct or trend == -1) and (not useHtf or htfBear) and (not useVwap or belowVwap) and (not useBias or biasBear) and (not vUsePoc or belowPoc) and adxRegOk
+alignLong  = (not useStruct or trend == 1)  and (not useHtf or htfBull) and (not useVwap or aboveVwap) and (not useBias or biasBull) and (not vUsePoc or abovePoc)
+alignShort = (not useStruct or trend == -1) and (not useHtf or htfBear) and (not useVwap or belowVwap) and (not useBias or biasBear) and (not vUsePoc or belowPoc)
 trigLong   = bullBos or (useImb and bullImb)
 trigShort  = bearBos or (useImb and bearImb)
 

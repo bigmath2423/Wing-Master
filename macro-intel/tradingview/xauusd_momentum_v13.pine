@@ -1210,3 +1210,109 @@ if barstate.islast and panShow
     f_cell(6, "Stop  ATR · struct", stTxt, stopDevant ? cDn : cTxt)
     string obTxt = na(objPx) ? "—" : f_px2(objPx) + "  (" + objSrc + ")" + (na(rr) ? "" : "   R:R " + str.tostring(rr, "#.#"))
     f_cell(7, "Objectif", obTxt, na(objPx) ? cMute : cGold)
+
+// ============================================================
+// TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES
+// ------------------------------------------------------------
+// Purement descriptif : ces chiffres sont LUS depuis les trades deja fermes.
+// Aucune condition d'entree, de sortie ou de taille ne les consulte.
+//
+// PERFORMANCE. La boucle parcourt tous les trades fermes, mais UNE SEULE FOIS,
+// sur la derniere bougie. Le faire a chaque bougie serait quadratique et
+// rendrait le backtest inutilisable sur 19 ans et 2000 trades.
+//
+// POURQUOI CE TABLEAU EXISTE. Le Strategy Tester de TradingView ne donne ni la
+// serie maximale de GAINS, ni le R:R moyen reellement realise, ni la
+// repartition par session. Ce sont exactement les trois chiffres qu'il faut
+// comparer d'un actif a l'autre pour savoir si un systeme est structurel ou
+// ajuste a un seul marche.
+// ============================================================
+statShow = input.bool(true, "Tableau de validation", group=grpU)
+statPos  = input.string("bottom_left", "Position du tableau", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
+
+var table st = table.new(statPos == "top_left" ? position.top_left : statPos == "top_right" ? position.top_right : statPos == "bottom_left" ? position.bottom_left : position.bottom_right, 4, 8, border_width=0)
+
+f_st(int c, int r, string t, color col, bool head) =>
+    table.cell(st, c, r, t, text_color=col, text_size=size.tiny, text_halign=c % 2 == 0 ? text.align_left : text.align_right, bgcolor=head ? color.new(cBg, 0) : color.new(cBg, 8))
+
+var array<float> sesP = array.new<float>(4, 0.0)
+var array<int>   sesN = array.new<int>(4, 0)
+
+if barstate.islast and statShow and strategy.closedtrades > 0
+    int   n = strategy.closedtrades
+    float sumW = 0.0
+    float sumL = 0.0
+    int   nW = 0
+    int   nL = 0
+    int   curW = 0
+    int   curL = 0
+    int   maxW = 0
+    int   maxL = 0
+    array.fill(sesP, 0.0)
+    array.fill(sesN, 0)
+    for i = 0 to n - 1
+        float p = strategy.closedtrades.profit(i)
+        if p > 0
+            nW += 1
+            sumW += p
+            curW += 1
+            curL := 0
+            maxW := math.max(maxW, curW)
+        else
+            nL += 1
+            sumL += p
+            curL += 1
+            curW := 0
+            maxL := math.max(maxL, curL)
+        // Session de l'ENTREE, en UTC. Rappel de mesure : aucun filtre de
+        // session n'a survecu a la correction de tests multiples. Ces chiffres
+        // DECRIVENT ou le systeme gagne, ils ne justifient aucun filtre.
+        int h = hour(strategy.closedtrades.entry_time(i), "UTC")
+        int k = h < 7 ? 0 : h < 12 ? 1 : h < 16 ? 2 : 3
+        array.set(sesN, k, array.get(sesN, k) + 1)
+        array.set(sesP, k, array.get(sesP, k) + p)
+
+    float avgW = nW > 0 ? sumW / nW : 0.0
+    float avgL = nL > 0 ? sumL / nL : 0.0
+    float pf   = sumL < 0 ? sumW / math.abs(sumL) : na
+    // R:R moyen REALISE : rapport du gain moyen a la perte moyenne. Ce n'est
+    // pas le R:R vise a l'entree, c'est celui que le marche a effectivement
+    // laisse — la seule version qui ait un sens pour comparer deux actifs.
+    float rrM  = avgL < 0 ? avgW / math.abs(avgL) : na
+
+    f_st(0, 0, "  VALIDATION", cGold, true)
+    f_st(1, 0, "", cGold, true)
+    f_st(2, 0, "  SESSIONS (UTC)", cGold, true)
+    f_st(3, 0, "", cGold, true)
+    f_st(0, 1, "  Trades", color.new(cTxt, 35), false)
+    f_st(1, 1, str.tostring(n) + "  ", cTxt, false)
+    f_st(0, 2, "  Win rate", color.new(cTxt, 35), false)
+    f_st(1, 2, str.tostring(100.0 * nW / n, "#.#") + " %  ", cTxt, false)
+    f_st(0, 3, "  Profit Factor", color.new(cTxt, 35), false)
+    f_st(1, 3, (na(pf) ? "—" : str.tostring(pf, "#.###")) + "  ", na(pf) ? cMute : pf >= 1.20 ? cUp : pf >= 1.00 ? cGold : cDn, false)
+    f_st(0, 4, "  Drawdown max", color.new(cTxt, 35), false)
+    f_st(1, 4, str.tostring(strategy.max_drawdown_percent, "#.#") + " %  ", cDn, false)
+    f_st(0, 5, "  Gain / perte moy.", color.new(cTxt, 35), false)
+    f_st(1, 5, str.tostring(avgW, "#") + " / " + str.tostring(avgL, "#") + "  ", cTxt, false)
+    f_st(0, 6, "  R:R moyen realise", color.new(cTxt, 35), false)
+    f_st(1, 6, (na(rrM) ? "—" : str.tostring(rrM, "#.##")) + "  ", cTxt, false)
+    f_st(0, 7, "  Series max  G / P", color.new(cTxt, 35), false)
+    f_st(1, 7, str.tostring(maxW) + " / " + str.tostring(maxL) + "  ", maxL >= 10 ? cDn : cTxt, false)
+
+    f_st(2, 1, "  Asie      00-07", color.new(cTxt, 35), false)
+    f_st(3, 1, str.tostring(array.get(sesP, 0), "#") + "  (" + str.tostring(array.get(sesN, 0)) + ")  ", array.get(sesP, 0) > 0 ? cUp : cDn, false)
+    f_st(2, 2, "  Londres   07-12", color.new(cTxt, 35), false)
+    f_st(3, 2, str.tostring(array.get(sesP, 1), "#") + "  (" + str.tostring(array.get(sesN, 1)) + ")  ", array.get(sesP, 1) > 0 ? cUp : cDn, false)
+    f_st(2, 3, "  Chevauch. 12-16", color.new(cTxt, 35), false)
+    f_st(3, 3, str.tostring(array.get(sesP, 2), "#") + "  (" + str.tostring(array.get(sesN, 2)) + ")  ", array.get(sesP, 2) > 0 ? cUp : cDn, false)
+    f_st(2, 4, "  New York  16-24", color.new(cTxt, 35), false)
+    f_st(3, 4, str.tostring(array.get(sesP, 3), "#") + "  (" + str.tostring(array.get(sesN, 3)) + ")  ", array.get(sesP, 3) > 0 ? cUp : cDn, false)
+    f_st(2, 5, "", cMute, false)
+    f_st(3, 5, "", cMute, false)
+    // Les deux dernieres lignes sont la pour le test multi-actifs : elles
+    // rappellent la reference et le seuil au-dela duquel on peut parler
+    // d'avantage structurel plutot que d'ajustement a un seul marche.
+    f_st(2, 6, "  Reference XAUUSD", color.new(cMute, 20), false)
+    f_st(3, 6, "PF 1.212 · 19 ans  ", color.new(cMute, 20), false)
+    f_st(2, 7, "  Robuste si", color.new(cMute, 20), false)
+    f_st(3, 7, "PF > 1.10 partout  ", color.new(cMute, 20), false)

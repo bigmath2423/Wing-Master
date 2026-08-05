@@ -404,6 +404,17 @@ vUsePoc  = input.bool(true, "Exiger d'etre du bon cote du POC pour entrer", grou
 vBins    = input.int(50, "Finesse du profil (nb de niveaux)", minval=10, maxval=100, group=grpV)
 vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, step=5, group=grpV)
 
+// --- Zones de reaction issues du volume. AFFICHAGE SEUL, et il faut savoir
+// ce qu'elles valent : MESUREES sur 1101 journees, aucune ne bat un niveau de
+// controle place a la meme distance du prix. Le detail est dans les tooltips.
+// Elles DECRIVENT ou le marche a deja travaille ; elles ne predisent rien.
+zVolShow  = input.bool(true, "Zones de congestion (noeuds de volume)", group=grpV, tooltip="Les N zones ou le volume s'est le plus accumule sur la fenetre glissante. Le prix y a passe du temps : ce sont des zones ou il avance lentement et hesite.\n\nMESURE HONNETE : au premier retour sur un noeud de volume, le prix est repousse de 0.18 a 0.38 ATR de plus que sur un niveau au hasard (p = 0.01). MAIS en comparant a un niveau place a la MEME distance et du MEME cote, avec un volume faible, l'ecart tombe a p = 0.14 / 0.31 / 0.56. C'est donc surtout de la GEOMETRIE (un noeud de volume est pres du centre de la fourchette, et le centre attire), pas du volume. A lire comme un decor, jamais comme un signal.")
+zVolN     = input.int(3, "Nombre de zones de congestion", minval=1, maxval=6, group=grpV)
+zVolLook  = input.int(500, "Zones — profondeur (bougies)", minval=100, maxval=1000, group=grpV)
+zVolBins  = input.int(30, "Zones — finesse", minval=10, maxval=60, group=grpV)
+zPocVirg  = input.bool(true, "POC non retestes des jours precedents", group=grpV, tooltip="Les POC des journees passees que le prix n'est jamais revenu toucher. C'est de l'affaire non terminee : un niveau ou beaucoup s'est echange et que le marche a laisse derriere lui.\n\nMESURE : au premier retour sur un POC non reteste depuis 2 jours, le prix est repousse de 0.25 a 0.27 ATR de plus qu'au hasard (p = 0.04 / 0.01, n = 199). Mais la version 5 jours ne montre rien (p = 0.82) et la version 10 jours n'est pas significative (p = 0.13, n = 48). Un effet qui apparait et disparait selon le seuil n'est pas un effet : NON SIGNIFICATIF. Affiche parce que c'est une information de contexte utile a lire, pas parce que c'est demontre.")
+zPocMax   = input.int(6, "POC non retestes — nombre garde", minval=1, maxval=15, group=grpV)
+
 grpX = "③ Sortie (la partie qui compte le plus)"
 slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.")
 trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.")
@@ -640,6 +651,31 @@ if newDay
 else
     dayHi := na(dayHi) ? high : math.max(dayHi, high)
     dayLo := na(dayLo) ? low : math.min(dayLo, low)
+// --- Memoire des POC non retestes ---------------------------------------
+// A la cloture d'une journee, son POC entre dans la liste. Il en SORT des que
+// le prix revient le toucher. Ce qui reste est l'affaire non terminee.
+// Aucune de ces valeurs n'entre dans une condition d'entree.
+var array<float> pocOpen  = array.new<float>()
+var array<int>   pocOpenB = array.new<int>()
+var array<int>   pocOpenT = array.new<int>()
+if newDay and not na(pocPrev)
+    array.push(pocOpen, pocPrev)
+    array.push(pocOpenB, bar_index)
+    array.push(pocOpenT, int(time))
+    if array.size(pocOpen) > zPocMax
+        array.shift(pocOpen)
+        array.shift(pocOpenB)
+        array.shift(pocOpenT)
+if array.size(pocOpen) > 0
+    for i = array.size(pocOpen) - 1 to 0
+        float pv0 = array.get(pocOpen, i)
+        // on ignore la bougie de publication elle-meme : le POC de la veille
+        // est presque toujours dans la fourchette du jour qui suit.
+        if bar_index > array.get(pocOpenB, i) and low <= pv0 and pv0 <= high
+            array.remove(pocOpen, i)
+            array.remove(pocOpenB, i)
+            array.remove(pocOpenT, i)
+
 array.push(vPx, hl2)
 array.push(vVol, na(volume) ? 1.0 : volume)
 
@@ -954,6 +990,69 @@ if barstate.islast
                 vpPoc := line.new(bar_index - histL, yPoc, bar_index + 4, yPoc, color=color.new(cGold, 25), width=1)
                 vpLb  := label.new(bar_index + 4 + 34, yPoc, "POC", style=label.style_label_left,
                          color=color.new(cBg, 100), textcolor=color.new(cGold, 10), size=size.tiny)
+
+// --- Zones de congestion (noeuds de volume) et POC non retestes -----------
+// Tout est redessine sur la derniere bougie uniquement : cout nul sur
+// l'historique, et surtout AUCUNE de ces valeurs n'est lue par la decision.
+var array<box>  zvBx = array.new<box>()
+var array<line> zvPocLn = array.new<line>()
+var array<label> zvPocLb = array.new<label>()
+if barstate.islast
+    if array.size(zvBx) > 0
+        for i = 0 to array.size(zvBx) - 1
+            box.delete(array.get(zvBx, i))
+        array.clear(zvBx)
+    if array.size(zvPocLn) > 0
+        for i = 0 to array.size(zvPocLn) - 1
+            line.delete(array.get(zvPocLn, i))
+            label.delete(array.get(zvPocLb, i))
+        array.clear(zvPocLn)
+        array.clear(zvPocLb)
+
+    // Noeuds de volume : les zVolN zones les plus denses de la fenetre.
+    if zVolShow
+        int zn = math.min(zVolLook, bar_index)
+        float zhi = ta.highest(high, zn)
+        float zlo = ta.lowest(low, zn)
+        if zhi > zlo
+            float zstep = (zhi - zlo) / zVolBins
+            array<float> zacc = array.new<float>(zVolBins, 0.0)
+            for i = 0 to zn - 1
+                int k = math.min(zVolBins - 1, math.max(0, int((hl2[i] - zlo) / zstep)))
+                array.set(zacc, k, array.get(zacc, k) + (na(volume[i]) ? 1.0 : volume[i]))
+            float ztot = array.sum(zacc)
+            for rank = 1 to zVolN
+                float zmx = array.max(zacc)
+                if zmx <= 0
+                    break
+                int kz = array.indexof(zacc, zmx)
+                float zpart = ztot > 0 ? zmx / ztot * 100.0 : 0.0
+                float zy1 = zlo + kz * zstep
+                float zy2 = zy1 + zstep
+                // Opacite decroissante : la premiere zone est la plus dense,
+                // donc la seule qu'on doit voir sans chercher.
+                int ztr = 80 + math.min(12, (rank - 1) * 4)
+                array.push(zvBx, box.new(bar_index - int(zn * 0.75), zy2, bar_index + projR, zy1,
+                     border_color=color.new(cGold, ztr - 15), border_width=1, bgcolor=color.new(cGold, ztr),
+                     text=rank == 1 ? "congestion " + str.tostring(zpart, "#.#") + "%" : "",
+                     text_color=color.new(cGold, 25), text_size=size.tiny, text_halign=text.align_left))
+                // on neutralise la zone retenue ET ses voisines, sinon les N
+                // zones se collent les unes aux autres au meme endroit
+                for dk = -1 to 1
+                    int kk = kz + dk
+                    if kk >= 0 and kk < zVolBins
+                        array.set(zacc, kk, 0.0)
+
+    // POC non retestes : affaire non terminee des journees precedentes.
+    if zPocVirg and array.size(pocOpen) > 0
+        for i = 0 to array.size(pocOpen) - 1
+            float pv1 = array.get(pocOpen, i)
+            int   pb1 = array.get(pocOpenB, i)
+            array.push(zvPocLn, line.new(math.max(pb1, bar_index - histL), pv1, bar_index + projR, pv1,
+                 color=color.new(color.orange, 60), style=line.style_dotted, width=1))
+            array.push(zvPocLb, label.new(bar_index + projR, pv1, "POC " + str.format_time(array.get(pocOpenT, i), "dd/MM", syminfo.timezone),
+                 style=label.style_label_left, color=color.new(cBg, 100),
+                 textcolor=color.new(color.orange, 30), size=size.tiny))
 
 // ================= NIVEAU 2 — LA STRUCTURE =================
 // Trait fin du niveau casse jusqu'a la bougie qui le casse, pastille sur cette

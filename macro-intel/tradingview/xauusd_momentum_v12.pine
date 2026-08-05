@@ -1,0 +1,821 @@
+//@version=6
+// ============================================================
+// XAU/USD — MOMENTUM v12 · INTERFACE
+// ------------------------------------------------------------
+// REFONTE VISUELLE UNIQUEMENT.
+//
+// La logique de decision est reprise LIGNE POUR LIGNE de la v11 :
+// alignLong / alignShort / trigLong / trigShort / buySignal / sellSignal
+// sont identiques au caractere pres. Aucun element d'affichage ajoute ici
+// n'est lu par une condition d'entree, de sortie ou de taille.
+//
+// Ce qui change : la hierarchie de l'information.
+//   PLAN 1 (fond, discret)  — liquidite, volume, zones
+//   PLAN 2 (structure)      — BOS / CHoCH, OB, FVG filtres
+//   PLAN 3 (decision)       — panneau compact, multi-timeframe, verdict
+//
+// HONNETETE DE L'AFFICHAGE. Les modules ne se valent pas, et l'interface le
+// dit. Mesure sur 827 trades et 6,3 ans :
+//   DECIDENT reellement : biais D1/W1, tendance H1, VWAP de session, POC.
+//   NE DECIDENT RIEN    : Order Blocks, FVG, liquidite EQH/EQL, CHoCH.
+//     -> effet mesure dont le SIGNE S'INVERSE entre apprentissage et
+//        validation, aucun significatif. Ils sont traces parce qu'ils aident
+//        a LIRE le graphique, jamais parce qu'ils valident un trade.
+// Le panneau separe donc visuellement ces deux familles. Un outil
+// professionnel ne presente pas comme une confluence ce qui n'en est pas une.
+// ============================================================
+strategy("XAU/USD Momentum v12 — BACKTEST", shorttitle="XAU v12 BT", overlay=true,
+     max_labels_count=500, max_lines_count=500, max_boxes_count=500, initial_capital=10000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1, pyramiding=0,
+     calc_on_every_tick=false, process_orders_on_close=true,
+     margin_long=0, margin_short=0, commission_type=strategy.commission.percent,
+     commission_value=0.0, slippage=0)
+
+// ============================================================
+// PARAMETRES
+// ============================================================
+grpS = "① Moteur (ne pas modifier sans mesure)"
+swingLen  = input.int(10,  "Longueur de detection des swings", minval=2, group=grpS)
+atrLen    = input.int(14,  "Longueur ATR", minval=2, group=grpS)
+htfTf     = input.timeframe("60", "Unite de temps superieure", group=grpS)
+htfEmaLen = input.int(50,  "EMA de l'unite superieure", minval=2, group=grpS)
+cooldown  = input.int(10,  "Barres minimum entre deux signaux", minval=0, group=grpS)
+
+grpF = "② Filtres de decision (mesures)"
+useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="TAUTOLOGIE avec le declencheur BOS : la tendance est mise a jour PAR le BOS, donc la condition est toujours vraie quand elle est testee. Le retirer ne change rien (615 trades et PF 1.329 avec comme sans). Ne mord qu'avec le declencheur Donchian.")
+useHtf    = input.bool(true, "Tendance H1 alignee", group=grpF, tooltip="Effet mesure : +0.016 / +0.096.")
+useVwap   = input.bool(true, "Bon cote du VWAP de session", group=grpF, tooltip="Effet mesure : +0.044 / +0.161.")
+useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grpF, tooltip="LE module qui porte le systeme. Esperance +0.064 -> +0.130 R, PF 1.13 -> 1.28, drawdown -28.8 -> -18.8 R.")
+biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF)
+biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF)
+biasMode  = input.string("D1 EMA20 + W1 EMA10 (actuel)", "Forme du biais journalier", options=["D1 EMA20 + W1 EMA10 (actuel)", "Ruban D1 (5/20/50)"], group=grpF, tooltip="Les deux mesurent la MEME chose : correlation +0.819, recouvrement 86.6 %, ecart d'esperance +0.003 R (p = 0.96). Le ruban le dit en une condition au lieu de deux et laisse passer 38 % de trades en plus. Pas confronte a 2020-2022.")
+ribF      = input.int(5,  "Ruban D1 — rapide", minval=2, group=grpF)
+ribM      = input.int(20, "Ruban D1 — moyenne", minval=3, group=grpF)
+ribS      = input.int(50, "Ruban D1 — lente", minval=5, group=grpF)
+useImb    = input.bool(false,"Accepter aussi le displacement seul", group=grpF, tooltip="MESURE : degrade le systeme. PF 1.13 -> 1.08 et stabilite 4/4 -> 2/4. Laisse desactive.")
+trigMode  = input.string("BOS (actuel)", "Declencheur", options=["BOS (actuel)", "Cassure Donchian"], group=grpF, tooltip="Les deux mesurent le meme evenement : ecart d'esperance +0.011 R, p = 0.89. Le Donchian l'exprime en une ligne au lieu d'une machine a etats.")
+donLen    = input.int(48, "Donchian — nombre de bougies", minval=12, maxval=200, group=grpF)
+vUsePoc   = input.bool(true, "Exiger d'etre du bon cote du POC", group=grpF, tooltip="Seul concept de liquidite qui ameliore le systeme. Gain surtout sur le drawdown : -18.8 -> -16.0 R.")
+
+grpMTF = "③ Multi-timeframe (LECTURE SEULE)"
+mtfShow = input.bool(true, "Panneau multi-timeframe", group=grpMTF, tooltip="Les unites inferieures (M15, M5) ne creent AUCUN biais et ne declenchent aucun signal. Mesure : le M5 a ete rejete quatre fois par quatre methodes independantes. Elles servent uniquement a savoir si le contexte est aligne au moment ou tu executes.")
+mtfEmaF = input.int(50,  "EMA rapide", minval=5, group=grpMTF)
+mtfEmaS = input.int(200, "EMA lente", minval=20, group=grpMTF)
+mtfStrLen = input.int(20, "Structure — fenetre du milieu de canal", minval=5, group=grpMTF)
+
+grpV = "④ Volume et zones"
+vShow    = input.bool(true, "POC et Value Area de la veille", group=grpV)
+vBins    = input.int(50, "Finesse du profil", minval=10, maxval=100, group=grpV)
+vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, step=5, group=grpV)
+zoneShow = input.bool(true, "Zone de reaction probable", group=grpV, tooltip="AFFICHAGE. Bande ou se recoupent au moins deux elements parmi : POC / Value Area, poche de liquidite, Order Block ou FVG encore valide.\n\nMESURE HONNETE, 1101 journees : au premier retour du prix, aucun de ces niveaux ne bat un niveau de controle place a la meme distance. Le POC : p entre 0.34 et 0.51. Le noeud de volume semblait significatif (p = 0.01) mais l'effet disparait contre un controle apparie en distance (p = 0.14 a 0.56) — c'est de la geometrie, pas du volume. Cette zone DECRIT ou le marche a deja travaille. Elle ne predit rien.")
+hvnShow  = input.bool(true, "Zones de forte acceptation (HVN)", group=grpV)
+lvnShow  = input.bool(false,"Zones de faible volume (LVN)", group=grpV)
+vLook    = input.int(500, "Profil glissant — profondeur", minval=100, maxval=1000, group=grpV)
+vNodes   = input.int(30, "Profil glissant — finesse", minval=10, maxval=60, group=grpV)
+
+grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
+obShow    = input.bool(true, "Order Blocks filtres", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif. Seuls sont traces les OB qui remplissent les TROIS conditions : deplacement significatif derriere, cassure de structure provoquee, zone non traversee.")
+obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ)
+obMax     = input.int(2, "OB — nombre garde par cote", minval=1, maxval=5, group=grpZ)
+fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.")
+fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ)
+fvgDispAtr= input.float(1.0, "FVG — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ)
+fvgMax    = input.int(3, "FVG — nombre garde par cote", minval=1, maxval=6, group=grpZ)
+brkShow   = input.bool(true, "BOS / CHoCH", group=grpZ)
+brkLabels = input.int(2, "Etiquettes sur les N dernieres cassures", minval=0, maxval=6, group=grpZ)
+
+grpL = "⑥ Liquidite (LECTURE — ne filtre rien)"
+liqShow   = input.bool(true, "Buy Side / Sell Side, EQH / EQL", group=grpL, tooltip="AFFICHAGE SEUL. Mesure du sweep comme filtre : -0.087 en apprentissage, -0.178 en validation. Il SELECTIONNE les mauvais trades. Trace pour lire ou sont les stops, jamais pour valider une entree.")
+liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0.05, group=grpL)
+liqMax    = input.int(4, "Poches conservees par cote", minval=1, maxval=8, group=grpL)
+sweepShow = input.bool(true, "Marquer les sweeps", group=grpL)
+
+grpX = "③ Sortie (la partie qui compte le plus)"
+slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.")
+trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.")
+trailDistR  = input.float(0.3, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX, tooltip="Voir le tooltip de l'activation. Le gradient mesure est LISSE et MONOTONE sur les quatre sous-periodes (plus l'armement est tardif, plus le PF monte, quelle que soit la distance) : c'est la signature d'un effet reel, pas d'un pic d'optimisation. Ancienne valeur : 1.0.")
+riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
+
+// --- Mode de sortie. Le trailing est le mode VALIDE ; le TP fixe existe parce
+// que la mesure a montre qu'il achete un win rate eleve, et qu'il faut pouvoir
+// le constater soi-meme plutot que de le croire sur parole.
+exitMode = input.string("Trailing (valide)", "Mode de sortie", options=["Trailing (valide)", "TP fixe"], group=grpX, tooltip="MESURE EXACTE sur 783 trades, 2020-2026, dont 200 trades hors echantillon (2020-2022).\n\nTrailing : WR 42.9 %, PF 1.231, esperance +0.144 R, drawdown -26.7 R, jusqu'a 11 pertes d'affilee.\nTP fixe a 0.50 R : WR 66.9 %, PF 1.190, esperance +0.053 R, drawdown -12.3 R, 4 pertes d'affilee au maximum.\n\nLe win rate monte de 24 points et tient hors echantillon (70.0 % sur 2020-2022). Le drawdown est divise par deux et la pire serie de pertes passe de 11 a 4. Le PRIX est l'esperance : -0.091 R par trade, soit environ -11 % de capital par an a 1 % de risque.\n\nAucun reglage ne donne un PF de 2 : sur 56 combinaisons stop x TP balayees, le maximum atteint est 1.545.")
+tpFixedR    = input.float(0.5, "TP fixe (x R)", minval=0.1, maxval=3.0, step=0.05, group=grpX, tooltip="N'agit que si le mode de sortie est 'TP fixe'. A 0.50 R la simulation est EXACTE (aucune hypothese) : toute sortie en trailing du systeme actuel a depasse 0.65 R, et l'excursion favorable enregistree tranche pour les trades stoppes. Au-dela de 0.65 R le chiffrage devient une approximation optimiste.")
+maxLev      = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpX, tooltip="SECURITE. Plafonne la taille de position pour que le notionnel ne depasse jamais ce multiple du capital. Sans ce plafond, un symbole dont la volatilite affichee est anormalement faible produit des tailles enormes : sur TVC:GOLD le levier atteignait 20x (128x au pire) et une perte coutait 2.72 % du capital au lieu de 1 %. Si le compteur de levier du panneau reste colle a cette valeur, c'est que le symbole fausse le calcul : change de symbole plutot que d'augmenter le plafond.")
+
+grpU = "⑦ Interface"
+panShow  = input.bool(true, "Panneau de decision", group=grpU)
+panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
+uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
+showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
+
+// --- palette : sobre, deux accents, le reste en gris ---
+cUp   = color.rgb(38, 166, 109)
+cDn   = color.rgb(214, 69, 69)
+cGold = color.rgb(212, 175, 55)
+cBlue = color.rgb(58, 122, 196)
+cPurp = color.rgb(142, 92, 189)
+cMute = color.rgb(128, 134, 145)
+cBg   = color.rgb(16, 19, 26)
+cTxt  = color.rgb(228, 231, 237)
+
+// ============================================================
+// MODULES — calcul identique a la v11
+// ============================================================
+atrV = ta.atr(atrLen)
+
+// --- Structure : swings confirmes puis cassure sur niveau STABLE ---
+float ph = ta.pivothigh(high, swingLen, swingLen)
+float pl = ta.pivotlow(low, swingLen, swingLen)
+var float swingHigh = na
+var float swingLow  = na
+var int   swingHighBar = na
+var int   swingLowBar  = na
+if not na(ph)
+    swingHigh := ph
+    swingHighBar := bar_index - swingLen
+if not na(pl)
+    swingLow := pl
+    swingLowBar := bar_index - swingLen
+
+crossUp = ta.crossover(close, swingHigh) and swingHigh == swingHigh[1]
+crossDn = ta.crossunder(close, swingLow) and swingLow == swingLow[1]
+
+var int trend = 0
+bullBos = not na(swingHigh) and crossUp
+bearBos = not na(swingLow) and crossDn
+if bullBos
+    trend := 1
+if bearBos
+    trend := -1
+
+// CHoCH : il faut la tendance AVANT sa mise a jour, donc trend[1].
+bullChoch = bullBos and trend[1] == -1
+bearChoch = bearBos and trend[1] == 1
+
+// --- Displacement : corps de bougie >= 1.5 ATR ---
+bullImb = (close - open) >= 1.5 * atrV
+bearImb = (open - close) >= 1.5 * atrV
+
+// --- Tendance de l'unite superieure (bougies CLOTUREES) ---
+htfClose = request.security(syminfo.tickerid, htfTf, close[1], lookahead=barmerge.lookahead_off)
+htfEma   = request.security(syminfo.tickerid, htfTf, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfBull  = not na(htfEma) and htfClose > htfEma
+htfBear  = not na(htfEma) and htfClose < htfEma
+
+// --- VWAP de session ---
+vwapV     = ta.vwap(hlc3)
+aboveVwap = not na(vwapV) and close > vwapV
+belowVwap = not na(vwapV) and close < vwapV
+
+// --- Biais journalier et hebdomadaire (bougies CLOTUREES) ---
+// L'ECART est renvoye en flottant, pas un booleen : Pine n'accepte pas na()
+// sur un booleen issu de request.security, et le flottant propage l'absence
+// de donnee tant que l'EMA n'est pas formee. Le SIGNE donne le biais.
+biasD = request.security(syminfo.tickerid, "D", close[1] - ta.ema(close, biasDLen)[1], lookahead=barmerge.lookahead_off)
+biasW = request.security(syminfo.tickerid, "W", close[1] - ta.ema(close, biasWLen)[1], lookahead=barmerge.lookahead_off)
+// Ruban journalier : trois EMA sur les CLOTURES D1, lues sur la bougie
+// journaliere precedente. Aucune valeur future, aucun repaint.
+ribA = request.security(syminfo.tickerid, "D", ta.ema(close, ribF)[1], lookahead=barmerge.lookahead_off)
+ribB = request.security(syminfo.tickerid, "D", ta.ema(close, ribM)[1], lookahead=barmerge.lookahead_off)
+ribC = request.security(syminfo.tickerid, "D", ta.ema(close, ribS)[1], lookahead=barmerge.lookahead_off)
+bool useRib   = biasMode == "Ruban D1 (5/20/50)"
+bool ribReady = not na(ribA) and not na(ribB) and not na(ribC)
+biasReady = useRib ? ribReady : (not na(biasD) and not na(biasW))
+biasBull  = useRib ? (ribReady and ribA > ribB and ribB > ribC) : (biasReady and biasD > 0 and biasW > 0)
+biasBear  = useRib ? (ribReady and ribA < ribB and ribB < ribC) : (biasReady and biasD < 0 and biasW < 0)
+biasTxt  = not biasReady ? "—" : biasBull ? "HAUSSIER" : biasBear ? "BAISSIER" : "DIVERGENT"
+
+// --- Profil de volume de la journee PRECEDENTE (POC + Value Area) ---
+// Le profil se construit pendant la journee et n'est publie qu'a sa cloture :
+// on ne lit jamais que des donnees passees. Aucun repaint.
+var array<float> vPx  = array.new<float>()
+var array<float> vVol = array.new<float>()
+var float pocPrev = na
+var float vahPrev = na
+var float valPrev = na
+var float pdhPrev = na
+var float pdlPrev = na
+var float dayHi   = na
+var float dayLo   = na
+
+newDay = ta.change(time("D")) != 0
+if newDay
+    if array.size(vPx) > 5
+        float lo = array.min(vPx)
+        float hi = array.max(vPx)
+        if hi > lo
+            float step = (hi - lo) / vBins
+            array<float> acc = array.new<float>(vBins, 0.0)
+            for i = 0 to array.size(vPx) - 1
+                int k = math.min(vBins - 1, math.max(0, int((array.get(vPx, i) - lo) / step)))
+                array.set(acc, k, array.get(acc, k) + array.get(vVol, i))
+            int kMax = 0
+            float vMax = -1.0
+            float tot = 0.0
+            for k = 0 to vBins - 1
+                float w = array.get(acc, k)
+                tot += w
+                if w > vMax
+                    vMax := w
+                    kMax := k
+            pocPrev := lo + (kMax + 0.5) * step
+            int a1 = kMax
+            int b1 = kMax
+            float cum = vMax
+            while cum < tot * vVaPct / 100.0 and (a1 > 0 or b1 < vBins - 1)
+                float up = b1 < vBins - 1 ? array.get(acc, b1 + 1) : -1.0
+                float dn = a1 > 0 ? array.get(acc, a1 - 1) : -1.0
+                if up >= dn and b1 < vBins - 1
+                    b1 += 1
+                    cum += up
+                else if a1 > 0
+                    a1 -= 1
+                    cum += dn
+                else
+                    break
+            vahPrev := lo + (b1 + 1) * step
+            valPrev := lo + a1 * step
+    pdhPrev := dayHi
+    pdlPrev := dayLo
+    array.clear(vPx)
+    array.clear(vVol)
+    dayHi := high
+    dayLo := low
+else
+    dayHi := na(dayHi) ? high : math.max(dayHi, high)
+    dayLo := na(dayLo) ? low  : math.min(dayLo, low)
+array.push(vPx, hl2)
+array.push(vVol, na(volume) ? 1.0 : volume)
+
+abovePoc = not na(pocPrev) and close > pocPrev
+belowPoc = not na(pocPrev) and close < pocPrev
+
+// ============================================================
+// DECISION — identique a la v11, au caractere pres
+// ============================================================
+alignLong  = (not useStruct or trend == 1)  and (not useHtf or htfBull) and (not useVwap or aboveVwap) and (not useBias or biasBull) and (not vUsePoc or abovePoc)
+alignShort = (not useStruct or trend == -1) and (not useHtf or htfBear) and (not useVwap or belowVwap) and (not useBias or biasBear) and (not vUsePoc or belowPoc)
+bool donUp = close > ta.highest(high, donLen)[1]
+bool donDn = close < ta.lowest(low, donLen)[1]
+bool useDon = trigMode == "Cassure Donchian"
+trigLong   = useDon ? donUp : (bullBos or (useImb and bullImb))
+trigShort  = useDon ? donDn : (bearBos or (useImb and bearImb))
+
+var int lastLong  = -99999
+var int lastShort = -99999
+rawLong  = trigLong  and alignLong  and not na(atrV) and atrV > 0
+rawShort = trigShort and alignShort and not na(atrV) and atrV > 0
+buySignal  = rawLong  and (bar_index - lastLong)  > cooldown and barstate.isconfirmed
+sellSignal = rawShort and (bar_index - lastShort) > cooldown and barstate.isconfirmed
+if buySignal
+    lastLong := bar_index
+if sellSignal
+    lastShort := bar_index
+
+// --- Percentile ADX : MESURE SEULE, aucune condition ne le lit.
+// Il est inscrit dans le commentaire de chaque entree (suffixe "A") pour que
+// la liste de trades exportee permette de re-tester des hypotheses de regime
+// sans jamais modifier le systeme.
+[fDiP, fDiM, fAdxV] = ta.dmi(14, 14)
+fAdxPct  = ta.percentrank(fAdxV, 500)
+
+f_score(bool isLong) =>
+    float s = 0.0
+    s += (isLong ? bullBos : bearBos) ? 44.9 : 0.0
+    s += (isLong ? bullImb : bearImb) ? 33.5 : 0.0
+    s += (isLong ? trend == 1 : trend == -1) ? 7.2 : 0.0
+    s += (isLong ? htfBull : htfBear) ? 7.3 : 0.0
+    s += (isLong ? aboveVwap : belowVwap) ? 7.0 : 0.0
+    s
+
+// ================= EXECUTION =================
+var float ePx = na
+var float sPx = na
+var float rPx = na
+var bool  eLong = false
+
+// PLAFOND DE LEVIER — securite ajoutee apres un incident reel.
+// Sur TVC:GOLD, la taille calculee atteignait 20x le capital (128x au pire) :
+// une perte coutait 2.72 % du capital au lieu du 1 % configure, et TOUS les
+// resultats etaient gonfles d'un facteur ~2.7 dans les deux sens. Le stop, lui,
+// se declenchait exactement ou il devait (excursion adverse = perte realisee).
+// La cause : syminfo.pointvalue n'a pas la meme signification sur un INDICE non
+// negociable que sur un symbole broker, ce qui fausse la conversion risque ->
+// quantite. Le plafond ci-dessous rend cette erreur impossible, quel que soit
+// le symbole : le notionnel ne peut jamais depasser maxLev fois le capital.
+f_qty(float risk) =>
+    float pv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+    float q = risk > 0 ? math.max(0.0, strategy.equity * riskPct / 100.0) / (risk * pv) : 0.0
+    float qMax = close > 0 ? maxLev * strategy.equity / close : 0.0
+    math.min(q, qMax)
+
+// Le percentile ADX du moment est inscrit dans le commentaire de chaque
+// entree (suffixe "A"), UNIQUEMENT pour apparaitre dans la liste de trades
+// exportee. Il ne conditionne rien. But : le test en avant des six prochains
+// mois sert alors aussi de test hors echantillon du filtre de regime, sans
+// qu'il faille l'activer et donc sans rien risquer.
+if buySignal and strategy.position_size == 0
+    risk = slAtr * atrV
+    qty = f_qty(risk)
+    if qty > 0
+        ePx := close
+        rPx := risk
+        sPx := close - risk
+        eLong := true
+        strategy.entry("L", strategy.long, qty=qty, comment="BUY " + str.tostring(math.round(f_score(true))) + " A" + str.tostring(math.round(nz(fAdxPct, -1))))
+
+if sellSignal and strategy.position_size == 0
+    risk = slAtr * atrV
+    qty = f_qty(risk)
+    if qty > 0
+        ePx := close
+        rPx := risk
+        sPx := close + risk
+        eLong := false
+        strategy.entry("S", strategy.short, qty=qty, comment="SELL " + str.tostring(math.round(f_score(false))) + " A" + str.tostring(math.round(nz(fAdxPct, -1))))
+
+// Sortie unique en trailing : aucune prise partielle. Mesure : les sorties
+// partielles coutaient 0.061 R par trade contre 0.028 R, soit 2.9 fois
+// l'esperance de l'ancien systeme.
+if strategy.position_size != 0 and not na(rPx) and rPx > 0
+    bool isL = strategy.position_size > 0
+    float act = isL ? ePx + trailStartR * rPx : ePx - trailStartR * rPx
+    float off = math.max(1.0, trailDistR * rPx / syminfo.mintick)
+    float tpP = isL ? ePx + tpFixedR * rPx : ePx - tpFixedR * rPx
+    bool  fixe = exitMode == "TP fixe"
+    if isL
+        if fixe
+            strategy.exit("X", from_entry="L", stop=sPx, limit=tpP, comment_loss="SL", comment_profit="TP")
+        else
+            strategy.exit("X", from_entry="L", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+    else
+        if fixe
+            strategy.exit("X", from_entry="S", stop=sPx, limit=tpP, comment_loss="SL", comment_profit="TP")
+        else
+            strategy.exit("X", from_entry="S", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+
+// ============================================================
+// MOTEUR MULTI-TIMEFRAME — LECTURE SEULE
+// ------------------------------------------------------------
+// Trois votes par unite de temps : prix vs EMA rapide, EMA rapide vs EMA
+// lente, et position dans le canal de structure (milieu du plus haut / plus
+// bas sur N bougies). Deux votes concordants suffisent a qualifier la tendance.
+//
+// Tout est lu sur la bougie CLOTUREE de chaque unite ([1] partout) : aucune
+// valeur future, aucun repaint. Et surtout : AUCUNE de ces valeurs n'entre
+// dans buySignal / sellSignal. Le M5 et le M15 ne creent pas de biais — la
+// mesure a rejete le M5 quatre fois par quatre methodes independantes.
+// ============================================================
+f_mtfScore() =>
+    float ef = ta.ema(close, mtfEmaF)[1]
+    float es = ta.ema(close, mtfEmaS)[1]
+    float c1 = close[1]
+    float mid = (ta.highest(high, mtfStrLen)[1] + ta.lowest(low, mtfStrLen)[1]) / 2
+    float v1 = na(ef) ? 0.0 : (c1 > ef ? 1.0 : -1.0)
+    float v2 = na(ef) or na(es) ? 0.0 : (ef > es ? 1.0 : -1.0)
+    float v3 = na(mid) ? 0.0 : (c1 > mid ? 1.0 : -1.0)
+    float ok = (na(ef) or na(es) or na(mid)) ? 0.0 : 1.0
+    [v1 + v2 + v3, ok]
+
+[sD, okD]   = request.security(syminfo.tickerid, "D",   f_mtfScore(), lookahead=barmerge.lookahead_off)
+[sH4, okH4] = request.security(syminfo.tickerid, "240", f_mtfScore(), lookahead=barmerge.lookahead_off)
+[sH1, okH1] = request.security(syminfo.tickerid, "60",  f_mtfScore(), lookahead=barmerge.lookahead_off)
+[sM15, okM15] = request.security(syminfo.tickerid, "15", f_mtfScore(), lookahead=barmerge.lookahead_off)
+[sM5, okM5]   = request.security(syminfo.tickerid, "5",  f_mtfScore(), lookahead=barmerge.lookahead_off)
+
+f_mtfDir(float s, float ok) => na(s) or na(ok) or ok < 0.5 ? 0 : (s >= 2 ? 1 : s <= -2 ? -1 : 0)
+dirD   = f_mtfDir(sD,   okD)
+dirH4  = f_mtfDir(sH4,  okH4)
+dirH1  = f_mtfDir(sH1,  okH1)
+dirM15 = f_mtfDir(sM15, okM15)
+dirM5  = f_mtfDir(sM5,  okM5)
+
+f_dirTxt(int d) => d == 1 ? "Bullish" : d == -1 ? "Bearish" : "Neutre"
+f_dirCol(int d) => d == 1 ? cUp : d == -1 ? cDn : cMute
+
+// Alignement : on compte les unites qui vont dans le sens du BIAIS PRINCIPAL
+// (D1/W1), jamais l'inverse. Une unite basse ne peut pas retourner le biais,
+// elle peut seulement confirmer ou non.
+int biasDir = biasBull ? 1 : biasBear ? -1 : 0
+int mtfAgree = (dirD == biasDir and biasDir != 0 ? 1 : 0) + (dirH4 == biasDir and biasDir != 0 ? 1 : 0) + (dirH1 == biasDir and biasDir != 0 ? 1 : 0) + (dirM15 == biasDir and biasDir != 0 ? 1 : 0) + (dirM5 == biasDir and biasDir != 0 ? 1 : 0)
+string mtfVerdict = biasDir == 0 ? "PAS DE BIAIS" : mtfAgree == 5 ? "ALIGNEMENT COMPLET" : mtfAgree >= 3 ? "ALIGNEMENT PARTIEL" : "CONFLUENCE FAIBLE"
+color  mtfVCol    = biasDir == 0 ? cMute : mtfAgree == 5 ? cUp : mtfAgree >= 3 ? cGold : cDn
+
+// ============================================================
+// PLAN 1 — LE FOND : liquidite, volume, zones
+// Tout ce plan reste en arriere du prix : traits fins, forte transparence,
+// aucun bloc opaque. Il doit se lire du coin de l'oeil, jamais capter l'attention.
+// ============================================================
+
+// --- Poches de liquidite : EQH / EQL -------------------------------------
+// Deux sommets (ou deux creux) quasi egaux : les stops s'y empilent. Une poche
+// disparait des qu'elle est prise. AFFICHAGE SEUL — mesure du sweep comme
+// filtre : -0.087 apprentissage / -0.178 validation, il selectionne les
+// mauvais trades.
+var array<float> eqhL = array.new<float>()
+var array<int>   eqhB = array.new<int>()
+var array<float> eqlL = array.new<float>()
+var array<int>   eqlB = array.new<int>()
+var array<line>  liqLn = array.new<line>()
+var array<label> liqLb = array.new<label>()
+var array<label> swLb  = array.new<label>()
+
+float liqTol = atrV * liqTolAtr
+if not na(ph) and not na(ph[1]) and not na(liqTol)
+    if math.abs(ph - ph[1]) <= liqTol
+        array.push(eqhL, math.max(ph, ph[1]))
+        array.push(eqhB, bar_index - swingLen)
+        if array.size(eqhL) > liqMax
+            array.shift(eqhL)
+            array.shift(eqhB)
+if not na(pl) and not na(pl[1]) and not na(liqTol)
+    if math.abs(pl - pl[1]) <= liqTol
+        array.push(eqlL, math.min(pl, pl[1]))
+        array.push(eqlB, bar_index - swingLen)
+        if array.size(eqlL) > liqMax
+            array.shift(eqlL)
+            array.shift(eqlB)
+
+// Une poche prise disparait. Si la cloture revient de l'autre cote, c'est un sweep.
+if array.size(eqhL) > 0
+    for i = array.size(eqhL) - 1 to 0
+        float lv = array.get(eqhL, i)
+        if high > lv
+            if sweepShow and close < lv and array.size(swLb) < 40
+                array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
+            array.remove(eqhL, i)
+            array.remove(eqhB, i)
+if array.size(eqlL) > 0
+    for i = array.size(eqlL) - 1 to 0
+        float lv = array.get(eqlL, i)
+        if low < lv
+            if sweepShow and close > lv and array.size(swLb) < 40
+                array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
+            array.remove(eqlL, i)
+            array.remove(eqlB, i)
+if array.size(swLb) > 6
+    label.delete(array.shift(swLb))
+
+// --- Order Blocks : trois conditions cumulatives --------------------------
+// 1. deplacement significatif derriere la zone,
+// 2. cassure de structure provoquee (BOS ou CHoCH),
+// 3. zone jamais traversee en cloture depuis.
+// Sans ces trois filtres, un graphique se couvre de dizaines d'OB sans valeur.
+var array<float> obBT = array.new<float>()
+var array<float> obBB = array.new<float>()
+var array<int>   obBX = array.new<int>()
+var array<float> obST = array.new<float>()
+var array<float> obSB = array.new<float>()
+var array<int>   obSX = array.new<int>()
+
+if bullBos and not na(atrV)
+    float disp = close - open
+    for i = 1 to swingLen
+        if close[i] < open[i]
+            if disp >= atrV * obDispAtr
+                array.push(obBT, high[i])
+                array.push(obBB, low[i])
+                array.push(obBX, bar_index - i)
+                if array.size(obBT) > obMax
+                    array.shift(obBT)
+                    array.shift(obBB)
+                    array.shift(obBX)
+            break
+if bearBos and not na(atrV)
+    float disp = open - close
+    for i = 1 to swingLen
+        if close[i] > open[i]
+            if disp >= atrV * obDispAtr
+                array.push(obST, high[i])
+                array.push(obSB, low[i])
+                array.push(obSX, bar_index - i)
+                if array.size(obST) > obMax
+                    array.shift(obST)
+                    array.shift(obSB)
+                    array.shift(obSX)
+            break
+// Un OB traverse en cloture n'a plus de sens.
+if array.size(obBB) > 0
+    for i = array.size(obBB) - 1 to 0
+        if close < array.get(obBB, i)
+            array.remove(obBT, i)
+            array.remove(obBB, i)
+            array.remove(obBX, i)
+if array.size(obST) > 0
+    for i = array.size(obST) - 1 to 0
+        if close > array.get(obST, i)
+            array.remove(obST, i)
+            array.remove(obSB, i)
+            array.remove(obSX, i)
+
+// --- Fair Value Gaps : taille ET deplacement ------------------------------
+// Un FVG n'est retenu que si l'ecart depasse fvgMinAtr ET que la bougie qui
+// l'a cree porte un vrai corps directionnel. Les micro-gaps sont ignores.
+var array<float> fvBT = array.new<float>()
+var array<float> fvBB = array.new<float>()
+var array<int>   fvBX = array.new<int>()
+var array<float> fvST = array.new<float>()
+var array<float> fvSB = array.new<float>()
+var array<int>   fvSX = array.new<int>()
+
+float gapUp = low - high[2]
+float gapDn = low[2] - high
+bool  bodyOk = not na(atrV) and math.abs(close[1] - open[1]) >= atrV * fvgDispAtr
+if not na(atrV) and gapUp > atrV * fvgMinAtr and bodyOk and close[1] > open[1]
+    array.push(fvBT, low)
+    array.push(fvBB, high[2])
+    array.push(fvBX, bar_index - 2)
+    if array.size(fvBT) > fvgMax
+        array.shift(fvBT)
+        array.shift(fvBB)
+        array.shift(fvBX)
+if not na(atrV) and gapDn > atrV * fvgMinAtr and bodyOk and close[1] < open[1]
+    array.push(fvST, low[2])
+    array.push(fvSB, high)
+    array.push(fvSX, bar_index - 2)
+    if array.size(fvST) > fvgMax
+        array.shift(fvST)
+        array.shift(fvSB)
+        array.shift(fvSX)
+if array.size(fvBB) > 0
+    for i = array.size(fvBB) - 1 to 0
+        if close < array.get(fvBB, i)
+            array.remove(fvBT, i)
+            array.remove(fvBB, i)
+            array.remove(fvBX, i)
+if array.size(fvST) > 0
+    for i = array.size(fvST) - 1 to 0
+        if close > array.get(fvST, i)
+            array.remove(fvST, i)
+            array.remove(fvSB, i)
+            array.remove(fvSX, i)
+
+// ============================================================
+// PLAN 2 — LA STRUCTURE : BOS / CHoCH
+// Un trait du niveau casse jusqu'a la bougie qui le casse, une pastille sur
+// cette bougie, et une etiquette uniquement sur les dernieres cassures. Le
+// trait suffit a lire la structure ; au-dela, l'ecran se salit.
+// ============================================================
+var array<line>  brkLn = array.new<line>()
+var array<label> brkLb = array.new<label>()
+
+f_break(bool up, bool choch, float lvl, int fromBar) =>
+    if brkShow and not na(lvl) and not na(fromBar)
+        color col = choch ? cGold : (up ? cUp : cDn)
+        line ln = line.new(fromBar, lvl, bar_index, lvl, color=color.new(col, 35), width=1, style=line.style_solid)
+        array.push(brkLn, ln)
+        if array.size(brkLn) > 12
+            line.delete(array.shift(brkLn))
+        label dot = label.new(bar_index, lvl, "", style=label.style_circle, color=color.new(col, 20), size=size.tiny)
+        array.push(brkLb, dot)
+        if brkLabels > 0
+            label tag = label.new(bar_index, up ? low - atrV * 0.6 : high + atrV * 0.6, choch ? "CHoCH" : "BOS", style=up ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
+            array.push(brkLb, tag)
+        while array.size(brkLb) > brkLabels * 2 + 12
+            label.delete(array.shift(brkLb))
+
+if bullBos
+    f_break(true,  bullChoch, swingHigh, na(swingHighBar) ? bar_index - swingLen : swingHighBar)
+if bearBos
+    f_break(false, bearChoch, swingLow,  na(swingLowBar)  ? bar_index - swingLen : swingLowBar)
+
+// ============================================================
+// RENDU — tout ce qui suit est redessine sur la DERNIERE bougie uniquement.
+// Cout nul sur l'historique, et surtout : aucune de ces valeurs n'est lue par
+// une condition. C'est du dessin, rien d'autre.
+// ============================================================
+var array<box>   dBx = array.new<box>()
+var array<line>  dLn = array.new<line>()
+var array<label> dLb = array.new<label>()
+var box zoneBx = na
+var label zoneLb = na
+
+f_clear() =>
+    if array.size(dBx) > 0
+        for i = 0 to array.size(dBx) - 1
+            box.delete(array.get(dBx, i))
+        array.clear(dBx)
+    if array.size(dLn) > 0
+        for i = 0 to array.size(dLn) - 1
+            line.delete(array.get(dLn, i))
+        array.clear(dLn)
+    if array.size(dLb) > 0
+        for i = 0 to array.size(dLb) - 1
+            label.delete(array.get(dLb, i))
+        array.clear(dLb)
+
+f_lvl(float y, color col, string txt, string sty) =>
+    if not na(y)
+        line l = line.new(bar_index - 60, y, bar_index + 12, y, color=col, width=1, style=sty)
+        array.push(dLn, l)
+        if txt != ""
+            label lb = label.new(bar_index + 12, y, txt, style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
+            array.push(dLb, lb)
+
+f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc) =>
+    if not na(top) and not na(bot) and top > bot
+        box b = box.new(left, top, bar_index + 12, bot, border_color=bord, border_width=1, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
+        array.push(dBx, b)
+
+if barstate.islast
+    f_clear()
+    box.delete(zoneBx)
+    label.delete(zoneLb)
+    zoneBx := na
+    zoneLb := na
+
+    // ---- Liquidite : traits FINS, en arriere-plan, jamais de bloc ----
+    if liqShow
+        if array.size(eqhL) > 0
+            for i = 0 to array.size(eqhL) - 1
+                f_lvl(array.get(eqhL, i), color.new(cDn, 55), i == array.size(eqhL) - 1 ? "SSL" : "", line.style_solid)
+        if array.size(eqlL) > 0
+            for i = 0 to array.size(eqlL) - 1
+                f_lvl(array.get(eqlL, i), color.new(cUp, 55), i == array.size(eqlL) - 1 ? "BSL" : "", line.style_solid)
+
+    // ---- Profil de la veille : le POC est le SEUL element saillant du fond ----
+    if vShow
+        f_lvl(pocPrev, color.new(cGold, 20), "POC", line.style_solid)
+        f_lvl(vahPrev, color.new(cGold, 65), "VAH", line.style_dashed)
+        f_lvl(valPrev, color.new(cGold, 65), "VAL", line.style_dashed)
+
+    // ---- Noeuds de volume sur profil glissant ----
+    // HVN = le marche y a passe du temps, il y avance lentement.
+    // LVN = il l'a traverse vite, il a tendance a le retraverser vite.
+    float hvnTop = na
+    float hvnBot = na
+    if hvnShow or lvnShow or zoneShow
+        int n = math.min(vLook, bar_index)
+        float hi = ta.highest(high, n)
+        float lo = ta.lowest(low, n)
+        if hi > lo
+            float step = (hi - lo) / vNodes
+            array<float> acc = array.new<float>(vNodes, 0.0)
+            for i = 0 to n - 1
+                int k = math.min(vNodes - 1, math.max(0, int((hl2[i] - lo) / step)))
+                array.set(acc, k, array.get(acc, k) + (na(volume[i]) ? 1.0 : volume[i]))
+            float mx = array.max(acc)
+            if mx > 0
+                int kH = array.indexof(acc, mx)
+                hvnTop := lo + (kH + 1) * step
+                hvnBot := lo + kH * step
+                if hvnShow
+                    f_zone(hvnTop, hvnBot, bar_index - int(n * 0.55), color.new(cGold, 75), color.new(cGold, 92), "acceptation", color.new(cGold, 35))
+                if lvnShow
+                    array<float> inner = array.copy(acc)
+                    for k = 0 to 2
+                        array.set(inner, k, mx)
+                        array.set(inner, vNodes - 1 - k, mx)
+                    int kL = array.indexof(inner, array.min(inner))
+                    f_zone(lo + (kL + 1) * step, lo + kL * step, bar_index - int(n * 0.55), color.new(cMute, 80), color.new(cMute, 94), "faible volume", color.new(cMute, 40))
+
+    // ---- Order Blocks retenus ----
+    if obShow
+        if array.size(obBT) > 0
+            for i = 0 to array.size(obBT) - 1
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 45), color.new(cBlue, 88), "OB", color.new(cBlue, 25))
+        if array.size(obST) > 0
+            for i = 0 to array.size(obST) - 1
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 45), color.new(cPurp, 88), "OB", color.new(cPurp, 25))
+
+    // ---- Fair Value Gaps retenus ----
+    if fvgShow
+        if array.size(fvBT) > 0
+            for i = 0 to array.size(fvBT) - 1
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 60), color.new(cUp, 91), "FVG", color.new(cUp, 30))
+        if array.size(fvST) > 0
+            for i = 0 to array.size(fvST) - 1
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 60), color.new(cDn, 91), "FVG", color.new(cDn, 30))
+
+    // ---- ZONE DE REACTION PROBABLE ----
+    // Bande la plus proche du prix ou se recoupent au moins DEUX elements
+    // parmi : POC / Value Area, noeud d'acceptation, poche de liquidite,
+    // Order Block ou FVG encore valide. Un seul element ne suffit pas — c'est
+    // le recoupement qui est informatif a la lecture.
+    // RAPPEL MESURE : aucune de ces familles ne bat un niveau de controle
+    // place a la meme distance du prix. Cette zone decrit, elle ne predit pas.
+    if zoneShow and not na(atrV) and atrV > 0
+        array<float> cand = array.new<float>()
+        if not na(pocPrev)
+            array.push(cand, pocPrev)
+        if not na(vahPrev)
+            array.push(cand, vahPrev)
+        if not na(valPrev)
+            array.push(cand, valPrev)
+        if not na(hvnTop) and not na(hvnBot)
+            array.push(cand, (hvnTop + hvnBot) / 2)
+        if array.size(eqhL) > 0
+            for i = 0 to array.size(eqhL) - 1
+                array.push(cand, array.get(eqhL, i))
+        if array.size(eqlL) > 0
+            for i = 0 to array.size(eqlL) - 1
+                array.push(cand, array.get(eqlL, i))
+        if array.size(obBT) > 0
+            for i = 0 to array.size(obBT) - 1
+                array.push(cand, (array.get(obBT, i) + array.get(obBB, i)) / 2)
+        if array.size(obST) > 0
+            for i = 0 to array.size(obST) - 1
+                array.push(cand, (array.get(obST, i) + array.get(obSB, i)) / 2)
+        if array.size(fvBT) > 0
+            for i = 0 to array.size(fvBT) - 1
+                array.push(cand, (array.get(fvBT, i) + array.get(fvBB, i)) / 2)
+        if array.size(fvST) > 0
+            for i = 0 to array.size(fvST) - 1
+                array.push(cand, (array.get(fvST, i) + array.get(fvSB, i)) / 2)
+
+        float tol   = atrV * 0.60
+        float bestC = na
+        int   bestN = 0
+        float bestD = 1e18
+        if array.size(cand) > 1
+            for i = 0 to array.size(cand) - 1
+                float ci = array.get(cand, i)
+                int cnt = 0
+                float sum = 0.0
+                for j = 0 to array.size(cand) - 1
+                    float cj = array.get(cand, j)
+                    if math.abs(cj - ci) <= tol
+                        cnt += 1
+                        sum += cj
+                if cnt >= 2
+                    float ctr = sum / cnt
+                    float d = math.abs(ctr - close)
+                    // on privilegie le recoupement le plus dense, puis le plus proche
+                    if cnt > bestN or (cnt == bestN and d < bestD)
+                        bestN := cnt
+                        bestC := ctr
+                        bestD := d
+        if not na(bestC) and bestN >= 2
+            zoneBx := box.new(bar_index - 40, bestC + tol * 0.55, bar_index + 14, bestC - tol * 0.55, border_color=color.new(cGold, 25), border_width=1, bgcolor=color.new(cGold, 84))
+            zoneLb := label.new(bar_index + 14, bestC, "REACTION  ×" + str.tostring(bestN), style=label.style_label_left, color=color.new(cBg, 100), textcolor=cGold, size=size.tiny)
+
+    // ---- Niveaux du setup en cours ----
+    if showLvls and (rawLong or rawShort) and not na(atrV)
+        bool isL = rawLong
+        float risk = slAtr * atrV
+        float e0 = close
+        float s0 = isL ? e0 - risk : e0 + risk
+        f_lvl(e0, color.new(cTxt, 30), "Entree", line.style_dotted)
+        f_lvl(s0, color.new(cDn, 10), "Stop", line.style_solid)
+        f_lvl(isL ? e0 + risk * trailStartR : e0 - risk * trailStartR, color.new(cUp, 40), exitMode == "TP fixe" ? "TP" : str.tostring(trailStartR) + "R", line.style_dashed)
+
+// --- Teinte de fond : le biais sans aucun deplacement du regard ---
+bgcolor(uiTint ? (biasBull ? color.new(cUp, 96) : biasBear ? color.new(cDn, 96) : na) : na, title="Biais D1+W1")
+
+// --- Fleches d'entree : les seuls marqueurs opaques du graphique ---
+plotshape(buySignal,  title="BUY",  style=shape.triangleup,   location=location.belowbar, color=cUp, size=size.small)
+plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.abovebar, color=cDn, size=size.small)
+
+// ============================================================
+// PLAN 3 — LE PANNEAU DE DECISION
+// Ordre de lecture impose : biais, multi-timeframe, contexte, verdict.
+// Trois familles visuellement separees, parce qu'elles n'ont pas le meme
+// statut : ce qui DECIDE, ce qui n'est que CONTEXTE, et la conclusion.
+// ============================================================
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 18, border_width=0)
+
+f_row(int r, string k, string v, color vc, color kc) =>
+    table.cell(pan, 0, r, k, text_color=kc, text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cBg, 8))
+    table.cell(pan, 1, r, v, text_color=vc, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cBg, 8))
+f_sep(int r, string t) =>
+    table.cell(pan, 0, r, t, text_color=color.new(cMute, 25), text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cBg, 0))
+    table.cell(pan, 1, r, "", bgcolor=color.new(cBg, 0))
+f_tick(bool b) => b ? "✅" : "—"
+
+if barstate.islast and panShow
+    // --- Le verdict, en tete : c'est la seule chose a lire en cas d'urgence.
+    bool setupL = rawLong
+    bool setupS = rawShort
+    string verdict = setupL ? "ENTRER — ACHAT" : setupS ? "ENTRER — VENTE" : biasDir == 0 ? "PAS DE SETUP" : "ATTENDRE"
+    color  vCol    = setupL ? cUp : setupS ? cDn : biasDir == 0 ? cMute : cGold
+    table.cell(pan, 0, 0, "  " + verdict + "  ", text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_center, bgcolor=vCol)
+    table.cell(pan, 1, 0, "  ", bgcolor=vCol)
+
+    f_sep(1, "BIAIS")
+    f_row(2, "D1 + W1", biasTxt, biasBull ? cUp : biasBear ? cDn : cMute, cTxt)
+
+    f_sep(3, "MULTI-TIMEFRAME  ·  lecture seule")
+    if mtfShow
+        f_row(4, "D1",  f_dirTxt(dirD)   + "  " + f_tick(dirD   == biasDir and biasDir != 0), f_dirCol(dirD),   cMute)
+        f_row(5, "H4",  f_dirTxt(dirH4)  + "  " + f_tick(dirH4  == biasDir and biasDir != 0), f_dirCol(dirH4),  cMute)
+        f_row(6, "H1",  f_dirTxt(dirH1)  + "  " + f_tick(dirH1  == biasDir and biasDir != 0), f_dirCol(dirH1),  cMute)
+        f_row(7, "M15", f_dirTxt(dirM15) + "  " + f_tick(dirM15 == biasDir and biasDir != 0), f_dirCol(dirM15), cMute)
+        f_row(8, "M5",  f_dirTxt(dirM5)  + "  " + f_tick(dirM5  == biasDir and biasDir != 0), f_dirCol(dirM5),  cMute)
+        f_row(9, "Alignement", mtfVerdict + "  " + str.tostring(mtfAgree) + "/5", mtfVCol, cTxt)
+
+    // --- Ce qui DECIDE : les quatre filtres mesures, et rien d'autre.
+    f_sep(10, "FILTRES DE DECISION  ·  mesures")
+    bool dLong = biasDir >= 0
+    f_row(11, "Structure",      f_tick(dLong ? trend == 1 : trend == -1) + (useStruct ? "" : "  (off)"), (dLong ? trend == 1 : trend == -1) ? cUp : cMute, cTxt)
+    f_row(12, "Tendance H1",    f_tick(dLong ? htfBull : htfBear)   + (useHtf  ? "" : "  (off)"), (dLong ? htfBull : htfBear)   ? cUp : cMute, cTxt)
+    f_row(13, "VWAP session",   f_tick(dLong ? aboveVwap : belowVwap) + (useVwap ? "" : "  (off)"), (dLong ? aboveVwap : belowVwap) ? cUp : cMute, cTxt)
+    f_row(14, "POC de la veille", f_tick(dLong ? abovePoc : belowPoc) + (vUsePoc ? "" : "  (off)"), (dLong ? abovePoc : belowPoc) ? cUp : cMute, cTxt)
+
+    // --- Ce qui n'est que CONTEXTE. Presente comme tel, jamais comme une
+    //     validation : effet mesure au signe instable, aucun significatif.
+    f_sep(15, "CONTEXTE  ·  n'entre dans aucune decision")
+    string ctx = (array.size(obBT) + array.size(obST) > 0 ? "OB " : "") + (array.size(fvBT) + array.size(fvST) > 0 ? "FVG " : "") + (array.size(eqhL) + array.size(eqlL) > 0 ? "Liq " : "")
+    f_row(16, "Zones presentes", ctx == "" ? "aucune" : ctx, color.new(cMute, 10), cMute)
+    bool nearZone = not na(zoneBx)
+    f_row(17, "Zone de reaction", nearZone ? "prix proche" : "aucune", nearZone ? cGold : cMute, cMute)

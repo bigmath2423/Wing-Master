@@ -85,7 +85,16 @@ liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0
 liqMax    = input.int(4, "Poches conservees par cote", minval=1, maxval=8, group=grpL)
 sweepShow = input.bool(true, "Marquer les sweeps", group=grpL)
 
-grpU = "⑦ Interface"
+grpW = "⑦ Weekly Institutional Zones (PLANIFICATION — ne declenche aucun trade)"
+wzShow      = input.bool(true, "Zones institutionnelles hebdomadaires", group=grpW, tooltip="OUTIL DE PLANIFICATION. Chaque debut de semaine, le module publie le profil de volume de la semaine ECOULEE et en deduit au plus deux zones d'achat et deux zones de vente. Il n'entre dans AUCUNE condition d'entree : buySignal et sellSignal sont inchanges.\n\nCe que le module apporte : decider a l'avance ou tu regardes, ce qui est une discipline reelle. Ce qu'il n'apporte pas : une estimation de probabilite. Sur les 100 points de Confluence, 25 seulement (la structure) reposent sur un module dont l'avantage est mesure — le detail est dans le tableau.")
+wzBins      = input.int(50, "Profil hebdomadaire — finesse", minval=20, maxval=100, group=grpW)
+wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=95, step=5, group=grpW)
+wzWidthAtr  = input.float(1.6, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW)
+wzMax       = input.int(2, "Zones maximum par cote", minval=1, maxval=3, group=grpW)
+wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.")
+wzPlan      = input.bool(true, "Tableau de planification", group=grpW)
+
+grpU = "⑧ Interface"
 panShow  = input.bool(true, "Panneau de decision", group=grpU)
 panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
 uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
@@ -528,6 +537,272 @@ if bearBos
     f_break(false, bearChoch, swingLow,  na(swingLowBar)  ? bar_index - swingLen : swingLowBar)
 
 // ============================================================
+// WEEKLY INSTITUTIONAL ZONES — PLANIFICATION ET CONFIRMATION
+// ------------------------------------------------------------
+// CE MODULE NE GENERE AUCUN TRADE. Aucune de ses variables n'apparait dans
+// alignLong / alignShort / trigLong / trigShort / buySignal / sellSignal.
+// Il prepare la semaine et affiche l'etat des confirmations ; c'est le systeme
+// SMC existant qui decide, comme avant.
+//
+// ABSENCE DE REPAINT — trois garanties.
+//   1. Le profil hebdomadaire est celui de la semaine N-1. Il est publie a la
+//      bascule de semaine et ne bouge plus. Un profil en cours de construction
+//      changerait a chaque bougie : la zone dessinee lundi ne ressemblerait pas
+//      a elle-meme vendredi.
+//   2. Le score de Confluence est FIGE a la creation de la zone. Les
+//      confirmations SMC (sweep, CHoCH, FVG/OB) evoluent en cours de semaine :
+//      elles sont donc affichees a part, comme un ETAT, jamais comme une
+//      composante du score.
+//   3. Aucune unite de temps inferieure au graphique n'est interrogee.
+//
+// PERFORMANCE — le profil n'est calcule qu'UNE FOIS par semaine, a la bascule.
+// Budget de dessin : 4 zones au maximum, soit 8 objets sur les 500 disponibles.
+//
+// LE MOT "CONFLUENCE" EST CHOISI. Ce n'est ni une qualite ni une probabilite :
+// c'est un COMPTE d'elements presents. Sur les 100 points, 25 seulement (la
+// structure) reposent sur un module dont l'avantage est mesure ; les 75 autres
+// comptent des elements dont la mesure sur 6,3 ans ne montre aucun pouvoir
+// predictif. Le tableau le dit explicitement, ligne par ligne.
+// ============================================================
+var array<float> wPx  = array.new<float>()
+var array<float> wVol = array.new<float>()
+var float wPoc = na
+var float wVah = na
+var float wVal = na
+var float wHvnHi = na
+var float wHvnLo = na
+var float wHi = na
+var float wLo = na
+var float wHiPrev = na
+var float wLoPrev = na
+var int   wBias = 0
+
+// Memoire des pivots recents : sert a savoir si le prix a DEJA reagi sur une zone.
+var array<float> pvLvl = array.new<float>()
+if not na(ph)
+    array.push(pvLvl, ph)
+    if array.size(pvLvl) > 24
+        array.shift(pvLvl)
+if not na(pl)
+    array.push(pvLvl, pl)
+    if array.size(pvLvl) > 24
+        array.shift(pvLvl)
+
+// Les zones de la semaine : bornes, score fige, cote, bougie de creation.
+var array<float> zTop  = array.new<float>()
+var array<float> zBot  = array.new<float>()
+var array<float> zScr  = array.new<float>()
+var array<int>   zSide = array.new<int>()
+var array<int>   zBar  = array.new<int>()
+var array<box>   zBox  = array.new<box>()
+var array<label> zLab  = array.new<label>()
+
+newWeek = ta.change(time("W")) != 0
+
+if newWeek
+    // ---- Profil de la semaine ECOULEE : POC, Value Area, noeud de volume ----
+    if array.size(wPx) > 20
+        float lo = array.min(wPx)
+        float hi = array.max(wPx)
+        if hi > lo
+            float st = (hi - lo) / wzBins
+            array<float> acc = array.new<float>(wzBins, 0.0)
+            for i = 0 to array.size(wPx) - 1
+                int k = math.min(wzBins - 1, math.max(0, int((array.get(wPx, i) - lo) / st)))
+                array.set(acc, k, array.get(acc, k) + array.get(wVol, i))
+            float mx = array.max(acc)
+            int kP = array.indexof(acc, mx)
+            float tot = array.sum(acc)
+            wPoc := lo + (kP + 0.5) * st
+            int a1 = kP
+            int b1 = kP
+            float cum = mx
+            while cum < tot * wzVaPct / 100.0 and (a1 > 0 or b1 < wzBins - 1)
+                float u = b1 < wzBins - 1 ? array.get(acc, b1 + 1) : -1.0
+                float d = a1 > 0 ? array.get(acc, a1 - 1) : -1.0
+                if u >= d and b1 < wzBins - 1
+                    b1 += 1
+                    cum += u
+                else if a1 > 0
+                    a1 -= 1
+                    cum += d
+                else
+                    break
+            wVah := lo + (b1 + 1) * st
+            wVal := lo + a1 * st
+            // Noeuds de volume hors Value Area : le HVN bas sert aux zones
+            // d'achat, le HVN haut aux zones de vente.
+            float mLo = -1.0
+            int   iLo = -1
+            float mHi = -1.0
+            int   iHi = -1
+            for k = 0 to wzBins - 1
+                float w = array.get(acc, k)
+                if k < a1 and w > mLo
+                    mLo := w
+                    iLo := k
+                if k > b1 and w > mHi
+                    mHi := w
+                    iHi := k
+            wHvnLo := iLo >= 0 ? lo + (iLo + 0.5) * st : na
+            wHvnHi := iHi >= 0 ? lo + (iHi + 0.5) * st : na
+    wHiPrev := wHi
+    wLoPrev := wLo
+    array.clear(wPx)
+    array.clear(wVol)
+    wHi := high
+    wLo := low
+else
+    wHi := na(wHi) ? high : math.max(wHi, high)
+    wLo := na(wLo) ? low  : math.min(wLo, low)
+array.push(wPx, hl2)
+array.push(wVol, na(volume) ? 1.0 : volume)
+
+// Biais hebdomadaire, lu sur la semaine CLOTUREE.
+wBias := biasBull ? 1 : biasBear ? -1 : 0
+
+// ---- Construction des zones, une seule fois par semaine ----
+if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atrV > 0
+    // La semaine change : les zones precedentes sont perimees.
+    if array.size(zBox) > 0
+        for i = 0 to array.size(zBox) - 1
+            box.delete(array.get(zBox, i))
+            label.delete(array.get(zLab, i))
+    array.clear(zBox)
+    array.clear(zLab)
+    array.clear(zTop)
+    array.clear(zBot)
+    array.clear(zScr)
+    array.clear(zSide)
+    array.clear(zBar)
+
+    float half = atrV * wzWidthAtr / 2.0
+    float rgLo = na(wLoPrev) ? wVal : wLoPrev
+    float rgHi = na(wHiPrev) ? wVah : wHiPrev
+    float mid  = (rgHi + rgLo) / 2.0
+
+    // --- deux ancrages par cote : la Value Area, puis le noeud de volume ---
+    for side = 0 to 1
+        bool isBuy = side == 0
+        for k = 0 to 1
+            float anchor = isBuy ? (k == 0 ? wVal : wHvnLo) : (k == 0 ? wVah : wHvnHi)
+            if na(anchor)
+                continue
+            float top = anchor + half
+            float bot = anchor - half
+
+            // ---- SCORE DE CONFLUENCE, fige ici et plus jamais recalcule ----
+            // 30 — Volume Profile : ancrage sur la Value Area ou sur un HVN.
+            float sVp = k == 0 ? 30.0 : 20.0
+            // 25 — Structure : la tendance de structure va dans le sens de la zone.
+            float sSt = (isBuy ? trend == 1 : trend == -1) ? 25.0 : 0.0
+            // 20 — Liquidite : une poche non prise existe AU-DELA de la zone
+            //      (sous une zone d'achat, au-dessus d'une zone de vente).
+            float sLq = 0.0
+            if isBuy and array.size(eqlL) > 0
+                for i = 0 to array.size(eqlL) - 1
+                    if array.get(eqlL, i) < bot
+                        sLq := 20.0
+                        break
+            if not isBuy and array.size(eqhL) > 0
+                for i = 0 to array.size(eqhL) - 1
+                    if array.get(eqhL, i) > top
+                        sLq := 20.0
+                        break
+            // 15 — Zone SMC : un OB ou un FVG encore valide recoupe la zone.
+            float sSmc = 0.0
+            if isBuy
+                if array.size(obBB) > 0
+                    for i = 0 to array.size(obBB) - 1
+                        if array.get(obBT, i) >= bot and array.get(obBB, i) <= top
+                            sSmc := 15.0
+                            break
+                if sSmc == 0 and array.size(fvBB) > 0
+                    for i = 0 to array.size(fvBB) - 1
+                        if array.get(fvBT, i) >= bot and array.get(fvBB, i) <= top
+                            sSmc := 15.0
+                            break
+            else
+                if array.size(obST) > 0
+                    for i = 0 to array.size(obST) - 1
+                        if array.get(obST, i) >= bot and array.get(obSB, i) <= top
+                            sSmc := 15.0
+                            break
+                if sSmc == 0 and array.size(fvST) > 0
+                    for i = 0 to array.size(fvST) - 1
+                        if array.get(fvST, i) >= bot and array.get(fvSB, i) <= top
+                            sSmc := 15.0
+                            break
+            // 10 — Multi-timeframe : D1, H4 et H1 dans le sens de la zone.
+            int want = isBuy ? 1 : -1
+            float sMtf = ((dirD == want ? 1 : 0) + (dirH4 == want ? 1 : 0) + (dirH1 == want ? 1 : 0)) / 3.0 * 10.0
+
+            float score = sVp + sSt + sLq + sSmc + sMtf
+
+            // Deux garde-fous supplementaires, exiges avant tout affichage :
+            // la zone doit etre du bon cote du milieu de la range hebdomadaire
+            // (discount pour acheter, premium pour vendre), et le prix doit
+            // deja avoir reagi dessus par le passe.
+            bool fibOk = isBuy ? anchor <= mid : anchor >= mid
+            bool reacted = false
+            if array.size(pvLvl) > 0
+                for i = 0 to array.size(pvLvl) - 1
+                    float p0 = array.get(pvLvl, i)
+                    if p0 <= top and p0 >= bot
+                        reacted := true
+                        break
+            if fibOk and reacted and score >= wzMinScore
+                array.push(zTop, top)
+                array.push(zBot, bot)
+                array.push(zScr, score)
+                array.push(zSide, isBuy ? 1 : -1)
+                array.push(zBar, bar_index)
+
+    // Deux ancrages par cote au maximum sont produits ci-dessus (Value Area puis
+    // noeud de volume), donc le plafond wzMax est deja respecte par
+    // construction. Ce garde-fou ne sert qu'a le rendre explicite.
+    while array.size(zScr) > wzMax * 2
+        array.shift(zTop)
+        array.shift(zBot)
+        array.shift(zScr)
+        array.shift(zSide)
+        array.shift(zBar)
+
+// ---- Etat des confirmations SMC. Calcule EN CONTINU, jamais dans le score.
+// Une zone atteinte ne suffit pas : le systeme attend le sweep, la cassure et
+// la zone SMC. Et meme les trois reunis ne declenchent rien — c'est buySignal
+// et sellSignal qui decident, et eux seuls.
+var bool wzSweepUp = false
+var bool wzSweepDn = false
+if newWeek
+    wzSweepUp := false
+    wzSweepDn := false
+int  zHit  = 0
+int  zHitI = -1
+if array.size(zTop) > 0
+    for i = 0 to array.size(zTop) - 1
+        if close <= array.get(zTop, i) and close >= array.get(zBot, i)
+            zHit  := array.get(zSide, i)
+            zHitI := i
+// Sweep : une poche de liquidite prise puis rejetee, dans la semaine en cours.
+if array.size(eqlL) > 0
+    for i = 0 to array.size(eqlL) - 1
+        if low < array.get(eqlL, i) and close > array.get(eqlL, i)
+            wzSweepDn := true
+if array.size(eqhL) > 0
+    for i = 0 to array.size(eqhL) - 1
+        if high > array.get(eqhL, i) and close < array.get(eqhL, i)
+            wzSweepUp := true
+
+bool wzCfSweep = zHit == 1 ? wzSweepDn : zHit == -1 ? wzSweepUp : false
+bool wzCfStruc = zHit == 1 ? (bullBos or bullChoch) : zHit == -1 ? (bearBos or bearChoch) : false
+bool wzCfSmc   = zHit == 1 ? (array.size(obBB) > 0 or array.size(fvBB) > 0) : zHit == -1 ? (array.size(obST) > 0 or array.size(fvST) > 0) : false
+int  wzCfN     = (wzCfSweep ? 1 : 0) + (wzCfStruc ? 1 : 0) + (wzCfSmc ? 1 : 0)
+// Le plan est "arme" quand les trois confirmations sont la. Cela reste un ETAT
+// AFFICHE : le trade, lui, n'existe que si buySignal ou sellSignal est vrai.
+bool wzArmed = zHit != 0 and wzCfN == 3
+
+// ============================================================
 // RENDU — tout ce qui suit est redessine sur la DERNIERE bougie uniquement.
 // Cout nul sur l'historique, et surtout : aucune de ces valeurs n'est lue par
 // une condition. C'est du dessin, rien d'autre.
@@ -620,6 +895,25 @@ if barstate.islast
                     int kL = array.indexof(inner, array.min(inner))
                     f_zone(lo + (kL + 1) * step, lo + kL * step, bar_index - int(n * 0.55), color.new(cMute, 80), color.new(cMute, 94), "faible volume", color.new(cMute, 40))
 
+    // ---- Zones institutionnelles hebdomadaires ----
+    // Jaune pour l'achat, violet pour la vente, forte transparence, visibles
+    // toute la semaine. Le score affiche est celui FIGE a la creation.
+    if wzShow and array.size(zTop) > 0
+        for i = 0 to array.size(zTop) - 1
+            bool isB = array.get(zSide, i) == 1
+            color cz = isB ? cGold : cPurp
+            int   sc = int(math.round(array.get(zScr, i)))
+            // Le prix est-il DANS cette zone en ce moment ? Si oui la bordure
+            // s'affirme : c'est le seul moment ou la zone demande l'attention.
+            bool inside = close <= array.get(zTop, i) and close >= array.get(zBot, i)
+            box zb = box.new(array.get(zBar, i), array.get(zTop, i), bar_index + 20, array.get(zBot, i),
+                 border_color=color.new(cz, inside ? 0 : 45), border_width=inside ? 2 : 1,
+                 bgcolor=color.new(cz, inside ? 82 : 90))
+            array.push(dBx, zb)
+            label zl = label.new(bar_index + 20, (array.get(zTop, i) + array.get(zBot, i)) / 2,
+                 (isB ? "Weekly BUY Zone " : "Weekly SELL Zone ") + str.tostring(sc) + "%",
+                 style=label.style_label_left, color=color.new(cBg, 100), textcolor=cz, size=size.tiny)
+            array.push(dLb, zl)
     // ---- Order Blocks retenus ----
     if obShow
         if array.size(obBT) > 0
@@ -723,7 +1017,7 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Trois familles visuellement separees, parce qu'elles n'ont pas le meme
 // statut : ce qui DECIDE, ce qui n'est que CONTEXTE, et la conclusion.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 18, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 24, border_width=0)
 
 f_row(int r, string k, string v, color vc, color kc) =>
     table.cell(pan, 0, r, k, text_color=kc, text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cBg, 8))
@@ -769,3 +1063,25 @@ if barstate.islast and panShow
     f_row(16, "Zones presentes", ctx == "" ? "aucune" : ctx, color.new(cMute, 10), cMute)
     bool nearZone = not na(zoneBx)
     f_row(17, "Zone de reaction", nearZone ? "prix proche" : "aucune", nearZone ? cGold : cMute, cMute)
+    // --- Le plan de la semaine. Purement informatif.
+    if wzPlan
+        f_sep(18, "PLAN DE LA SEMAINE  ·  planification")
+        f_row(19, "Biais hebdomadaire", biasTxt, biasBull ? cUp : biasBear ? cDn : cMute, cTxt)
+        string bTxt = "aucune"
+        string sTxt = "aucune"
+        color  bCol = cMute
+        color  sCol = cMute
+        if array.size(zTop) > 0
+            for i = 0 to array.size(zTop) - 1
+                string rg = str.tostring(array.get(zBot, i), format.mintick) + " - " + str.tostring(array.get(zTop, i), format.mintick) + "  " + str.tostring(int(math.round(array.get(zScr, i)))) + "%"
+                if array.get(zSide, i) == 1 and bTxt == "aucune"
+                    bTxt := rg
+                    bCol := cGold
+                if array.get(zSide, i) == -1 and sTxt == "aucune"
+                    sTxt := rg
+                    sCol := cPurp
+        f_row(20, "🟨 BUY Zone",  bTxt, bCol, cTxt)
+        f_row(21, "🟪 SELL Zone", sTxt, sCol, cTxt)
+        string cf = zHit == 0 ? "prix hors zone" : str.tostring(wzCfN) + "/3  " + (wzCfSweep ? "sweep " : "") + (wzCfStruc ? "cassure " : "") + (wzCfSmc ? "OB/FVG" : "")
+        f_row(22, "Confirmations SMC", cf, wzArmed ? cUp : zHit != 0 ? cGold : cMute, cTxt)
+        f_row(23, "Etat du plan", zHit == 0 ? "en attente" : wzArmed ? "ARME — le signal decide" : "zone atteinte", wzArmed ? cUp : cMute, cTxt)

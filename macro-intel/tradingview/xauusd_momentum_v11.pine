@@ -424,6 +424,12 @@ slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=
 trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.")
 trailDistR  = input.float(0.3, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX, tooltip="Voir le tooltip de l'activation. Le gradient mesure est LISSE et MONOTONE sur les quatre sous-periodes (plus l'armement est tardif, plus le PF monte, quelle que soit la distance) : c'est la signature d'un effet reel, pas d'un pic d'optimisation. Ancienne valeur : 1.0.")
 riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
+
+// --- Mode de sortie. Le trailing est le mode VALIDE ; le TP fixe existe parce
+// que la mesure a montre qu'il achete un win rate eleve, et qu'il faut pouvoir
+// le constater soi-meme plutot que de le croire sur parole.
+exitMode = input.string("Trailing (valide)", "Mode de sortie", options=["Trailing (valide)", "TP fixe"], group=grpX, tooltip="MESURE EXACTE sur 783 trades, 2020-2026, dont 200 trades hors echantillon (2020-2022).\n\nTrailing : WR 42.9 %, PF 1.231, esperance +0.144 R, drawdown -26.7 R, jusqu'a 11 pertes d'affilee.\nTP fixe a 0.50 R : WR 66.9 %, PF 1.190, esperance +0.053 R, drawdown -12.3 R, 4 pertes d'affilee au maximum.\n\nLe win rate monte de 24 points et tient hors echantillon (70.0 % sur 2020-2022). Le drawdown est divise par deux et la pire serie de pertes passe de 11 a 4. Le PRIX est l'esperance : -0.091 R par trade, soit environ -11 % de capital par an a 1 % de risque.\n\nAucun reglage ne donne un PF de 2 : sur 56 combinaisons stop x TP balayees, le maximum atteint est 1.545.")
+tpFixedR    = input.float(0.5, "TP fixe (x R)", minval=0.1, maxval=3.0, step=0.05, group=grpX, tooltip="N'agit que si le mode de sortie est 'TP fixe'. A 0.50 R la simulation est EXACTE (aucune hypothese) : toute sortie en trailing du systeme actuel a depasse 0.65 R, et l'excursion favorable enregistree tranche pour les trades stoppes. Au-dela de 0.65 R le chiffrage devient une approximation optimiste.")
 maxLev      = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpX, tooltip="SECURITE. Plafonne la taille de position pour que le notionnel ne depasse jamais ce multiple du capital. Sans ce plafond, un symbole dont la volatilite affichee est anormalement faible produit des tailles enormes : sur TVC:GOLD le levier atteignait 20x (128x au pire) et une perte coutait 2.72 % du capital au lieu de 1 %. Si le compteur de levier du panneau reste colle a cette valeur, c'est que le symbole fausse le calcul : change de symbole plutot que d'augmenter le plafond.")
 
 grpU = "④ Affichage"
@@ -899,10 +905,18 @@ if strategy.position_size != 0 and not na(rPx) and rPx > 0
     bool isL = strategy.position_size > 0
     float act = isL ? ePx + trailStartR * rPx : ePx - trailStartR * rPx
     float off = math.max(1.0, trailDistR * rPx / syminfo.mintick)
+    float tpP = isL ? ePx + tpFixedR * rPx : ePx - tpFixedR * rPx
+    bool  fixe = exitMode == "TP fixe"
     if isL
-        strategy.exit("X", from_entry="L", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+        if fixe
+            strategy.exit("X", from_entry="L", stop=sPx, limit=tpP, comment_loss="SL", comment_profit="TP")
+        else
+            strategy.exit("X", from_entry="L", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
     else
-        strategy.exit("X", from_entry="S", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
+        if fixe
+            strategy.exit("X", from_entry="S", stop=sPx, limit=tpP, comment_loss="SL", comment_profit="TP")
+        else
+            strategy.exit("X", from_entry="S", stop=sPx, trail_price=act, trail_offset=off, comment_loss="SL", comment_trailing="Trailing")
 
 // ================= AFFICHAGE — TROIS NIVEAUX DE LECTURE =================
 // Ne lit que des variables calculees plus haut. Aucun signal n'est modifie.

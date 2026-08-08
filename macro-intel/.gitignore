@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+*.db
+*.sqlite3
+.pytest_cache/
+.DS_Store
+*.log
+
+# Livre généré (regénérable via build_livre.py)
+livre/livre.html

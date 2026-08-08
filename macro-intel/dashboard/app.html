@@ -1,0 +1,1639 @@
+<title>MacroLens — Poste d'analyse macroéconomique</title>
+<style>
+  /* ============================================================
+     MacroLens — identité visuelle « instrument de mesure »
+     Choix délibéré : thème sombre unique (poste d'analyse), comme
+     spécifié au cahier des charges. Accent bleu acier, sémantique
+     verte/rouge/ambre réservée à l'état, jamais à la décoration.
+     ============================================================ */
+  :root {
+    color-scheme: dark;
+    --ink:        #0a0e14;   /* fond */
+    --panel:      #111826;
+    --panel-2:    #0d141f;
+    --raised:     #17202f;
+    --line:       #1f2a3a;
+    --line-soft:  #18212e;
+    --text:       #e3e9f2;
+    --text-2:     #9aa6b8;
+    --muted:      #6d7889;
+    --accent:     #5aa9d6;   /* bleu acier */
+    --accent-dim: #2b4a5e;
+    --up:         #3fb98a;
+    --down:       #e4635a;
+    --warn:       #dda03c;
+    --crit:       #e4635a;
+    --font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --r: 12px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--ink); }
+  body {
+    margin: 0; color: var(--text); font-family: var(--font); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; font-size: 14px;
+  }
+  a { color: var(--accent); }
+
+  .shell { max-width: 1360px; margin: 0 auto; padding: 0 clamp(12px, 2.5vw, 28px) 64px; }
+
+  /* ── Barre supérieure ─────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 20; background: rgba(10,14,20,.92);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+    margin: 0 calc(-1 * clamp(12px, 2.5vw, 28px));
+    padding: 12px clamp(12px, 2.5vw, 28px);
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none; display: grid; place-items: center;
+    background: linear-gradient(150deg, var(--accent), var(--accent-dim));
+    color: #061019; font-weight: 800; font-size: 15px; letter-spacing: -.5px;
+  }
+  .brand h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: .2px; }
+  .brand span { display: block; font-size: 11px; color: var(--muted); letter-spacing: .3px; }
+
+  .status { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono);
+            font-size: 11px; color: var(--text-2); }
+  .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--up); flex: none;
+              animation: beat 2.6s infinite; }
+  .status.demo i { background: var(--warn); animation: none; }
+  .status.off i  { background: var(--muted); animation: none; }
+  @keyframes beat { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+
+  .btn {
+    font: inherit; font-size: 12px; color: var(--text); background: var(--raised);
+    border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--accent); background: #1b2635; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn[disabled] { opacity: .5; cursor: progress; }
+
+  /* ── Navigation par onglets ───────────────────────────────── */
+  nav.tabs {
+    display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+    border-bottom: 1px solid var(--line); margin: 0 calc(-1 * clamp(12px, 2.5vw, 28px)) 22px;
+    padding: 0 clamp(12px, 2.5vw, 28px);
+  }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs button {
+    font: inherit; font-size: 13px; font-weight: 550; color: var(--muted); background: none;
+    border: 0; border-bottom: 2px solid transparent; padding: 13px 15px; cursor: pointer;
+    white-space: nowrap; transition: color .15s, border-color .15s;
+  }
+  nav.tabs button:hover { color: var(--text-2); }
+  nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+
+  /* ── Blocs ────────────────────────────────────────────────── */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+  .card > header {
+    padding: 14px 17px 0; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  }
+  .card h2 {
+    margin: 0; font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted);
+  }
+  .card .body { padding: 14px 17px 17px; }
+  .stack { display: grid; gap: 16px; }
+  .row2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .row2 { grid-template-columns: 1fr; } }
+
+  .note { font-size: 12.5px; color: var(--text-2); }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ── Bandeau de qualité des données ───────────────────────── */
+  .banner {
+    display: flex; gap: 11px; align-items: flex-start; margin-bottom: 18px;
+    background: color-mix(in srgb, var(--warn) 9%, var(--panel));
+    border: 1px solid color-mix(in srgb, var(--warn) 32%, var(--line));
+    border-radius: 10px; padding: 11px 14px; font-size: 12.5px; color: var(--text-2);
+  }
+  .banner b { color: var(--warn); }
+  .banner.hidden { display: none; }
+
+  /* ── Régime ───────────────────────────────────────────────── */
+  .regime { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .regime .dial { flex: none; width: 118px; text-align: center; }
+  .regime .dial svg { width: 118px; height: 66px; display: block; }
+  .regime .dial .pc { font-family: var(--mono); font-size: 21px; font-weight: 700; margin-top: -6px; }
+  .regime .dial small { display: block; font-size: 9.5px; text-transform: uppercase;
+                        letter-spacing: 1.2px; color: var(--muted); }
+  .regime .main { flex: 1 1 300px; min-width: 260px; }
+  .regime .name { font-size: 21px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 5px; }
+  .regime .desc { font-size: 13px; color: var(--text-2); margin: 0; }
+  .drivers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+  .tag {
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-2); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+  }
+
+  /* ── Tuiles d'indicateurs ─────────────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 11px; }
+  .tile { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px; padding: 12px 13px; }
+  .tile .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+  .tile .v { font-family: var(--mono); font-size: 21px; font-weight: 700; margin-top: 3px;
+             font-variant-numeric: tabular-nums; }
+  .tile .d { font-family: var(--mono); font-size: 11px; margin-top: 1px; }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--muted); }
+
+  /* ── Pastilles ────────────────────────────────────────────── */
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+    padding: 2.5px 9px; border-radius: 999px;
+  }
+  .p-up   { background: color-mix(in srgb, var(--up) 17%, transparent);   color: var(--up); }
+  .p-down { background: color-mix(in srgb, var(--down) 17%, transparent); color: var(--down); }
+  .p-flat { background: color-mix(in srgb, var(--muted) 20%, transparent);color: var(--text-2); }
+  .p-warn { background: color-mix(in srgb, var(--warn) 17%, transparent); color: var(--warn); }
+  .p-acc  { background: color-mix(in srgb, var(--accent) 17%, transparent); color: var(--accent); }
+
+  /* ── Contexte par actif ───────────────────────────────────── */
+  .assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .asset { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px; padding: 13px 14px; }
+  .asset .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .asset .nm { font-size: 13px; font-weight: 650; }
+  .asset .sc { font-family: var(--mono); font-size: 26px; font-weight: 700; margin: 6px 0 2px; }
+  .asset .cf { font-size: 11.5px; color: var(--muted); }
+  .meter { position: relative; height: 6px; background: var(--raised); border-radius: 4px; margin-top: 9px; }
+  .meter .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line); }
+  .meter i { position: absolute; top: 0; height: 100%; border-radius: 4px; transition: width .4s, left .4s; }
+  .factors { margin-top: 11px; display: grid; gap: 5px; }
+  .frow { display: grid; grid-template-columns: 1fr 62px 34px; align-items: center; gap: 8px; font-size: 11px; }
+  .frow .fl { color: var(--muted); }
+  .frow .ft { position: relative; height: 4px; background: var(--raised); border-radius: 3px; }
+  .frow .ft i { position: absolute; top: 0; height: 100%; border-radius: 3px; }
+  .frow .fv { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ── Événements ───────────────────────────────────────────── */
+  .events { display: grid; gap: 11px; }
+  .event {
+    background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px;
+    border-left: 3px solid var(--muted); overflow: hidden;
+  }
+  .event.pr-critical { border-left-color: var(--crit); }
+  .event.pr-high     { border-left-color: var(--warn); }
+  .event.pr-normal   { border-left-color: var(--accent); }
+  .event.pr-low      { border-left-color: var(--line); }
+  .event > .head {
+    padding: 12px 14px; display: flex; gap: 11px; align-items: flex-start;
+    cursor: pointer; user-select: none;
+  }
+  .event > .head:hover { background: var(--raised); }
+  .event .ttl { flex: 1; font-size: 13px; font-weight: 550; }
+  .event .meta { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin-top: 5px; }
+  .event .chev { color: var(--muted); font-size: 11px; flex: none; margin-top: 2px; transition: transform .2s; }
+  .event[open] .chev { transform: rotate(90deg); }
+  .event .detail { padding: 0 14px 14px; display: none; }
+  .event[open] .detail { display: block; }
+  .block { margin-top: 12px; }
+  .block .lbl {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .block p { margin: 0; font-size: 12.5px; color: var(--text-2); }
+  .block ol { margin: 0; padding-left: 19px; font-size: 12.5px; color: var(--text-2); }
+  .block ol li { margin-bottom: 5px; }
+  .mk { display: grid; gap: 4px; }
+  .mk div { font-size: 12px; color: var(--text-2); }
+  .mk b { color: var(--text); font-weight: 600; }
+
+  /* ── Tables ───────────────────────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); }
+  th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted);
+    font-weight: 650; white-space: nowrap;
+  }
+  td.num { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: var(--panel-2); }
+  .grp { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent);
+         background: var(--panel-2); font-weight: 700; }
+
+  /* ── Réglage de l'API ─────────────────────────────────────── */
+  .api-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 14px 16px; margin-bottom: 18px;
+  }
+  .api-row { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+  .api-row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .api-row input {
+    flex: 1 1 280px; min-width: 200px; font: inherit; font-size: 12.5px;
+    font-family: var(--mono); color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px;
+  }
+  .api-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .api-hint { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
+  .api-hint code {
+    font-family: var(--mono); font-size: 11px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--accent);
+  }
+  .api-hint.ok { color: var(--up); }
+  .api-hint.ko { color: var(--down); }
+
+  /* ── Fil d'actualité ──────────────────────────────────────── */
+  .feed { display: grid; gap: 2px; }
+  .nw {
+    display: grid; grid-template-columns: 62px 1fr auto; gap: 13px; align-items: start;
+    padding: 11px 12px; border-radius: 9px; border-left: 3px solid transparent;
+    transition: background .15s;
+  }
+  .nw:hover { background: var(--panel-2); }
+  .nw.hot { border-left-color: var(--warn); background: var(--panel-2); }
+  .nw .ago {
+    font-family: var(--mono); font-size: 11px; color: var(--muted); padding-top: 2px;
+    white-space: nowrap;
+  }
+  .nw .body-txt { min-width: 0; }
+  .nw .hl { font-size: 13.5px; line-height: 1.45; }
+  .nw a.hl { color: var(--text); text-decoration: none; }
+  .nw a.hl:hover { color: var(--accent); text-decoration: underline; }
+  .nw .src {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+  }
+  .nw .imp-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  .imp-badge {
+    font-family: var(--mono); font-size: 10.5px; padding: 2px 7px; border-radius: 6px;
+    white-space: nowrap; border: 1px solid var(--line);
+  }
+  .imp-badge.pos { color: var(--up); border-color: color-mix(in srgb, var(--up) 40%, var(--line)); }
+  .imp-badge.neg { color: var(--down); border-color: color-mix(in srgb, var(--down) 40%, var(--line)); }
+  @media (max-width: 640px) {
+    .nw { grid-template-columns: 54px 1fr; }
+    .nw .imp-badges { grid-column: 2; justify-content: flex-start; margin-top: 5px; }
+  }
+
+  /* ── Calendrier économique ────────────────────────────────── */
+  .cal-next {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .cal-next .when {
+    font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent);
+    white-space: nowrap;
+  }
+  .cal-next .what { flex: 1; min-width: 200px; }
+  .cal-next .what b { font-size: 14px; }
+  .cal-next .what div { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .cal-day { margin-top: 16px; }
+  .cal-day:first-child { margin-top: 0; }
+  .cal-day > h3 {
+    margin: 0 0 8px; font-size: 11px; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 1.3px; color: var(--accent); padding-bottom: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cal-row {
+    display: grid; grid-template-columns: 58px 30px 1fr auto; gap: 12px; align-items: center;
+    padding: 9px 2px; border-bottom: 1px solid var(--line-soft);
+  }
+  .cal-row:last-child { border-bottom: 0; }
+  .cal-row .h { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+  .cal-row .imp { display: flex; gap: 2px; }
+  .cal-row .imp i {
+    width: 5px; height: 12px; border-radius: 1px; background: var(--line); display: block;
+  }
+  .cal-row.i3 .imp i { background: var(--crit); }
+  .cal-row.i2 .imp i:nth-child(-n+2) { background: var(--warn); }
+  .cal-row.i1 .imp i:nth-child(1) { background: var(--muted); }
+  .cal-row .ev { font-size: 13px; }
+  .cal-row .ev .sub { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .cal-row .vals { display: flex; gap: 12px; font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+  .cal-row .vals span { color: var(--muted); }
+  .cal-row .vals b { color: var(--text); font-weight: 600; }
+  @media (max-width: 640px) {
+    .cal-row { grid-template-columns: 52px 26px 1fr; }
+    .cal-row .vals { grid-column: 1 / -1; padding-left: 90px; }
+  }
+
+  /* ── Corrélations ─────────────────────────────────────────── */
+  .corr { display: grid; gap: 9px; }
+  .crow { display: grid; grid-template-columns: 1fr 120px 54px; align-items: center; gap: 12px; font-size: 12.5px; }
+  .cbar { position: relative; height: 8px; background: var(--raised); border-radius: 5px; }
+  .cbar .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line); }
+  .cbar i { position: absolute; top: 0; height: 100%; border-radius: 5px; }
+  .cval { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* ── Simulateur ───────────────────────────────────────────── */
+  .sim { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 780px) { .sim { grid-template-columns: 1fr; } }
+  .ctl { padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+  .ctl:last-child { border-bottom: 0; }
+  .ctl .cl { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+  .ctl label { font-size: 12.5px; }
+  .ctl label small { display: block; color: var(--muted); font-size: 10.5px; }
+  .ctl output { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--accent); }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 4px;
+    background: var(--line); outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--accent); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; background: var(--panel);
+    border: 2px solid var(--accent); cursor: pointer;
+  }
+  input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+  .empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
+  footer.legal {
+    margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line);
+    font-size: 11.5px; color: var(--muted); line-height: 1.7;
+  }
+  footer.legal b { color: var(--text-2); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">ML</div>
+      <div>
+        <h1>MacroLens</h1>
+        <span>Poste d'analyse macroéconomique assistée par IA</span>
+      </div>
+    </div>
+    <span class="status demo" id="status"><i></i><span id="status-txt">initialisation…</span></span>
+    <button class="btn" id="btn-api">⚙ API</button>
+    <button class="btn" id="btn-refresh">↻ Actualiser</button>
+  </div>
+
+  <!-- Réglage de la source de données : permet de pointer l'application vers
+       n'importe quelle API compatible, sans rééditer le fichier. -->
+  <div class="api-panel" id="api-panel" hidden>
+    <div class="api-row">
+      <label for="api-url">Adresse de l'API</label>
+      <input id="api-url" placeholder="https://mon-serveur.exemple/  (vide = même origine)"
+             autocomplete="off" spellcheck="false">
+      <button class="btn" id="api-save">Connecter</button>
+      <button class="btn" id="api-reset">Réinitialiser</button>
+    </div>
+    <p class="api-hint">
+      L'application interroge <code>&lt;adresse&gt;/v1/dashboard</code> et suit le flux
+      <code>&lt;adresse&gt;/v1/stream</code>. Laissez le champ vide si l'application est servie
+      par le backend lui-même. Pour une adresse externe, l'API doit autoriser votre origine
+      (CORS). Le réglage est conservé dans ce navigateur.
+    </p>
+    <p class="api-hint" id="api-state"></p>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="synthese"     aria-selected="true">Synthèse</button>
+    <button role="tab" data-tab="indicateurs"  aria-selected="false">Indicateurs</button>
+    <button role="tab" data-tab="actualites"   aria-selected="false">Actualités</button>
+    <button role="tab" data-tab="calendrier"   aria-selected="false">Calendrier</button>
+    <button role="tab" data-tab="marches"      aria-selected="false">Marchés</button>
+    <button role="tab" data-tab="evenements"   aria-selected="false">Événements</button>
+    <button role="tab" data-tab="correlations" aria-selected="false">Corrélations</button>
+    <button role="tab" data-tab="simulateur"   aria-selected="false">Simulateur</button>
+  </nav>
+
+  <div class="banner hidden" id="banner">
+    <span>⚠</span>
+    <div><b>Qualité des données :</b> <span id="banner-txt"></span></div>
+  </div>
+
+  <!-- ══ SYNTHÈSE ══ -->
+  <section id="tab-synthese" class="stack">
+    <div class="card">
+      <header><h2>Régime macro dominant</h2><span class="note mono" id="reg-time"></span></header>
+      <div class="body">
+        <div class="regime">
+          <div class="dial">
+            <svg viewBox="0 0 120 68" aria-hidden="true">
+              <path d="M8 62 A52 52 0 0 1 112 62" fill="none" stroke="#1f2a3a" stroke-width="9" stroke-linecap="round"/>
+              <path id="reg-arc" d="" fill="none" stroke="#5aa9d6" stroke-width="9" stroke-linecap="round"/>
+            </svg>
+            <div class="pc mono" id="reg-conf">—</div>
+            <small>confiance</small>
+          </div>
+          <div class="main">
+            <p class="name" id="reg-name">—</p>
+            <p class="desc" id="reg-desc"></p>
+            <div class="drivers" id="reg-drivers"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <header><h2>Synthèse de contexte</h2><span class="pill p-acc" id="brief-engine">règles</span></header>
+      <div class="body"><p class="note" id="brief-text" style="margin:0"></p></div>
+    </div>
+
+    <div class="card">
+      <header><h2>Indicateurs clés</h2></header>
+      <div class="body"><div class="tiles" id="tiles-key"></div></div>
+    </div>
+
+    <div class="card">
+      <header>
+        <h2>Contexte macro par actif</h2>
+        <span class="note">lecture de contexte — aucune orientation d'exécution</span>
+      </header>
+      <div class="body"><div class="assets" id="assets"></div></div>
+    </div>
+
+    <div class="card">
+      <header>
+        <h2>Dernières dépêches</h2>
+        <span class="note" id="news-mini-note"></span>
+      </header>
+      <div class="body"><div class="feed" id="news-mini"></div></div>
+    </div>
+
+    <div class="card">
+      <header>
+        <h2>Risque événementiel à venir</h2>
+        <span class="note" id="cal-mini-note"></span>
+      </header>
+      <div class="body"><div id="cal-mini"></div></div>
+    </div>
+
+    <div class="card">
+      <header><h2>Sujets prioritaires</h2><span class="note" id="prio-count"></span></header>
+      <div class="body"><div class="events" id="prio-events"></div></div>
+    </div>
+  </section>
+
+  <!-- ══ INDICATEURS ══ -->
+  <section id="tab-indicateurs" class="stack" hidden>
+    <div class="card">
+      <header><h2>Panorama complet</h2></header>
+      <div class="body"><div class="tiles" id="tiles-all"></div></div>
+    </div>
+    <div class="row2">
+      <div class="card">
+        <header><h2>Courbe des taux US</h2><span class="pill p-flat" id="curve-shape">—</span></header>
+        <div class="body">
+          <div class="tiles" id="curve-tiles" style="margin-bottom:13px"></div>
+          <p class="note" id="curve-txt" style="margin:0"></p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <header><h2>Énergie — stocks de brut</h2></header>
+          <div class="body"><p class="note" id="energy-txt" style="margin:0"></p></div>
+        </div>
+        <div class="card">
+          <header><h2>Positionnement (COT)</h2></header>
+          <div class="body"><div id="cot-list"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ACTUALITÉS ══ -->
+  <section id="tab-actualites" class="stack" hidden>
+    <div class="card">
+      <header>
+        <h2>Fil d'actualité en direct</h2>
+        <span class="note" id="news-meta"></span>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:9px; margin-bottom:14px; flex-wrap:wrap; align-items:center">
+          <div style="display:flex; gap:7px; flex-wrap:wrap" id="news-filters">
+            <button class="btn" data-cat="">Tout</button>
+            <button class="btn" data-cat="macro">Macro</button>
+            <button class="btn" data-cat="markets">Marchés</button>
+            <button class="btn" data-cat="geopolitics">Géopolitique</button>
+            <button class="btn" data-cat="central_bank">Banques centrales</button>
+          </div>
+          <input id="news-search" placeholder="Rechercher un mot-clé…"
+                 style="flex:1 1 180px; min-width:150px; font:inherit; font-size:12.5px; color:var(--text);
+                        background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:7px 11px">
+        </div>
+        <div class="feed" id="news-feed"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CALENDRIER ══ -->
+  <section id="tab-calendrier" class="stack" hidden>
+    <div class="card">
+      <header><h2>Prochain rendez-vous majeur</h2><span class="note" id="cal-source"></span></header>
+      <div class="body"><div id="cal-next"></div></div>
+    </div>
+    <div class="card">
+      <header>
+        <h2>Calendrier économique</h2>
+        <span class="note" id="cal-count"></span>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:7px; margin-bottom:14px; flex-wrap:wrap" id="cal-filters">
+          <button class="btn" data-imp="0">Tous</button>
+          <button class="btn" data-imp="2">Impact moyen et fort</button>
+          <button class="btn" data-imp="3">Majeurs seulement</button>
+        </div>
+        <div id="cal-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ MARCHÉS ══ -->
+  <section id="tab-marches" class="stack" hidden>
+    <div class="card">
+      <header><h2>Cours suivis</h2><span class="note" id="mk-count"></span></header>
+      <div class="body tbl-wrap">
+        <table>
+          <thead><tr><th>Instrument</th><th style="text-align:right">Dernier</th><th style="text-align:right">Variation</th><th>État</th></tr></thead>
+          <tbody id="mk-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ÉVÉNEMENTS ══ -->
+  <section id="tab-evenements" class="stack" hidden>
+    <div class="card">
+      <header>
+        <h2>Événements analysés</h2>
+        <span class="note">résumé · importance · mécanisme · scénarios · confiance</span>
+      </header>
+      <div class="body"><div class="events" id="all-events"></div></div>
+    </div>
+    <div class="card">
+      <header><h2>Analyser un événement</h2></header>
+      <div class="body">
+        <p class="note" style="margin:0 0 10px">
+          Collez un titre d'actualité économique : l'analyste explique le mécanisme,
+          les marchés concernés et les scénarios possibles.
+        </p>
+        <div style="display:flex; gap:9px; flex-wrap:wrap">
+          <input id="ask-input" placeholder="ex. La Fed maintient ses taux et évoque une inflation persistante"
+                 style="flex:1 1 320px; min-width:220px; font:inherit; font-size:13px; color:var(--text);
+                        background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:9px 12px">
+          <button class="btn" id="ask-btn">Analyser</button>
+        </div>
+        <div id="ask-out" class="events" style="margin-top:13px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CORRÉLATIONS ══ -->
+  <section id="tab-correlations" class="stack" hidden>
+    <div class="card">
+      <header><h2>Corrélations inter-marchés</h2><span class="note">calculées sur les variations</span></header>
+      <div class="body">
+        <div style="display:flex; gap:7px; margin-bottom:14px" id="corr-windows"></div>
+        <div class="corr" id="corr-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SIMULATEUR ══ -->
+  <section id="tab-simulateur" class="stack" hidden>
+    <div class="card">
+      <header><h2>Simulateur de contexte — Or (XAUUSD)</h2><span class="note">outil pédagogique</span></header>
+      <div class="body">
+        <p class="note" style="margin:0 0 14px">
+          Déplacez les curseurs pour voir comment chaque facteur macro modifie la lecture
+          de contexte de l'or. Ce simulateur illustre les mécanismes ; il ne produit
+          aucune orientation d'exécution.
+        </p>
+        <div class="sim">
+          <div>
+            <div class="ctl">
+              <div class="cl"><label for="s-geo">Risque géopolitique<small>tensions, sanctions, conflits</small></label><output id="s-geo-o">35 %</output></div>
+              <input type="range" id="s-geo" min="0" max="100" value="35">
+            </div>
+            <div class="ctl">
+              <div class="cl"><label for="s-dxy">Dollar (DXY) — variation<small>relation inverse avec l'or</small></label><output id="s-dxy-o">0,00 %</output></div>
+              <input type="range" id="s-dxy" min="-150" max="150" value="0" step="5">
+            </div>
+            <div class="ctl">
+              <div class="cl"><label for="s-real">Taux réels — variation<small>déterminant principal</small></label><output id="s-real-o">0 bps</output></div>
+              <input type="range" id="s-real" min="-30" max="30" value="0">
+            </div>
+            <div class="ctl">
+              <div class="cl"><label for="s-lvl">Niveau du taux réel 10 ans<small>bas = soutien structurel</small></label><output id="s-lvl-o">1,5 %</output></div>
+              <input type="range" id="s-lvl" min="-100" max="350" value="150" step="10">
+            </div>
+            <div class="ctl">
+              <div class="cl"><label for="s-inf">Inflation anticipée<small>point mort 10 ans</small></label><output id="s-inf-o">2,30 %</output></div>
+              <input type="range" id="s-inf" min="100" max="400" value="230" step="5">
+            </div>
+            <div class="ctl">
+              <div class="cl"><label for="s-sen">Sentiment de risque<small>aversion → refuge</small></label><output id="s-sen-o">+0</output></div>
+              <input type="range" id="s-sen" min="-100" max="100" value="0" step="5">
+            </div>
+          </div>
+          <div>
+            <div class="asset" style="background:var(--panel-2)">
+              <div class="top"><span class="nm">Lecture de contexte — Or</span><span class="pill p-flat" id="s-bias">NEUTRE</span></div>
+              <div class="sc mono" id="s-score">+0</div>
+              <div class="cf">confiance <b id="s-conf">0 %</b></div>
+              <div class="meter"><span class="mid"></span><i id="s-meter"></i></div>
+              <div class="factors" id="s-factors"></div>
+            </div>
+            <button class="btn" id="s-load" style="margin-top:12px">↧ Charger le contexte actuel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="legal">
+    <b>MacroLens — outil d'aide à l'analyse.</b>
+    Cette application centralise, analyse et explique le contexte macroéconomique et géopolitique.
+    Elle <b>n'émet aucun signal d'achat ou de vente</b>, n'ouvre aucune position et ne remplace pas
+    le jugement du lecteur. Elle ne constitue pas un conseil en investissement.
+    L'analyse technique reste du ressort de votre indicateur, indépendant de cette plateforme.
+    <span id="src-line" class="mono" style="display:block; margin-top:7px; font-size:10.5px"></span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════
+   MacroLens — logique applicative
+   Fonctionne dans deux modes :
+     • LIVE  : servi par le backend, consomme /v1/dashboard + /v1/stream
+     • DÉMO  : ouvert seul, jeu de données de démonstration étiqueté
+   ════════════════════════════════════════════════════════════════ */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const nf = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v))
+  ? "—" : Number(v).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const signed = (v, d = 2) => (v === null || v === undefined) ? "—" : (v > 0 ? "+" : "") + nf(v, d);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const state = {
+  data: null, mode: "demo", tab: "synthese",
+  corrWindow: 30, calImp: 0, newsCat: "", newsQuery: "", es: null
+};
+
+/* ════════ Source de données ════════
+   L'adresse de l'API est configurable et mémorisée dans le navigateur, ce qui
+   permet de brancher ce fichier sur n'importe quel backend compatible sans le
+   modifier. Vide = même origine (cas où le backend sert lui-même la page). */
+const API = {
+  KEY: "macrolens.api_base",
+  get base() {
+    try { return localStorage.getItem(this.KEY) || ""; } catch (_) { return ""; }
+  },
+  set base(value) {
+    try {
+      const clean = (value || "").trim().replace(/\/+$/, "");
+      if (clean) localStorage.setItem(this.KEY, clean);
+      else localStorage.removeItem(this.KEY);
+    } catch (_) { /* stockage indisponible : on reste sur la même origine */ }
+  },
+  url(path) {
+    const base = this.base;
+    return base ? `${base}/${path}` : path;
+  }
+};
+
+/* Fil d'actualité de démonstration : horodatages relatifs à maintenant, pour que
+   les « il y a X min » restent crédibles quel que soit le moment d'ouverture. */
+function demoNews() {
+  const ago = (minutes) => new Date(Date.now() - minutes * 60e3).toISOString();
+  return [
+    { title: "L'inflation américaine ressort au-dessus du consensus en rythme annuel",
+      source: "Investing — Économie", category: "macro", ts: ago(14), severity: 0.8,
+      impact_gold: 18, impact_btc: 6, impact_commodities: 11, url: "" },
+    { title: "La Réserve fédérale insiste sur la persistance des pressions sur les prix",
+      source: "CNBC — Économie", category: "central_bank", ts: ago(42), severity: 0.7,
+      impact_gold: -22, impact_btc: -12, impact_commodities: -7, url: "" },
+    { title: "Le dollar progresse face aux principales devises après les données d'inflation",
+      source: "MarketWatch", category: "markets", ts: ago(58), severity: 0.5,
+      impact_gold: -20, impact_btc: -8, impact_commodities: -10, url: "" },
+    { title: "Tensions persistantes sur un corridor maritime majeur pour l'énergie",
+      source: "Google Actualités — Géopolitique", category: "geopolitics", ts: ago(96), severity: 0.75,
+      impact_gold: 24, impact_btc: 4, impact_commodities: 17, url: "" },
+    { title: "Les rendements obligataires américains atteignent un nouveau sommet mensuel",
+      source: "Yahoo Finance", category: "markets", ts: ago(135), severity: 0.45,
+      impact_gold: -14, impact_btc: -9, impact_commodities: -5, url: "" },
+    { title: "La BCE maintient une communication prudente avant sa prochaine réunion",
+      source: "Google Actualités — Macro", category: "central_bank", ts: ago(210), severity: 0.4,
+      impact_gold: 0, impact_btc: 0, impact_commodities: 0, url: "" },
+    { title: "Les stocks de brut américains reculent plus que prévu la semaine passée",
+      source: "Investing — Marchés", category: "markets", ts: ago(280), severity: 0.5,
+      impact_gold: 5, impact_btc: 0, impact_commodities: 16, url: "" },
+    { title: "L'activité manufacturière se stabilise dans la zone euro",
+      source: "CNBC — Économie", category: "macro", ts: ago(365), severity: 0.3,
+      impact_gold: -3, impact_btc: 2, impact_commodities: 7, url: "" },
+    { title: "Nouvelles sanctions économiques annoncées à l'encontre d'un pays producteur",
+      source: "Google Actualités — Géopolitique", category: "geopolitics", ts: ago(430), severity: 0.65,
+      impact_gold: 19, impact_btc: 3, impact_commodities: 15, url: "" },
+    { title: "Les marchés actions clôturent en légère hausse malgré la remontée des taux",
+      source: "MarketWatch — Pulse", category: "markets", ts: ago(520), severity: 0.25,
+      impact_gold: -6, impact_btc: 8, impact_commodities: 3, url: "" }
+  ];
+}
+
+/* Calendrier de démonstration : dates calculées par rapport à maintenant, pour
+   que l'exemple reste cohérent quel que soit le jour d'ouverture du fichier. */
+function demoCalendar() {
+  // Les publications macro n'ont jamais lieu le week-end : on décale au jour
+  // ouvré suivant pour que l'exemple reste crédible quel que soit le jour.
+  const mk = (daysAhead, hour, minute, country, event, importance, topic, watch, extra = {}) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    d.setHours(hour, minute, 0, 0);
+    return {
+      event_time: d.toISOString(), country, event, importance, topic, watch,
+      actual: "", forecast: "", previous: "", estimated_date: true, source: "recurring",
+      ...extra
+    };
+  };
+  const W = {
+    inflation: "La composante sous-jacente (cœur) et les services comptent souvent plus que le chiffre global.",
+    rates: "Le communiqué, les projections et la conférence de presse pèsent souvent plus que la décision elle-même.",
+    employment: "Le salaire horaire moyen et le taux de participation nuancent le chiffre principal.",
+    growth: "La tendance sur plusieurs mois est plus informative qu'une publication isolée.",
+    energy: "L'écart aux attentes et la dynamique des stocks sur plusieurs semaines guident la lecture."
+  };
+  const entries = [
+    mk(1, 14, 30, "US", "Stocks de pétrole brut (EIA)", 2, "energy", W.energy,
+       { forecast: "-1 250 kb", previous: "-3 120 kb" }),
+    mk(1, 12, 30, "US", "Inscriptions hebdomadaires au chômage", 1, "employment", W.employment,
+       { forecast: "218 k", previous: "221 k" }),
+    mk(2, 12, 30, "US", "CPI — inflation des prix à la consommation (États-Unis)", 3, "inflation", W.inflation,
+       { forecast: "3,2 %", previous: "3,1 %" }),
+    mk(2, 14, 0, "EU", "BCE — décision de politique monétaire", 3, "rates", W.rates,
+       { forecast: "4,25 %", previous: "4,25 %" }),
+    mk(3, 12, 30, "US", "PPI — prix à la production (États-Unis)", 2, "inflation", W.inflation,
+       { forecast: "0,2 %", previous: "0,3 %" }),
+    mk(6, 18, 0, "US", "FOMC — décision de taux directeur et projections", 3, "rates", W.rates,
+       { forecast: "5,50 %", previous: "5,50 %" }),
+    mk(7, 14, 0, "US", "ISM services (PMI)", 2, "growth", W.growth,
+       { forecast: "52,1", previous: "51,4" }),
+    mk(9, 12, 30, "US", "NFP — créations d'emplois non agricoles (États-Unis)", 3, "employment", W.employment,
+       { forecast: "185 k", previous: "206 k" }),
+    mk(13, 12, 30, "US", "PIB — croissance trimestrielle (estimation)", 2, "growth", W.growth,
+       { forecast: "2,1 %", previous: "2,4 %" })
+  ];
+  entries.sort((a, b) => a.event_time.localeCompare(b.event_time));
+  return {
+    entries,
+    next_major: entries.find((e) => e.importance === 3),
+    high_impact_48h: entries.filter(
+      (e) => e.importance === 3 && new Date(e.event_time) - Date.now() < 48 * 3600e3).length,
+    estimated: true,
+    source: "recurring"
+  };
+}
+
+/* ── Jeu de démonstration (utilisé hors backend, clairement signalé) ── */
+const DEMO = {
+  generated_at: new Date().toISOString(),
+  regime: {
+    regime: "tightening", label: "Resserrement monétaire",
+    description: "Les taux réels progressent : le coût d'opportunité de détenir des actifs sans rendement augmente. Ce régime pèse historiquement sur l'or et les actifs de longue duration, et soutient le dollar.",
+    confidence: 74,
+    drivers: ["taux réels en hausse (+12 bps)", "taux réel restrictif (2,35 %)", "dollar en hausse (+0,62 %)", "VIX bas (13,8)"],
+    scores: { tightening: 3.2, risk_on: 1.7, reflation: 0.7 }
+  },
+  curve: {
+    spread_10y2y: -0.18, shape: "inverted", label: "Courbe inversée",
+    interpretation: "Le 2 ans rémunère plus que le 10 ans. Historiquement, cette configuration traduit des anticipations de ralentissement économique et de baisses de taux futures. Elle a souvent précédé les phases de récession, avec des délais très variables."
+  },
+  briefing: "Régime macro dominant : resserrement monétaire (confiance 74 %). Les taux réels progressent, ce qui accroît le coût d'opportunité des actifs sans rendement. Facteurs déterminants : taux réels en hausse (+12 bps), taux réel restrictif (2,35 %), dollar en hausse (+0,62 %). Courbe inversée (pente 10a-2a : -0,18 pt), traduisant des anticipations de ralentissement. La volatilité implicite est contenue (VIX 13,8). Sujets prioritaires : inflation américaine au-dessus du consensus ; discours restrictif de la Réserve fédérale. Cette synthèse décrit le contexte ; l'interprétation et la décision restent au lecteur.",
+  indicators: {
+    dxy: 104.82, dxy_change_pct: 0.62, us10y: 4.28, us10y_change_bps: 6,
+    real_rate_10y: 2.35, real_rate_change_bps: 12, breakeven_inflation: 2.31,
+    geo_risk_index: 0.38, us2y: 4.46, us30y: 4.51, vix: 13.8, vix_change_pct: -3.4
+  },
+  assets: {
+    gold: { label: "Or — XAUUSD", score: -32.4, bias: "bearish", confidence: 58, risk_level: "medium",
+      factors: { geopolitics: 13.3, dollar: -15.5, us_rates: -19.4, inflation: 5.6, risk_sentiment: -16.4 } },
+    btc: { label: "Bitcoin", score: -18.6, bias: "neutral", confidence: 41, risk_level: "medium",
+      factors: { geopolitics: 2.4, dollar: -11.2, us_rates: -12.0, inflation: 0, risk_sentiment: 2.2 } },
+    commodities: { label: "Matières premières", score: 6.1, bias: "neutral", confidence: 34, risk_level: "low",
+      factors: { geopolitics: 11.4, dollar: -13.6, inflation: 3.7, risk_sentiment: 4.6 } }
+  },
+  prices: [
+    { key: "commodity.gold", label: "Or (XAU)", price: 2318.4, change_pct: -0.84, group: "commodity" },
+    { key: "commodity.silver", label: "Argent", price: 27.35, change_pct: -1.22, group: "commodity" },
+    { key: "commodity.oil", label: "Pétrole WTI", price: 78.92, change_pct: 1.36, group: "commodity" },
+    { key: "commodity.copper", label: "Cuivre", price: 4.42, change_pct: 0.51, group: "commodity" },
+    { key: "index.spx", label: "S&P 500", price: 5308.15, change_pct: 0.28, group: "index" },
+    { key: "index.ndx", label: "Nasdaq 100", price: 18742.6, change_pct: 0.44, group: "index" },
+    { key: "fx.eurusd", label: "EUR/USD", price: 1.0724, change_pct: -0.31, group: "fx" },
+    { key: "fx.usdjpy", label: "USD/JPY", price: 157.24, change_pct: 0.42, group: "fx" },
+    { key: "crypto.btc", label: "Bitcoin", price: 67420, change_pct: -1.74, group: "crypto" },
+    { key: "crypto.eth", label: "Ethereum", price: 3512, change_pct: -2.11, group: "crypto" }
+  ],
+  analyses: [
+    {
+      title: "Inflation américaine au-dessus du consensus en rythme annuel",
+      category: "release", priority: "critical", confidence: 82, engine: "rules", topics: ["inflation", "rates"],
+      summary: "La publication d'inflation ressort au-dessus des attentes — sujet rattaché à « Inflation (CPI / PCE / PPI) ». Cet élément agit d'abord sur : or, dollar, obligations, indices.",
+      why_it_matters: "L'inflation détermine la trajectoire des taux directeurs, donc le coût de l'argent et la valorisation de tous les actifs. Ce sujet croise également : taux directeurs & politique monétaire.",
+      mechanism: "Inflation plus forte que prévu → anticipations de politique monétaire plus restrictive → hausse des rendements nominaux et souvent des taux réels → soutien du dollar, pression sur les actifs longue duration.",
+      markets: { "or": "ambigu : couverture contre l'inflation, mais pénalisé si les taux réels montent", "dollar": "haussier si cela renforce les anticipations de resserrement", "obligations": "baissier sur les prix (hausse des rendements)", "indices": "baissier, surtout sur les valeurs de croissance" },
+      scenarios: [
+        "Publication au-dessus du consensus : anticipations de resserrement renforcées, taux réels et dollar orientés à la hausse.",
+        "Publication conforme au consensus : réaction limitée, l'attention se déplace vers la composante sous-jacente (cœur) et les services.",
+        "Publication en dessous du consensus : anticipations d'assouplissement, détente des taux réels, contexte historiquement porteur pour les actifs longs."
+      ]
+    },
+    {
+      title: "Discours restrictif de la Réserve fédérale sur la persistance de l'inflation",
+      category: "central_bank", priority: "high", confidence: 74, engine: "rules", topics: ["rates"],
+      summary: "Communication de banque centrale à ton restrictif — sujet rattaché à « Taux directeurs & politique monétaire ». Cet élément agit d'abord sur : or, dollar, indices, crypto.",
+      why_it_matters: "Le taux directeur est le prix de référence de la liquidité mondiale : il irrigue toutes les classes d'actifs.",
+      mechanism: "Décision ou discours plus restrictif (hawkish) → hausse des taux réels → coût d'opportunité accru pour les actifs sans rendement → dollar soutenu.",
+      markets: { "or": "baissier si les taux réels montent, haussier s'ils se détendent", "dollar": "haussier si restrictif, baissier si accommodant", "indices": "haussier si accommodant (valorisations soutenues)", "crypto": "très sensible à la liquidité" },
+      scenarios: [
+        "Ton plus restrictif qu'attendu : taux réels en hausse, dollar soutenu, pression sur les actifs sans rendement.",
+        "Ton conforme aux attentes : la réaction dépend surtout des projections et de la conférence de presse.",
+        "Ton plus accommodant qu'attendu : détente des taux réels, contexte historiquement favorable aux actifs de duration."
+      ]
+    },
+    {
+      title: "Tensions géopolitiques persistantes autour des corridors d'approvisionnement énergétique",
+      category: "geopolitics", priority: "high", confidence: 66, engine: "rules", topics: ["geopolitics", "energy"],
+      summary: "Sujet géopolitique affectant l'offre d'énergie — rattaché à « Géopolitique (conflits, sanctions, crises) ». Cet élément agit d'abord sur : or, pétrole, indices, VIX.",
+      why_it_matters: "Les chocs géopolitiques créent une prime de risque immédiate et peuvent perturber l'offre d'énergie et de métaux.",
+      mechanism: "Montée des tensions → demande d'actifs refuges (or, dollar, obligations d'État) et prime de risque sur l'énergie → hausse de la volatilité.",
+      markets: { "or": "haussier (valeur refuge historique)", "pétrole": "haussier si l'offre est menacée", "indices": "baissier (aversion au risque)", "vix": "haussier (prime de volatilité)" },
+      scenarios: [
+        "Escalade : prime de risque durable, or et énergie soutenus, volatilité élevée.",
+        "Statu quo tendu : la prime de risque s'érode progressivement.",
+        "Désescalade : reflux de la prime de risque, retour de l'appétit pour le risque."
+      ]
+    }
+  ],
+  correlations: [
+    { pair: "market.dxy~commodity.gold", window_days: 30, value: -0.62, strength: "forte", direction: "négative" },
+    { pair: "rates.real10y~commodity.gold", window_days: 30, value: -0.71, strength: "forte", direction: "négative" },
+    { pair: "market.vix~index.spx", window_days: 30, value: -0.78, strength: "forte", direction: "négative" },
+    { pair: "commodity.oil~index.spx", window_days: 30, value: 0.34, strength: "modérée", direction: "positive" },
+    { pair: "index.spx~crypto.btc", window_days: 30, value: 0.58, strength: "modérée", direction: "positive" },
+    { pair: "market.dxy~commodity.gold", window_days: 90, value: -0.54, strength: "modérée", direction: "négative" },
+    { pair: "rates.real10y~commodity.gold", window_days: 90, value: -0.66, strength: "forte", direction: "négative" },
+    { pair: "market.vix~index.spx", window_days: 90, value: -0.74, strength: "forte", direction: "négative" },
+    { pair: "index.spx~crypto.btc", window_days: 90, value: 0.49, strength: "modérée", direction: "positive" }
+  ],
+  cot: [
+    { market: "cot.gold", net_noncommercial: 186420, long_positions: 254100, short_positions: 67680, report_date: "—",
+      interpretation: "Les spéculateurs sont net acheteur (+186 420 contrats nets). Un positionnement net acheteur étiré rend historiquement le marché vulnérable à un débouclage en cas de nouvelle contraire." },
+    { market: "cot.crude", net_noncommercial: 241870, long_positions: 312400, short_positions: 70530, report_date: "—",
+      interpretation: "Les spéculateurs sont net acheteur (+241 870 contrats nets). Un positionnement net acheteur étiré rend historiquement le marché vulnérable à un débouclage." }
+  ],
+  energy: {
+    crude_inventories_kb: 457300, change_kb: -3120, period: "—", source: "demo",
+    interpretation: "Les stocks de brut reculent nettement (-3 120 kb) : signe d'une demande supérieure à l'offre, historiquement associé à une tension sur les prix de l'énergie et à une pression inflationniste."
+  },
+  calendar: demoCalendar(),
+  news: demoNews(),
+  data_quality: { degraded: false, market_source: "démonstration", geo_source: "démonstration", prices_available: 10, news_analysed: 10, note: "Jeu de démonstration." },
+  sources: { market: "démonstration", geo: "démonstration", news: "3" }
+};
+
+/* ── Libellés ── */
+const BIAS_FR = { bullish: "HAUSSIER", bearish: "BAISSIER", neutral: "NEUTRE" };
+const RISK_FR = { low: "FAIBLE", medium: "MOYEN", high: "ÉLEVÉ" };
+const PRIO_FR = { critical: "CRITIQUE", high: "ÉLEVÉE", normal: "NORMALE", low: "FAIBLE" };
+const PRIO_CLS = { critical: "p-down", high: "p-warn", normal: "p-acc", low: "p-flat" };
+const FACTOR_FR = {
+  geopolitics: "Géopolitique", dollar: "Dollar (DXY)", us_rates: "Taux US",
+  inflation: "Inflation", risk_sentiment: "Sentiment risque"
+};
+const GROUP_FR = { commodity: "Matières premières", index: "Indices", fx: "Devises", crypto: "Crypto" };
+const dirClass = (v) => v > 0.05 ? "up" : v < -0.05 ? "down" : "flat";
+
+/* ════════ RENDU ════════ */
+function render() {
+  const d = state.data;
+  if (!d) return;
+  renderBanner(d);
+  renderRegime(d);
+  renderBriefing(d);
+  renderTiles(d);
+  renderAssets(d);
+  renderEvents(d);
+  renderCurve(d);
+  renderEnergyCot(d);
+  renderMarkets(d);
+  renderNews(d);
+  renderCalendar(d);
+  renderCorrelations(d);
+  const q = d.data_quality || {};
+  $("src-line").textContent =
+    `source marché : ${q.market_source ?? "—"} · source géopolitique : ${q.geo_source ?? "—"} · ` +
+    `${q.prices_available ?? 0} cours · ${q.news_analysed ?? 0} événements analysés`;
+}
+
+function renderBanner(d) {
+  const q = d.data_quality || {};
+  const banner = $("banner");
+  if (state.mode === "demo") {
+    banner.classList.remove("hidden");
+    $("banner-txt").textContent =
+      "Jeu de démonstration affiché — aucun backend joignable. Les valeurs illustrent le " +
+      "fonctionnement de l'application ; lancez le backend MacroLens pour des données réelles.";
+  } else if (q.degraded) {
+    banner.classList.remove("hidden");
+    $("banner-txt").textContent = q.note || "Certaines sources sont indisponibles.";
+  } else {
+    banner.classList.add("hidden");
+  }
+}
+
+function renderRegime(d) {
+  const r = d.regime;
+  if (!r) return;
+  $("reg-name").textContent = r.label || "—";
+  $("reg-desc").textContent = r.description || "";
+  $("reg-conf").textContent = `${Math.round(r.confidence ?? 0)} %`;
+  $("reg-drivers").innerHTML = (r.drivers || []).map((x) => `<span class="tag">${esc(x)}</span>`).join("");
+  // Arc de confiance sur un demi-cercle (rayon 52, centre 60/62).
+  // large-arc-flag reste à 0 : la course ne dépasse jamais 180°.
+  const frac = clamp((r.confidence ?? 0) / 100, 0, 1);
+  const ang = Math.PI * (1 - frac);
+  const x = 60 + 52 * Math.cos(ang), y = 62 - 52 * Math.sin(ang);
+  $("reg-arc").setAttribute("d", `M8 62 A52 52 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`);
+  const time = d.generated_at ? new Date(d.generated_at) : null;
+  $("reg-time").textContent = time ? `mis à jour ${time.toLocaleTimeString("fr-FR")}` : "";
+}
+
+function renderBriefing(d) {
+  $("brief-text").textContent = d.briefing || "Synthèse en cours de calcul.";
+  const engines = new Set((d.analyses || []).map((a) => a.engine));
+  $("brief-engine").textContent = engines.has("llm") ? "IA + règles" : "moteur de règles";
+}
+
+function tile(label, value, delta, deltaClass) {
+  return `<div class="tile"><div class="k">${esc(label)}</div><div class="v">${value}</div>` +
+         (delta ? `<div class="d ${deltaClass || "flat"}">${delta}</div>` : "") + `</div>`;
+}
+
+function renderTiles(d) {
+  const i = d.indicators || {};
+  const key = [
+    tile("Dollar DXY", nf(i.dxy, 2), `${signed(i.dxy_change_pct, 2)} %`, dirClass(i.dxy_change_pct)),
+    tile("Taux réel 10 a", `${nf(i.real_rate_10y, 2)} %`, `${signed(i.real_rate_change_bps, 0)} bps`,
+         dirClass(-(i.real_rate_change_bps || 0))),
+    tile("Rendement 10 a", `${nf(i.us10y, 2)} %`, `${signed(i.us10y_change_bps, 0)} bps`, dirClass(i.us10y_change_bps)),
+    tile("Inflation anticipée", `${nf(i.breakeven_inflation, 2)} %`, "point mort 10 a", "flat"),
+    tile("Volatilité VIX", nf(i.vix, 1), `${signed(i.vix_change_pct, 1)} %`, dirClass(-(i.vix_change_pct || 0))),
+    tile("Risque géopolitique", nf((i.geo_risk_index ?? 0) * 100, 0) + " / 100",
+         (i.geo_risk_index ?? 0) >= 0.6 ? "élevé" : (i.geo_risk_index ?? 0) >= 0.3 ? "modéré" : "contenu",
+         (i.geo_risk_index ?? 0) >= 0.6 ? "down" : "flat")
+  ].join("");
+  $("tiles-key").innerHTML = key;
+  $("tiles-all").innerHTML = key +
+    tile("Rendement 2 a", `${nf(i.us2y, 2)} %`, "court terme", "flat") +
+    tile("Rendement 30 a", `${nf(i.us30y, 2)} %`, "long terme", "flat") +
+    tile("Pente 10 a − 2 a", `${signed(d.curve?.spread_10y2y, 2)} pt`, d.curve?.label || "", "flat");
+}
+
+function renderAssets(d) {
+  const assets = d.assets || {};
+  $("assets").innerHTML = Object.entries(assets).map(([key, a]) => {
+    const cls = a.score > 15 ? "up" : a.score < -15 ? "down" : "flat";
+    const pill = a.score > 15 ? "p-up" : a.score < -15 ? "p-down" : "p-flat";
+    const w = Math.min(Math.abs(a.score), 100) / 100 * 50;
+    const side = a.score >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
+    const color = a.score >= 0 ? "var(--up)" : "var(--down)";
+    const factors = Object.entries(a.factors || {}).map(([fk, fv]) => {
+      const fw = Math.min(Math.abs(fv), 35) / 35 * 50;
+      const fside = fv >= 0 ? `left:50%;width:${fw}%` : `right:50%;width:${fw}%`;
+      const fcolor = fv >= 0 ? "var(--up)" : "var(--down)";
+      return `<div class="frow"><span class="fl">${esc(FACTOR_FR[fk] || fk)}</span>
+        <span class="ft"><i style="${fside};background:${fcolor}"></i></span>
+        <span class="fv ${fv >= 0 ? "up" : "down"}">${signed(fv, 0)}</span></div>`;
+    }).join("");
+    return `<div class="asset">
+      <div class="top"><span class="nm">${esc(a.label || key)}</span>
+        <span class="pill ${pill}">${BIAS_FR[a.bias] || "—"}</span></div>
+      <div class="sc ${cls}">${signed(a.score, 0)}<span style="font-size:13px;color:var(--muted)">/100</span></div>
+      <div class="cf">confiance <b>${Math.round(a.confidence ?? 0)} %</b> · risque de contexte
+        ${RISK_FR[a.risk_level] || "—"}</div>
+      <div class="meter"><span class="mid"></span><i style="${side};background:${color}"></i></div>
+      <div class="factors">${factors}</div>
+    </div>`;
+  }).join("") || `<p class="empty">Contexte par actif en cours de calcul.</p>`;
+}
+
+function eventCard(a, open = false) {
+  const markets = Object.entries(a.markets || {}).map(
+    ([m, effect]) => `<div><b>${esc(m)}</b> — ${esc(effect)}</div>`).join("");
+  const scenarios = (a.scenarios || []).map((s) => `<li>${esc(s)}</li>`).join("");
+  return `<div class="event pr-${esc(a.priority || "normal")}" ${open ? "open" : ""}>
+    <div class="head" role="button" tabindex="0">
+      <span class="chev">▶</span>
+      <div class="ttl">${esc(a.title)}
+        <div class="meta">
+          <span class="pill ${PRIO_CLS[a.priority] || "p-flat"}">${PRIO_FR[a.priority] || "—"}</span>
+          <span class="tag">confiance ${Math.round(a.confidence ?? 0)} %</span>
+          <span class="tag">${esc(a.category || "")}</span>
+          ${(a.topics || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
+        </div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="block"><div class="lbl">Ce qui s'est passé</div><p>${esc(a.summary)}</p></div>
+      <div class="block"><div class="lbl">Pourquoi c'est important</div><p>${esc(a.why_it_matters)}</p></div>
+      <div class="block"><div class="lbl">Mécanisme économique</div><p>${esc(a.mechanism)}</p></div>
+      ${markets ? `<div class="block"><div class="lbl">Marchés concernés (effets historiques)</div>
+        <div class="mk">${markets}</div></div>` : ""}
+      ${scenarios ? `<div class="block"><div class="lbl">Scénarios possibles</div><ol>${scenarios}</ol></div>` : ""}
+    </div>
+  </div>`;
+}
+
+function renderEvents(d) {
+  const all = d.analyses || [];
+  const prio = all.filter((a) => a.priority === "critical" || a.priority === "high");
+  $("prio-events").innerHTML = prio.length
+    ? prio.slice(0, 3).map((a, idx) => eventCard(a, idx === 0)).join("")
+    : `<p class="empty">Aucun sujet de priorité haute dans le flux récent.</p>`;
+  $("prio-count").textContent = prio.length ? `${prio.length} sujet(s) à surveiller` : "";
+  $("all-events").innerHTML = all.length
+    ? all.map((a) => eventCard(a)).join("")
+    : `<p class="empty">Aucun événement analysé pour le moment.</p>`;
+  bindEventToggles();
+}
+
+function bindEventToggles() {
+  document.querySelectorAll(".event > .head").forEach((head) => {
+    if (head.dataset.bound) return;
+    head.dataset.bound = "1";
+    const toggle = () => {
+      const card = head.parentElement;
+      card.hasAttribute("open") ? card.removeAttribute("open") : card.setAttribute("open", "");
+    };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+  });
+}
+
+function renderCurve(d) {
+  const c = d.curve;
+  if (!c) return;
+  const i = d.indicators || {};
+  $("curve-shape").textContent = c.label || "—";
+  $("curve-shape").className = "pill " + (c.shape === "inverted" ? "p-down" : c.shape === "flat" ? "p-warn" : "p-up");
+  $("curve-tiles").innerHTML =
+    tile("2 ans", `${nf(i.us2y, 2)} %`) + tile("10 ans", `${nf(i.us10y, 2)} %`) +
+    tile("30 ans", `${nf(i.us30y, 2)} %`) + tile("Pente 10−2", `${signed(c.spread_10y2y, 2)} pt`);
+  $("curve-txt").textContent = c.interpretation || "";
+}
+
+function renderEnergyCot(d) {
+  $("energy-txt").textContent = d.energy?.interpretation || "Stocks de pétrole non suivis.";
+  const cot = d.cot || [];
+  $("cot-list").innerHTML = cot.length
+    ? cot.map((c) => `<div class="block" style="margin-top:0;margin-bottom:11px">
+        <div class="lbl">${esc((c.market || "").replace("cot.", "").toUpperCase())} — rapport ${esc(c.report_date || "—")}</div>
+        <p>${esc(c.interpretation)}</p></div>`).join("")
+    : `<p class="empty">Positionnement COT indisponible.</p>`;
+}
+
+function renderMarkets(d) {
+  const prices = d.prices || [];
+  const groups = {};
+  prices.forEach((p) => { (groups[p.group] ||= []).push(p); });
+  let html = "";
+  Object.entries(groups).forEach(([group, rows]) => {
+    html += `<tr><td class="grp" colspan="4">${esc(GROUP_FR[group] || group)}</td></tr>`;
+    rows.forEach((p) => {
+      const cls = dirClass(p.change_pct);
+      const pill = p.change_pct > 0.05 ? "p-up" : p.change_pct < -0.05 ? "p-down" : "p-flat";
+      const word = p.change_pct > 0.05 ? "en hausse" : p.change_pct < -0.05 ? "en baisse" : "stable";
+      html += `<tr><td>${esc(p.label)}</td>
+        <td class="num">${nf(p.price, p.price >= 1000 ? 0 : p.price >= 10 ? 2 : 4)}</td>
+        <td class="num ${cls}">${signed(p.change_pct, 2)} %</td>
+        <td><span class="pill ${pill}">${word}</span></td></tr>`;
+    });
+  });
+  $("mk-body").innerHTML = html ||
+    `<tr><td colspan="4" class="empty">Aucun cours disponible (source de prix injoignable).</td></tr>`;
+  $("mk-count").textContent = prices.length ? `${prices.length} instruments` : "";
+}
+
+/* ── Fil d'actualité ── */
+const CAT_FR = {
+  macro: "Macro", markets: "Marchés", geopolitics: "Géopolitique", central_bank: "Banque centrale"
+};
+
+function timeAgo(ts, now) {
+  const ms = now - ts;
+  if (ms < 0) return "à l'instant";
+  const m = ms / 60e3;
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${Math.round(m)} min`;
+  const h = m / 60;
+  if (h < 24) return `il y a ${Math.round(h)} h`;
+  return `il y a ${Math.round(h / 24)} j`;
+}
+
+/* Forme compacte pour la colonne du fil : la largeur y est contrainte, et la
+   date complète reste accessible en infobulle. */
+function timeAgoShort(ts, now) {
+  const ms = now - ts;
+  if (ms < 60e3) return "à l'instant";
+  const m = ms / 60e3;
+  if (m < 60) return `${Math.round(m)} min`;
+  const h = m / 60;
+  if (h < 24) return `${Math.round(h)} h`;
+  return `${Math.round(h / 24)} j`;
+}
+
+const fullDate = (d) =>
+  d.toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+function impactBadge(label, value) {
+  if (!value || Math.abs(value) < 5) return "";
+  const cls = value > 0 ? "pos" : "neg";
+  return `<span class="imp-badge ${cls}">${esc(label)} ${signed(value, 0)}</span>`;
+}
+
+function renderNews(d) {
+  const all = d.news || [];
+  const now = new Date();
+
+  // Filtres actifs
+  $("news-filters").querySelectorAll("button").forEach((b) => {
+    const active = (b.dataset.cat || "") === state.newsCat;
+    b.style.borderColor = active ? "var(--accent)" : "";
+    b.style.color = active ? "var(--accent)" : "";
+  });
+
+  const query = state.newsQuery.trim().toLowerCase();
+  const items = all.filter((n) =>
+    (!state.newsCat || n.category === state.newsCat) &&
+    (!query || (n.title || "").toLowerCase().includes(query)));
+
+  const freshest = all.length ? new Date(all[0].ts) : null;
+  $("news-meta").textContent = all.length
+    ? `${items.length} dépêche(s)${freshest ? " · plus récente " + timeAgo(freshest, now) : ""}`
+    : "";
+
+  // Aperçu compact sur l'écran Synthèse : les 5 dernières dépêches.
+  $("news-mini-note").textContent = freshest ? "dernière " + timeAgo(freshest, now) : "";
+  $("news-mini").innerHTML = all.length ? all.slice(0, 5).map((n) => {
+    const when = n.ts ? new Date(n.ts) : null;
+    const title = esc(n.title);
+    return `<div class="nw">
+      <span class="ago"${when ? ` title="${esc(fullDate(when))}"` : ""}>${when ? esc(timeAgoShort(when, now)) : "—"}</span>
+      <div class="body-txt">
+        ${n.url ? `<a class="hl" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+                : `<span class="hl">${title}</span>`}
+        <div class="src"><span>${esc(n.source || "")}</span>
+          <span class="tag">${esc(CAT_FR[n.category] || n.category || "")}</span></div>
+      </div>
+      <div class="imp-badges">${impactBadge("or", n.impact_gold)}</div>
+    </div>`;
+  }).join("") : `<p class="empty">Aucune dépêche récente disponible.</p>`;
+
+  $("news-feed").innerHTML = items.length ? items.map((n) => {
+    const when = n.ts ? new Date(n.ts) : null;
+    // Une dépêche est mise en avant si elle est à la fois récente et marquante.
+    const recent = when && (now - when) < 3 * 3600e3;
+    const hot = recent && (n.severity || 0) >= 0.6;
+    const title = esc(n.title);
+    const headline = n.url
+      ? `<a class="hl" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+      : `<span class="hl">${title}</span>`;
+    return `<div class="nw${hot ? " hot" : ""}">
+      <span class="ago"${when ? ` title="${esc(fullDate(when))}"` : ""}>${when ? esc(timeAgoShort(when, now)) : "—"}</span>
+      <div class="body-txt">
+        ${headline}
+        <div class="src">
+          <span>${esc(n.source || "source inconnue")}</span>
+          <span class="tag">${esc(CAT_FR[n.category] || n.category || "")}</span>
+          ${hot ? `<span class="pill p-warn">à suivre</span>` : ""}
+        </div>
+      </div>
+      <div class="imp-badges">
+        ${impactBadge("or", n.impact_gold)}
+        ${impactBadge("BTC", n.impact_btc)}
+        ${impactBadge("mat.", n.impact_commodities)}
+      </div>
+    </div>`;
+  }).join("") : `<p class="empty">${all.length
+      ? "Aucune dépêche pour ce filtre."
+      : "Fil d'actualité vide — sources injoignables ou aucune dépêche récente."}</p>`;
+}
+
+/* ── Calendrier économique ── */
+const TOPIC_FR = {
+  inflation: "Inflation", rates: "Politique monétaire", employment: "Emploi",
+  growth: "Croissance", energy: "Énergie", geopolitics: "Géopolitique"
+};
+
+function delayLabel(target, now) {
+  const ms = target - now;
+  if (ms < -3600e3) return "passé";
+  if (ms < 0) return "en cours";
+  const h = ms / 3600e3;
+  if (h < 1) return `dans ${Math.round(ms / 60e3)} min`;
+  if (h < 36) return `dans ${Math.round(h)} h`;
+  return `dans ${Math.round(h / 24)} j`;
+}
+
+function renderCalendar(d) {
+  const cal = d.calendar;
+  const nextBox = $("cal-next");
+  if (!cal) {
+    nextBox.innerHTML = `<p class="empty">Calendrier indisponible.</p>`;
+    $("cal-list").innerHTML = "";
+    return;
+  }
+  const now = new Date();
+
+  // Bandeau « prochain rendez-vous majeur »
+  if (cal.next_major) {
+    const when = new Date(cal.next_major.event_time);
+    nextBox.innerHTML = `<div class="cal-next">
+      <span class="when">${esc(delayLabel(when, now))}</span>
+      <div class="what">
+        <b>${esc(cal.next_major.event)}</b>
+        <div>${when.toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+          · ${esc(cal.next_major.country || "")}</div>
+      </div>
+      ${cal.next_major.topic ? `<span class="pill p-acc">${esc(TOPIC_FR[cal.next_major.topic] || cal.next_major.topic)}</span>` : ""}
+      ${cal.high_impact_48h ? `<span class="pill p-warn">${cal.high_impact_48h} majeur(s) sous 48 h</span>` : ""}
+    </div>
+    ${cal.next_major.watch ? `<p class="note" style="margin:11px 0 0">
+       <b style="color:var(--text-2)">À surveiller :</b> ${esc(cal.next_major.watch)}</p>` : ""}`;
+  } else {
+    nextBox.innerHTML = `<p class="empty">Aucun rendez-vous majeur identifié sur la période.</p>`;
+  }
+
+  // Étiquette de provenance : dates confirmées ou reconstruites.
+  $("cal-source").innerHTML = cal.estimated
+    ? `<span class="pill p-warn">dates estimées</span>`
+    : `<span class="pill p-up">dates confirmées · ${esc(cal.source || "")}</span>`;
+
+  // Filtres d'importance
+  $("cal-filters").querySelectorAll("button").forEach((b) => {
+    const active = Number(b.dataset.imp) === state.calImp;
+    b.style.borderColor = active ? "var(--accent)" : "";
+    b.style.color = active ? "var(--accent)" : "";
+  });
+
+  // Liste groupée par jour
+  const entries = (cal.entries || []).filter((e) => e.importance >= state.calImp);
+  const byDay = new Map();
+  entries.forEach((e) => {
+    const when = new Date(e.event_time);
+    const key = when.toDateString();
+    if (!byDay.has(key)) byDay.set(key, { date: when, rows: [] });
+    byDay.get(key).rows.push({ ...e, when });
+  });
+
+  $("cal-count").textContent = entries.length
+    ? `${entries.length} publication(s)${cal.estimated ? " · dates à confirmer" : ""}`
+    : "";
+
+  // Aperçu compact sur l'écran Synthèse : les 4 prochaines échéances notables.
+  const soon = (cal.entries || []).filter((e) => e.importance >= 2).slice(0, 4);
+  $("cal-mini-note").textContent = cal.estimated ? "dates estimées" : "dates confirmées";
+  $("cal-mini").innerHTML = soon.length ? soon.map((e) => {
+    const when = new Date(e.event_time);
+    return `<div class="cal-row i${e.importance}">
+      <span class="h">${esc(delayLabel(when, now))}</span>
+      <span class="imp"><i></i><i></i><i></i></span>
+      <span class="ev">${esc(e.event)}
+        <span class="sub">${when.toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          ${e.topic ? " · " + esc(TOPIC_FR[e.topic] || e.topic) : ""}</span>
+      </span>
+      <span class="vals">${e.forecast ? `<span>attendu <b>${esc(e.forecast)}</b></span>` : ""}</span>
+    </div>`;
+  }).join("") : `<p class="empty">Aucune publication notable à venir sur la période.</p>`;
+
+  $("cal-list").innerHTML = byDay.size ? [...byDay.values()].map((day) => {
+    const isToday = day.date.toDateString() === now.toDateString();
+    const title = day.date.toLocaleDateString("fr-FR",
+      { weekday: "long", day: "numeric", month: "long" });
+    const rows = day.rows.map((e) => `<div class="cal-row i${e.importance}">
+      <span class="h">${e.when.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span class="imp" title="importance ${e.importance}/3"><i></i><i></i><i></i></span>
+      <span class="ev">${esc(e.event)}
+        <span class="sub">${esc(e.country || "")}${e.topic ? " · " + esc(TOPIC_FR[e.topic] || e.topic) : ""}${e.watch ? " — " + esc(e.watch) : ""}</span>
+      </span>
+      <span class="vals">
+        ${e.actual ? `<span>publié <b>${esc(e.actual)}</b></span>` : ""}
+        ${e.forecast ? `<span>attendu <b>${esc(e.forecast)}</b></span>` : ""}
+        ${e.previous ? `<span>préc. <b>${esc(e.previous)}</b></span>` : ""}
+      </span>
+    </div>`).join("");
+    return `<div class="cal-day"><h3>${esc(title)}${isToday ? " · aujourd'hui" : ""}</h3>${rows}</div>`;
+  }).join("") : `<p class="empty">Aucune publication pour ce niveau d'impact.</p>`;
+}
+
+function renderCorrelations(d) {
+  const all = d.correlations || [];
+  const windows = [...new Set(all.map((c) => c.window_days))].sort((a, b) => a - b);
+  $("corr-windows").innerHTML = windows.map((w) =>
+    `<button class="btn" data-window="${w}" ${w === state.corrWindow ? 'style="border-color:var(--accent);color:var(--accent)"' : ""}>${w} jours</button>`
+  ).join("");
+  $("corr-windows").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { state.corrWindow = +b.dataset.window; renderCorrelations(state.data); }));
+
+  const rows = all.filter((c) => c.window_days === state.corrWindow && c.value !== null);
+  $("corr-list").innerHTML = rows.length ? rows.map((c) => {
+    const [left, right] = c.pair.split("~");
+    const w = Math.abs(c.value) * 50;
+    const side = c.value >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
+    const color = c.value >= 0 ? "var(--up)" : "var(--down)";
+    return `<div class="crow">
+      <span>${esc(pretty(left))} <span style="color:var(--muted)">↔</span> ${esc(pretty(right))}
+        <span class="tag" style="margin-left:6px">${esc(c.strength)}</span></span>
+      <span class="cbar"><span class="mid"></span><i style="${side};background:${color}"></i></span>
+      <span class="cval ${c.value >= 0 ? "up" : "down"}">${signed(c.value, 2)}</span></div>`;
+  }).join("") : `<p class="empty">Historique insuffisant pour calculer les corrélations sur cette fenêtre.</p>`;
+}
+
+const PRETTY = {
+  "market.dxy": "DXY", "commodity.gold": "Or", "rates.real10y": "Taux réel 10 a",
+  "market.vix": "VIX", "index.spx": "S&P 500", "commodity.oil": "Pétrole",
+  "crypto.btc": "Bitcoin", "rates.us10y": "10 ans US"
+};
+const pretty = (k) => PRETTY[k] || k;
+
+/* ════════ SIMULATEUR (mêmes formules que le backend) ════════ */
+const SIM_IDS = ["s-geo", "s-dxy", "s-real", "s-lvl", "s-inf", "s-sen"];
+const SIM_FMT = {
+  "s-geo": (v) => `${v} %`,
+  "s-dxy": (v) => `${signed(v / 100, 2)} %`,
+  "s-real": (v) => `${signed(v, 0)} bps`,
+  "s-lvl": (v) => `${nf(v / 100, 1)} %`,
+  "s-inf": (v) => `${nf(v / 100, 2)} %`,
+  "s-sen": (v) => signed(v, 0)
+};
+
+function simCompute() {
+  const geo = +$("s-geo").value / 100, dxy = +$("s-dxy").value / 100;
+  const realChg = +$("s-real").value, realLvl = +$("s-lvl").value / 100;
+  const be = +$("s-inf").value / 100, sent = +$("s-sen").value;
+  const f = {};
+  f.geopolitics = clamp(geo * 35, -10, 35);
+  f.dollar = clamp(-dxy * 25, -25, 25);
+  f.us_rates = clamp(-realChg * 1.2 + clamp((1.5 - realLvl) * 6, -12, 12), -30, 30);
+  f.inflation = clamp((be - 2) * 18, -20, 25);
+  f.risk_sentiment = clamp(sent * 0.25, -25, 25);
+  const score = clamp(Object.values(f).reduce((a, b) => a + b, 0), -100, 100);
+
+  const vals = Object.values(f).filter((v) => Math.abs(v) > 1e-6);
+  const net = vals.reduce((a, b) => a + b, 0);
+  const aligned = vals.filter((v) => (v > 0) === (net > 0)).reduce((a, b) => a + Math.abs(b), 0);
+  const total = vals.reduce((a, b) => a + Math.abs(b), 0);
+  const coherence = total ? aligned / total : 0;
+  const confidence = Math.round(clamp(100 * (0.65 * Math.min(Math.abs(score) / 100, 1) + 0.35 * coherence), 0, 99));
+  return { score, f, confidence };
+}
+
+function simRender() {
+  const { score, f, confidence } = simCompute();
+  const bias = score >= 15 ? "bullish" : score <= -15 ? "bearish" : "neutral";
+  const el = $("s-score");
+  el.textContent = signed(score, 0);
+  el.className = "sc mono " + (score > 15 ? "up" : score < -15 ? "down" : "flat");
+  const pill = $("s-bias");
+  pill.textContent = BIAS_FR[bias];
+  pill.className = "pill " + (bias === "bullish" ? "p-up" : bias === "bearish" ? "p-down" : "p-flat");
+  $("s-conf").textContent = `${confidence} %`;
+  const w = Math.min(Math.abs(score), 100) / 100 * 50;
+  $("s-meter").style.cssText = (score >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`) +
+    `;background:${score >= 0 ? "var(--up)" : "var(--down)"}`;
+  $("s-factors").innerHTML = Object.entries(f).map(([k, v]) => {
+    const fw = Math.min(Math.abs(v), 35) / 35 * 50;
+    const side = v >= 0 ? `left:50%;width:${fw}%` : `right:50%;width:${fw}%`;
+    const color = v >= 0 ? "var(--up)" : "var(--down)";
+    return `<div class="frow"><span class="fl">${FACTOR_FR[k]}</span>
+      <span class="ft"><i style="${side};background:${color}"></i></span>
+      <span class="fv ${v >= 0 ? "up" : "down"}">${signed(v, 0)}</span></div>`;
+  }).join("");
+}
+
+function simBind() {
+  SIM_IDS.forEach((id) => {
+    const el = $(id);
+    el.addEventListener("input", () => { $(id + "-o").textContent = SIM_FMT[id](+el.value); simRender(); });
+  });
+  $("s-load").addEventListener("click", () => {
+    const i = state.data?.indicators;
+    if (!i) return;
+    const set = (id, v) => { $(id).value = Math.round(v); $(id + "-o").textContent = SIM_FMT[id](+$(id).value); };
+    if (i.geo_risk_index != null) set("s-geo", i.geo_risk_index * 100);
+    if (i.dxy_change_pct != null) set("s-dxy", clamp(i.dxy_change_pct * 100, -150, 150));
+    if (i.real_rate_change_bps != null) set("s-real", clamp(i.real_rate_change_bps, -30, 30));
+    if (i.real_rate_10y != null) set("s-lvl", clamp(i.real_rate_10y * 100, -100, 350));
+    if (i.breakeven_inflation != null) set("s-inf", clamp(i.breakeven_inflation * 100, 100, 400));
+    simRender();
+  });
+  simRender();
+}
+
+/* ════════ ONGLETS ════════ */
+function bindTabs() {
+  document.querySelectorAll("nav.tabs button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      state.tab = tab;
+      document.querySelectorAll("nav.tabs button").forEach((b) =>
+        b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+      ["synthese", "indicateurs", "actualites", "calendrier", "marches", "evenements",
+       "correlations", "simulateur"].forEach((t) => {
+        $("tab-" + t).hidden = t !== tab;
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+}
+
+/* ════════ DONNÉES ════════ */
+function setStatus(kind, text) {
+  const el = $("status");
+  el.className = "status " + kind;
+  $("status-txt").textContent = text;
+}
+
+async function loadLive() {
+  const res = await fetch(API.url("v1/dashboard"), { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  if (!data || !data.regime) throw new Error("réponse incomplète : clé « regime » absente");
+  return data;
+}
+
+function startStream() {
+  if (state.es) { state.es.close(); state.es = null; }
+  if (!("EventSource" in window)) return;
+  let ok = false;
+  const es = new EventSource(API.url("v1/stream"));
+  state.es = es;
+  es.onmessage = (ev) => {
+    ok = true;
+    try {
+      state.data = JSON.parse(ev.data);
+      state.mode = "live";
+      render();
+      setStatus("", "flux temps réel");
+    } catch (_) { /* trame partielle ignorée */ }
+  };
+  es.onerror = () => { if (!ok) { es.close(); state.es = null; } };
+}
+
+/* ── Panneau de configuration de l'API ── */
+function setApiState(kind, message) {
+  const el = $("api-state");
+  el.className = "api-hint" + (kind ? " " + kind : "");
+  el.textContent = message;
+}
+
+function bindApiPanel() {
+  const panel = $("api-panel");
+  const input = $("api-url");
+  input.value = API.base;
+
+  $("btn-api").addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      input.value = API.base;
+      setApiState("", API.base
+        ? `Source actuelle : ${API.base}`
+        : "Source actuelle : même origine que cette page.");
+      input.focus();
+    }
+  });
+
+  const connect = async () => {
+    API.base = input.value;
+    setApiState("", "Connexion en cours…");
+    try {
+      state.data = await loadLive();
+      state.mode = "live";
+      setStatus("", API.base ? "données en direct · API externe" : "données en direct");
+      setApiState("ok", `Connecté à ${API.base || "la même origine"} — données chargées.`);
+      render();
+      startStream();
+    } catch (err) {
+      state.mode = "demo";
+      state.data = DEMO;
+      setStatus("demo", "mode démonstration");
+      setApiState("ko",
+        `Échec de la connexion : ${err.message}. Vérifiez l'adresse, que l'API expose ` +
+        `/v1/dashboard, et qu'elle autorise votre origine (CORS).`);
+      render();
+    }
+  };
+
+  $("api-save").addEventListener("click", connect);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  $("api-reset").addEventListener("click", () => {
+    API.base = "";
+    input.value = "";
+    setApiState("", "Réinitialisé : l'application utilisera la même origine que cette page.");
+  });
+}
+
+async function boot() {
+  bindTabs();
+  simBind();
+  bindApiPanel();
+  $("btn-refresh").addEventListener("click", refresh);
+  $("cal-filters").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { state.calImp = Number(b.dataset.imp); renderCalendar(state.data); }));
+  $("news-filters").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { state.newsCat = b.dataset.cat || ""; renderNews(state.data); }));
+  $("news-search").addEventListener("input", (e) => {
+    state.newsQuery = e.target.value; renderNews(state.data);
+  });
+  $("ask-btn").addEventListener("click", ask);
+  $("ask-input").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
+
+  setStatus("off", "connexion…");
+  try {
+    state.data = await loadLive();
+    state.mode = "live";
+    setStatus("", API.base ? "données en direct · API externe" : "données en direct");
+    render();
+    startStream();
+  } catch (_) {
+    state.data = DEMO;
+    state.mode = "demo";
+    setStatus("demo", "mode démonstration");
+    render();
+  }
+}
+
+async function refresh() {
+  const btn = $("btn-refresh");
+  btn.disabled = true;
+  const previous = btn.textContent;
+  btn.textContent = "↻ Actualisation…";
+  try {
+    if (state.mode === "live") {
+      await fetch(API.url("v1/refresh"), { method: "POST" });
+      state.data = await loadLive();
+    } else {
+      state.data = await loadLive();
+      state.mode = "live";
+      setStatus("", "données en direct");
+      startStream();
+    }
+    render();
+  } catch (_) {
+    setStatus("demo", "mode démonstration");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = previous;
+  }
+}
+
+async function ask() {
+  const input = $("ask-input");
+  const title = input.value.trim();
+  const out = $("ask-out");
+  if (title.length < 3) return;
+  out.innerHTML = `<p class="empty">Analyse en cours…</p>`;
+  if (state.mode === "live") {
+    try {
+      const res = await fetch(API.url(`v1/explain?title=${encodeURIComponent(title)}`), { method: "POST" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      out.innerHTML = eventCard(await res.json(), true);
+      bindEventToggles();
+      return;
+    } catch (_) { /* repli local ci-dessous */ }
+  }
+  out.innerHTML = eventCard(localExplain(title), true);
+  bindEventToggles();
+}
+
+/* Explication locale de secours (mode démonstration) : reprend la logique
+   par mots-clés du moteur déterministe du backend. */
+const LOCAL_TOPICS = [
+  { keys: ["cpi", "inflation", "pce", "ppi", "prix"], from: 0 },
+  { keys: ["fed", "fomc", "bce", "ecb", "taux", "hawkish", "dovish", "powell", "lagarde"], from: 1 },
+  { keys: ["guerre", "war", "conflit", "sanction", "attaque", "crise", "géopolitique"], from: 2 }
+];
+function localExplain(title) {
+  const lowered = title.toLowerCase();
+  let base = DEMO.analyses[1];
+  for (const t of LOCAL_TOPICS) {
+    if (t.keys.some((k) => lowered.includes(k))) { base = DEMO.analyses[t.from]; break; }
+  }
+  return {
+    ...base,
+    title,
+    summary: `${title} — sujet rattaché aux mécanismes « ${base.topics.join(", ")} ». ` +
+             `Cet élément agit d'abord sur : ${Object.keys(base.markets).slice(0, 4).join(", ")}.`,
+    confidence: Math.max(40, base.confidence - 15),
+    priority: base.priority === "critical" ? "high" : base.priority
+  };
+}
+
+boot();
+</script>

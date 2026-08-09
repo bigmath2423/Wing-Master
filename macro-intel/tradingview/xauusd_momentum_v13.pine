@@ -1324,13 +1324,15 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // ============================================================
 
 // ============================================================
-// PANNEAU — SIX LIGNES, ORDRE DE DECISION
+// PANNEAU — VERDICT / BIAS / CONFLUENCE / VALIDATION / PLAN
 // ------------------------------------------------------------
-// Pas de legende : si l'encodage a besoin d'un decodeur, il est rate.
+// Pas de legende a part sur le graphique : chaque zone/OB/FVG porte deja
+// son propre texte ("OB", "FVG", "BUY 82/100"...), un decodeur separe
+// serait un aveu d'echec de la lisibilite directe.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 10, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 8, border_width=0)
 
 // f_cell = ligne CONTEXTE (affichee, ne decide rien). f_cellD = ligne DECIDE
 // (participe reellement a buySignal/sellSignal) : meme contenu, fond legerement
@@ -1376,65 +1378,60 @@ if barstate.islast and panShow
     table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(250, 247, 240), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
     table.cell(pan, 1, 0, " ", bgcolor=vc)
 
-    // 1 — LE CONTEXTE. Affiche, ne decide rien (controle l'affichage des
-    //     zones uniquement, jamais buySignal/sellSignal).
-    f_cell(1, "Contexte", ctxTxt, ctxCol)
+    // 1 — BIAS HTF. Le regime 5 niveaux (CONTEXTE, ne decide rien -- controle
+    // l'affichage des zones, jamais buySignal/sellSignal) accompagne des trois
+    // votes individuels W1/D1/H4 (eux aussi CONTEXTE ou partiellement DECIDE
+    // via biasBull/biasBear -- le statut reel de chaque brique est en ligne 3).
+    string arrW  = na(biasW) ? "–" : biasW > 0 ? "▲" : biasW < 0 ? "▼" : "–"
+    string arrD  = na(biasD) ? "–" : biasD > 0 ? "▲" : biasD < 0 ? "▼" : "–"
+    string arrH4 = dirH4 == 1 ? "▲" : dirH4 == -1 ? "▼" : "–"
+    f_cell(1, "Bias HTF", ctxTxt + "\nW1" + arrW + "  D1" + arrD + "  H4" + arrH4, ctxCol)
 
-    // 2 — LE BIAIS. Le module qui porte le systeme. DECIDE.
-    f_cellD(2, "Biais D1+W1", biasTxt, biasBull ? cUp : biasBear ? cDn : cMute)
-
-    // 3 — GRADE A+/A/B/INVALID, detail (voir SETUP_GRADING.md). Le calcul
-    // (gC1..gC5, gradeN, grade) a deja eu lieu en ligne 0 pour le verdict
-    // resume ; ici on liste LEQUEL des 5 manque, plus l'accord MTF (affichage
-    // seul, ne decide rien, garde ici faute de ligne dediee). A+ n'est jamais
-    // qu'une reformulation de buySignal/sellSignal : aucun nouveau trade
-    // n'est cree. A et B sont des categories neuves, jamais backtestees
-    // isolement -- affichees pour lecture, pas pour decider. DECIDE.
-    string missTxt = ""
-    if trigOk and gradeN < 5
-        array<string> miss = array.new<string>()
-        if not gC1
-            array.push(miss, "Structure")
-        if not gC2
-            array.push(miss, "HTF")
-        if not gC3
-            array.push(miss, "VWAP")
-        if not gC4
-            array.push(miss, "Biais")
-        if not gC5
-            array.push(miss, "POC")
-        missTxt := array.size(miss) > 0 ? "  (manque " + array.join(miss, ", ") + ")" : ""
-    string mtfTxt = mtfShow ? "   ·   MTF " + str.tostring(mtfAgree) + "/" + str.tostring(mtfTot) : ""
-    string gradeTxt = grade + "  " + (dL ? "BUY" : "SELL") + missTxt + mtfTxt
-    f_cellD(3, "Grade", gradeTxt, gradeCol)
-
-    // 4 et 5 — LES ZONES. Bornes et confluence, cote par cote. CONTEXTE.
-    string bz = "aucune"
-    string sz = "aucune"
-    color  bc = cMute
-    color  sc2 = cMute
+    // 2 — CONFLUENCE. Score /100 de la zone hebdomadaire du cote ou penche le
+    // biais actuel (dL) -- une seule zone mise en avant, pas les deux cotes
+    // enumeres, conformement a "1 setup propre plutot que 20 zones". Barre
+    // visuelle en blocs pleins/vides plutot qu'une jauge circulaire (Pine n'a
+    // pas de primitive d'arc bon marche ; le budget d'objets doit rester
+    // raisonnable). CONTEXTE : ce score ne gate jamais buySignal/sellSignal,
+    // seulement l'affichage de LA zone elle-meme.
+    float confScore = na
+    string confRange = "—"
     if array.size(zTop) > 0
         for i = 0 to array.size(zTop) - 1
-            string rg = f_px2(array.get(zBot, i)) + " – " + f_px2(array.get(zTop, i)) + "   " + str.tostring(int(math.round(array.get(zScr, i)))) + "/100"
-            if array.get(zSide, i) == 1 and bz == "aucune"
-                bz := rg
-                bc := cGold
-            if array.get(zSide, i) == -1 and sz == "aucune"
-                sz := rg
-                sc2 := cPurp
-    f_cell(4, "🟨 BUY Zone",  bz, bc)
-    f_cell(5, "🟪 SELL Zone", sz, sc2)
+            if array.get(zSide, i) == (dL ? 1 : -1)
+                confScore := array.get(zScr, i)
+                confRange := f_px2(array.get(zBot, i)) + " – " + f_px2(array.get(zTop, i))
+                break
+    string confBar = ""
+    if not na(confScore)
+        int filled = int(math.round(confScore / 10))
+        for k = 0 to 9
+            confBar := confBar + (k < filled ? "█" : "░")
+    string confTxt = na(confScore) ? "—" : confRange + "\n" + confBar + "  " + str.tostring(int(math.round(confScore))) + "/100" + (mtfShow ? "  ·  MTF " + str.tostring(mtfAgree) + "/" + str.tostring(mtfTot) : "")
+    f_cell(2, "Confluence", confTxt, na(confScore) ? cMute : (dL ? cUp : cDn))
 
-    // 6 — STOP. Les deux references de stop. DECIDE (le stop ATR est celui
-    //     reellement utilise par la strategie).
+    // 3 — VALIDATION. Le grade (voir SETUP_GRADING.md) ET le detail coche par
+    // coche des 5 conditions qui le composent, sur la MEME ligne : le grade
+    // n'est qu'une compression de ce checklist, les montrer separement les
+    // aurait dedoubles pour rien. A+ n'est jamais qu'une reformulation de
+    // buySignal/sellSignal : aucun nouveau trade n'est cree. A et B sont des
+    // categories neuves, jamais backtestees isolement -- affichees pour
+    // lecture, pas pour decider. DECIDE (c'est litteralement l'etat de la
+    // decision).
+    string valChecklist = (gC1 ? "✓" : "✗") + "Struct  " + (gC2 ? "✓" : "✗") + "HTF  " + (gC3 ? "✓" : "✗") + "VWAP  " + (gC4 ? "✓" : "✗") + "Biais  " + (gC5 ? "✓" : "✗") + "POC"
+    f_cellD(3, "Validation", grade + "  " + (dL ? "BUY" : "SELL") + "\n" + valChecklist, gradeCol)
+
+    // 4 — SL. DECIDE (c'est le stop reellement utilise par la strategie) ;
+    // struct = ou l'idee est vraiment fausse, affichee cote a cote.
     string stTxt = na(stopAtr) ? "—" : f_px2(stopAtr) + "  ·  struct " + f_px2(stopStr) + (stopDevant ? "  ⚠" : "")
-    f_cellD(6, "Stop  ATR · struct", stTxt, stopDevant ? cDn : cTxt)
+    f_cellD(4, "SL  ATR · struct", stTxt, stopDevant ? cDn : cTxt)
 
-    // 7 — OBJECTIF. Reference visuelle, ne pilote ni le TP ni la sortie. CONTEXTE.
+    // 5 — OBJECTIF. Reference de lecture, ne pilote ni le TP ni la sortie
+    // reelle (le trailing mesure). CONTEXTE.
     string obTxt = na(objPx) ? "—" : f_px2(objPx) + "  (" + objSrc + ")" + (na(rr) ? "" : "   R:R " + str.tostring(rr, "#.#"))
-    f_cell(7, "Objectif", obTxt, na(objPx) ? cMute : cGold)
+    f_cell(5, "Objectif", obTxt, na(objPx) ? cMute : cGold)
 
-    // 8 et 9 — GESTION DES ZONES. Combien sont actives, et pourquoi la
+    // 6 et 7 — GESTION DES ZONES. Combien sont actives, et pourquoi la
     // derniere a disparu — pour comprendre le graphique sans le deviner. CONTEXTE.
     int nBuyZ  = 0
     int nSellZ = 0
@@ -1444,9 +1441,9 @@ if barstate.islast and panShow
                 nBuyZ += 1
             else
                 nSellZ += 1
-    f_cell(8, "Zones actives", "Buy " + str.tostring(nBuyZ) + "  ·  Sell " + str.tostring(nSellZ), cTxt)
+    f_cell(6, "Zones actives", "Buy " + str.tostring(nBuyZ) + "  ·  Sell " + str.tostring(nSellZ), cTxt)
     string invTxt = lastInvReason == "—" ? "—" : (lastInvSide == 1 ? "BUY " : "SELL ") + str.tostring(int(math.round(lastInvScore))) + " · " + lastInvReason
-    f_cell(9, "Dern. invalidee", invTxt, cMute)
+    f_cell(7, "Dern. invalidee", invTxt, cMute)
 
 // ============================================================
 // TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES

@@ -940,17 +940,22 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
         array.shift(zSmcBot)
 
 // ---- INVALIDATION CONTINUE DES ZONES ----------------------------------
-// Une zone n'a de valeur que tant qu'elle est exploitable. Cinq causes de
-// retrait, verifiees a chaque bougie, dans un ordre qui va du plus decisif
-// au moins decisif (si plusieurs sont vraies, la raison affichee est la
-// premiere qui matche — la plus utile a comprendre) :
+// Regle : une condition n'invalide QUE si elle etait vraie — ou garantie —
+// au moment de la creation, et qu'un evenement post-creation la rend fausse.
+// Rien n'est juge sur un standard qu'il n'a jamais eu a respecter.
 //   CONSOMMEE — le prix l'a traversee de part en part : le desequilibre a ete
 //               absorbe, il n'y a plus rien a y chercher.
 //   CASSEE    — le prix a cloture au-dela de la zone, dans le mauvais sens.
-//   STRUCTURE — la structure locale (trend) s'est inversee contre la zone.
 //   OB/FVG    — l'element SMC precis qui a donne les 15 points a disparu
-//               (mitige ou trop vieux) : la confluence n'existe plus.
-//   PERIMEE   — le regime de marche a bascule et interdit desormais ce cote.
+//               (mitige ou trop vieux) : verifiable, puisque sa presence a
+//               ete constatee et enregistree au moment meme de la creation.
+//   PERIMEE   — le contexte HTF, qui etait EXIGE favorable a la creation
+//               (garde-fou f_ctxAllow), est devenu defavorable depuis.
+// Ecarte volontairement : l'alignement de `trend` n'est qu'un BONUS de score
+// a la creation (25 pts, non exige) — une zone peut naitre sans lui. Le
+// retenir comme cause d'invalidation la jugerait retroactivement sur une
+// condition qu'elle n'a jamais eu a remplir. Retire suite a observation en
+// backtest : des zones disparaissaient a la bougie suivant leur creation.
 var string lastInvReason = "—"
 var int    lastInvSide   = 0
 var float  lastInvScore  = na
@@ -966,7 +971,6 @@ if array.size(zTop) > 0
 
         bool consommee  = isB ? (low <= bt and close > tp) : (high >= tp and close < bt)
         bool cassee     = isB ? close < bt : close > tp
-        bool structFlip = isB ? trend == -1 : trend == 1
         bool perimee    = not f_ctxAllow(isB)
 
         bool smcGone = false
@@ -991,7 +995,7 @@ if array.size(zTop) > 0
                     if array.get(fvST, j) == sTp and array.get(fvSB, j) == sBt
                         smcGone := false
 
-        string reason = consommee ? "zone consommee" : cassee ? "cloture au travers" : structFlip ? "structure inversee" : smcGone ? (sT == 1 ? "OB casse" : "FVG comble") : perimee ? "contexte HTF change" : ""
+        string reason = consommee ? "zone consommee" : cassee ? "cloture au travers" : smcGone ? (sT == 1 ? "OB casse" : "FVG comble") : perimee ? "contexte HTF change" : ""
 
         if reason != ""
             lastInvReason := reason

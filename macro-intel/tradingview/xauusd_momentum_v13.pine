@@ -92,10 +92,19 @@ wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=9
 wzWidthAtr  = input.float(1.6, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW)
 wzMax       = input.int(2, "Zones maximum par cote", minval=1, maxval=3, group=grpW)
 wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.")
+wzMaxAnchorAge = input.int(300, "Age maximum de l'ancre OB/FVG (bougies)", minval=50, maxval=1000, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.")
+wzFarAtr    = input.float(3.0, "Distance avant mise en sourdine (x ATR)", minval=1.0, step=0.5, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Au-dela de cette distance au prix, la zone reste affichee mais tres transparente -- elle n'est pas supprimee, juste dé-priorisee visuellement.")
 wzPlan      = input.bool(true, "Tableau de planification", group=grpW)
 
 grpX = "③ Sortie (la partie qui compte le plus)"
 slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.")
+// NON MESURE comme alternative complete -- seule la comparaison ATR vs
+// 1.5xATR existe (voir tooltip ci-dessus). "Structurel" utilise le dernier
+// swing low/high confirme (deja calcule pour l'affichage, jamais utilise
+// comme stop reel jusqu'ici) au lieu d'un multiple fixe d'ATR. Desactive par
+// defaut : la reference du systeme (PF 1.212, 19 ans) reste calculee avec
+// le stop ATR seul tant que ce mode n'a pas ete compare en Strategy Tester.
+slMode = input.string("ATR (actuel)", "Mode de calcul du SL", options=["ATR (actuel)", "Structurel (dernier swing)"], group=grpX, tooltip="A COMPARER TOI-MEME : bascule ce reglage et regarde le Strategy Tester avant/apres. 'Structurel' place le stop juste sous/sur le dernier swing low/high confirme plutot qu'a un multiple fixe d'ATR -- distance variable au lieu de constante, jamais mesure sur ce systeme.")
 trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.")
 trailDistR  = input.float(0.3, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX, tooltip="Voir le tooltip de l'activation. Le gradient mesure est LISSE et MONOTONE sur les quatre sous-periodes (plus l'armement est tardif, plus le PF monte, quelle que soit la distance) : c'est la signature d'un effet reel, pas d'un pic d'optimisation. Ancienne valeur : 1.0.")
 riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
@@ -157,9 +166,17 @@ crossDn = ta.crossunder(close, swingLow) and swingLow == swingLow[1]
 var int trend = 0
 bullBos = not na(swingHigh) and crossUp
 bearBos = not na(swingLow) and crossDn
-if bullBos
+// GARDE ANTI-REPAINT. trend est un var : une fois ecrit, rien ne le fait
+// revenir en arriere tout seul. Sans le garde barstate.isconfirmed, une meche
+// intrabougie qui franchit swingHigh puis repart avant la cloture pouvait
+// forcer trend a la mauvaise valeur en direct (graphique temps reel), et
+// cette corruption survivait a la bougie suivante. En backtest, aucun
+// changement : le simulateur n'evalue jamais de bougie non confirmee, donc
+// barstate.isconfirmed y est deja toujours vrai au moment ou le script
+// s'execute -- ce garde ne change que le comportement live.
+if bullBos and barstate.isconfirmed
     trend := 1
-if bearBos
+if bearBos and barstate.isconfirmed
     trend := -1
 
 // CHoCH : il faut la tendance AVANT sa mise a jour, donc trend[1].
@@ -323,13 +340,24 @@ f_qty(float risk) =>
     float qMax = close > 0 ? maxLev * strategy.equity / close : 0.0
     math.min(q, qMax)
 
+// SL structurel : distance au dernier swing low/high confirme, + un petit
+// coussin de 0.15 ATR (meme marge que la reference structurelle affichee
+// dans le panneau). N'utilise QUE swingLow/swingHigh, deja calcules a ce
+// stade du script -- les tableaux OB/liquidite ne le sont pas encore ici,
+// les utiliser aurait exige de reorganiser tout l'ordre de calcul du fichier
+// pour un gain non demontre. Repli sur le stop ATR si le swing n'existe pas
+// encore ou si la distance resultante est degeneree (<= 0).
+f_slRisk(bool isLong) =>
+    float structDist = isLong ? (na(swingLow) ? na : close - swingLow + atrV * 0.15) : (na(swingHigh) ? na : swingHigh - close + atrV * 0.15)
+    slMode == "ATR (actuel)" ? slAtr * atrV : (not na(structDist) and structDist > 0 ? structDist : slAtr * atrV)
+
 // Le percentile ADX du moment est inscrit dans le commentaire de chaque
 // entree (suffixe "A"), UNIQUEMENT pour apparaitre dans la liste de trades
 // exportee. Il ne conditionne rien. But : le test en avant des six prochains
 // mois sert alors aussi de test hors echantillon du filtre de regime, sans
 // qu'il faille l'activer et donc sans rien risquer.
 if buySignal and strategy.position_size == 0
-    risk = slAtr * atrV
+    risk = f_slRisk(true)
     qty = f_qty(risk)
     if qty > 0
         ePx := close
@@ -339,7 +367,7 @@ if buySignal and strategy.position_size == 0
         strategy.entry("L", strategy.long, qty=qty, comment="BUY " + str.tostring(math.round(f_score(true))) + " A" + str.tostring(math.round(nz(fAdxPct, -1))))
 
 if sellSignal and strategy.position_size == 0
-    risk = slAtr * atrV
+    risk = f_slRisk(false)
     qty = f_qty(risk)
     if qty > 0
         ePx := close
@@ -456,13 +484,20 @@ string ctxTxt = ctxCode == 2 ? "STRONG BULLISH" : ctxCode == 1 ? "BULLISH" : ctx
 color  ctxCol = ctxCode == 2 ? cUp : ctxCode == 1 ? color.new(cUp, 30) : ctxCode == -1 ? color.new(cDn, 30) : ctxCode == -2 ? cDn : cMute
 
 // Regle d'affichage des zones, deduite du regime :
-//   STRONG BULLISH  -> aucune zone de vente, les zones d'achat passent normalement
-//   BULLISH         -> les zones de vente exigent 15 points de confluence en plus
-//   RANGE           -> les deux cotes passent normalement
-//   BEARISH         -> les zones d'achat exigent 15 points en plus
-//   STRONG BEARISH  -> aucune zone d'achat
-f_ctxAllow(bool isBuy) => isBuy ? ctxCode != -2 : ctxCode != 2
-f_ctxMalus(bool isBuy) => (isBuy and ctxCode == -1) or (not isBuy and ctxCode == 1) ? 15.0 : 0.0
+//   STRONG BULLISH / BULLISH  -> aucune zone de vente
+//   RANGE                     -> les deux cotes passent normalement
+//   BEARISH / STRONG BEARISH  -> aucune zone d'achat
+//
+// DURCI cette session : l'ancienne regle ne bloquait qu'au niveau extreme
+// (STRONG), avec un simple malus de 15 pts au niveau intermediaire. Un
+// rallye rapide reste souvent classe "BULLISH" (pas encore "STRONG") tant que
+// les moyennes mobiles qui construisent ctxCode n'ont pas rattrape le
+// mouvement -- une zone SELL pouvait donc rester affichee, legale au sens du
+// code, en pleine acceleration haussiere. Le malus ne suffisait pas a
+// l'empecher, il la rendait juste un peu plus dure a creer. Desormais
+// "BULLISH" bloque deja les zones SELL, pas seulement "STRONG BULLISH" --
+// f_ctxMalus n'a donc plus de cas ou l'agir : supprime.
+f_ctxAllow(bool isBuy) => isBuy ? ctxCode >= 0 : ctxCode <= 0
 
 // ============================================================
 // PLAN 1 — LE FOND : liquidite, volume, zones
@@ -738,6 +773,7 @@ var array<int>   zBar  = array.new<int>()
 var array<int>   zSmcType = array.new<int>()
 var array<float> zSmcTop  = array.new<float>()
 var array<float> zSmcBot  = array.new<float>()
+var array<int>   zSmcBar  = array.new<int>()
 var array<box>   zBox  = array.new<box>()
 var array<label> zLab  = array.new<label>()
 
@@ -822,6 +858,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
     array.clear(zSmcType)
     array.clear(zSmcTop)
     array.clear(zSmcBot)
+    array.clear(zSmcBar)
 
     float half = atrV * wzWidthAtr / 2.0
     float rgLo = na(wLoPrev) ? wVal : wLoPrev
@@ -859,10 +896,13 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
             // 15 — Zone SMC : un OB ou un FVG encore valide recoupe la zone.
             // smcType/smcTop/smcBot memorisent LEQUEL, pour verifier plus tard
             // s'il est toujours en vie (voir invalidation continue plus bas).
+            // smcBar memorise sa bougie de creation, pour la regle d'age
+            // (section 7 : "le setup arrive trop tard apres l'impulsion").
             float sSmc = 0.0
             int   smcType = 0
             float smcTop  = na
             float smcBot  = na
+            int   smcBar  = na
             if isBuy
                 if array.size(obBB) > 0
                     for i = 0 to array.size(obBB) - 1
@@ -871,6 +911,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                             smcType := 1
                             smcTop := array.get(obBT, i)
                             smcBot := array.get(obBB, i)
+                            smcBar := array.get(obBX, i)
                             break
                 if sSmc == 0 and array.size(fvBB) > 0
                     for i = 0 to array.size(fvBB) - 1
@@ -879,6 +920,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                             smcType := 2
                             smcTop := array.get(fvBT, i)
                             smcBot := array.get(fvBB, i)
+                            smcBar := array.get(fvBX, i)
                             break
             else
                 if array.size(obST) > 0
@@ -888,6 +930,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                             smcType := 1
                             smcTop := array.get(obST, i)
                             smcBot := array.get(obSB, i)
+                            smcBar := array.get(obSX, i)
                             break
                 if sSmc == 0 and array.size(fvST) > 0
                     for i = 0 to array.size(fvST) - 1
@@ -896,6 +939,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                             smcType := 2
                             smcTop := array.get(fvST, i)
                             smcBot := array.get(fvSB, i)
+                            smcBar := array.get(fvSX, i)
                             break
             // 10 — Multi-timeframe : D1, H4 et H1 dans le sens de la zone.
             int want = isBuy ? 1 : -1
@@ -917,7 +961,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                         break
             // Le regime de marche a le dernier mot : une zone que le contexte
             // invalide n'est pas affaiblie, elle n'est pas creee du tout.
-            if fibOk and reacted and f_ctxAllow(isBuy) and score >= wzMinScore + f_ctxMalus(isBuy)
+            if fibOk and reacted and f_ctxAllow(isBuy) and score >= wzMinScore
                 color bord = isBuy ? color.new(cUp, 15) : color.new(cDn, 15)
                 color fill = isBuy ? color.new(cUp, 87) : color.new(cDn, 87)
                 box   zb = box.new(bar_index, top, bar_index, bot, border_color=bord, border_width=2, bgcolor=fill)
@@ -930,6 +974,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
                 array.push(zSmcType, smcType)
                 array.push(zSmcTop, smcTop)
                 array.push(zSmcBot, smcBot)
+                array.push(zSmcBar, smcBar)
                 array.push(zBox, zb)
                 array.push(zLab, zl)
 
@@ -947,6 +992,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
         array.shift(zSmcType)
         array.shift(zSmcTop)
         array.shift(zSmcBot)
+        array.shift(zSmcBar)
 
 // ---- INVALIDATION CONTINUE DES ZONES ----------------------------------
 // Regle : une condition n'invalide QUE si elle etait vraie — ou garantie —
@@ -958,6 +1004,8 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
 //   OB/FVG    — l'element SMC precis qui a donne les 15 points a disparu
 //               (mitige ou trop vieux) : verifiable, puisque sa presence a
 //               ete constatee et enregistree au moment meme de la creation.
+//   ANCIENNE  — l'ancre OB/FVG date de plus de wzMaxAnchorAge bougies : le
+//               setup arrive trop tard apres l'impulsion qui l'a cree.
 //   PERIMEE   — le contexte HTF, qui etait EXIGE favorable a la creation
 //               (garde-fou f_ctxAllow), est devenu defavorable depuis.
 // Ecarte volontairement : l'alignement de `trend` n'est qu'un BONUS de score
@@ -977,9 +1025,11 @@ if array.size(zTop) > 0
         int   sT  = array.get(zSmcType, i)
         float sTp = array.get(zSmcTop, i)
         float sBt = array.get(zSmcBot, i)
+        int   sBar = array.get(zSmcBar, i)
 
         bool consommee  = isB ? (low <= bt and close > tp) : (high >= tp and close < bt)
         bool cassee     = isB ? close < bt : close > tp
+        bool ancienne   = sT != 0 and not na(sBar) and (bar_index - sBar) > wzMaxAnchorAge
         bool perimee    = not f_ctxAllow(isB)
 
         bool smcGone = false
@@ -1004,7 +1054,7 @@ if array.size(zTop) > 0
                     if array.get(fvST, j) == sTp and array.get(fvSB, j) == sBt
                         smcGone := false
 
-        string reason = consommee ? "zone consommee" : cassee ? "cloture au travers" : smcGone ? (sT == 1 ? "OB casse" : "FVG comble") : perimee ? "contexte HTF change" : ""
+        string reason = consommee ? "zone consommee" : cassee ? "cloture au travers" : smcGone ? (sT == 1 ? "OB casse" : "FVG comble") : ancienne ? "ancre trop ancienne" : perimee ? "contexte HTF change" : ""
 
         if reason != ""
             lastInvReason := reason
@@ -1020,6 +1070,7 @@ if array.size(zTop) > 0
             array.remove(zSmcType, i)
             array.remove(zSmcTop, i)
             array.remove(zSmcBot, i)
+            array.remove(zSmcBar, i)
             array.remove(zBox, i)
             array.remove(zLab, i)
 
@@ -1028,6 +1079,19 @@ if array.size(zTop) > 0
 if array.size(zBox) > 0
     for i = 0 to array.size(zBox) - 1
         box.set_right(array.get(zBox, i), bar_index)
+
+// Zone trop loin du prix : mise en sourdine, pas supprimee -- l'information
+// qu'elle existe reste disponible, mais elle cesse d'attirer l'oeil en
+// premier. Repond a "elle est trop eloignee du prix" (section 7) sans
+// perdre la trace de la zone comme le ferait une suppression pure.
+if array.size(zBox) > 0 and not na(atrV) and atrV > 0
+    for i = 0 to array.size(zBox) - 1
+        float mid  = (array.get(zTop, i) + array.get(zBot, i)) / 2.0
+        float dist = math.abs(close - mid) / atrV
+        bool  isB  = array.get(zSide, i) == 1
+        bool  far  = dist > wzFarAtr
+        box.set_border_color(array.get(zBox, i), isB ? color.new(cUp, far ? 75 : 15) : color.new(cDn, far ? 75 : 15))
+        box.set_bgcolor(array.get(zBox, i), isB ? color.new(cUp, far ? 96 : 87) : color.new(cDn, far ? 96 : 87))
 
 // ---- Etat des confirmations SMC. Calcule EN CONTINU, jamais dans le score.
 // Une zone atteinte ne suffit pas : le systeme attend le sweep, la cassure et

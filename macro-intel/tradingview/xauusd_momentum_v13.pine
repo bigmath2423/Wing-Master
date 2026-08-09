@@ -113,15 +113,24 @@ panPos   = input.string("top_right", "Position", options=["top_left","top_right"
 uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
 
-// --- palette : sobre, deux accents, le reste en gris ---
-cUp   = color.rgb(38, 166, 109)
-cDn   = color.rgb(214, 69, 69)
-cGold = color.rgb(212, 175, 55)
-cBlue = color.rgb(58, 122, 196)
-cPurp = color.rgb(142, 92, 189)
-cMute = color.rgb(128, 134, 145)
-cBg   = color.rgb(16, 19, 26)
-cTxt  = color.rgb(228, 231, 237)
+// --- palette : creme, deux accents, le reste en taupe ---
+// Ancienne version (fond sombre) gardee en commentaire : les 8 constantes
+// pilotent TOUT l'habillage (panneau, zones, lignes, labels) -- changer ces
+// huit valeurs suffit, aucun autre endroit du fichier n'a besoin d'y toucher.
+//   cUp=rgb(38,166,109) cDn=rgb(214,69,69) cGold=rgb(212,175,55)
+//   cBlue=rgb(58,122,196) cPurp=rgb(142,92,189) cMute=rgb(128,134,145)
+//   cBg=rgb(16,19,26) cTxt=rgb(228,231,237)
+// A ASSOCIER a un fond de graphique clair (TradingView : Parametres du
+// graphique -> Apparence -> Arriere-plan). Pine ne peut pas peindre tout le
+// panneau du graphique a la place de l'utilisateur.
+cUp   = color.rgb(21, 128, 61)
+cDn   = color.rgb(191, 54, 48)
+cGold = color.rgb(163, 118, 22)
+cBlue = color.rgb(43, 98, 165)
+cPurp = color.rgb(120, 74, 156)
+cMute = color.rgb(133, 124, 110)
+cBg   = color.rgb(250, 246, 237)
+cTxt  = color.rgb(42, 38, 32)
 
 // ============================================================
 // MODULES — calcul identique a la v11
@@ -1257,11 +1266,19 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 11, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 10, border_width=0)
 
+// f_cell = ligne CONTEXTE (affichee, ne decide rien). f_cellD = ligne DECIDE
+// (participe reellement a buySignal/sellSignal) : meme contenu, fond legerement
+// teinte pour separer les deux familles au coup d'oeil, sans reordonner les
+// lignes ni toucher a une seule condition.
 f_cell(int r, string k, string v, color vc) =>
     table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 35), text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cBg, 6))
     table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cBg, 6))
+
+f_cellD(int r, string k, string v, color vc) =>
+    table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 25), text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cGold, 93))
+    table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cGold, 93))
 
 f_px2(float p) => na(p) ? "—" : str.tostring(p, format.mintick)
 
@@ -1273,7 +1290,7 @@ if barstate.islast and panShow
 
     // GRADE A+/A/B/INVALID (voir SETUP_GRADING.md). Calcule ICI, avant le
     // verdict, pour etre affichable a la fois en ligne 0 (resume) et en
-    // ligne 10 (detail). Reprend terme a terme alignLong/alignShort, y
+    // ligne 3 (detail). Reprend terme a terme alignLong/alignShort, y
     // compris leurs interrupteurs useX : un filtre desactive compte comme
     // satisfait, exactement comme dans alignLong.
     bool gC1 = not useStruct or (dL ? trend == 1 : trend == -1)
@@ -1289,21 +1306,45 @@ if barstate.islast and panShow
 
     string vd = sL ? "ENTRER · ACHAT · " + grade : sS ? "ENTRER · VENTE · " + grade : biasDir == 0 ? "PAS DE SETUP" : "ATTENDRE · " + grade
     color  vc = sL ? cUp : sS ? cDn : biasDir == 0 ? cMute : cGold
-    table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
+    // Texte clair sur badge : les 4 couleurs de badge (cUp/cDn/cGold/cMute)
+    // sont des tons moyens-profonds sur la palette creme, pas des neons
+    // clairs -- un texte clair contraste mieux qu'un texte sombre ici.
+    table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(250, 247, 240), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
     table.cell(pan, 1, 0, " ", bgcolor=vc)
 
-    // 1 — LE CONTEXTE. Il commande ce qui a le droit d'etre affiche.
+    // 1 — LE CONTEXTE. Affiche, ne decide rien (controle l'affichage des
+    //     zones uniquement, jamais buySignal/sellSignal).
     f_cell(1, "Contexte", ctxTxt, ctxCol)
 
-    // 2 — LE BIAIS. Le module qui porte le systeme.
-    f_cell(2, "Biais D1+W1", biasTxt, biasBull ? cUp : biasBear ? cDn : cMute)
+    // 2 — LE BIAIS. Le module qui porte le systeme. DECIDE.
+    f_cellD(2, "Biais D1+W1", biasTxt, biasBull ? cUp : biasBear ? cDn : cMute)
 
-    // 3 — LES FILTRES. Un seul manquant et aucun trade ne sort : c'est plus
-    //     actionnable que d'afficher une tendance HTF qui ne bloque rien.
-    int okN = ((dL ? trend == 1 : trend == -1) ? 1 : 0) + ((dL ? htfBull : htfBear) ? 1 : 0) + ((dL ? aboveVwap : belowVwap) ? 1 : 0) + ((dL ? abovePoc : belowPoc) ? 1 : 0)
-    f_cell(3, "Filtres", str.tostring(okN) + "/4" + (mtfShow ? "   ·   MTF " + str.tostring(mtfAgree) + "/" + str.tostring(mtfTot) : ""), okN == 4 ? cUp : okN >= 3 ? cGold : cMute)
+    // 3 — GRADE A+/A/B/INVALID, detail (voir SETUP_GRADING.md). Le calcul
+    // (gC1..gC5, gradeN, grade) a deja eu lieu en ligne 0 pour le verdict
+    // resume ; ici on liste LEQUEL des 5 manque, plus l'accord MTF (affichage
+    // seul, ne decide rien, garde ici faute de ligne dediee). A+ n'est jamais
+    // qu'une reformulation de buySignal/sellSignal : aucun nouveau trade
+    // n'est cree. A et B sont des categories neuves, jamais backtestees
+    // isolement -- affichees pour lecture, pas pour decider. DECIDE.
+    string missTxt = ""
+    if trigOk and gradeN < 5
+        array<string> miss = array.new<string>()
+        if not gC1
+            array.push(miss, "Structure")
+        if not gC2
+            array.push(miss, "HTF")
+        if not gC3
+            array.push(miss, "VWAP")
+        if not gC4
+            array.push(miss, "Biais")
+        if not gC5
+            array.push(miss, "POC")
+        missTxt := array.size(miss) > 0 ? "  (manque " + array.join(miss, ", ") + ")" : ""
+    string mtfTxt = mtfShow ? "   ·   MTF " + str.tostring(mtfAgree) + "/" + str.tostring(mtfTot) : ""
+    string gradeTxt = grade + "  " + (dL ? "BUY" : "SELL") + missTxt + mtfTxt
+    f_cellD(3, "Grade", gradeTxt, gradeCol)
 
-    // 4 et 5 — LES ZONES. Bornes et confluence, cote par cote.
+    // 4 et 5 — LES ZONES. Bornes et confluence, cote par cote. CONTEXTE.
     string bz = "aucune"
     string sz = "aucune"
     color  bc = cMute
@@ -1320,15 +1361,17 @@ if barstate.islast and panShow
     f_cell(4, "🟨 BUY Zone",  bz, bc)
     f_cell(5, "🟪 SELL Zone", sz, sc2)
 
-    // 6 — STOP ET OBJECTIF. Les deux references de stop, et l'ecart entre
-    //     elles quand il compte.
+    // 6 — STOP. Les deux references de stop. DECIDE (le stop ATR est celui
+    //     reellement utilise par la strategie).
     string stTxt = na(stopAtr) ? "—" : f_px2(stopAtr) + "  ·  struct " + f_px2(stopStr) + (stopDevant ? "  ⚠" : "")
-    f_cell(6, "Stop  ATR · struct", stTxt, stopDevant ? cDn : cTxt)
+    f_cellD(6, "Stop  ATR · struct", stTxt, stopDevant ? cDn : cTxt)
+
+    // 7 — OBJECTIF. Reference visuelle, ne pilote ni le TP ni la sortie. CONTEXTE.
     string obTxt = na(objPx) ? "—" : f_px2(objPx) + "  (" + objSrc + ")" + (na(rr) ? "" : "   R:R " + str.tostring(rr, "#.#"))
     f_cell(7, "Objectif", obTxt, na(objPx) ? cMute : cGold)
 
     // 8 et 9 — GESTION DES ZONES. Combien sont actives, et pourquoi la
-    // derniere a disparu — pour comprendre le graphique sans le deviner.
+    // derniere a disparu — pour comprendre le graphique sans le deviner. CONTEXTE.
     int nBuyZ  = 0
     int nSellZ = 0
     if array.size(zSide) > 0
@@ -1340,29 +1383,6 @@ if barstate.islast and panShow
     f_cell(8, "Zones actives", "Buy " + str.tostring(nBuyZ) + "  ·  Sell " + str.tostring(nSellZ), cTxt)
     string invTxt = lastInvReason == "—" ? "—" : (lastInvSide == 1 ? "BUY " : "SELL ") + str.tostring(int(math.round(lastInvScore))) + " · " + lastInvReason
     f_cell(9, "Dern. invalidee", invTxt, cMute)
-
-    // 10 — GRADE A+/A/B/INVALID, detail. Le calcul (gC1..gC5, gradeN, grade)
-    // a deja eu lieu en ligne 0 pour alimenter le verdict resume ; ici on ne
-    // fait que lister LEQUEL des 5 manque. A+ n'est jamais qu'une
-    // reformulation de buySignal/sellSignal : aucun nouveau trade n'est cree.
-    // A et B sont des categories neuves, jamais backtestees isolement --
-    // affichees pour lecture, pas pour decider.
-    string missTxt = ""
-    if trigOk and gradeN < 5
-        array<string> miss = array.new<string>()
-        if not gC1
-            array.push(miss, "Structure")
-        if not gC2
-            array.push(miss, "HTF")
-        if not gC3
-            array.push(miss, "VWAP")
-        if not gC4
-            array.push(miss, "Biais")
-        if not gC5
-            array.push(miss, "POC")
-        missTxt := array.size(miss) > 0 ? "  (manque " + array.join(miss, ", ") + ")" : ""
-    string gradeTxt = grade + "  " + (dL ? "BUY" : "SELL") + missTxt
-    f_cell(10, "Grade", gradeTxt, gradeCol)
 
 // ============================================================
 // TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES

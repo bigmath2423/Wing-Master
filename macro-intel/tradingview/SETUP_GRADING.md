@@ -22,7 +22,7 @@ Mélanger les deux dans le grade referait exactement l'erreur qu'on a déjà
 l'autorité visuelle d'un élément qui décide. Les éléments CONTEXTE apparaissent
 quand même plus bas, en tags à côté du grade — jamais dans son calcul.
 
-## Découverte importante : `trend` n'est pas un filtre indépendant
+## Découverte importante : `trend` n'est pas un filtre indépendant — mais reste compté
 
 `trend` (la structure) est mis à jour PAR le BOS lui-même :
 
@@ -34,11 +34,20 @@ if bearBos
 ```
 
 Sur la bougie où `bullBos` se déclenche, `trend == 1` est donc **déjà vrai**
-avant même que `alignLong` ne soit évalué — ce n'est pas une confirmation
-indépendante, c'est une tautologie du déclencheur. Compter "structure" comme
-un 5ᵉ filtre séparé fausserait la note. La grille ci-dessous ne retient donc
-que les **4 filtres réellement indépendants** du déclencheur, ce qui
-correspond exactement à `okN` (ligne "Filtres" du panneau actuel).
+avant même que `alignLong` ne soit évalué — en mode BOS (le réglage par
+défaut), ce n'est pas une confirmation indépendante, c'est une tautologie du
+déclencheur. Mais `trigMode` peut aussi valoir "Cassure Donchian" : dans ce
+cas le déclencheur (`donUp`/`donDn`) est totalement indépendant de `trend`,
+qui redevient un vrai filtre à part entière — `alignLong` l'exige de toute
+façon, quel que soit le déclencheur choisi.
+
+Pour que le grade codé reste identique à `buySignal`/`sellSignal` **quel que
+soit le réglage**, `trend` est donc compté comme un 5ᵉ filtre à part entière
+(voir grille ci-dessous, désormais sur 5 et non 4). En mode BOS par défaut,
+il ne coûte jamais rien : il est automatiquement acquis dès que le
+déclencheur s'active, donc les seuils A+/A/B restent gouvernés dans les
+faits par les 4 mêmes filtres qu'avant (HTF, VWAP, Biais, POC) — seule la
+graduation numérique change (5/5, 4/5, 3/5 au lieu de 4/4, 3/4, 2/4).
 
 ## Les 15 dimensions demandées, une par une
 
@@ -76,21 +85,30 @@ un oubli.
 
 ## La grille — BUY
 
-| Grade | Déclencheur | Contexte (sur 4) | Exclusion | Équivaut à |
+| Grade | Déclencheur | Conditions (sur 5, chacune respecte son interrupteur `useX`) | Exclusion | Équivaut à |
 |---|---|---|---|---|
-| **A+** | `bullBos` (ou `donUp` si Donchian) | 4/4 : `htfBull` + `aboveVwap` + `biasBull` + `abovePoc` | aucune | `buySignal` — le trade que le système prend réellement (19 ans, 1979 trades, PF 1.212) |
-| **A** | présent | 3/4 (un filtre manquant, à nommer dans l'affichage) | aucune | Surveillance — **jamais backtestée isolément** |
-| **B** | présent | 2/4 | aucune | Spéculatif — risque plus élevé, **jamais mesuré** |
-| **INVALID** | absent, OU contexte ≤ 1/4, OU une exclusion active | — | — | Pas d'entrée |
+| **A+** | `bullBos` (ou `donUp` si Donchian) | 5/5 : `trend==1` + `htfBull` + `aboveVwap` + `biasBull` + `abovePoc` | aucune | `buySignal` — le trade que le système prend réellement (19 ans, 1979 trades, PF 1.212) |
+| **A** | présent | 4/5 (un filtre manquant, nommé dans l'affichage) | aucune | Surveillance — **jamais backtestée isolément** |
+| **B** | présent | 3/5 | aucune | Spéculatif — risque plus élevé, **jamais mesuré** |
+| **INVALID** | absent, OU conditions ≤ 2/5, OU une exclusion active | — | — | Pas d'entrée |
 
 ## La grille — SELL (miroir strict)
 
-| Grade | Déclencheur | Contexte (sur 4) | Exclusion | Équivaut à |
+| Grade | Déclencheur | Conditions (sur 5) | Exclusion | Équivaut à |
 |---|---|---|---|---|
-| **A+** | `bearBos` (ou `donDn`) | 4/4 : `htfBear` + `belowVwap` + `biasBear` + `belowPoc` | aucune | `sellSignal` |
-| **A** | présent | 3/4 | aucune | Surveillance |
-| **B** | présent | 2/4 | aucune | Spéculatif |
-| **INVALID** | absent, OU contexte ≤ 1/4, OU une exclusion active | — | — | Pas d'entrée |
+| **A+** | `bearBos` (ou `donDn`) | 5/5 : `trend==-1` + `htfBear` + `belowVwap` + `biasBear` + `belowPoc` | aucune | `sellSignal` |
+| **A** | présent | 4/5 | aucune | Surveillance |
+| **B** | présent | 3/5 | aucune | Spéculatif |
+| **INVALID** | absent, OU conditions ≤ 2/5, OU une exclusion active | — | — | Pas d'entrée |
+
+## Statut : codé
+
+Implémenté dans le panneau des deux fichiers (`xauusd_momentum_v13.pine` et
+`xauusd_momentum_v13_indicateur.pine`), ligne **Grade**. Affiche le grade, le
+sens (BUY/SELL) et, si incomplet, les filtres manquants — par exemple
+`A  BUY  (manque POC)`. Aucune ligne de décision n'est touchée : le grade est
+un calcul de lecture, recalculé sur `barstate.islast`, qui ne modifie ni
+`alignLong`, ni `trigLong`, ni `buySignal`.
 
 ## Tags contextuels affichables à côté du grade (jamais dans le calcul)
 

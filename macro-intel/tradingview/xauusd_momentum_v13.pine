@@ -1257,7 +1257,7 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 10, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 11, border_width=0)
 
 f_cell(int r, string k, string v, color vc) =>
     table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 35), text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cBg, 6))
@@ -1323,6 +1323,41 @@ if barstate.islast and panShow
     f_cell(8, "Zones actives", "Buy " + str.tostring(nBuyZ) + "  ·  Sell " + str.tostring(nSellZ), cTxt)
     string invTxt = lastInvReason == "—" ? "—" : (lastInvSide == 1 ? "BUY " : "SELL ") + str.tostring(int(math.round(lastInvScore))) + " · " + lastInvReason
     f_cell(9, "Dern. invalidee", invTxt, cMute)
+
+    // 10 — GRADE A+/A/B/INVALID (voir SETUP_GRADING.md).
+    // Reprend TERME A TERME les 5 conditions d'alignLong/alignShort, y compris
+    // leurs interrupteurs (useStruct/useHtf/useVwap/useBias/vUsePoc) : un filtre
+    // desactive compte comme satisfait, exactement comme dans alignLong. Sans
+    // ca, A+ pourrait diverger de buySignal des qu'un interrupteur est coupe.
+    bool gC1 = not useStruct or (dL ? trend == 1 : trend == -1)
+    bool gC2 = not useHtf    or (dL ? htfBull : htfBear)
+    bool gC3 = not useVwap   or (dL ? aboveVwap : belowVwap)
+    bool gC4 = not useBias   or (dL ? biasBull : biasBear)
+    bool gC5 = not vUsePoc   or (dL ? abovePoc : belowPoc)
+    int gradeN = (gC1 ? 1 : 0) + (gC2 ? 1 : 0) + (gC3 ? 1 : 0) + (gC4 ? 1 : 0) + (gC5 ? 1 : 0)
+    bool trigOk = dL ? trigLong : trigShort
+    bool exclOk = not na(atrV) and atrV > 0 and barstate.isconfirmed and (dL ? (bar_index - lastLong) > cooldown : (bar_index - lastShort) > cooldown)
+    string grade = not trigOk or not exclOk ? "INVALID" : gradeN == 5 ? "A+" : gradeN == 4 ? "A" : gradeN == 3 ? "B" : "INVALID"
+    color gradeCol = grade == "A+" ? cUp : grade == "A" ? cGold : grade == "B" ? color.new(cGold, 40) : cMute
+    // A+ n'est JAMAIS qu'une reformulation de buySignal/sellSignal : aucun
+    // nouveau trade n'est cree. A et B sont des categories neuves, jamais
+    // testees isolement -- affichees pour lecture, pas pour decider.
+    string missTxt = ""
+    if trigOk and gradeN < 5
+        array<string> miss = array.new<string>()
+        if not gC1
+            array.push(miss, "Structure")
+        if not gC2
+            array.push(miss, "HTF")
+        if not gC3
+            array.push(miss, "VWAP")
+        if not gC4
+            array.push(miss, "Biais")
+        if not gC5
+            array.push(miss, "POC")
+        missTxt := array.size(miss) > 0 ? "  (manque " + array.join(miss, ", ") + ")" : ""
+    string gradeTxt = grade + "  " + (dL ? "BUY" : "SELL") + missTxt
+    f_cell(10, "Grade", gradeTxt, gradeCol)
 
 // ============================================================
 // TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES

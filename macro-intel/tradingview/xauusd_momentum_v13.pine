@@ -1269,7 +1269,25 @@ if barstate.islast and panShow
     // 0 — LE VERDICT. La seule ligne a lire si tu n'as que deux secondes.
     bool sL = rawLong
     bool sS = rawShort
-    string vd = sL ? "ENTRER · ACHAT" : sS ? "ENTRER · VENTE" : biasDir == 0 ? "PAS DE SETUP" : "ATTENDRE"
+    bool dL = biasDir >= 0
+
+    // GRADE A+/A/B/INVALID (voir SETUP_GRADING.md). Calcule ICI, avant le
+    // verdict, pour etre affichable a la fois en ligne 0 (resume) et en
+    // ligne 10 (detail). Reprend terme a terme alignLong/alignShort, y
+    // compris leurs interrupteurs useX : un filtre desactive compte comme
+    // satisfait, exactement comme dans alignLong.
+    bool gC1 = not useStruct or (dL ? trend == 1 : trend == -1)
+    bool gC2 = not useHtf    or (dL ? htfBull : htfBear)
+    bool gC3 = not useVwap   or (dL ? aboveVwap : belowVwap)
+    bool gC4 = not useBias   or (dL ? biasBull : biasBear)
+    bool gC5 = not vUsePoc   or (dL ? abovePoc : belowPoc)
+    int gradeN = (gC1 ? 1 : 0) + (gC2 ? 1 : 0) + (gC3 ? 1 : 0) + (gC4 ? 1 : 0) + (gC5 ? 1 : 0)
+    bool trigOk = dL ? trigLong : trigShort
+    bool exclOk = not na(atrV) and atrV > 0 and barstate.isconfirmed and (dL ? (bar_index - lastLong) > cooldown : (bar_index - lastShort) > cooldown)
+    string grade = not trigOk or not exclOk ? "INVALID" : gradeN == 5 ? "A+" : gradeN == 4 ? "A" : gradeN == 3 ? "B" : "INVALID"
+    color gradeCol = grade == "A+" ? cUp : grade == "A" ? cGold : grade == "B" ? color.new(cGold, 40) : cMute
+
+    string vd = sL ? "ENTRER · ACHAT · " + grade : sS ? "ENTRER · VENTE · " + grade : biasDir == 0 ? "PAS DE SETUP" : "ATTENDRE · " + grade
     color  vc = sL ? cUp : sS ? cDn : biasDir == 0 ? cMute : cGold
     table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
     table.cell(pan, 1, 0, " ", bgcolor=vc)
@@ -1282,7 +1300,6 @@ if barstate.islast and panShow
 
     // 3 — LES FILTRES. Un seul manquant et aucun trade ne sort : c'est plus
     //     actionnable que d'afficher une tendance HTF qui ne bloque rien.
-    bool dL = biasDir >= 0
     int okN = ((dL ? trend == 1 : trend == -1) ? 1 : 0) + ((dL ? htfBull : htfBear) ? 1 : 0) + ((dL ? aboveVwap : belowVwap) ? 1 : 0) + ((dL ? abovePoc : belowPoc) ? 1 : 0)
     f_cell(3, "Filtres", str.tostring(okN) + "/4" + (mtfShow ? "   ·   MTF " + str.tostring(mtfAgree) + "/" + str.tostring(mtfTot) : ""), okN == 4 ? cUp : okN >= 3 ? cGold : cMute)
 
@@ -1324,24 +1341,12 @@ if barstate.islast and panShow
     string invTxt = lastInvReason == "—" ? "—" : (lastInvSide == 1 ? "BUY " : "SELL ") + str.tostring(int(math.round(lastInvScore))) + " · " + lastInvReason
     f_cell(9, "Dern. invalidee", invTxt, cMute)
 
-    // 10 — GRADE A+/A/B/INVALID (voir SETUP_GRADING.md).
-    // Reprend TERME A TERME les 5 conditions d'alignLong/alignShort, y compris
-    // leurs interrupteurs (useStruct/useHtf/useVwap/useBias/vUsePoc) : un filtre
-    // desactive compte comme satisfait, exactement comme dans alignLong. Sans
-    // ca, A+ pourrait diverger de buySignal des qu'un interrupteur est coupe.
-    bool gC1 = not useStruct or (dL ? trend == 1 : trend == -1)
-    bool gC2 = not useHtf    or (dL ? htfBull : htfBear)
-    bool gC3 = not useVwap   or (dL ? aboveVwap : belowVwap)
-    bool gC4 = not useBias   or (dL ? biasBull : biasBear)
-    bool gC5 = not vUsePoc   or (dL ? abovePoc : belowPoc)
-    int gradeN = (gC1 ? 1 : 0) + (gC2 ? 1 : 0) + (gC3 ? 1 : 0) + (gC4 ? 1 : 0) + (gC5 ? 1 : 0)
-    bool trigOk = dL ? trigLong : trigShort
-    bool exclOk = not na(atrV) and atrV > 0 and barstate.isconfirmed and (dL ? (bar_index - lastLong) > cooldown : (bar_index - lastShort) > cooldown)
-    string grade = not trigOk or not exclOk ? "INVALID" : gradeN == 5 ? "A+" : gradeN == 4 ? "A" : gradeN == 3 ? "B" : "INVALID"
-    color gradeCol = grade == "A+" ? cUp : grade == "A" ? cGold : grade == "B" ? color.new(cGold, 40) : cMute
-    // A+ n'est JAMAIS qu'une reformulation de buySignal/sellSignal : aucun
-    // nouveau trade n'est cree. A et B sont des categories neuves, jamais
-    // testees isolement -- affichees pour lecture, pas pour decider.
+    // 10 — GRADE A+/A/B/INVALID, detail. Le calcul (gC1..gC5, gradeN, grade)
+    // a deja eu lieu en ligne 0 pour alimenter le verdict resume ; ici on ne
+    // fait que lister LEQUEL des 5 manque. A+ n'est jamais qu'une
+    // reformulation de buySignal/sellSignal : aucun nouveau trade n'est cree.
+    // A et B sont des categories neuves, jamais backtestees isolement --
+    // affichees pour lecture, pas pour decider.
     string missTxt = ""
     if trigOk and gradeN < 5
         array<string> miss = array.new<string>()

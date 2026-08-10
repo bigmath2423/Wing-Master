@@ -807,45 +807,62 @@ var array<label> zLab  = array.new<label>()
 
 newWeek = ta.change(time("W")) != 0
 
-// ---- Etat hebdomadaire sweep / CHoCH / BOS -------------------------
-// REMONTE ICI (etait declare plus bas) : le moteur de zones a besoin de
-// ces trois confirmations comme CONDITIONS DE CREATION, et Pine exige
-// qu'une variable soit declaree avant d'etre lue.
-var bool wzSweepUp = false
-var bool wzSweepDn = false
-// CHoCH/BOS de la semaine, meme portee que wzSweepUp/Dn : pas specifique a
-// une zone -- si l'evenement a eu lieu N'IMPORTE QUAND cette semaine, meme
-// avant la creation de la zone courante, la coche s'allume. Comportement
-// identique a wzCfSweep aujourd'hui, etendu pour rester coherent plutot que
-// d'inventer un systeme de portee par zone.
-var bool wzChochUp = false
-var bool wzChochDn = false
-var bool wzBosUp   = false
-var bool wzBosDn   = false
-if newWeek
-    wzSweepUp := false
-    wzSweepDn := false
-    wzChochUp := false
-    wzChochDn := false
-    wzBosUp   := false
-    wzBosDn   := false
-// Sweep : une poche de liquidite prise puis rejetee, dans la semaine en cours.
-// Les deux booleens viennent du bloc de liquidite, ou la poche existe encore
-// (voir le correctif commente la-bas). barstate.isconfirmed : le sweep n'est
-// retenu qu'une fois la bougie FERMEE -- une meche qui perce le niveau puis
-// revient avant la cloture ne doit pas armer le setup.
-if sweepDnBar and barstate.isconfirmed
-    wzSweepDn := true
-if sweepUpBar and barstate.isconfirmed
-    wzSweepUp := true
-if bullChoch
-    wzChochUp := true
-if bearChoch
-    wzChochDn := true
-if bullBos
-    wzBosUp := true
-if bearBos
-    wzBosDn := true
+// ---- CHAINE SWEEP -> CHoCH -> BOS, AVEC ORDRE CHRONOLOGIQUE --------------
+// POURQUOI DES INDICES DE BOUGIE ET NON DES BOOLEENS.
+//
+// Dans le code, un CHoCH EST un BOS : bullChoch = bullBos and trend[1] == -1.
+// C'est la definition juste -- le CHoCH est la PREMIERE cassure contre la
+// tendance etablie, le BOS une cassure DANS le sens de la tendance -- mais
+// elle implique que toute bougie de CHoCH allume aussi le drapeau BOS. Avec de
+// simples booleens "l'evenement a-t-il eu lieu cette semaine", exiger
+// `cChoch and cBos` etait donc une tautologie : le second n'ajoutait
+// strictement rien au premier, et le BOS ne confirmait rien du tout.
+//
+// La sequence demandee est CHRONOLOGIQUE :
+//     liquidite prise  ->  PUIS changement de caractere  ->  PUIS confirmation
+// On memorise donc la BOUGIE de chaque evenement et on impose un ordre STRICT.
+// Comme la bougie du CHoCH inscrit le meme indice dans chochIdx et dans bosIdx,
+// l'inegalite stricte `bosIdx > chochIdx` force une SECONDE cassure, posterieure
+// -- celle qui confirme reellement la nouvelle structure. Le BOS redevient une
+// information distincte du CHoCH, et la sequence du cahier des charges est
+// respectee au lieu d'etre seulement affichee.
+//
+// La fenetre hebdomadaire est remplacee par une FRAICHEUR en heures, reprise de
+// wzMaxAnchorAgeH (deja coherente d'une unite de temps a l'autre). Effet de
+// bord voulu : plus de point mort le lundi matin, ou les drapeaux repartaient
+// tous de zero quel que soit ce que le marche venait de faire.
+var int swpDnIdx   = na   // sell side prise -> prerequis d'un setup ACHAT
+var int swpUpIdx   = na   // buy side prise  -> prerequis d'un setup VENTE
+var int chochUpIdx = na
+var int chochDnIdx = na
+var int bosUpIdx   = na
+var int bosDnIdx   = na
+if barstate.isconfirmed
+    if sweepDnBar
+        swpDnIdx := bar_index
+    if sweepUpBar
+        swpUpIdx := bar_index
+    if bullChoch
+        chochUpIdx := bar_index
+    if bearChoch
+        chochDnIdx := bar_index
+    if bullBos
+        bosUpIdx := bar_index
+    if bearBos
+        bosDnIdx := bar_index
+
+int seqMaxBars = math.max(1, int(wzMaxAnchorAgeH * 3600 / timeframe.in_seconds()))
+f_seqSweep(bool isBuy) =>
+    int sw = isBuy ? swpDnIdx : swpUpIdx
+    not na(sw) and (bar_index - sw) <= seqMaxBars
+f_seqChoch(bool isBuy) =>
+    int sw = isBuy ? swpDnIdx : swpUpIdx
+    int ch = isBuy ? chochUpIdx : chochDnIdx
+    f_seqSweep(isBuy) and not na(ch) and ch > sw
+f_seqBos(bool isBuy) =>
+    int ch = isBuy ? chochUpIdx : chochDnIdx
+    int bo = isBuy ? bosUpIdx : bosDnIdx
+    f_seqChoch(isBuy) and not na(bo) and bo > ch
 
 // ---- IMPULSION DU BOS : la plage sur laquelle le Fibonacci est calcule ----
 // Le module existant appelait "fib" un test a 50 % sur le haut/bas de la
@@ -1124,9 +1141,9 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 // Ces trois drapeaux sont hebdomadaires et derivent de pivots
                 // CONFIRMES (+ trend garde par barstate.isconfirmed) : aucun
                 // lookahead, aucun repaint.
-                bool cSweep = isBuy ? wzSweepDn : wzSweepUp
-                bool cChoch = isBuy ? wzChochUp : wzChochDn
-                bool cBos   = isBuy ? wzBosUp   : wzBosDn
+                bool cSweep = f_seqSweep(isBuy)
+                bool cChoch = f_seqChoch(isBuy)
+                bool cBos   = f_seqBos(isBuy)
                 // FIB INVALID rejette : c'est la definition meme de INVALID
                 // ("le prix est dans une zone de retracement incompatible").
                 // NEUTRAL passe, avec moins de points -- le Fibonacci ameliore
@@ -1313,7 +1330,7 @@ if array.size(zTop) > 0
             zHit  := array.get(zSide, i)
             zHitI := i
 
-bool wzCfSweep = zHit == 1 ? wzSweepDn : zHit == -1 ? wzSweepUp : false
+bool wzCfSweep = zHit == 1 ? f_seqSweep(true) : zHit == -1 ? f_seqSweep(false) : false
 bool wzCfStruc = zHit == 1 ? (bullBos or bullChoch) : zHit == -1 ? (bearBos or bearChoch) : false
 bool wzCfSmc   = zHit == 1 ? (array.size(obBB) > 0 or array.size(fvBB) > 0) : zHit == -1 ? (array.size(obST) > 0 or array.size(fvST) > 0) : false
 int  wzCfN     = (wzCfSweep ? 1 : 0) + (wzCfStruc ? 1 : 0) + (wzCfSmc ? 1 : 0)
@@ -1341,8 +1358,8 @@ if zHitI >= 0
             if array.get(eqhL, i) > sTop
                 step1Liq := true
 bool step2Sweep = wzCfSweep
-bool step3Choch = zHit == 1 ? wzChochUp : zHit == -1 ? wzChochDn : false
-bool step4Bos   = zHit == 1 ? wzBosUp   : zHit == -1 ? wzBosDn   : false
+bool step3Choch = zHit == 1 ? f_seqChoch(true) : zHit == -1 ? f_seqChoch(false) : false
+bool step4Bos   = zHit == 1 ? f_seqBos(true)   : zHit == -1 ? f_seqBos(false)   : false
 
 // Texte de chaque zone : numerote 1-2-3-4-6 pour celle touchee par le prix,
 // texte simple pour toutes les autres -- recalcule CHAQUE bougie, donc une

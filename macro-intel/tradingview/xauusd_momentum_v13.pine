@@ -1680,6 +1680,16 @@ f_seqChoch(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
     int ch = isBuy ? chochUpIdx : chochDnIdx
     f_seqSweep(isBuy) and not na(ch) and ch > sw and (isBuy ? chochUpFresh : chochDnFresh)
+// DIAGNOSTIC SEUL. C'est exactement l'ancienne f_seqChoch, d'avant le patch de
+// fraicheur : sweep valide, CHoCH present, CHoCH posterieur au sweep -- sans le
+// terme de fraicheur. Ce n'est donc pas une regle nouvelle, c'est l'expression
+// precedente conservee pour pouvoir distinguer deux causes de refus que la
+// nouvelle f_seqChoch confond : "aucun CHoCH exploitable" et "CHoCH present
+// mais sweep deja depense". N'entre dans AUCUNE condition de creation de zone.
+f_seqChochRaw(bool isBuy) =>
+    int sw = isBuy ? swpDnIdx : swpUpIdx
+    int ch = isBuy ? chochUpIdx : chochDnIdx
+    f_seqSweep(isBuy) and not na(ch) and ch > sw
 f_seqBos(bool isBuy) =>
     int ch = isBuy ? chochUpIdx : chochDnIdx
     int bo = isBuy ? bosUpIdx : bosDnIdx
@@ -1886,7 +1896,14 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     // Effet de bord voulu : quand chochUpIdx vaut na, f_seqChoch est faux et
     // "CHOCH MANQUANT" se declenche ICI. Le statut "OB HORS DU CYCLE COURANT",
     // qui exige lui aussi un CHoCH, ne peut donc plus etre affiche a sa place.
-    dgRej := not f_seqSweep(isBuyBiasNow) ? "SWEEP MANQUANT" : not f_seqChoch(isBuyBiasNow) ? "CHOCH MANQUANT" : not f_seqBos(isBuyBiasNow) ? "BOS MANQUANT" : not dgOb ? "AUCUN ORDER BLOCK" : not dgFvg ? "AUCUN FVG" : ""
+    // "SWEEP PERIME" s'intercale entre CHOCH MANQUANT et BOS MANQUANT, et cet
+    // ordre est impose par la logique : tant que f_seqChochRaw est faux, on ne
+    // peut pas dire que le sweep est depense -- il n'y a simplement pas de
+    // CHoCH exploitable pour le reclamer. Une fois f_seqChochRaw vrai, le seul
+    // terme qui puisse encore faire echouer f_seqChoch est la fraicheur : le
+    // sweep a deja produit son mouvement, ce CHoCH appartient a un nouveau
+    // cycle qui doit avoir son propre sweep.
+    dgRej := not f_seqSweep(isBuyBiasNow) ? "SWEEP MANQUANT" : not f_seqChochRaw(isBuyBiasNow) ? "CHOCH MANQUANT" : not f_seqChoch(isBuyBiasNow) ? "SWEEP PERIME" : not f_seqBos(isBuyBiasNow) ? "BOS MANQUANT" : not dgOb ? "AUCUN ORDER BLOCK" : not dgFvg ? "AUCUN FVG" : ""
     if dgRej != ""
         dgScore := na
     float rgLo = na(wLoPrev) ? wVal : wLoPrev

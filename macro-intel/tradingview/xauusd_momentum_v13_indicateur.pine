@@ -723,163 +723,135 @@ array.push(wVol, na(volume) ? 1.0 : volume)
 // Biais hebdomadaire, lu sur la semaine CLOTUREE.
 wBias := biasBull ? 1 : biasBear ? -1 : 0
 
-// ---- Construction des zones, une seule fois par semaine ----
-if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atrV > 0
-    // La semaine change : les zones precedentes sont perimees.
-    if array.size(zBox) > 0
-        for i = 0 to array.size(zBox) - 1
-            box.delete(array.get(zBox, i))
-            label.delete(array.get(zLab, i))
-    array.clear(zBox)
-    array.clear(zLab)
-    array.clear(zTop)
-    array.clear(zBot)
-    array.clear(zScr)
-    array.clear(zSide)
-    array.clear(zBar)
-    array.clear(zSmcType)
-    array.clear(zSmcTop)
-    array.clear(zSmcBot)
-    array.clear(zSmcBar)
-
-    float half = atrV * wzWidthAtr / 2.0
+// ---- Construction des zones : confluence Order Block x FVG ----------------
+// CHANGEMENT DE DECLENCHEUR (affichage uniquement, explique ci-dessous).
+//
+// AVANT : `if newWeek` -- la zone ne pouvait naitre QU'A la bascule de semaine,
+// ancree sur la Value Area hebdomadaire. Sur ~480 bougies M15 par semaine, le
+// moteur n'avait donc qu'UNE occasion de creer une zone ; si a cet instant
+// precis fibOk + reacted + contexte + score >= seuil n'etaient pas tous vrais
+// simultanement, il n'existait aucune zone pendant toute la semaine. C'est la
+// raison pour laquelle le panneau affichait "BUY Zone —" et "SELL Zone —" en
+// permanence sur M1, M5 et M15 : il n'y avait rien a styliser, le probleme
+// n'etait pas visuel.
+//
+// MAINTENANT : evaluation a CHAQUE bougie cloturee, et la zone naît de la
+// confluence reelle Order Block x FVG. Ses bornes sont l'INTERSECTION des deux
+// boites -- compacte par construction, et posee exactement la ou le prix est
+// attendu pour l'execution. Sans chevauchement OB/FVG, aucune zone n'est
+// dessinee : mieux vaut ne rien montrer que relier deux objets sans rapport.
+//
+// CE BLOC NE TOUCHE AUCUN SIGNAL. Aucune variable de zone n'apparait dans
+// alignLong / alignShort / trigLong / trigShort / rawLong / rawShort /
+// buySignal / sellSignal, ni dans f_slRisk / f_qty / strategy.entry / exit.
+// Anti-repaint : barstate.isconfirmed, et le score est fige a la creation.
+if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     float rgLo = na(wLoPrev) ? wVal : wLoPrev
     float rgHi = na(wHiPrev) ? wVah : wHiPrev
-    float mid  = (rgHi + rgLo) / 2.0
+    float mid  = na(rgHi) or na(rgLo) ? na : (rgHi + rgLo) / 2.0
 
-    // --- deux ancrages par cote : la Value Area, puis le noeud de volume ---
     for side = 0 to 1
         bool isBuy = side == 0
-        for k = 0 to 1
-            float anchor = isBuy ? (k == 0 ? wVal : wHvnLo) : (k == 0 ? wVah : wHvnHi)
-            if na(anchor)
-                continue
-            float top = anchor + half
-            float bot = anchor - half
+        int want = isBuy ? 1 : -1
+        int nOb = isBuy ? array.size(obBT) : array.size(obST)
+        int nFv = isBuy ? array.size(fvBT) : array.size(fvST)
+        if nOb > 0 and nFv > 0
+            float obT = isBuy ? array.get(obBT, 0) : array.get(obST, 0)
+            float obB = isBuy ? array.get(obBB, 0) : array.get(obSB, 0)
+            int   obX = isBuy ? array.get(obBX, 0) : array.get(obSX, 0)
 
-            // ---- SCORE DE CONFLUENCE, fige ici et plus jamais recalcule ----
-            // 30 — Volume Profile : ancrage sur la Value Area ou sur un HVN.
-            float sVp = k == 0 ? 30.0 : 20.0
-            // 25 — Structure : la tendance de structure va dans le sens de la zone.
-            float sSt = (isBuy ? trend == 1 : trend == -1) ? 25.0 : 0.0
-            // 20 — Liquidite : une poche non prise existe AU-DELA de la zone
-            //      (sous une zone d'achat, au-dessus d'une zone de vente).
-            float sLq = 0.0
-            if isBuy and array.size(eqlL) > 0
-                for i = 0 to array.size(eqlL) - 1
-                    if array.get(eqlL, i) < bot
-                        sLq := 20.0
-                        break
-            if not isBuy and array.size(eqhL) > 0
-                for i = 0 to array.size(eqhL) - 1
-                    if array.get(eqhL, i) > top
-                        sLq := 20.0
-                        break
-            // 15 — Zone SMC : un OB ou un FVG encore valide recoupe la zone.
-            // smcType/smcTop/smcBot memorisent LEQUEL, pour verifier plus tard
-            // s'il est toujours en vie (voir invalidation continue plus bas).
-            // smcBar memorise sa bougie de creation, pour la regle d'age
-            // (section 7 : "le setup arrive trop tard apres l'impulsion").
-            float sSmc = 0.0
-            int   smcType = 0
-            float smcTop  = na
-            float smcBot  = na
-            int   smcBar  = na
-            if isBuy
-                if array.size(obBB) > 0
-                    for i = 0 to array.size(obBB) - 1
-                        if array.get(obBT, i) >= bot and array.get(obBB, i) <= top
-                            sSmc := 15.0
-                            smcType := 1
-                            smcTop := array.get(obBT, i)
-                            smcBot := array.get(obBB, i)
-                            smcBar := array.get(obBX, i)
-                            break
-                if sSmc == 0 and array.size(fvBB) > 0
-                    for i = 0 to array.size(fvBB) - 1
-                        if array.get(fvBT, i) >= bot and array.get(fvBB, i) <= top
-                            sSmc := 15.0
-                            smcType := 2
-                            smcTop := array.get(fvBT, i)
-                            smcBot := array.get(fvBB, i)
-                            smcBar := array.get(fvBX, i)
-                            break
-            else
-                if array.size(obST) > 0
-                    for i = 0 to array.size(obST) - 1
-                        if array.get(obST, i) >= bot and array.get(obSB, i) <= top
-                            sSmc := 15.0
-                            smcType := 1
-                            smcTop := array.get(obST, i)
-                            smcBot := array.get(obSB, i)
-                            smcBar := array.get(obSX, i)
-                            break
-                if sSmc == 0 and array.size(fvST) > 0
-                    for i = 0 to array.size(fvST) - 1
-                        if array.get(fvST, i) >= bot and array.get(fvSB, i) <= top
-                            sSmc := 15.0
-                            smcType := 2
-                            smcTop := array.get(fvST, i)
-                            smcBot := array.get(fvSB, i)
-                            smcBar := array.get(fvSX, i)
-                            break
-            // 10 — Multi-timeframe : D1, H4 et H1 dans le sens de la zone.
-            int want = isBuy ? 1 : -1
-            float sMtf = ((dirD == want ? 1 : 0) + (dirH4 == want ? 1 : 0) + (dirH1 == want ? 1 : 0)) / 3.0 * 10.0
+            // Le FVG du meme cote qui CHEVAUCHE l'Order Block.
+            float zT = na
+            float zB = na
+            int   zX = na
+            for j = 0 to nFv - 1
+                float fT = isBuy ? array.get(fvBT, j) : array.get(fvST, j)
+                float fB = isBuy ? array.get(fvBB, j) : array.get(fvSB, j)
+                int   fX = isBuy ? array.get(fvBX, j) : array.get(fvSX, j)
+                float iT = math.min(obT, fT)
+                float iB = math.max(obB, fB)
+                if iT > iB
+                    zT := iT
+                    zB := iB
+                    zX := math.min(obX, fX)
+                    break
 
-            float score = sVp + sSt + sLq + sSmc + sMtf
+            if not na(zT)
+                // Epaisseur plancher : une intersection de quelques ticks
+                // serait invisible a l'ecran. wzWidthAtr sert desormais de
+                // MINIMUM, plus de largeur imposee.
+                float minH = atrV * wzWidthAtr * 0.25
+                if zT - zB < minH
+                    float ctr = (zT + zB) / 2.0
+                    zT := ctr + minH / 2.0
+                    zB := ctr - minH / 2.0
 
-            // Deux garde-fous supplementaires, exiges avant tout affichage :
-            // la zone doit etre du bon cote du milieu de la range hebdomadaire
-            // (discount pour acheter, premium pour vendre), et le prix doit
-            // deja avoir reagi dessus par le passe.
-            bool fibOk = isBuy ? anchor <= mid : anchor >= mid
-            bool reacted = false
-            if array.size(pvLvl) > 0
-                for i = 0 to array.size(pvLvl) - 1
-                    float p0 = array.get(pvLvl, i)
-                    if p0 <= top and p0 >= bot
-                        reacted := true
-                        break
-            // Le regime de marche a le dernier mot : une zone que le contexte
-            // invalide n'est pas affaiblie, elle n'est pas creee du tout.
-            if fibOk and reacted and f_ctxAllow(isBuy) and score >= wzMinScore
-                // ---- LA ZONE EST L'INTERSECTION, PAS LA BANDE ----------------
-                // Jusqu'ici la zone affichee etait la bande de volume profile
-                // (ancre +/- ATR/2) et l'OB/FVG ne faisait qu'ajouter 15 points
-                // au score sans jamais toucher a sa geometrie : d'ou une zone
-                // qui ne ressemblait pas a une confluence.
-                // Desormais, quand une ancre SMC existe, les bornes deviennent
-                // l'OVERLAP entre la bande et cette ancre -- la region ou les
-                // deux sont d'accord. Compact par construction, et non vide par
-                // construction aussi : sSmc n'a ete accorde que si l'ancre
-                // chevauchait deja la bande. Sans ancre SMC, on garde la bande.
-                // Le SCORE, lui, reste calcule sur la bande (ci-dessus) et n'est
-                // jamais recalcule apres : la regle anti-repaint est intacte.
-                float zT = top
-                float zB = bot
-                if smcType != 0 and not na(smcTop) and not na(smcBot)
-                    zT := math.min(top, smcTop)
-                    zB := math.max(bot, smcBot)
-                color bord = isBuy ? color.new(cUp, 30) : color.new(cDn, 30)
-                color fill = isBuy ? color.new(cUp, 94) : color.new(cDn, 94)
-                box   zb = box.new(bar_index, zT, bar_index, zB, border_color=bord, border_width=2, bgcolor=fill)
-                label zl = label.new(bar_index, isBuy ? zB : zT, (isBuy ? "BUY  " : "SELL  ") + str.tostring(int(math.round(score))) + "/100", style=isBuy ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=isBuy ? cUp : cDn, size=size.tiny)
-                array.push(zTop, zT)
-                array.push(zBot, zB)
-                array.push(zScr, score)
-                array.push(zSide, isBuy ? 1 : -1)
-                array.push(zBar, bar_index)
-                array.push(zSmcType, smcType)
-                array.push(zSmcTop, smcTop)
-                array.push(zSmcBot, smcBot)
-                array.push(zSmcBar, smcBar)
-                array.push(zBox, zb)
-                array.push(zLab, zl)
+                // ---- SCORE DE CONFLUENCE, fige ici et jamais recalcule ------
+                // 30 — Volume Profile : la zone tombe dans la Value Area.
+                float sVp = not na(wVal) and not na(wVah) and zB >= wVal and zT <= wVah ? 30.0 : 0.0
+                // 25 — Structure alignee.
+                float sSt = (isBuy ? trend == 1 : trend == -1) ? 25.0 : 0.0
+                // 20 — Liquidite non prise AU-DELA de la zone.
+                float sLq = 0.0
+                if isBuy and array.size(eqlL) > 0
+                    for i = 0 to array.size(eqlL) - 1
+                        if array.get(eqlL, i) < zB
+                            sLq := 20.0
+                            break
+                if not isBuy and array.size(eqhL) > 0
+                    for i = 0 to array.size(eqhL) - 1
+                        if array.get(eqhL, i) > zT
+                            sLq := 20.0
+                            break
+                // 15 — Zone SMC : acquis par construction (OB x FVG).
+                float sSmc = 15.0
+                // 10 — Multi-timeframe.
+                float sMtf = ((dirD == want ? 1 : 0) + (dirH4 == want ? 1 : 0) + (dirH1 == want ? 1 : 0)) / 3.0 * 10.0
+                float score = sVp + sSt + sLq + sSmc + sMtf
 
-    // Deux ancrages par cote au maximum sont produits ci-dessus (Value Area puis
-    // noeud de volume), donc le plafond wzMax est deja respecte par
-    // construction. Ce garde-fou ne sert qu'a le rendre explicite.
+                // Discount pour acheter, premium pour vendre.
+                bool fibOk = na(mid) or (isBuy ? zB <= mid : zT >= mid)
+
+                // UNE seule zone par cote, remplacee uniquement par MEILLEURE.
+                int exI = -1
+                if array.size(zSide) > 0
+                    for q = 0 to array.size(zSide) - 1
+                        if array.get(zSide, q) == want
+                            exI := q
+                bool same   = exI >= 0 and array.get(zTop, exI) == zT and array.get(zBot, exI) == zB
+                bool better = exI < 0 or score > array.get(zScr, exI)
+
+                if fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
+                    if exI >= 0
+                        box.delete(array.get(zBox, exI))
+                        label.delete(array.get(zLab, exI))
+                        array.remove(zTop, exI)
+                        array.remove(zBot, exI)
+                        array.remove(zScr, exI)
+                        array.remove(zSide, exI)
+                        array.remove(zBar, exI)
+                        array.remove(zSmcType, exI)
+                        array.remove(zSmcTop, exI)
+                        array.remove(zSmcBot, exI)
+                        array.remove(zSmcBar, exI)
+                        array.remove(zBox, exI)
+                        array.remove(zLab, exI)
+                    color bord = isBuy ? color.new(cUp, 25) : color.new(cDn, 25)
+                    color fill = isBuy ? color.new(cUp, 90) : color.new(cDn, 90)
+                    box   zb = box.new(zX, zT, bar_index, zB, border_color=bord, border_width=2, bgcolor=fill)
+                    label zl = label.new(bar_index, isBuy ? zB : zT, (isBuy ? "BUY ZONE  " : "SELL ZONE  ") + str.tostring(int(math.round(score))) + "/100", style=isBuy ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=isBuy ? cUp : cDn, size=size.tiny)
+                    array.push(zTop, zT)
+                    array.push(zBot, zB)
+                    array.push(zScr, score)
+                    array.push(zSide, want)
+                    array.push(zBar, zX)
+                    array.push(zSmcType, 1)
+                    array.push(zSmcTop, obT)
+                    array.push(zSmcBot, obB)
+                    array.push(zSmcBar, obX)
+                    array.push(zBox, zb)
+                    array.push(zLab, zl)
+
     while array.size(zScr) > wzMax * 2
         box.delete(array.shift(zBox))
         label.delete(array.shift(zLab))
@@ -1272,6 +1244,20 @@ if barstate.islast
                 bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvST, i) and array.get(zSmcBot, zHitI) == array.get(fvSB, i)
                 f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
+    // ---- ENTREE PLANIFIEE : le bord de la zone ou l'on attend le prix ----
+    // Repond a "l'Entry doit etre DANS ou au bord logique de la zone" -- mais
+    // SANS mentir sur l'execution. Ce sont deux choses differentes, donc deux
+    // libelles differents :
+    //   "ENTRY (plan)" = le bord de la zone active, la ou l'on ATTEND le prix.
+    //                    Trace des que la zone existe, avant que le prix y soit.
+    //   "7. ENTRY"     = le prix REEL d'execution (close de la bougie de
+    //                    signal), trace uniquement quand le signal existe.
+    // Melanger les deux afficherait un prix auquel la strategie n'entre jamais.
+    if showLvls and not (rawLong or rawShort) and array.size(zTop) > 0
+        for i = 0 to array.size(zTop) - 1
+            bool pIsB = array.get(zSide, i) == 1
+            f_lvl(pIsB ? array.get(zTop, i) : array.get(zBot, i), color.new(pIsB ? cUp : cDn, 45), "ENTRY (plan)", line.style_dotted)
+
     // ---- Niveaux du setup en cours ----
     if showLvls and (rawLong or rawShort) and not na(atrV)
         // Noms locaux evites : dans la version strategie, ePx et sPx sont des
@@ -1290,7 +1276,7 @@ if barstate.islast
         if not na(stopStr)
             f_lvl(stopStr, color.new(cDn, 55), stopDevant ? "Invalidation ⚠" : "Invalidation", line.style_dashed)
         if not na(objPx)
-            f_lvl(objPx, color.new(cUp, 25), (tiedToZone ? "9. " : "") + "Objectif (" + objSrc + ")" + (na(rr) ? "" : "  " + str.tostring(rr, "#.#") + "R"), line.style_dashed)
+            f_lvl(objPx, color.new(cUp, 25), (tiedToZone ? "9. " : "") + "TP · Objectif (" + objSrc + ")" + (na(rr) ? "" : "  " + str.tostring(rr, "#.#") + "R"), line.style_dashed)
 
 // --- Teinte de fond : le biais sans aucun deplacement du regard ---
 bgcolor(uiTint ? (biasBull ? color.new(cUp, 96) : biasBear ? color.new(cDn, 96) : na) : na, title="Biais D1+W1")

@@ -560,20 +560,44 @@ if not na(pl) and not na(plB) and not na(liqTol)
             array.shift(eqlB)
 
 // Une poche prise disparait. Si la cloture revient de l'autre cote, c'est un sweep.
+//
+// CORRECTIF DU SWEEP. Le drapeau hebdomadaire etait leve 244 lignes plus bas,
+// par une seconde boucle qui re-parcourait eqhL/eqlL a la recherche de
+// `low < niveau and close > niveau`. Or la poche est RETIREE du tableau ici
+// meme, sur cette bougie, des que `low < lv`. Quand la seconde boucle
+// s'executait, la poche n'existait plus : la condition ne pouvait jamais etre
+// vraie et wzSweepDn / wzSweepUp restaient definitivement faux. Le gate de
+// creation de zone commencant par `cSweep and ...`, AUCUNE zone ne pouvait
+// naitre. Les etiquettes "sweep" s'affichaient malgre tout, puisqu'elles sont
+// dessinees ici, avant la suppression -- d'ou la contradiction visible a
+// l'ecran entre le graphique et le diagnostic.
+//
+// Le sweep est donc constate ICI, la ou la poche existe encore. Deux booleens
+// de bougie portent l'information jusqu'au bloc hebdomadaire.
+//
+// Note : le constat ne depend plus de `sweepShow`. Cet interrupteur ne commande
+// que l'etiquette ; le laisser conditionner la detection aurait fait dependre
+// une decision d'un reglage d'affichage.
+bool sweepUpBar = false
+bool sweepDnBar = false
 if array.size(eqhL) > 0
     for i = array.size(eqhL) - 1 to 0
         float lv = array.get(eqhL, i)
         if high > lv
-            if sweepShow and close < lv and array.size(swLb) < 40
-                array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
+            if close < lv
+                sweepUpBar := true
+                if sweepShow and array.size(swLb) < 40
+                    array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
             array.remove(eqhL, i)
             array.remove(eqhB, i)
 if array.size(eqlL) > 0
     for i = array.size(eqlL) - 1 to 0
         float lv = array.get(eqlL, i)
         if low < lv
-            if sweepShow and close > lv and array.size(swLb) < 40
-                array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
+            if close > lv
+                sweepDnBar := true
+                if sweepShow and array.size(swLb) < 40
+                    array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
             array.remove(eqlL, i)
             array.remove(eqlB, i)
 if array.size(swLb) > 6
@@ -804,14 +828,14 @@ if newWeek
     wzBosUp   := false
     wzBosDn   := false
 // Sweep : une poche de liquidite prise puis rejetee, dans la semaine en cours.
-if array.size(eqlL) > 0
-    for i = 0 to array.size(eqlL) - 1
-        if low < array.get(eqlL, i) and close > array.get(eqlL, i)
-            wzSweepDn := true
-if array.size(eqhL) > 0
-    for i = 0 to array.size(eqhL) - 1
-        if high > array.get(eqhL, i) and close < array.get(eqhL, i)
-            wzSweepUp := true
+// Les deux booleens viennent du bloc de liquidite, ou la poche existe encore
+// (voir le correctif commente la-bas). barstate.isconfirmed : le sweep n'est
+// retenu qu'une fois la bougie FERMEE -- une meche qui perce le niveau puis
+// revient avant la cloture ne doit pas armer le setup.
+if sweepDnBar and barstate.isconfirmed
+    wzSweepDn := true
+if sweepUpBar and barstate.isconfirmed
+    wzSweepUp := true
 if bullChoch
     wzChochUp := true
 if bearChoch

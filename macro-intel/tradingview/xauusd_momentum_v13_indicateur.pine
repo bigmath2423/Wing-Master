@@ -257,6 +257,30 @@ var int dbgSellSwOk    = 0
 var int dbgSellFreshOk = 0
 var int dbgSellFreshKo = 0
 var int dbgSellBosOk   = 0
+
+// ---- CHOCH / CYCLE : COMPTES PAR EVENEMENT, PAS PAR BOUGIE ---------------
+// Les compteurs ci-dessus comptent des BOUGIES. Un chochUpFresh faux le reste
+// pendant des centaines de bougies : "87 % des bougies" ne dit donc rien du
+// taux d'echec REEL des CHoCH. Ceux-ci ne sont incrementes que sur la bougie
+// meme d'un bullChoch / bearChoch confirme -- un evenement, un increment.
+// CONSERVATION : Ko = KoN + KoB exactement, et freshOK = Tot - Ko.
+// KoO (sweep perime) est une DIMENSION SUPPLEMENTAIRE, pas une categorie
+// exclusive : la peremption n'entre pas dans le calcul de chochUpFresh, elle
+// est testee a part par f_seqSweep. KoO recoupe donc KoB, il ne s'y ajoute pas.
+var int dbgEvBTot  = 0   // A : bullChoch confirmes
+var int dbgEvBKo   = 0   // B : parmi A, chochUpFresh FAUX
+var int dbgEvBKoB  = 0   // C : parmi B, bosUpIdx >= swpDnIdx  (le proxy accuse)
+var int dbgEvBKoO  = 0   // D : parmi B, sweep perime (non exclusif de C)
+var int dbgEvBKoN  = 0   // E : parmi B, sweep absent
+var int dbgEvBOkO  = 0   // parmi A-B (fresh OK), sweep deja perime
+var int dbgEvBDone = 0   // parmi A, chaine deja complete pour ce sweep
+var int dbgEvSTot  = 0
+var int dbgEvSKo   = 0
+var int dbgEvSKoB  = 0
+var int dbgEvSKoO  = 0
+var int dbgEvSKoN  = 0
+var int dbgEvSOkO  = 0
+var int dbgEvSDone = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -1621,6 +1645,12 @@ newWeek = ta.change(time("W")) != 0
 // wzMaxAnchorAgeH. Effet de bord voulu : plus de point mort le lundi matin, ou
 // les drapeaux repartaient tous de zero quel que soit ce que le marche venait
 // de faire.
+// seqMaxBars est declare ici et non plus sous les registres. AUCUN changement
+// de valeur : il ne depend que de l'input sweepMaxAgeH et du timeframe, donc
+// rien entre les deux positions ne l'influence. Il est remonte pour que
+// l'instrumentation du bloc de registres puisse tester la peremption du sweep
+// en REUTILISANT la formule du moteur au lieu d'en ecrire une seconde.
+int seqMaxBars = math.max(1, int(sweepMaxAgeH * 3600 / timeframe.in_seconds()))
 var int swpDnIdx   = na   // sell side prise -> prerequis d'un setup ACHAT
 var int swpUpIdx   = na   // buy side prise  -> prerequis d'un setup VENTE
 var int chochUpIdx = na
@@ -1651,17 +1681,59 @@ if barstate.isconfirmed
     // plus bas. bosUpIdx contient donc encore le BOS haussier PRECEDENT, ce
     // qui est exactement la valeur a comparer. Ne pas deplacer ces blocs.
     if bullChoch
+        // evChPrevB : le CHoCH haussier PRECEDENT, capture avant ecrasement.
+        // Lecture seule, a usage exclusif du debug evenementiel plus bas.
+        int evChPrevB = chochUpIdx
         chochUpIdx := bar_index
         chochUpFresh := not na(swpDnIdx) and (na(bosUpIdx) or bosUpIdx < swpDnIdx)
+        // --- DEBUG EVENEMENTIEL (aucune ecriture hors compteurs dbg*) -----
+        // On est au seul instant ou les trois valeurs utiles coexistent :
+        // swpDnIdx courant, bosUpIdx encore PRECEDENT, chochUpIdx precedent.
+        dbgEvBTot += 1
+        bool evOldB = not na(swpDnIdx) and (bar_index - swpDnIdx) > seqMaxBars
+        if chochUpFresh
+            if evOldB
+                dbgEvBOkO += 1
+        else
+            dbgEvBKo += 1
+            if na(swpDnIdx)
+                dbgEvBKoN += 1
+            else
+                dbgEvBKoB += 1
+            if evOldB
+                dbgEvBKoO += 1
+        // CHAINE DEJA COMPLETE pour le sweep courant : le CHoCH precedent est
+        // posterieur au sweep, et un BOS lui est posterieur. C'est exactement
+        // le discriminant que testerait un sweep "consomme", mesure ici SANS
+        // creer d'etat ni changer un comportement. BORNE BASSE ASSUMEE : si
+        // une chaine complete a ete suivie d'un autre CHoCH sans BOS,
+        // chochUpIdx a ete ecrase et le cas n'est plus visible.
+        if not na(swpDnIdx) and not na(evChPrevB) and evChPrevB > swpDnIdx and not na(bosUpIdx) and bosUpIdx > evChPrevB
+            dbgEvBDone += 1
     if bearChoch
+        int evChPrevS = chochDnIdx
         chochDnIdx := bar_index
         chochDnFresh := not na(swpUpIdx) and (na(bosDnIdx) or bosDnIdx < swpUpIdx)
+        dbgEvSTot += 1
+        bool evOldS = not na(swpUpIdx) and (bar_index - swpUpIdx) > seqMaxBars
+        if chochDnFresh
+            if evOldS
+                dbgEvSOkO += 1
+        else
+            dbgEvSKo += 1
+            if na(swpUpIdx)
+                dbgEvSKoN += 1
+            else
+                dbgEvSKoB += 1
+            if evOldS
+                dbgEvSKoO += 1
+        if not na(swpUpIdx) and not na(evChPrevS) and evChPrevS > swpUpIdx and not na(bosDnIdx) and bosDnIdx > evChPrevS
+            dbgEvSDone += 1
     if bullBos
         bosUpIdx := bar_index
     if bearBos
         bosDnIdx := bar_index
 
-int seqMaxBars = math.max(1, int(sweepMaxAgeH * 3600 / timeframe.in_seconds()))
 f_seqSweep(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
     not na(sw) and (bar_index - sw) <= seqMaxBars
@@ -3003,7 +3075,7 @@ if barstate.islast and panShow
 // close[i]/open[i] dans f_dbgScan, borne par swingLen exactement comme la
 // boucle reelle ; et le tableau n'utilise aucune coordonnee bar_index.
 // ============================================================
-var table dbgT = table.new(position.middle_left, 2, 43, border_width=0)
+var table dbgT = table.new(position.middle_left, 2, 50, border_width=0)
 f_dbgH(int r, string t) =>
     table.cell(dbgT, 0, r, t, text_color=cGold, text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cGold, 88))
     table.cell(dbgT, 1, r, "", bgcolor=color.new(cGold, 88))
@@ -3086,3 +3158,11 @@ if barstate.islast and dbgOn
     f_dbgR(40, "sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
     f_dbgR(41, "fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
     f_dbgR(42, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))
+
+    f_dbgH(43, "CHOCH " + sl + " CYCLE EVENT  (par CHoCH, pas par bougie)")
+    f_dbgR(44, "BUY  total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvBTot - dbgEvBKo) + " " + sl + " " + str.tostring(dbgEvBKo))
+    f_dbgR(45, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvBKoB) + " " + sl + " " + str.tostring(dbgEvBKoN) + " " + sl + " (" + str.tostring(dbgEvBKoO) + ")")
+    f_dbgR(46, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvBDone) + " " + sl + " " + str.tostring(dbgEvBOkO))
+    f_dbgR(47, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
+    f_dbgR(48, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
+    f_dbgR(49, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))

@@ -87,7 +87,7 @@ wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=9
 wzWidthAtr  = input.float(0.8, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW, tooltip="Reduit de 1.6 a 0.8 : une zone de 1.6 ATR de haut n'est plus un niveau d'execution, c'est une region. AFFICHAGE SEUL -- les zones ne declenchent aucun trade.")
 wzMax       = input.int(1, "Zones maximum par cote", minval=1, maxval=3, group=grpW, tooltip="Reduit de 2 a 1 : une seule zone principale par cote. AFFICHAGE SEUL.")
 wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.")
-wzMaxAnchorAge = input.int(300, "Age maximum de l'ancre OB/FVG (bougies)", minval=50, maxval=1000, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.")
+wzMaxAnchorAgeH = input.int(72, "Age maximum de l'ancre OB/FVG (heures)", minval=4, maxval=720, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.")
 wzFarAtr    = input.float(3.0, "Distance avant mise en sourdine (x ATR)", minval=1.0, step=0.5, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Au-dela de cette distance au prix, la zone reste affichee mais tres transparente -- elle n'est pas supprimee, juste dé-priorisee visuellement.")
 wzPlan      = input.bool(true, "Tableau de planification", group=grpW)
 
@@ -844,12 +844,29 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
             // Le regime de marche a le dernier mot : une zone que le contexte
             // invalide n'est pas affaiblie, elle n'est pas creee du tout.
             if fibOk and reacted and f_ctxAllow(isBuy) and score >= wzMinScore
-                color bord = isBuy ? color.new(cUp, 45) : color.new(cDn, 45)
-                color fill = isBuy ? color.new(cUp, 93) : color.new(cDn, 93)
-                box   zb = box.new(bar_index, top, bar_index, bot, border_color=bord, border_width=2, bgcolor=fill)
-                label zl = label.new(bar_index, isBuy ? bot : top, (isBuy ? "BUY  " : "SELL  ") + str.tostring(int(math.round(score))) + "/100", style=isBuy ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=isBuy ? cUp : cDn, size=size.tiny)
-                array.push(zTop, top)
-                array.push(zBot, bot)
+                // ---- LA ZONE EST L'INTERSECTION, PAS LA BANDE ----------------
+                // Jusqu'ici la zone affichee etait la bande de volume profile
+                // (ancre +/- ATR/2) et l'OB/FVG ne faisait qu'ajouter 15 points
+                // au score sans jamais toucher a sa geometrie : d'ou une zone
+                // qui ne ressemblait pas a une confluence.
+                // Desormais, quand une ancre SMC existe, les bornes deviennent
+                // l'OVERLAP entre la bande et cette ancre -- la region ou les
+                // deux sont d'accord. Compact par construction, et non vide par
+                // construction aussi : sSmc n'a ete accorde que si l'ancre
+                // chevauchait deja la bande. Sans ancre SMC, on garde la bande.
+                // Le SCORE, lui, reste calcule sur la bande (ci-dessus) et n'est
+                // jamais recalcule apres : la regle anti-repaint est intacte.
+                float zT = top
+                float zB = bot
+                if smcType != 0 and not na(smcTop) and not na(smcBot)
+                    zT := math.min(top, smcTop)
+                    zB := math.max(bot, smcBot)
+                color bord = isBuy ? color.new(cUp, 30) : color.new(cDn, 30)
+                color fill = isBuy ? color.new(cUp, 94) : color.new(cDn, 94)
+                box   zb = box.new(bar_index, zT, bar_index, zB, border_color=bord, border_width=2, bgcolor=fill)
+                label zl = label.new(bar_index, isBuy ? zB : zT, (isBuy ? "BUY  " : "SELL  ") + str.tostring(int(math.round(score))) + "/100", style=isBuy ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=isBuy ? cUp : cDn, size=size.tiny)
+                array.push(zTop, zT)
+                array.push(zBot, zB)
                 array.push(zScr, score)
                 array.push(zSide, isBuy ? 1 : -1)
                 array.push(zBar, bar_index)
@@ -886,7 +903,7 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
 //   OB/FVG    — l'element SMC precis qui a donne les 15 points a disparu
 //               (mitige ou trop vieux) : verifiable, puisque sa presence a
 //               ete constatee et enregistree au moment meme de la creation.
-//   ANCIENNE  — l'ancre OB/FVG date de plus de wzMaxAnchorAge bougies : le
+//   ANCIENNE  — l'ancre OB/FVG date de plus de wzMaxAnchorAgeH heures : le
 //               setup arrive trop tard apres l'impulsion qui l'a cree.
 //   PERIMEE   — le contexte HTF, qui etait EXIGE favorable a la creation
 //               (garde-fou f_ctxAllow), est devenu defavorable depuis.
@@ -898,6 +915,10 @@ if newWeek and wzShow and not na(wVal) and not na(wVah) and not na(atrV) and atr
 var string lastInvReason = "—"
 var int    lastInvSide   = 0
 var float  lastInvScore  = na
+// Vrai UNIQUEMENT sur la bougie ou une zone vient d'etre retiree. Sert au
+// verdict "INVALIDE" du panneau, qui doit etre un etat instantane et non un
+// souvenir permanent.
+bool zInvNow = false
 
 if array.size(zTop) > 0
     for i = array.size(zTop) - 1 to 0
@@ -911,7 +932,7 @@ if array.size(zTop) > 0
 
         bool consommee  = isB ? (low <= bt and close > tp) : (high >= tp and close < bt)
         bool cassee     = isB ? close < bt : close > tp
-        bool ancienne   = sT != 0 and not na(sBar) and (bar_index - sBar) > wzMaxAnchorAge
+        bool ancienne   = sT != 0 and not na(sBar) and (bar_index - sBar) * timeframe.in_seconds() / 3600.0 > wzMaxAnchorAgeH
         bool perimee    = not f_ctxAllow(isB)
 
         bool smcGone = false
@@ -939,6 +960,7 @@ if array.size(zTop) > 0
         string reason = consommee ? "zone consommee" : cassee ? "cloture au travers" : smcGone ? (sT == 1 ? "OB casse" : "FVG comble") : ancienne ? "ancre trop ancienne" : perimee ? "contexte HTF change" : ""
 
         if reason != ""
+            zInvNow := true
             lastInvReason := reason
             lastInvSide   := array.get(zSide, i)
             lastInvScore  := array.get(zScr, i)
@@ -1198,10 +1220,10 @@ f_lvl(float y, color col, string txt, string sty) =>
 // Le bord gauche est tronque a zoneMaxBars : une boite garde son origine
 // reelle tant qu'elle est recente, et cesse de balayer tout l'ecran quand
 // elle vieillit. Les bornes de PRIX (top/bot) ne sont jamais touchees.
-f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc) =>
+f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc, string bsty) =>
     if not na(top) and not na(bot) and top > bot
         int l = math.max(left, bar_index - zoneMaxBars)
-        box b = box.new(l, top, bar_index + 3, bot, border_color=bord, border_width=1, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
+        box b = box.new(l, top, bar_index + 3, bot, border_color=bord, border_width=1, border_style=bsty, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
         array.push(dBx, b)
 
 if barstate.islast
@@ -1233,22 +1255,22 @@ if barstate.islast
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
                 bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obBT, i) and array.get(zSmcBot, zHitI) == array.get(obBB, i)
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25))
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obST, i) and array.get(zSmcBot, zHitI) == array.get(obSB, i)
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25))
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
                 bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvBT, i) and array.get(zSmcBot, zHitI) == array.get(fvBB, i)
-                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30))
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
                 bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvST, i) and array.get(zSmcBot, zHitI) == array.get(fvSB, i)
-                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30))
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
     // ---- Niveaux du setup en cours ----
     if showLvls and (rawLong or rawShort) and not na(atrV)
@@ -1293,7 +1315,7 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 7, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 8, border_width=0)
 
 // f_cell = ligne CONTEXTE (affichee, ne decide rien). f_cellD = ligne DECIDE
 // (participe reellement a buySignal/sellSignal) : meme contenu, fond legerement
@@ -1331,8 +1353,18 @@ if barstate.islast and panShow
     string grade = not trigOk or not exclOk ? "INVALID" : gradeN == 5 ? "A+" : gradeN == 4 ? "A" : gradeN == 3 ? "B" : "INVALID"
     color gradeCol = grade == "A+" ? cUp : grade == "A" ? cGold : grade == "B" ? color.new(cGold, 40) : cMute
 
-    string vd = sL ? "ENTRER · ACHAT · " + grade : sS ? "ENTRER · VENTE · " + grade : biasDir == 0 ? "PAS DE SETUP" : "ATTENDRE · " + grade
-    color  vc = sL ? cUp : sS ? cDn : biasDir == 0 ? cMute : cGold
+    // QUATRE ETATS EXCLUSIFS, dans cet ordre de priorite. Le grade
+    // n'accompagne QUE "ENTRER" : ailleurs il produisait des libelles
+    // contradictoires du type "ATTENDRE · INVALID" -- deux concepts
+    // differents (l'etat du setup, et la note des 5 conditions) colles dans
+    // la meme phrase.
+    //   ENTRER       : les conditions d'entree sont reunies (rawLong/rawShort)
+    //   INVALIDE     : une zone vient d'etre retiree sur CETTE bougie
+    //   ATTENDRE     : au moins une zone active existe, mais pas de signal
+    //   PAS DE SETUP : aucune zone qualifiee
+    int nZ = array.size(zTop)
+    string vd = sL ? "ENTRER · ACHAT · " + grade : sS ? "ENTRER · VENTE · " + grade : zInvNow ? "INVALIDE" : nZ > 0 ? "ATTENDRE" : "PAS DE SETUP"
+    color  vc = sL ? cUp : sS ? cDn : zInvNow ? cDn : nZ > 0 ? cGold : cMute
     // Texte clair sur badge : les 4 couleurs de badge (cUp/cDn/cGold/cMute)
     // sont des tons moyens-profonds sur la palette creme, pas des neons
     // clairs -- un texte clair contraste mieux qu'un texte sombre ici.
@@ -1361,27 +1393,34 @@ if barstate.islast and panShow
     string confTxt = na(confScore) ? "—" : confBar + "  " + str.tostring(int(math.round(confScore))) + "/100"
     f_cell(2, "Confluence", confTxt, na(confScore) ? cMute : (dL ? cUp : cDn))
 
-    // 3 — ZONES ACTIVES. CONTEXTE.
-    int nBuyZ  = 0
-    int nSellZ = 0
-    if array.size(zSide) > 0
-        for i = 0 to array.size(zSide) - 1
-            if array.get(zSide, i) == 1
-                nBuyZ += 1
-            else
-                nSellZ += 1
-    f_cell(3, "Zones actives", "BUY " + str.tostring(nBuyZ) + "   SELL " + str.tostring(nSellZ), cTxt)
+    // 3 et 4 — LES DEUX ZONES, cote par cote : bornes + confluence. La zone
+    // touchee par le prix en ce moment est marquee d'un point. CONTEXTE.
+    string bz = "—"
+    string sz = "—"
+    color  bzc = cMute
+    color  szc = cMute
+    if array.size(zTop) > 0
+        for i = 0 to array.size(zTop) - 1
+            string rg = f_px2(array.get(zBot, i)) + " – " + f_px2(array.get(zTop, i)) + "   " + str.tostring(int(math.round(array.get(zScr, i)))) + (i == zHitI ? " ●" : "")
+            if array.get(zSide, i) == 1 and bz == "—"
+                bz := rg
+                bzc := cUp
+            if array.get(zSide, i) == -1 and sz == "—"
+                sz := rg
+                szc := cDn
+    f_cell(3, "BUY Zone",  bz, bzc)
+    f_cell(4, "SELL Zone", sz, szc)
 
-    // 4 — OBJECTIF. Prochain obstacle devant le prix. Reference de LECTURE :
+    // 5 — OBJECTIF. Prochain obstacle devant le prix. Reference de LECTURE :
     // ne pilote ni le TP ni la sortie reelle (le trailing mesure). CONTEXTE.
     string obTxt = na(objPx) ? "—" : f_px2(objPx) + "  (" + objSrc + ")"
-    f_cell(4, "Objectif", obTxt, na(objPx) ? cMute : cGold)
+    f_cell(5, "Objectif", obTxt, na(objPx) ? cMute : cGold)
 
-    // 5 — STOP, avec la RAISON qui le place. Le prix accompagne la raison --
+    // 6 — STOP, avec la RAISON qui le place. Le prix accompagne la raison --
     // une raison sans prix ne permet pas de placer l'ordre.
     string stTxt = na(stopAtr) ? "—" : f_px2(stopAtr) + "  ·  " + str.tostring(slAtrRef, "#.#") + " ATR" + (stopDevant ? "  ⚠ devant l'invalidation" : "")
-    f_cellD(5, "Stop", stTxt, stopDevant ? cDn : cTxt)
+    f_cellD(6, "Stop", stTxt, stopDevant ? cDn : cTxt)
 
-    // 6 — R:R. Calcule sur l'objectif de lecture ci-dessus et le stop ATR,
+    // 7 — R:R. Calcule sur l'objectif de lecture ci-dessus et le stop ATR,
     // donc lui aussi indicatif : aucun seuil de R:R ne bloque un trade.
-    f_cellD(6, "R:R", na(rr) ? "—" : str.tostring(rr, "#.##"), na(rr) ? cMute : rr >= 2.0 ? cUp : rr >= 1.0 ? cGold : cDn)
+    f_cellD(7, "R:R", na(rr) ? "—" : str.tostring(rr, "#.##"), na(rr) ? cMute : rr >= 2.0 ? cUp : rr >= 1.0 ? cGold : cDn)

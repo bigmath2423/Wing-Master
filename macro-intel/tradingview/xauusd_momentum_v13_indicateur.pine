@@ -74,7 +74,7 @@ obNoiseAtr = input.float(0.15, "OB — corps minimum de la bougie source (x ATR)
 fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.", display=display.none)
 fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ, display=display.none)
 fvgDispAtr= input.float(1.0, "FVG — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
-fvgMax    = input.int(2, "FVG — nombre garde par cote", minval=1, maxval=4, group=grpZ, display=display.none)
+fvgMax    = input.int(4, "FVG — nombre garde par cote", minval=1, maxval=8, group=grpZ, tooltip="MESURE DU 10 AOUT : plus de 800 FVG crees sur l'historique charge, et seulement DEUX vivants a l'instant T sur les quatre unites. Le moteur de zones doit apparier l'Order Block actif avec un FVG a moins de wzPairGapAtr : avec deux survivants la conjonction est quasi impossible, et le compteur ZONES affichait 0 sur M15/M5/M3 et 1 sur M1. Porte de 2 a 4, plafond releve a 8 pour laisser de la marge de test. AFFECTE LA CREATION DE ZONES.", display=display.none)
 fvgMaxAge = input.int(200, "FVG — duree de vie (bougies)", minval=20, maxval=1000, group=grpZ, tooltip="Un ecart non comble depuis 200 bougies n'est plus un desequilibre, c'est un vestige. Il est retire meme s'il n'a jamais ete traverse.", display=display.none)
 brkShow   = input.bool(true, "BOS / CHoCH", group=grpZ, display=display.none)
 brkLabels = input.int(2, "Etiquettes sur les N dernieres cassures", minval=0, maxval=6, group=grpZ, display=display.none)
@@ -1294,6 +1294,7 @@ if not na(atrV) and gapDn > atrV * fvgMinAtr and bodyOk and close[1] < open[1]
         array.shift(fvST)
         array.shift(fvSB)
         array.shift(fvSX)
+        dbgFvEvict += 1
 
 // --- DEBUG : pourquoi un FVG est retenu ou rejete ------------------------
 // Un "candidat" est un ecart de 3 bougies non nul, avant tout seuil. La
@@ -1320,7 +1321,6 @@ if barstate.isconfirmed and not na(atrV)
             dbgFvOther += 1
         else
             dbgFvOk += 1
-        dbgFvEvict += 1
 // Un FVG disparait quand il est COMBLE (cloture au travers) ou quand il est
 // simplement trop vieux : un desequilibre que le marche ignore depuis 200
 // bougies n'est plus un desequilibre.

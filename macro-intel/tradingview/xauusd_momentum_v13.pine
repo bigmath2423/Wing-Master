@@ -92,6 +92,8 @@ wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=9
 wzWidthAtr  = input.float(0.8, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW, tooltip="Reduit de 1.6 a 0.8 : une zone de 1.6 ATR de haut n'est plus un niveau d'execution, c'est une region. AFFICHAGE SEUL -- les zones ne declenchent aucun trade, donc ce reglage ne change ni les signaux ni le backtest.")
 wzMax       = input.int(1, "Zones maximum par cote", minval=1, maxval=3, group=grpW, tooltip="Reduit de 2 a 1 : une seule zone principale par cote. AFFICHAGE SEUL.")
 wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.")
+wzPairGapAtr = input.float(0.5, "Ecart maximum Order Block <-> FVG (x ATR)", minval=0.0, maxval=3.0, step=0.1, group=grpW, tooltip="L'Order Block et le FVG n'ont plus besoin de se chevaucher : il suffit qu'ils soient PROCHES. Dans une impulsion, l'OB precede le mouvement et le FVG est cree par le mouvement -- ils sont donc empiles, pas superposes. A 0, on revient a l'ancien comportement (chevauchement obligatoire).")
+wzMaxHeightAtr = input.float(1.5, "Hauteur maximum d'une zone (x ATR)", minval=0.3, maxval=5.0, step=0.1, group=grpW, tooltip="Garde-fou contre les zones enormes. La zone etant l'UNION de l'OB et du FVG, une paire trop ecartee produirait un grand rectangle : au-dela de cette hauteur la paire est REJETEE plutot que dessinee. Mieux vaut aucune zone qu'une zone imprecise.")
 wzMaxAnchorAgeH = input.int(72, "Age maximum de l'ancre OB/FVG (heures)", minval=4, maxval=720, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.")
 wzFarAtr    = input.float(3.0, "Distance avant mise en sourdine (x ATR)", minval=1.0, step=0.5, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Au-dela de cette distance au prix, la zone reste affichee mais tres transparente -- elle n'est pas supprimee, juste dé-priorisee visuellement.")
 wzPlan      = input.bool(true, "Tableau de planification", group=grpW)
@@ -1017,21 +1019,48 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             float obB = isBuy ? array.get(obBB, 0) : array.get(obSB, 0)
             int   obX = isBuy ? array.get(obBX, 0) : array.get(obSX, 0)
 
-            // Le FVG du meme cote qui CHEVAUCHE l'Order Block.
+            // ---- APPARIEMENT ORDER BLOCK <-> FVG -------------------------
+            // La version precedente exigeait un CHEVAUCHEMENT STRICT
+            // (intersection non vide). Or dans une impulsion haussiere, l'Order
+            // Block est la derniere bougie baissiere AVANT le mouvement et le
+            // FVG est le gap CREE PAR ce mouvement : ils sont typiquement
+            // EMPILES, pas superposes. Exiger l'intersection eliminait donc la
+            // configuration ICT normale -- c'etait le second verrou apres le
+            // bug du sweep.
+            //
+            // Desormais les deux doivent seulement etre PROCHES, et la zone est
+            // leur UNION : une seule zone qui fusionne les deux, comme demande.
+            // Deux garde-fous contre les zones enormes :
+            //   - wzPairGapAtr : ecart maximum entre les deux boites ;
+            //   - wzMaxHeightAtr : hauteur maximale de l'union. Au-dela, la
+            //     paire est REJETEE plutot que dessinee trop large -- mieux
+            //     vaut aucune zone qu'une zone imprecise.
+            // Parmi tous les FVG candidats, on retient celui qui donne l'union
+            // la PLUS SERREE (auparavant : le premier trouve, arbitraire).
             float zT = na
             float zB = na
             int   zX = na
+            float bestH = na
             for j = 0 to nFv - 1
                 float fT = isBuy ? array.get(fvBT, j) : array.get(fvST, j)
                 float fB = isBuy ? array.get(fvBB, j) : array.get(fvSB, j)
                 int   fX = isBuy ? array.get(fvBX, j) : array.get(fvSX, j)
-                float iT = math.min(obT, fT)
-                float iB = math.max(obB, fB)
-                if iT > iB
-                    zT := iT
-                    zB := iB
-                    zX := math.min(obX, fX)
-                    break
+                // Ecart entre les deux boites, nul si elles se chevauchent.
+                float gap = math.max(0.0, math.max(obB - fT, fB - obT))
+                float uT  = math.max(obT, fT)
+                float uB  = math.min(obB, fB)
+                float uH  = uT - uB
+                if gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
+                    if na(bestH) or uH < bestH
+                        bestH := uH
+                        zT := uT
+                        zB := uB
+                        zX := math.min(obX, fX)
+
+            // Diagnostic : OB et FVG presents mais jamais appariables.
+            if na(zT) and isBuy == isBuyBiasNow
+                dgRej := "OB ET FVG TROP ELOIGNES"
+                dgScore := na
 
             if not na(zT)
                 // Epaisseur plancher : une intersection de quelques ticks

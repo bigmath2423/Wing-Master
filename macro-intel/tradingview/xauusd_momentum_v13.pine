@@ -1638,15 +1638,35 @@ var int chochUpIdx = na
 var int chochDnIdx = na
 var int bosUpIdx   = na
 var int bosDnIdx   = na
+
+// FRAICHEUR DU SWEEP : un sweep est CONSOMME par le cycle qu'il a ouvert.
+// Les six registres ci-dessus sont de simples "derniere occurrence" : rien
+// n'invalidait jamais un sweep, et la chaine ne verifiait que l'ORDRE entre
+// les trois valeurs les plus recentes. Un sweep pouvait donc valider un cycle
+// ulterieur qui n'avait lui-meme pris aucune liquidite.
+// Regle structurelle : au moment ou un CHoCH haussier survient, le dernier
+// BOS haussier connu doit etre ANTERIEUR au sweep. S'il lui est posterieur,
+// c'est que le sweep a deja produit son mouvement -- son energie est
+// depensee, et ce CHoCH appartient a un nouveau cycle qui doit avoir son
+// propre sweep.
+// Aucun parametre, aucun seuil, aucune duree : la regle compte des EVENEMENTS
+// structurels, elle est donc identique en M1, M3, M5 et M15 par construction.
+var bool chochUpFresh = false
+var bool chochDnFresh = false
 if barstate.isconfirmed
     if sweepDnBar
         swpDnIdx := bar_index
     if sweepUpBar
         swpUpIdx := bar_index
+    // ORDRE CRITIQUE : ce bloc s'execute AVANT l'ecriture de bosUpIdx/bosDnIdx
+    // plus bas. bosUpIdx contient donc encore le BOS haussier PRECEDENT, ce
+    // qui est exactement la valeur a comparer. Ne pas deplacer ces blocs.
     if bullChoch
         chochUpIdx := bar_index
+        chochUpFresh := not na(swpDnIdx) and (na(bosUpIdx) or bosUpIdx < swpDnIdx)
     if bearChoch
         chochDnIdx := bar_index
+        chochDnFresh := not na(swpUpIdx) and (na(bosDnIdx) or bosDnIdx < swpUpIdx)
     if bullBos
         bosUpIdx := bar_index
     if bearBos
@@ -1659,7 +1679,7 @@ f_seqSweep(bool isBuy) =>
 f_seqChoch(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
     int ch = isBuy ? chochUpIdx : chochDnIdx
-    f_seqSweep(isBuy) and not na(ch) and ch > sw
+    f_seqSweep(isBuy) and not na(ch) and ch > sw and (isBuy ? chochUpFresh : chochDnFresh)
 f_seqBos(bool isBuy) =>
     int ch = isBuy ? chochUpIdx : chochDnIdx
     int bo = isBuy ? bosUpIdx : bosDnIdx

@@ -65,6 +65,7 @@ vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, ste
 
 grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
 obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.", display=display.none)
+obHistMax = input.int(4, "Order Blocks valides conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un OB supplante par un nouveau CHoCH n'est pas invalide pour autant : il reste affiche tant que le prix ne l'a pas casse. Ce plafond borne l'historique. A 0, seul l'OB du dernier CHoCH est affiche. AFFICHAGE SEUL : le moteur de zones ne lit que l'OB actif.", display=display.none)
 bkMax     = input.int(3, "Breaker Blocks conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un Order Block casse par une cloture confirmee ne disparait pas : il devient un Breaker Block dans le sens INVERSE, memes bornes et meme bougie d'origine. Ce plafond borne l'historique conserve. A 0, les breakers ne sont pas affiches.", display=display.none)
 obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
 fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.", display=display.none)
@@ -464,6 +465,14 @@ if not na(pl) and not na(plB) and not na(liqTol)
 // Note : le constat ne depend plus de `sweepShow`. Cet interrupteur ne commande
 // que l'etiquette ; le laisser conditionner la detection aurait fait dependre
 // une decision d'un reglage d'affichage.
+// Un seul marqueur SWEEP par bougie et par sens. La boucle parcourt TOUTES
+// les poches : une bougie qui en traverse deux proches -- ce qui arrive, les
+// poches etant memorisees avec une tolerance -- creait deux etiquettes sur la
+// meme bougie, au meme prix a quelques ticks pres. D'ou les doublons.
+// L'ancrage, lui, etait deja juste : bar_index est bien la bougie du sweep, et
+// high/low bien la meche qui prend la liquidite.
+var int swBarUp = na
+var int swBarDn = na
 bool sweepUpBar = false
 bool sweepDnBar = false
 if array.size(eqhL) > 0
@@ -472,7 +481,8 @@ if array.size(eqhL) > 0
         if high > lv
             if close < lv
                 sweepUpBar := true
-                if sweepShow and array.size(swLb) < 40
+                if sweepShow and array.size(swLb) < 40 and barstate.isconfirmed and (na(swBarUp) or swBarUp != bar_index)
+                    swBarUp := bar_index
                     array.push(swLb, label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
             array.remove(eqhL, i)
             array.remove(eqhB, i)
@@ -482,7 +492,8 @@ if array.size(eqlL) > 0
         if low < lv
             if close > lv
                 sweepDnBar := true
-                if sweepShow and array.size(swLb) < 40
+                if sweepShow and array.size(swLb) < 40 and barstate.isconfirmed and (na(swBarDn) or swBarDn != bar_index)
+                    swBarDn := bar_index
                     array.push(swLb, label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
             array.remove(eqlL, i)
             array.remove(eqlB, i)
@@ -523,6 +534,23 @@ var array<float> bkBT = array.new<float>()
 var array<float> bkBB = array.new<float>()
 var array<int>   bkBX = array.new<int>()
 
+// HISTORIQUE DES ORDER BLOCKS ENCORE VALIDES, AFFICHAGE SEUL.
+// obBT/obST ne contiennent qu'UN element : celui du dernier CHoCH. C'est ce
+// que le moteur de zones lit (array.get(obBT, 0), array.size(obBT)) et cela ne
+// doit pas changer -- garder plusieurs elements ferait de l'indice 0 le PLUS
+// ANCIEN et modifierait l'appariement OB/FVG, donc le trading.
+// Un OB supplante par un nouveau CHoCH n'est pourtant pas invalide : il rejoint
+// ces tableaux au lieu d'etre detruit par array.clear, et y poursuit son cycle
+// de vie complet (mitigation, invalidation, transformation en Breaker).
+var array<float> ohBT = array.new<float>()
+var array<float> ohBB = array.new<float>()
+var array<int>   ohBX = array.new<int>()
+var array<bool>  ohBM = array.new<bool>()
+var array<float> ohST = array.new<float>()
+var array<float> ohSB = array.new<float>()
+var array<int>   ohSX = array.new<int>()
+var array<bool>  ohSM = array.new<bool>()
+
 // UN SEUL Order Block par cote : celui de la derniere impulsion valide.
 // Empiler des dizaines d'OB ne renseigne sur rien — seul le dernier a encore
 // un sens operationnel. On remplace donc au lieu d'ajouter.
@@ -547,6 +575,12 @@ if bullChoch and not na(atrV)
     for i = 1 to swingLen
         if close[i] < open[i]
             if disp >= atrV * obDispAtr
+                // L'OB precedent n'est pas detruit : il passe a l'historique.
+                if array.size(obBT) > 0
+                    array.push(ohBT, array.get(obBT, 0))
+                    array.push(ohBB, array.get(obBB, 0))
+                    array.push(ohBX, array.get(obBX, 0))
+                    array.push(ohBM, array.size(obBMit) > 0 ? array.get(obBMit, 0) : false)
                 array.clear(obBT)
                 array.clear(obBB)
                 array.clear(obBX)
@@ -561,6 +595,11 @@ if bearChoch and not na(atrV)
     for i = 1 to swingLen
         if close[i] > open[i]
             if disp >= atrV * obDispAtr
+                if array.size(obST) > 0
+                    array.push(ohST, array.get(obST, 0))
+                    array.push(ohSB, array.get(obSB, 0))
+                    array.push(ohSX, array.get(obSX, 0))
+                    array.push(ohSM, array.size(obSMit) > 0 ? array.get(obSMit, 0) : false)
                 array.clear(obST)
                 array.clear(obSB)
                 array.clear(obSX)
@@ -631,6 +670,49 @@ while array.size(bkBT) > bkMax
     array.shift(bkBT)
     array.shift(bkBB)
     array.shift(bkBX)
+
+// ---- MEME CYCLE DE VIE POUR LES OB DE L'HISTORIQUE ---------------------
+// Mitigation, puis invalidation par cloture confirmee avec passage en Breaker,
+// puis plafond. Identique a l'OB actif : un OB supplante n'est ni fige ni
+// oublie, il continue simplement sa vie hors du champ du moteur de zones.
+if array.size(ohBB) > 0
+    for i = 0 to array.size(ohBB) - 1
+        if low <= array.get(ohBT, i) and high >= array.get(ohBB, i)
+            array.set(ohBM, i, true)
+if array.size(ohSB) > 0
+    for i = 0 to array.size(ohSB) - 1
+        if low <= array.get(ohST, i) and high >= array.get(ohSB, i)
+            array.set(ohSM, i, true)
+if array.size(ohBB) > 0
+    for i = array.size(ohBB) - 1 to 0
+        if close < array.get(ohBB, i) and barstate.isconfirmed
+            array.push(bkST, array.get(ohBT, i))
+            array.push(bkSB, array.get(ohBB, i))
+            array.push(bkSX, array.get(ohBX, i))
+            array.remove(ohBT, i)
+            array.remove(ohBB, i)
+            array.remove(ohBX, i)
+            array.remove(ohBM, i)
+if array.size(ohST) > 0
+    for i = array.size(ohST) - 1 to 0
+        if close > array.get(ohST, i) and barstate.isconfirmed
+            array.push(bkBT, array.get(ohST, i))
+            array.push(bkBB, array.get(ohSB, i))
+            array.push(bkBX, array.get(ohSX, i))
+            array.remove(ohST, i)
+            array.remove(ohSB, i)
+            array.remove(ohSX, i)
+            array.remove(ohSM, i)
+while array.size(ohBT) > obHistMax
+    array.shift(ohBT)
+    array.shift(ohBB)
+    array.shift(ohBX)
+    array.shift(ohBM)
+while array.size(ohST) > obHistMax
+    array.shift(ohST)
+    array.shift(ohSB)
+    array.shift(ohSX)
+    array.shift(ohSM)
 
 // --- Fair Value Gaps : taille ET deplacement ------------------------------
 // Un FVG n'est retenu que si l'ecart depasse fvgMinAtr ET que la bougie qui
@@ -1598,6 +1680,17 @@ if barstate.islast
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
                 bool obMit = array.size(obSMit) > i and array.get(obSMit, i)
                 f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+
+        // Historique : memes couleurs et meme style que l'OB actif -- un OB
+        // valide reste un OB valide, qu'il porte ou non le setup en cours.
+        if array.size(ohBT) > 0
+            for i = 0 to array.size(ohBT) - 1
+                bool ohMit = array.get(ohBM, i)
+                f_zone(array.get(ohBT, i), array.get(ohBB, i), array.get(ohBX, i), color.new(cBlue, ohMit ? 55 : 40), color.new(cBlue, ohMit ? 90 : 85), "OB", color.new(cBlue, 25), line.style_solid)
+        if array.size(ohST) > 0
+            for i = 0 to array.size(ohST) - 1
+                bool ohMit = array.get(ohSM, i)
+                f_zone(array.get(ohST, i), array.get(ohSB, i), array.get(ohSX, i), color.new(cPurp, ohMit ? 55 : 40), color.new(cPurp, ohMit ? 90 : 85), "OB", color.new(cPurp, 25), line.style_solid)
 
         // BREAKER BLOCKS. Meme zone, meme origine, sens inverse.
         // Baissier (ex-OB haussier casse) : contour violet, fond rouge.

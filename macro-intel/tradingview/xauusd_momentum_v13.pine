@@ -1099,9 +1099,22 @@ if array.size(zBox) > 0 and not na(atrV) and atrV > 0
 // et sellSignal qui decident, et eux seuls.
 var bool wzSweepUp = false
 var bool wzSweepDn = false
+// CHoCH/BOS de la semaine, meme portee que wzSweepUp/Dn : pas specifique a
+// une zone -- si l'evenement a eu lieu N'IMPORTE QUAND cette semaine, meme
+// avant la creation de la zone courante, la coche s'allume. Comportement
+// identique a wzCfSweep aujourd'hui, etendu pour rester coherent plutot que
+// d'inventer un systeme de portee par zone.
+var bool wzChochUp = false
+var bool wzChochDn = false
+var bool wzBosUp   = false
+var bool wzBosDn   = false
 if newWeek
     wzSweepUp := false
     wzSweepDn := false
+    wzChochUp := false
+    wzChochDn := false
+    wzBosUp   := false
+    wzBosDn   := false
 int  zHit  = 0
 int  zHitI = -1
 if array.size(zTop) > 0
@@ -1118,6 +1131,14 @@ if array.size(eqhL) > 0
     for i = 0 to array.size(eqhL) - 1
         if high > array.get(eqhL, i) and close < array.get(eqhL, i)
             wzSweepUp := true
+if bullChoch
+    wzChochUp := true
+if bearChoch
+    wzChochDn := true
+if bullBos
+    wzBosUp := true
+if bearBos
+    wzBosDn := true
 
 bool wzCfSweep = zHit == 1 ? wzSweepDn : zHit == -1 ? wzSweepUp : false
 bool wzCfStruc = zHit == 1 ? (bullBos or bullChoch) : zHit == -1 ? (bearBos or bearChoch) : false
@@ -1126,6 +1147,43 @@ int  wzCfN     = (wzCfSweep ? 1 : 0) + (wzCfStruc ? 1 : 0) + (wzCfSmc ? 1 : 0)
 // Le plan est "arme" quand les trois confirmations sont la. Cela reste un ETAT
 // AFFICHE : le trade, lui, n'existe que si buySignal ou sellSignal est vrai.
 bool wzArmed = zHit != 0 and wzCfN == 3
+
+// ---- SEQUENCE NUMEROTEE DE LA ZONE ACTIVE (1 a 9) --------------------
+// Raconte l'histoire de LA zone touchee par le prix en ce moment (zHitI),
+// et seulement elle : aucun lien artificiel entre des evenements de zones
+// differentes. Une zone qui n'est plus touchee revient a son texte simple
+// au bar suivant (voir boucle plus bas) -- rien ne reste mis en avant apres
+// que le prix l'ait quittee ou qu'elle ait ete invalidee.
+bool step1Liq = false
+if zHitI >= 0
+    bool sIsB = array.get(zSide, zHitI) == 1
+    float sTop = array.get(zTop, zHitI)
+    float sBot = array.get(zBot, zHitI)
+    if sIsB and array.size(eqlL) > 0
+        for i = 0 to array.size(eqlL) - 1
+            if array.get(eqlL, i) < sBot
+                step1Liq := true
+    if not sIsB and array.size(eqhL) > 0
+        for i = 0 to array.size(eqhL) - 1
+            if array.get(eqhL, i) > sTop
+                step1Liq := true
+bool step2Sweep = wzCfSweep
+bool step3Choch = zHit == 1 ? wzChochUp : zHit == -1 ? wzChochDn : false
+bool step4Bos   = zHit == 1 ? wzBosUp   : zHit == -1 ? wzBosDn   : false
+
+// Texte de chaque zone : numerote 1-2-3-4-6 pour celle touchee par le prix,
+// texte simple pour toutes les autres -- recalcule CHAQUE bougie, donc une
+// zone qui cesse d'etre touchee (prix reparti, ou zone invalidee et retiree
+// du tableau) ne garde jamais sa numerotation.
+if array.size(zLab) > 0
+    for i = 0 to array.size(zLab) - 1
+        bool  lIsB = array.get(zSide, i) == 1
+        string plainTxt = (lIsB ? "BUY  " : "SELL  ") + str.tostring(int(math.round(array.get(zScr, i)))) + "/100"
+        if i == zHitI
+            string seqTxt = (step1Liq ? "✓1" : "✗1") + " " + (step2Sweep ? "✓2" : "✗2") + " " + (step3Choch ? "✓3" : "✗3") + " " + (step4Bos ? "✓4" : "✗4")
+            label.set_text(array.get(zLab, i), "6. " + plainTxt + "\n" + seqTxt)
+        else
+            label.set_text(array.get(zLab, i), plainTxt)
 
 // ============================================================
 // OBJECTIF ET DOUBLE REFERENCE DE STOP — LECTURE SEULE
@@ -1277,22 +1335,29 @@ if barstate.islast
         f_lvl(valPrev, color.new(cGold, 65), "VAL", line.style_dashed)
 
     // ---- Order Blocks retenus ----
+    // "5. " prefixe UNIQUEMENT l'OB qui est l'ancre memorisee (zSmcTop/zSmcBot)
+    // de la zone actuellement touchee par le prix (zHitI) -- meme comparaison
+    // que le controle de survie de l'ancre (invalidation continue plus haut).
     if obShow
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 45), color.new(cBlue, 88), "OB", color.new(cBlue, 25))
+                bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obBT, i) and array.get(zSmcBot, zHitI) == array.get(obBB, i)
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 45), color.new(cBlue, 88), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25))
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 45), color.new(cPurp, 88), "OB", color.new(cPurp, 25))
+                bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obST, i) and array.get(zSmcBot, zHitI) == array.get(obSB, i)
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 45), color.new(cPurp, 88), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25))
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
-                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 60), color.new(cUp, 91), "FVG", color.new(cUp, 30))
+                bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvBT, i) and array.get(zSmcBot, zHitI) == array.get(fvBB, i)
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 60), color.new(cUp, 91), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30))
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
-                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 60), color.new(cDn, 91), "FVG", color.new(cDn, 30))
+                bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvST, i) and array.get(zSmcBot, zHitI) == array.get(fvSB, i)
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 60), color.new(cDn, 91), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30))
 
     // ---- Niveaux du setup en cours ----
     if showLvls and (rawLong or rawShort) and not na(atrV)
@@ -1302,12 +1367,17 @@ if barstate.islast
         // Le stop du systeme et le point d'invalidation structurelle sont
         // traces ENSEMBLE, chacun avec sa raison — c'est l'ECART entre les
         // deux qui informe, pas leur valeur prise isolement.
-        f_lvl(close, color.new(cTxt, 30), "Entree", line.style_dotted)
-        f_lvl(stopAtr, color.new(cDn, 5), "SL " + str.tostring(slAtr, "#.#") + " ATR", line.style_solid)
+        // "7./8./9." ne prefixent CES niveaux que si le signal du moment
+        // appartient reellement a la zone numerotee 1-6 (meme cote, prix
+        // dedans) -- un signal qui se declenche hors de toute zone garde ses
+        // etiquettes simples, jamais un lien invente avec une zone etrangere.
+        bool tiedToZone = zHitI >= 0 and ((rawLong and array.get(zSide, zHitI) == 1) or (rawShort and array.get(zSide, zHitI) == -1))
+        f_lvl(close, color.new(cTxt, 30), (tiedToZone ? "7. " : "") + "Entree", line.style_dotted)
+        f_lvl(stopAtr, color.new(cDn, 5), (tiedToZone ? "8. " : "") + "SL " + str.tostring(slAtr, "#.#") + " ATR", line.style_solid)
         if not na(stopStr)
             f_lvl(stopStr, color.new(cDn, 55), stopDevant ? "Invalidation ⚠" : "Invalidation", line.style_dashed)
         if not na(objPx)
-            f_lvl(objPx, color.new(cUp, 25), "Objectif (" + objSrc + ")" + (na(rr) ? "" : "  " + str.tostring(rr, "#.#") + "R"), line.style_dashed)
+            f_lvl(objPx, color.new(cUp, 25), (tiedToZone ? "9. " : "") + "Objectif (" + objSrc + ")" + (na(rr) ? "" : "  " + str.tostring(rr, "#.#") + "R"), line.style_dashed)
 
 // --- Teinte de fond : le biais sans aucun deplacement du regard ---
 bgcolor(uiTint ? (biasBull ? color.new(cUp, 96) : biasBear ? color.new(cDn, 96) : na) : na, title="Biais D1+W1")

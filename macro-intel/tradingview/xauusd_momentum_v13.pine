@@ -2069,9 +2069,45 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 // sur les quatre autres composantes ou rien.
                 // Le palier intermediaire recompense le CHEVAUCHEMENT de la
                 // Value Area, qui est une condition plus faible mais reelle.
+                // ---- FALAISE DE SCORE : PALIER INTERMEDIAIRE SUR sVp ----
+                // Arithmetique du probleme : sSt 25 + sLq 20 + sSmc 15 + sMtf 10
+                // font exactement 70, soit wzMinScore. Des que sVp vaut 0, le
+                // maximum atteignable EGALE le seuil : la zone doit alors etre
+                // parfaite sur les quatre autres criteres simultanement, et le
+                // moindre manque la tue. Ce n'est pas un choix de conception,
+                // c'est une coincidence d'addition que rien ne signalait.
+                //
+                // sVp est aussi la composante la plus lourde ET la seule
+                // calculee sur un artefact de CALENDRIER : wVal/wVah sont la
+                // Value Area de la SEMAINE PRECEDENTE. Une zone se retrouvait
+                // donc sans marge selon sa position dans le range hebdomadaire,
+                // pas selon la qualite du setup -- meme defaut que celui
+                // corrige sur premium/discount.
+                //
+                // Un palier est ajoute entre "chevauche la Value Area" et
+                // "dehors" : la zone est hors du noeud de volume mais reste
+                // DANS le range de la semaine ecoulee, donc en territoire
+                // effectivement negocie. Le maximum passe alors a 77 et la
+                // marge revient. Le cas a 0 subsiste pour une zone hors du
+                // range hebdomadaire entier -- situation extreme, ou l'absence
+                // de marge se defend.
+                //
+                // wHiPrev/wLoPrev etaient deja calcules et sont devenus
+                // inutilises depuis que premium/discount est passe au dealing
+                // range structurel : aucun calcul nouveau.
+                //
+                // A DIRE CLAIREMENT : la valeur 7 n'est PAS mesuree. Elle
+                // reprend le palier intermediaire de sSmc (15/7/0), seule
+                // convention deja presente dans le fichier. Le couple
+                // ponderations/seuil n'a jamais ete valide ensemble, et ce
+                // commit ne le valide pas davantage -- il supprime seulement
+                // une falaise que personne n'avait voulue.
                 float sVp = 0.0
                 if not na(wVal) and not na(wVah)
-                    sVp := zB >= wVal and zT <= wVah ? 30.0 : (zT >= wVal and zB <= wVah ? 15.0 : 0.0)
+                    bool vaIn   = zB >= wVal and zT <= wVah
+                    bool vaOver = zT >= wVal and zB <= wVah
+                    bool wkIn   = not na(wHiPrev) and not na(wLoPrev) and zT <= wHiPrev and zB >= wLoPrev
+                    sVp := vaIn ? 30.0 : vaOver ? 15.0 : wkIn ? 7.0 : 0.0
                 // 25 — Structure alignee.
                 float sSt = (isBuy ? trend == 1 : trend == -1) ? 25.0 : 0.0
                 // 20 — Liquidite non prise AU-DELA de la zone.

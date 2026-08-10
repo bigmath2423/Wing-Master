@@ -590,7 +590,7 @@ if array.size(eqhL) > 0
             if close < lv
                 sweepUpBar := true
                 if sweepShow and array.size(swLb) < 40
-                    array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
+                    array.push(swLb, label.new(bar_index, lv, "SWEEP", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
             array.remove(eqhL, i)
             array.remove(eqhB, i)
 if array.size(eqlL) > 0
@@ -600,7 +600,7 @@ if array.size(eqlL) > 0
             if close > lv
                 sweepDnBar := true
                 if sweepShow and array.size(swLb) < 40
-                    array.push(swLb, label.new(bar_index, lv, "sweep", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
+                    array.push(swLb, label.new(bar_index, lv, "SWEEP", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
             array.remove(eqlL, i)
             array.remove(eqlB, i)
 if array.size(swLb) > 6
@@ -741,10 +741,12 @@ f_break(bool up, bool choch, float lvl, int fromBar) =>
         // CORRECTIF : l'etiquette etait placee sous la bougie, donc detachee de
         // son trait. Elle est desormais AU BOUT du trait, a la hauteur du
         // niveau casse : le trait et son nom se lisent d'un seul regard.
-        label tag = label.new(bar_index, lvl, choch ? " CHoCH" : " BOS", style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
+        // La pastille label.style_circle est retiree : meme en size.tiny elle
+        // dessine un disque plein tres visible, qui ecrasait le prix. Le trait
+        // se termine deja au niveau casse ; un simple point dans le texte
+        // marque l'endroit sans rien recouvrir.
+        label tag = label.new(bar_index, lvl, choch ? " • CHoCH" : " • BOS", style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
         array.push(brkLb, tag)
-        label dot = label.new(bar_index, lvl, "", style=label.style_circle, color=color.new(col, 15), size=size.tiny)
-        array.push(brkLb, dot)
         while array.size(brkLb) > math.max(2, brkLabels) * 2
             label.delete(array.shift(brkLb))
 
@@ -1591,9 +1593,11 @@ if barstate.islast
 
     // ---- Profil de la veille : le POC est le SEUL element saillant du fond ----
     if vShow
-        f_lvl(pocPrev, color.new(cGold, 20), "POC", line.style_solid)
-        f_lvl(vahPrev, color.new(cGold, 65), "VAH", line.style_dashed)
-        f_lvl(valPrev, color.new(cGold, 65), "VAL", line.style_dashed)
+        // Reference de contexte, pas element de decision : nettement attenues
+        // pour cesser de concurrencer les zones et les OB/FVG a l'oeil.
+        f_lvl(pocPrev, color.new(cGold, 55), "POC", line.style_solid)
+        f_lvl(vahPrev, color.new(cGold, 80), "VAH", line.style_dashed)
+        f_lvl(valPrev, color.new(cGold, 80), "VAL", line.style_dashed)
 
     // ---- Order Blocks retenus ----
     // DEUX COUCHES INDEPENDANTES. Les Order Blocks et les FVG sont des elements
@@ -1611,22 +1615,22 @@ if barstate.islast
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
                 bool obActive = f_nearZone(array.get(obBT, i), array.get(obBB, i))
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 40), color.new(cBlue, 85), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 40), color.new(cPurp, 85), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
                 bool fvActive = f_nearZone(array.get(fvBT, i), array.get(fvBB, i))
-                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 55), color.new(cUp, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
                 bool fvActive = f_nearZone(array.get(fvST, i), array.get(fvSB, i))
-                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 55), color.new(cDn, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
     // ---- FIBONACCI DE LA ZONE ACTIVE -------------------------------------
     // Traces a partir du swing FIGE dans la zone, jamais du tracker glissant :
@@ -1641,10 +1645,13 @@ if barstate.islast
             if not na(fHi) and not na(fLo) and fHi > fLo
                 bool fIsB = array.get(zSide, i) == 1
                 float rng = fHi - fLo
-                f_lvl(fIsB ? fHi - rng * 0.50  : fLo + rng * 0.50,  color.new(cMute, 55), "50 %  " + (fIsB ? "discount sous" : "premium sur"), line.style_dashed)
+                f_lvl(fIsB ? fHi : fLo,                             color.new(cMute, 80), "0",    line.style_dotted)
+                f_lvl(fIsB ? fHi - rng * 0.382 : fLo + rng * 0.382, color.new(cMute, 70), "38.2", line.style_dotted)
+                f_lvl(fIsB ? fHi - rng * 0.50  : fLo + rng * 0.50,  color.new(cMute, 55), "50",   line.style_dashed)
                 f_lvl(fIsB ? fHi - rng * 0.618 : fLo + rng * 0.618, color.new(cGold, 55), "61.8", line.style_dotted)
                 f_lvl(fIsB ? fHi - rng * 0.705 : fLo + rng * 0.705, color.new(cGold, 40), "70.5", line.style_dotted)
                 f_lvl(fIsB ? fHi - rng * 0.786 : fLo + rng * 0.786, color.new(cGold, 55), "78.6", line.style_dotted)
+                f_lvl(fIsB ? fLo : fHi,                             color.new(cMute, 80), "1",    line.style_dotted)
 
     // ---- ENTREE PLANIFIEE : le bord de la zone ou l'on attend le prix ----
     // Repond a "l'Entry doit etre DANS ou au bord logique de la zone" -- mais
@@ -1710,12 +1717,12 @@ var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "
 // teinte pour separer les deux familles au coup d'oeil, sans reordonner les
 // lignes ni toucher a une seule condition.
 f_cell(int r, string k, string v, color vc) =>
-    table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 35), text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cBg, 6))
-    table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cBg, 6))
+    table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 35), text_size=size.small, text_halign=text.align_left,  bgcolor=color.new(cBg, 6))
+    table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.small, text_halign=text.align_right, bgcolor=color.new(cBg, 6))
 
 f_cellD(int r, string k, string v, color vc) =>
-    table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 25), text_size=size.tiny, text_halign=text.align_left,  bgcolor=color.new(cGold, 93))
-    table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cGold, 93))
+    table.cell(pan, 0, r, "  " + k, text_color=color.new(cTxt, 25), text_size=size.small, text_halign=text.align_left,  bgcolor=color.new(cGold, 93))
+    table.cell(pan, 1, r, v + "  ", text_color=vc, text_size=size.small, text_halign=text.align_right, bgcolor=color.new(cGold, 93))
 
 f_px2(float p) => na(p) ? "—" : str.tostring(p, format.mintick)
 
@@ -1757,7 +1764,7 @@ if barstate.islast and panShow
     // sont des tons moyens-profonds sur la palette creme, pas des neons
     // clairs -- un texte clair contraste mieux qu'un texte sombre ici.
     table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
-    table.cell(pan, 1, 0, " ", bgcolor=vc)
+    table.cell(pan, 1, 0, "SMC PRO  ", text_color=color.rgb(12, 14, 18), text_size=size.small, text_halign=text.align_right, bgcolor=vc)
 
     // 1 — BIAS. Le regime 5 niveaux. CONTEXTE : il controle l'affichage des
     // zones, jamais buySignal/sellSignal.

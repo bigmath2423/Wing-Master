@@ -77,7 +77,8 @@ brkLabels = input.int(2, "Etiquettes sur les N dernieres cassures", minval=0, ma
 grpL = "⑥ Liquidite (LECTURE — ne filtre rien)"
 liqShow   = input.bool(true, "Buy Side / Sell Side, EQH / EQL", group=grpL, tooltip="AFFICHAGE SEUL. Mesure du sweep comme filtre : -0.087 en apprentissage, -0.178 en validation. Il SELECTIONNE les mauvais trades. Trace pour lire ou sont les stops, jamais pour valider une entree.")
 liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0.05, group=grpL)
-liqMax    = input.int(2, "Poches conservees par cote", minval=1, maxval=8, group=grpL, tooltip="Reduit de 4 a 2 pour la lisibilite : 4 poches par cote plus le POC/VAH/VAL faisaient jusqu'a 11 traits horizontaux simultanes. AFFICHAGE SEUL, ne change aucun signal.")
+liqMax    = input.int(4, "Poches SUIVIES par cote (logique)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches que le moteur SUIT. Influence la detection des sweeps et les points de liquidite du score : ce n'est PAS un reglage d'affichage. Il avait ete baisse a 2 pour desencombrer le graphique, ce qui reduisait au passage le nombre de sweeps detectables -- un reglage visuel modifiait donc une decision. Remis a 4 ; la lisibilite est desormais geree par le reglage separe ci-dessous.")
+liqShowMax = input.int(2, "Poches AFFICHEES par cote (visuel)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches tracees a l'ecran, les plus recentes. Purement visuel : le moteur continue d'en suivre liqMax. Changer ce reglage ne peut pas modifier un signal.")
 sweepShow = input.bool(true, "Marquer les sweeps", group=grpL)
 
 grpW = "⑦ Weekly Institutional Zones (PLANIFICATION — ne declenche aucun trade)"
@@ -988,7 +989,20 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
 
                 // ---- SCORE DE CONFLUENCE, fige ici et jamais recalcule ------
                 // 30 — Volume Profile : la zone tombe dans la Value Area.
-                float sVp = not na(wVal) and not na(wVah) and zB >= wVal and zT <= wVah ? 30.0 : 0.0
+                // 30 / 15 / 0 au lieu de 30 / 0. La version tout-ou-rien
+                // creait une falaise : une zone a un tick SOUS la VAL marquait
+                // 0, la meme zone a un tick au-dessus marquait 30. Ce n'est pas
+                // une distinction reelle. Pire, elle rendait le seuil quasi
+                // inatteignable : le gate fibOk pousse la zone dans la moitie
+                // DISCOUNT de la semaine, donc souvent sous la VAL, et sans ces
+                // 30 points le maximum possible tombait a 25+20+15+10 = 70,
+                // c'est-a-dire EXACTEMENT le seuil -- il fallait la perfection
+                // sur les quatre autres composantes ou rien.
+                // Le palier intermediaire recompense le CHEVAUCHEMENT de la
+                // Value Area, qui est une condition plus faible mais reelle.
+                float sVp = 0.0
+                if not na(wVal) and not na(wVah)
+                    sVp := zB >= wVal and zT <= wVah ? 30.0 : (zT >= wVal and zB <= wVah ? 15.0 : 0.0)
                 // 25 — Structure alignee.
                 float sSt = (isBuy ? trend == 1 : trend == -1) ? 25.0 : 0.0
                 // 20 — Liquidite non prise AU-DELA de la zone.
@@ -1433,11 +1447,14 @@ if barstate.islast
     // Creux egaux  = SELL SIDE (les stops de vente sont EN DESSOUS).
     // La version precedente inversait les deux.
     if liqShow
+        // Seules les liqShowMax poches les plus RECENTES sont tracees. Le
+        // moteur, lui, en suit liqMax : le plafond visuel ne peut donc plus
+        // amputer la detection des sweeps ni le score de liquidite.
         if array.size(eqhL) > 0
-            for i = 0 to array.size(eqhL) - 1
+            for i = math.max(0, array.size(eqhL) - liqShowMax) to array.size(eqhL) - 1
                 f_lvl(array.get(eqhL, i), color.new(cUp, 40), "BSL", line.style_solid)
         if array.size(eqlL) > 0
-            for i = 0 to array.size(eqlL) - 1
+            for i = math.max(0, array.size(eqlL) - liqShowMax) to array.size(eqlL) - 1
                 f_lvl(array.get(eqlL, i), color.new(cDn, 40), "SSL", line.style_solid)
 
     // ---- Profil de la veille : le POC est le SEUL element saillant du fond ----

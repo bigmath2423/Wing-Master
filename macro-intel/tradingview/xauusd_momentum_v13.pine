@@ -126,7 +126,6 @@ uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
 fibShow = input.bool(true, "Niveaux Fibonacci de la zone active", group=grpU, tooltip="Trace 50 / 61.8 / 70.5 / 78.6 sur le swing d'impulsion FIGE dans la zone -- celui que le moteur a reellement utilise pour la juger, pas un swing recalcule a l'affichage. Le niveau 50 % marque la separation premium / discount.")
 diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.")
-zoneOnly = input.bool(true, "N'afficher que les OB/FVG du setup actif", group=grpU, tooltip="Coche : seuls les Order Blocks et FVG qui appartiennent a une zone active sont dessines. Sans zone active, le graphique reste VIDE -- c'est le comportement voulu, pas un bug. Decoche pour revoir tous les OB/FVG detectes.")
 zoneMaxBars = input.int(25, "Largeur maximum d'une zone (bougies)", minval=6, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.")
 
 // --- palette : sombre, deux accents, le reste en gris ---
@@ -1597,33 +1596,37 @@ if barstate.islast
         f_lvl(valPrev, color.new(cGold, 65), "VAL", line.style_dashed)
 
     // ---- Order Blocks retenus ----
-    // "5. " prefixe UNIQUEMENT l'OB qui est l'ancre memorisee (zSmcTop/zSmcBot)
-    // de la zone actuellement touchee par le prix (zHitI) -- meme comparaison
-    // que le controle de survie de l'ancre (invalidation continue plus haut).
+    // DEUX COUCHES INDEPENDANTES. Les Order Blocks et les FVG sont des elements
+    // de LECTURE du marche : ils s'affichent des que obShow / fvgShow sont
+    // coches, qu'ils appartiennent ou non a une zone institutionnelle. La
+    // BUY/SELL ZONE est une couche SUPERIEURE de confluence, commandee
+    // separement par wzShow.
+    // Un reglage "zoneOnly" masquait auparavant tout OB/FVG n'appartenant pas a
+    // une zone active. Comme les zones sont rares par conception -- et le sont
+    // devenues davantage depuis que l'Order Block est fige au CHoCH -- les deux
+    // effets se cumulaient et le graphique se vidait. Le reglage est supprime.
+    // Le prefixe "5. " reste, mais il ne fait plus que METTRE EN VALEUR l'OB
+    // ancre de la zone active : il ne conditionne plus l'affichage.
     if obShow
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
                 bool obActive = f_nearZone(array.get(obBT, i), array.get(obBB, i))
-                if obActive or not zoneOnly
-                    f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
-                if obActive or not zoneOnly
-                    f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
                 bool fvActive = f_nearZone(array.get(fvBT, i), array.get(fvBB, i))
-                if fvActive or not zoneOnly
-                    f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
                 bool fvActive = f_nearZone(array.get(fvST, i), array.get(fvSB, i))
-                if fvActive or not zoneOnly
-                    f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
     // ---- FIBONACCI DE LA ZONE ACTIVE -------------------------------------
     // Traces a partir du swing FIGE dans la zone, jamais du tracker glissant :

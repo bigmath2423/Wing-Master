@@ -1866,6 +1866,34 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             float obT = isBuy ? array.get(obBT, 0) : array.get(obST, 0)
             float obB = isBuy ? array.get(obBB, 0) : array.get(obSB, 0)
             int   obX = isBuy ? array.get(obBX, 0) : array.get(obSX, 0)
+            // ---- APPARTENANCE AU MEME CYCLE STRUCTUREL ----------------------
+            // La chaine cSweep/cChoch/cBos ne verifiait l'ordre QU'ENTRE ses
+            // trois index. L'Order Block et le FVG, eux, n'etaient compares a
+            // aucun d'eux : le moteur pouvait valider une chaine
+            // sweep@100 < choch@120 < bos@300 tout en appariant un OB ne vers
+            // la bougie 130 et un FVG de la 140, donc un cycle anterieur.
+            //
+            // L'ancre retenue est obBCr, la bougie de l'EVENEMENT STRUCTUREL
+            // qui a cree l'OB -- a ne pas confondre avec obBX, qui est sa
+            // bougie SOURCE. bosUpIdx ne peut pas servir d'ancre : il avance a
+            // chaque micro-BOS, y compris ceux que les trois verrous rejettent
+            // pour la creation d'OB, et c'est precisement cette derive qui
+            // produit la fausse confluence.
+            //
+            //   1. obCr >= chIdx  : l'OB est ne DANS la chaine, pas avant elle.
+            //   2. pvIdx <= obCr  : aucun pivot oppose confirme depuis, donc
+            //      aucun nouveau cycle n'a commence -- meme invariant que celui
+            //      qui gouverne deja la creation des Order Blocks.
+            //   3. fX >= obX      : le FVG appartient a l'impulsion de l'OB
+            //      (teste dans la boucle d'appariement plus bas).
+            //
+            // L'ordre entre OB/FVG et BOS n'est JAMAIS impose : seule
+            // l'appartenance au cycle l'est. Trois comparaisons d'entiers,
+            // aucun nouveau parametre, aucun seuil.
+            int  obCr  = isBuy ? array.get(obBCr, 0) : array.get(obSCr, 0)
+            int  chIdx = isBuy ? chochUpIdx : chochDnIdx
+            int  pvIdx = isBuy ? lastPlIdx : lastPhIdx
+            bool obSameCycle = not na(obCr) and not na(chIdx) and obCr >= chIdx and (na(pvIdx) or pvIdx <= obCr)
 
             // ---- APPARIEMENT ORDER BLOCK <-> FVG -------------------------
             // La version precedente exigeait un CHEVAUCHEMENT STRICT
@@ -1898,7 +1926,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 float uT  = math.max(obT, fT)
                 float uB  = math.min(obB, fB)
                 float uH  = uT - uB
-                if gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
+                if obSameCycle and fX >= obX and gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
                     if na(bestH) or uH < bestH
                         bestH := uH
                         zT := uT
@@ -1907,7 +1935,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
 
             // Diagnostic : OB et FVG presents mais jamais appariables.
             if na(zT) and isBuy == isBuyBiasNow
-                dgRej := "OB ET FVG TROP ELOIGNES"
+                dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
                 dgScore := na
 
             if not na(zT)

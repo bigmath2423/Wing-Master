@@ -98,6 +98,7 @@ panShow  = input.bool(true, "Panneau de decision", group=grpU)
 panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
 uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
+diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.")
 zoneOnly = input.bool(true, "N'afficher que les OB/FVG du setup actif", group=grpU, tooltip="Coche : seuls les Order Blocks et FVG qui appartiennent a une zone active sont dessines. Sans zone active, le graphique reste VIDE -- c'est le comportement voulu, pas un bug. Decoche pour revoir tous les OB/FVG detectes.")
 zoneMaxBars = input.int(25, "Largeur maximum d'une zone (bougies)", minval=6, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.")
 
@@ -702,6 +703,54 @@ if bullBos
 if bearBos
     wzBosDn := true
 
+// ---- IMPULSION DU BOS : la plage sur laquelle le Fibonacci est calcule ----
+// Le module existant appelait "fib" un test a 50 % sur le haut/bas de la
+// SEMAINE precedente. C'est une mesure de premium/discount du dealing range,
+// pas un retracement d'impulsion -- et sur une meme plage, "fib 50 %" et
+// "premium/discount" sont litteralement le meme nombre. Les compter tous les
+// deux serait une redondance pure.
+// On garde donc l'ancien test tel quel pour le PREMIUM/DISCOUNT (plage
+// hebdomadaire), et on calcule le Fibonacci sur une plage DIFFERENTE :
+// l'impulsion qui a produit le BOS. Deux plages, deux informations.
+//
+// BUY  : bas = dernier swing low confirme (le creux d'apres le sweep)
+//        haut = plus haut atteint depuis ce creux (le sommet de l'impulsion)
+// SELL : miroir.
+// Anti-repaint : ancre sur des pivots CONFIRMES (ta.pivotlow/high, decalage
+// fixe de swingLen) ; l'extreme court ne fait que progresser, il ne revient
+// jamais en arriere sur une bougie deja fermee.
+var float impLo = na
+var float impHi = na
+if not na(pl)
+    impLo := pl
+    impHi := high
+else if not na(impLo)
+    impHi := na(impHi) ? high : math.max(impHi, high)
+
+var float impHiS = na
+var float impLoS = na
+if not na(ph)
+    impHiS := ph
+    impLoS := low
+else if not na(impHiS)
+    impLoS := na(impLoS) ? low : math.min(impLoS, low)
+
+// Etat du retracement pour un niveau donne : 1 VALID, 0 NEUTRAL, -1 INVALID.
+// VALID   = 0.50 a 0.786 -- la poche ou FVG et OB tombent le plus souvent.
+// NEUTRAL = 0.382-0.50 et 0.786-0.886 : plausible, sans confluence marquee.
+// INVALID = moins de 0.382 (entree trop haute, aucun escompte) ou plus de
+//           0.886 (l'impulsion est quasi entierement effacee).
+// Volontairement une BANDE et non le point 61.8 exact : exiger le niveau au
+// tick pres rejetterait presque tous les setups.
+f_fibState(bool isBuy, float lvl) =>
+    float hi = isBuy ? impHi : impHiS
+    float lo = isBuy ? impLo : impLoS
+    int st = 0
+    if not na(hi) and not na(lo) and hi > lo and not na(lvl)
+        float r = isBuy ? (hi - lvl) / (hi - lo) : (lvl - lo) / (hi - lo)
+        st := r >= 0.50 and r <= 0.786 ? 1 : (r >= 0.382 and r < 0.50) or (r > 0.786 and r <= 0.886) ? 0 : -1
+    st
+
 
 if newWeek
     // ---- Profil de la semaine ECOULEE : POC, Value Area, noeud de volume ----
@@ -787,7 +836,31 @@ wBias := biasBull ? 1 : biasBear ? -1 : 0
 // alignLong / alignShort / trigLong / trigShort / rawLong / rawShort /
 // buySignal / sellSignal, ni dans f_slRisk / f_qty / strategy.entry / exit.
 // Anti-repaint : barstate.isconfirmed, et le score est fige a la creation.
+bool isBuyBiasNow = biasDir >= 0
+
+var bool   dgSweep = false
+var bool   dgChoch = false
+var bool   dgBos   = false
+var bool   dgFvg   = false
+var bool   dgOb    = false
+var int    dgFib   = 0
+var bool   dgHtf   = false
+var bool   dgPd    = false
+var float  dgScore = na
+var string dgRej   = ""
+
 if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
+    // Remise a zero du diagnostic : sans OB ou sans FVG on n'entre jamais dans
+    // la boucle, et l'ecran garderait sinon l'etat d'un setup deja disparu.
+    if isBuyBiasNow
+        dgFvg := array.size(fvBT) > 0
+        dgOb  := array.size(obBT) > 0
+    else
+        dgFvg := array.size(fvST) > 0
+        dgOb  := array.size(obST) > 0
+    if not dgFvg or not dgOb
+        dgRej := not dgOb ? "AUCUN ORDER BLOCK" : "AUCUN FVG"
+        dgScore := na
     float rgLo = na(wLoPrev) ? wVal : wLoPrev
     float rgHi = na(wHiPrev) ? wVah : wHiPrev
     float mid  = na(rgHi) or na(rgLo) ? na : (rgHi + rgLo) / 2.0
@@ -845,8 +918,15 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         if array.get(eqhL, i) > zT
                             sLq := 20.0
                             break
-                // 15 — Zone SMC : acquis par construction (OB x FVG).
-                float sSmc = 15.0
+                // 15 — FIBONACCI de l'impulsion du BOS, mesure au niveau
+                //      d'execution de la zone (haut pour un achat, bas pour une
+                //      vente). Ces 15 points etaient auparavant "Zone SMC" -- une
+                //      CONSTANTE depuis que la zone EST l'intersection OB x FVG :
+                //      15 points toujours accordes, qui ne discriminaient donc
+                //      jamais rien. Ils sont reaffectes ici a une mesure qui,
+                //      elle, varie. L'echelle reste sur 100, sans inflation.
+                int fibSt = f_fibState(isBuy, isBuy ? zT : zB)
+                float sSmc = fibSt == 1 ? 15.0 : fibSt == 0 ? 7.0 : 0.0
                 // 10 — Multi-timeframe.
                 float sMtf = ((dirD == want ? 1 : 0) + (dirH4 == want ? 1 : 0) + (dirH1 == want ? 1 : 0)) / 3.0 * 10.0
                 float score = sVp + sSt + sLq + sSmc + sMtf
@@ -876,7 +956,28 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 bool cSweep = isBuy ? wzSweepDn : wzSweepUp
                 bool cChoch = isBuy ? wzChochUp : wzChochDn
                 bool cBos   = isBuy ? wzBosUp   : wzBosDn
-                if cSweep and cChoch and cBos and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
+                // FIB INVALID rejette : c'est la definition meme de INVALID
+                // ("le prix est dans une zone de retracement incompatible").
+                // NEUTRAL passe, avec moins de points -- le Fibonacci ameliore
+                // la selection, il ne bloque pas tout.
+                bool fibNotInvalid = fibSt >= 0
+
+                // ---- DIAGNOSTIC : etat de chaque condition + raison du refus --
+                // Renseigne pour le cote qui correspond au biais affiche, afin
+                // que le panneau puisse expliquer POURQUOI aucune zone n'existe.
+                if isBuy == (biasDir >= 0)
+                    dgSweep := cSweep
+                    dgChoch := cChoch
+                    dgBos   := cBos
+                    dgFvg   := true
+                    dgOb    := true
+                    dgFib   := fibSt
+                    dgHtf   := f_ctxAllow(isBuy)
+                    dgPd    := fibOk
+                    dgScore := score
+                    dgRej := not cSweep ? "SWEEP MANQUANT" : not cChoch ? "CHOCH MANQUANT" : not cBos ? "BOS MANQUANT" : not fibNotInvalid ? "FIBONACCI INVALIDE" : not fibOk ? "CONFLIT PREMIUM/DISCOUNT" : not f_ctxAllow(isBuy) ? "CONTEXTE HTF OPPOSE" : score < wzMinScore ? "CONFLUENCE " + str.tostring(int(math.round(score))) + " < " + str.tostring(wzMinScore) : not better ? "ZONE EXISTANTE MEILLEURE" : ""
+
+                if cSweep and cChoch and cBos and fibNotInvalid and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
                     if exI >= 0
                         box.delete(array.get(zBox, exI))
                         label.delete(array.get(zLab, exI))
@@ -1337,7 +1438,7 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 8, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 10, border_width=0)
 
 // f_cell = ligne CONTEXTE (affichee, ne decide rien). f_cellD = ligne DECIDE
 // (participe reellement a buySignal/sellSignal) : meme contenu, fond legerement
@@ -1446,3 +1547,12 @@ if barstate.islast and panShow
     // 7 — R:R. Calcule sur l'objectif de lecture ci-dessus et le stop ATR,
     // donc lui aussi indicatif : aucun seuil de R:R ne bloque un trade.
     f_cellD(7, "R:R", na(rr) ? "—" : str.tostring(rr, "#.##"), na(rr) ? cMute : rr >= 2.0 ? cUp : rr >= 1.0 ? cGold : cDn)
+
+    // 8 et 9 — DIAGNOSTIC. L'etat de chaque condition, et si aucune zone
+    // n'existe, la RAISON. C'est ce qui permet de repondre a "pourquoi le
+    // graphique est-il vide ?" sans avoir a relire le code.
+    if diagShow
+        string fibTxt = dgFib == 1 ? "✓Fib" : dgFib == 0 ? "~Fib" : "✗Fib"
+        color  diagCol = dgRej == "" ? cUp : cMute
+        f_cell(8, "Diagnostic", (dgSweep ? "✓" : "✗") + "Sweep  " + (dgChoch ? "✓" : "✗") + "CHoCH  " + (dgBos ? "✓" : "✗") + "BOS  " + (dgFvg ? "✓" : "✗") + "FVG  " + (dgOb ? "✓" : "✗") + "OB" + "\n" + fibTxt + "   " + (dgHtf ? "✓" : "✗") + "HTF   " + (dgPd ? "✓" : "✗") + "Prem/Disc   " + (na(dgScore) ? "—" : str.tostring(int(math.round(dgScore))) + "/100"), diagCol)
+        f_cell(9, "Refus", dgRej == "" ? "—" : dgRej, dgRej == "" ? cMute : cDn)

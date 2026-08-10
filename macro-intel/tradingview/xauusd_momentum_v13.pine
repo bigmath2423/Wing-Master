@@ -35,98 +35,98 @@ strategy("XAU/USD Momentum v13 — BACKTEST", shorttitle="XAU v13 BT", overlay=t
 // PARAMETRES
 // ============================================================
 grpS = "① Moteur (ne pas modifier sans mesure)"
-swingLen  = input.int(10,  "Longueur de detection des swings", minval=2, group=grpS)
-atrLen    = input.int(14,  "Longueur ATR", minval=2, group=grpS)
-htfTf     = input.timeframe("60", "Unite de temps superieure", group=grpS)
-htfEmaLen = input.int(50,  "EMA de l'unite superieure", minval=2, group=grpS)
-cooldown  = input.int(10,  "Barres minimum entre deux signaux", minval=0, group=grpS)
+swingLen  = input.int(10,  "Longueur de detection des swings", minval=2, group=grpS, display=display.none)
+atrLen    = input.int(14,  "Longueur ATR", minval=2, group=grpS, display=display.none)
+htfTf     = input.timeframe("60", "Unite de temps superieure", group=grpS, display=display.none)
+htfEmaLen = input.int(50,  "EMA de l'unite superieure", minval=2, group=grpS, display=display.none)
+cooldown  = input.int(10,  "Barres minimum entre deux signaux", minval=0, group=grpS, display=display.none)
 
 grpF = "② Filtres de decision (mesures)"
-useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="TAUTOLOGIE avec le declencheur BOS : la tendance est mise a jour PAR le BOS, donc la condition est toujours vraie quand elle est testee. Le retirer ne change rien (615 trades et PF 1.329 avec comme sans). Ne mord qu'avec le declencheur Donchian.")
-useHtf    = input.bool(true, "Tendance H1 alignee", group=grpF, tooltip="Effet mesure : +0.016 / +0.096.")
-useVwap   = input.bool(true, "Bon cote du VWAP de session", group=grpF, tooltip="Effet mesure : +0.044 / +0.161.")
-useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grpF, tooltip="LE module qui porte le systeme. Esperance +0.064 -> +0.130 R, PF 1.13 -> 1.28, drawdown -28.8 -> -18.8 R.")
-biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF)
-biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF)
-biasMode  = input.string("D1 EMA20 + W1 EMA10 (actuel)", "Forme du biais journalier", options=["D1 EMA20 + W1 EMA10 (actuel)", "Ruban D1 (5/20/50)"], group=grpF, tooltip="Les deux mesurent la MEME chose : correlation +0.819, recouvrement 86.6 %, ecart d'esperance +0.003 R (p = 0.96). Le ruban le dit en une condition au lieu de deux et laisse passer 38 % de trades en plus. Pas confronte a 2020-2022.")
-ribF      = input.int(5,  "Ruban D1 — rapide", minval=2, group=grpF)
-ribM      = input.int(20, "Ruban D1 — moyenne", minval=3, group=grpF)
-ribS      = input.int(50, "Ruban D1 — lente", minval=5, group=grpF)
-useImb    = input.bool(false,"Accepter aussi le displacement seul", group=grpF, tooltip="MESURE : degrade le systeme. PF 1.13 -> 1.08 et stabilite 4/4 -> 2/4. Laisse desactive.")
-trigMode  = input.string("BOS (actuel)", "Declencheur", options=["BOS (actuel)", "Cassure Donchian"], group=grpF, tooltip="Les deux mesurent le meme evenement : ecart d'esperance +0.011 R, p = 0.89. Le Donchian l'exprime en une ligne au lieu d'une machine a etats.")
-donLen    = input.int(48, "Donchian — nombre de bougies", minval=12, maxval=200, group=grpF)
-vUsePoc   = input.bool(true, "Exiger d'etre du bon cote du POC", group=grpF, tooltip="Seul concept de liquidite qui ameliore le systeme. Gain surtout sur le drawdown : -18.8 -> -16.0 R.")
+useStruct = input.bool(true, "Tendance de structure alignee", group=grpF, tooltip="TAUTOLOGIE avec le declencheur BOS : la tendance est mise a jour PAR le BOS, donc la condition est toujours vraie quand elle est testee. Le retirer ne change rien (615 trades et PF 1.329 avec comme sans). Ne mord qu'avec le declencheur Donchian.", display=display.none)
+useHtf    = input.bool(true, "Tendance H1 alignee", group=grpF, tooltip="Effet mesure : +0.016 / +0.096.", display=display.none)
+useVwap   = input.bool(true, "Bon cote du VWAP de session", group=grpF, tooltip="Effet mesure : +0.044 / +0.161.", display=display.none)
+useBias   = input.bool(true, "Biais journalier + hebdomadaire aligne", group=grpF, tooltip="LE module qui porte le systeme. Esperance +0.064 -> +0.130 R, PF 1.13 -> 1.28, drawdown -28.8 -> -18.8 R.", display=display.none)
+biasDLen  = input.int(20, "Biais D1 — EMA", minval=2, group=grpF, display=display.none)
+biasWLen  = input.int(10, "Biais W1 — EMA", minval=2, group=grpF, display=display.none)
+biasMode  = input.string("D1 EMA20 + W1 EMA10 (actuel)", "Forme du biais journalier", options=["D1 EMA20 + W1 EMA10 (actuel)", "Ruban D1 (5/20/50)"], group=grpF, tooltip="Les deux mesurent la MEME chose : correlation +0.819, recouvrement 86.6 %, ecart d'esperance +0.003 R (p = 0.96). Le ruban le dit en une condition au lieu de deux et laisse passer 38 % de trades en plus. Pas confronte a 2020-2022.", display=display.none)
+ribF      = input.int(5,  "Ruban D1 — rapide", minval=2, group=grpF, display=display.none)
+ribM      = input.int(20, "Ruban D1 — moyenne", minval=3, group=grpF, display=display.none)
+ribS      = input.int(50, "Ruban D1 — lente", minval=5, group=grpF, display=display.none)
+useImb    = input.bool(false,"Accepter aussi le displacement seul", group=grpF, tooltip="MESURE : degrade le systeme. PF 1.13 -> 1.08 et stabilite 4/4 -> 2/4. Laisse desactive.", display=display.none)
+trigMode  = input.string("BOS (actuel)", "Declencheur", options=["BOS (actuel)", "Cassure Donchian"], group=grpF, tooltip="Les deux mesurent le meme evenement : ecart d'esperance +0.011 R, p = 0.89. Le Donchian l'exprime en une ligne au lieu d'une machine a etats.", display=display.none)
+donLen    = input.int(48, "Donchian — nombre de bougies", minval=12, maxval=200, group=grpF, display=display.none)
+vUsePoc   = input.bool(true, "Exiger d'etre du bon cote du POC", group=grpF, tooltip="Seul concept de liquidite qui ameliore le systeme. Gain surtout sur le drawdown : -18.8 -> -16.0 R.", display=display.none)
 
 grpMTF = "③ Multi-timeframe (LECTURE SEULE)"
-mtfShow = input.bool(true, "Panneau multi-timeframe", group=grpMTF, tooltip="Les unites inferieures (M15, M5) ne creent AUCUN biais et ne declenchent aucun signal. Mesure : le M5 a ete rejete quatre fois par quatre methodes independantes. Elles servent uniquement a savoir si le contexte est aligne au moment ou tu executes.")
-mtfEmaF = input.int(50,  "EMA rapide", minval=5, group=grpMTF)
-mtfEmaS = input.int(200, "EMA lente", minval=20, group=grpMTF)
-mtfStrLen = input.int(20, "Structure — fenetre du milieu de canal", minval=5, group=grpMTF)
+mtfShow = input.bool(true, "Panneau multi-timeframe", group=grpMTF, tooltip="Les unites inferieures (M15, M5) ne creent AUCUN biais et ne declenchent aucun signal. Mesure : le M5 a ete rejete quatre fois par quatre methodes independantes. Elles servent uniquement a savoir si le contexte est aligne au moment ou tu executes.", display=display.none)
+mtfEmaF = input.int(50,  "EMA rapide", minval=5, group=grpMTF, display=display.none)
+mtfEmaS = input.int(200, "EMA lente", minval=20, group=grpMTF, display=display.none)
+mtfStrLen = input.int(20, "Structure — fenetre du milieu de canal", minval=5, group=grpMTF, display=display.none)
 
 grpV = "④ Volume et zones"
-vShow    = input.bool(true, "POC et Value Area de la veille", group=grpV)
-vBins    = input.int(50, "Finesse du profil", minval=10, maxval=100, group=grpV)
-vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, step=5, group=grpV)
+vShow    = input.bool(true, "POC et Value Area de la veille", group=grpV, display=display.none)
+vBins    = input.int(50, "Finesse du profil", minval=10, maxval=100, group=grpV, display=display.none)
+vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, step=5, group=grpV, display=display.none)
 
 grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
-obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.")
-obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ)
-fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.")
-fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ)
-fvgDispAtr= input.float(1.0, "FVG — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ)
-fvgMax    = input.int(2, "FVG — nombre garde par cote", minval=1, maxval=4, group=grpZ)
-fvgMaxAge = input.int(200, "FVG — duree de vie (bougies)", minval=20, maxval=1000, group=grpZ, tooltip="Un ecart non comble depuis 200 bougies n'est plus un desequilibre, c'est un vestige. Il est retire meme s'il n'a jamais ete traverse.")
-brkShow   = input.bool(true, "BOS / CHoCH", group=grpZ)
-brkLabels = input.int(2, "Etiquettes sur les N dernieres cassures", minval=0, maxval=6, group=grpZ)
+obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.", display=display.none)
+obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
+fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.", display=display.none)
+fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ, display=display.none)
+fvgDispAtr= input.float(1.0, "FVG — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
+fvgMax    = input.int(2, "FVG — nombre garde par cote", minval=1, maxval=4, group=grpZ, display=display.none)
+fvgMaxAge = input.int(200, "FVG — duree de vie (bougies)", minval=20, maxval=1000, group=grpZ, tooltip="Un ecart non comble depuis 200 bougies n'est plus un desequilibre, c'est un vestige. Il est retire meme s'il n'a jamais ete traverse.", display=display.none)
+brkShow   = input.bool(true, "BOS / CHoCH", group=grpZ, display=display.none)
+brkLabels = input.int(2, "Etiquettes sur les N dernieres cassures", minval=0, maxval=6, group=grpZ, display=display.none)
 
 grpL = "⑥ Liquidite (LECTURE — ne filtre rien)"
-liqShow   = input.bool(true, "Buy Side / Sell Side, EQH / EQL", group=grpL, tooltip="AFFICHAGE SEUL. Mesure du sweep comme filtre : -0.087 en apprentissage, -0.178 en validation. Il SELECTIONNE les mauvais trades. Trace pour lire ou sont les stops, jamais pour valider une entree.")
-liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0.05, group=grpL)
-liqMax    = input.int(4, "Poches SUIVIES par cote (logique)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches que le moteur SUIT. Influence la detection des sweeps et les points de liquidite du score : ce n'est PAS un reglage d'affichage. Il avait ete baisse a 2 pour desencombrer le graphique, ce qui reduisait au passage le nombre de sweeps detectables -- un reglage visuel modifiait donc une decision. Remis a 4 ; la lisibilite est desormais geree par le reglage separe ci-dessous.")
-liqShowMax = input.int(2, "Poches AFFICHEES par cote (visuel)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches tracees a l'ecran, les plus recentes. Purement visuel : le moteur continue d'en suivre liqMax. Changer ce reglage ne peut pas modifier un signal.")
-sweepShow = input.bool(true, "Marquer les sweeps", group=grpL)
+liqShow   = input.bool(true, "Buy Side / Sell Side, EQH / EQL", group=grpL, tooltip="AFFICHAGE SEUL. Mesure du sweep comme filtre : -0.087 en apprentissage, -0.178 en validation. Il SELECTIONNE les mauvais trades. Trace pour lire ou sont les stops, jamais pour valider une entree.", display=display.none)
+liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0.05, group=grpL, display=display.none)
+liqMax    = input.int(4, "Poches SUIVIES par cote (logique)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches que le moteur SUIT. Influence la detection des sweeps et les points de liquidite du score : ce n'est PAS un reglage d'affichage. Il avait ete baisse a 2 pour desencombrer le graphique, ce qui reduisait au passage le nombre de sweeps detectables -- un reglage visuel modifiait donc une decision. Remis a 4 ; la lisibilite est desormais geree par le reglage separe ci-dessous.", display=display.none)
+liqShowMax = input.int(2, "Poches AFFICHEES par cote (visuel)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches tracees a l'ecran, les plus recentes. Purement visuel : le moteur continue d'en suivre liqMax. Changer ce reglage ne peut pas modifier un signal.", display=display.none)
+sweepShow = input.bool(true, "Marquer les sweeps", group=grpL, display=display.none)
 
 grpW = "⑦ Weekly Institutional Zones (PLANIFICATION — ne declenche aucun trade)"
-wzShow      = input.bool(true, "Zones institutionnelles hebdomadaires", group=grpW, tooltip="OUTIL DE PLANIFICATION. Chaque debut de semaine, le module publie le profil de volume de la semaine ECOULEE et en deduit au plus deux zones d'achat et deux zones de vente. Il n'entre dans AUCUNE condition d'entree : buySignal et sellSignal sont inchanges.\n\nCe que le module apporte : decider a l'avance ou tu regardes, ce qui est une discipline reelle. Ce qu'il n'apporte pas : une estimation de probabilite. Sur les 100 points de Confluence, 25 seulement (la structure) reposent sur un module dont l'avantage est mesure — le detail est dans le tableau.")
-wzBins      = input.int(50, "Profil hebdomadaire — finesse", minval=20, maxval=100, group=grpW)
-wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=95, step=5, group=grpW)
-wzWidthAtr  = input.float(0.8, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW, tooltip="Reduit de 1.6 a 0.8 : une zone de 1.6 ATR de haut n'est plus un niveau d'execution, c'est une region. AFFICHAGE SEUL -- les zones ne declenchent aucun trade, donc ce reglage ne change ni les signaux ni le backtest.")
-wzMax       = input.int(1, "Zones maximum par cote", minval=1, maxval=3, group=grpW, tooltip="Reduit de 2 a 1 : une seule zone principale par cote. AFFICHAGE SEUL.")
-wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.")
-wzPairGapAtr = input.float(0.5, "Ecart maximum Order Block <-> FVG (x ATR)", minval=0.0, maxval=3.0, step=0.1, group=grpW, tooltip="L'Order Block et le FVG n'ont plus besoin de se chevaucher : il suffit qu'ils soient PROCHES. Dans une impulsion, l'OB precede le mouvement et le FVG est cree par le mouvement -- ils sont donc empiles, pas superposes. A 0, on revient a l'ancien comportement (chevauchement obligatoire).")
-wzMaxHeightAtr = input.float(1.5, "Hauteur maximum d'une zone (x ATR)", minval=0.3, maxval=5.0, step=0.1, group=grpW, tooltip="Garde-fou contre les zones enormes. La zone etant l'UNION de l'OB et du FVG, une paire trop ecartee produirait un grand rectangle : au-dela de cette hauteur la paire est REJETEE plutot que dessinee. Mieux vaut aucune zone qu'une zone imprecise.")
-wzMaxAnchorAgeH = input.int(72, "Age maximum de l'ancre OB/FVG (heures)", minval=4, maxval=720, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.")
-wzFarAtr    = input.float(3.0, "Distance avant mise en sourdine (x ATR)", minval=1.0, step=0.5, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Au-dela de cette distance au prix, la zone reste affichee mais tres transparente -- elle n'est pas supprimee, juste dé-priorisee visuellement.")
-wzPlan      = input.bool(true, "Tableau de planification", group=grpW)
+wzShow      = input.bool(true, "Zones institutionnelles hebdomadaires", group=grpW, tooltip="OUTIL DE PLANIFICATION. Chaque debut de semaine, le module publie le profil de volume de la semaine ECOULEE et en deduit au plus deux zones d'achat et deux zones de vente. Il n'entre dans AUCUNE condition d'entree : buySignal et sellSignal sont inchanges.\n\nCe que le module apporte : decider a l'avance ou tu regardes, ce qui est une discipline reelle. Ce qu'il n'apporte pas : une estimation de probabilite. Sur les 100 points de Confluence, 25 seulement (la structure) reposent sur un module dont l'avantage est mesure — le detail est dans le tableau.", display=display.none)
+wzBins      = input.int(50, "Profil hebdomadaire — finesse", minval=20, maxval=100, group=grpW, display=display.none)
+wzVaPct     = input.float(70, "Value Area hebdomadaire (%)", minval=50, maxval=95, step=5, group=grpW, display=display.none)
+wzWidthAtr  = input.float(0.8, "Epaisseur des zones (x ATR)", minval=0.4, step=0.2, group=grpW, tooltip="Reduit de 1.6 a 0.8 : une zone de 1.6 ATR de haut n'est plus un niveau d'execution, c'est une region. AFFICHAGE SEUL -- les zones ne declenchent aucun trade, donc ce reglage ne change ni les signaux ni le backtest.", display=display.none)
+wzMax       = input.int(1, "Zones maximum par cote", minval=1, maxval=3, group=grpW, tooltip="Reduit de 2 a 1 : une seule zone principale par cote. AFFICHAGE SEUL.", display=display.none)
+wzMinScore  = input.int(70, "Confluence minimum pour AFFICHER", minval=50, maxval=95, group=grpW, tooltip="En dessous de ce seuil la zone n'est pas dessinee. 80-90 = premium, 70-80 = interessante. Ce chiffre COMPTE des elements presents ; ce n'est ni une qualite ni une probabilite.", display=display.none)
+wzPairGapAtr = input.float(0.5, "Ecart maximum Order Block <-> FVG (x ATR)", minval=0.0, maxval=3.0, step=0.1, group=grpW, tooltip="L'Order Block et le FVG n'ont plus besoin de se chevaucher : il suffit qu'ils soient PROCHES. Dans une impulsion, l'OB precede le mouvement et le FVG est cree par le mouvement -- ils sont donc empiles, pas superposes. A 0, on revient a l'ancien comportement (chevauchement obligatoire).", display=display.none)
+wzMaxHeightAtr = input.float(1.5, "Hauteur maximum d'une zone (x ATR)", minval=0.3, maxval=5.0, step=0.1, group=grpW, tooltip="Garde-fou contre les zones enormes. La zone etant l'UNION de l'OB et du FVG, une paire trop ecartee produirait un grand rectangle : au-dela de cette hauteur la paire est REJETEE plutot que dessinee. Mieux vaut aucune zone qu'une zone imprecise.", display=display.none)
+wzMaxAnchorAgeH = input.int(72, "Age maximum de l'ancre OB/FVG (heures)", minval=4, maxval=720, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Si l'OB ou le FVG qui a donne les 15 points de confluence SMC date de plus de N bougies par rapport a la bougie courante, la zone est retiree meme si techniquement encore intacte -- reponse au cas ou le setup arrive trop tard apres l'impulsion qui l'a cree.", display=display.none)
+wzFarAtr    = input.float(3.0, "Distance avant mise en sourdine (x ATR)", minval=1.0, step=0.5, group=grpW, tooltip="NON MESURE, valeur de depart raisonnable. Au-dela de cette distance au prix, la zone reste affichee mais tres transparente -- elle n'est pas supprimee, juste dé-priorisee visuellement.", display=display.none)
+wzPlan      = input.bool(true, "Tableau de planification", group=grpW, display=display.none)
 
 grpX = "③ Sortie (la partie qui compte le plus)"
-slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.")
+slAtr       = input.float(2.5, "Stop-loss (x ATR)", minval=0.5, step=0.1, group=grpX, tooltip="2.5 ATR mesure. Un stop plus serre (1.5 ATR) rendait le systeme negatif sur 2 sous-periodes sur 4.", display=display.none)
 // NON MESURE comme alternative complete -- seule la comparaison ATR vs
 // 1.5xATR existe (voir tooltip ci-dessus). "Structurel" utilise le dernier
 // swing low/high confirme (deja calcule pour l'affichage, jamais utilise
 // comme stop reel jusqu'ici) au lieu d'un multiple fixe d'ATR. Desactive par
 // defaut : la reference du systeme (PF 1.212, 19 ans) reste calculee avec
 // le stop ATR seul tant que ce mode n'a pas ete compare en Strategy Tester.
-slMode = input.string("ATR (actuel)", "Mode de calcul du SL", options=["ATR (actuel)", "Structurel (dernier swing)"], group=grpX, tooltip="A COMPARER TOI-MEME : bascule ce reglage et regarde le Strategy Tester avant/apres. 'Structurel' place le stop juste sous/sur le dernier swing low/high confirme plutot qu'a un multiple fixe d'ATR -- distance variable au lieu de constante, jamais mesure sur ce systeme.")
-trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.")
-trailDistR  = input.float(0.3, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX, tooltip="Voir le tooltip de l'activation. Le gradient mesure est LISSE et MONOTONE sur les quatre sous-periodes (plus l'armement est tardif, plus le PF monte, quelle que soit la distance) : c'est la signature d'un effet reel, pas d'un pic d'optimisation. Ancienne valeur : 1.0.")
-riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX)
+slMode = input.string("ATR (actuel)", "Mode de calcul du SL", options=["ATR (actuel)", "Structurel (dernier swing)"], group=grpX, tooltip="A COMPARER TOI-MEME : bascule ce reglage et regarde le Strategy Tester avant/apres. 'Structurel' place le stop juste sous/sur le dernier swing low/high confirme plutot qu'a un multiple fixe d'ATR -- distance variable au lieu de constante, jamais mesure sur ce systeme.", display=display.none)
+trailStartR = input.float(1.5, "Trailing : activation (x R)", minval=0.1, step=0.1, group=grpX, tooltip="MESURE (audit des sorties). Armer a 1.0 R avec un suivi de 1.0 R plaçait le stop exactement au point mort : un trade touchant +1 R ne rapportait rien. Armer plus tard et suivre plus serre corrige ce defaut structurel. 1.5 / 0.3 : PF 1.30 -> 1.41, esperance +0.140 -> +0.221 R, drawdown -15.0 -> -13.6 %, pour 2 % de trades en moins. Ancienne valeur : 1.0.", display=display.none)
+trailDistR  = input.float(0.3, "Trailing : distance suivie (x R)", minval=0.1, step=0.1, group=grpX, tooltip="Voir le tooltip de l'activation. Le gradient mesure est LISSE et MONOTONE sur les quatre sous-periodes (plus l'armement est tardif, plus le PF monte, quelle que soit la distance) : c'est la signature d'un effet reel, pas d'un pic d'optimisation. Ancienne valeur : 1.0.", display=display.none)
+riskPct     = input.float(1.0, "Risque par trade (% du capital)", minval=0.01, step=0.1, group=grpX, display=display.none)
 
 // --- Mode de sortie. Le trailing est le mode VALIDE ; le TP fixe existe parce
 // que la mesure a montre qu'il achete un win rate eleve, et qu'il faut pouvoir
 // le constater soi-meme plutot que de le croire sur parole.
-exitMode = input.string("Trailing (valide)", "Mode de sortie", options=["Trailing (valide)", "TP fixe"], group=grpX, tooltip="MESURE EXACTE sur 783 trades, 2020-2026, dont 200 trades hors echantillon (2020-2022).\n\nTrailing : WR 42.9 %, PF 1.231, esperance +0.144 R, drawdown -26.7 R, jusqu'a 11 pertes d'affilee.\nTP fixe a 0.50 R : WR 66.9 %, PF 1.190, esperance +0.053 R, drawdown -12.3 R, 4 pertes d'affilee au maximum.\n\nLe win rate monte de 24 points et tient hors echantillon (70.0 % sur 2020-2022). Le drawdown est divise par deux et la pire serie de pertes passe de 11 a 4. Le PRIX est l'esperance : -0.091 R par trade, soit environ -11 % de capital par an a 1 % de risque.\n\nAucun reglage ne donne un PF de 2 : sur 56 combinaisons stop x TP balayees, le maximum atteint est 1.545.")
-tpFixedR    = input.float(0.5, "TP fixe (x R)", minval=0.1, maxval=3.0, step=0.05, group=grpX, tooltip="N'agit que si le mode de sortie est 'TP fixe'. A 0.50 R la simulation est EXACTE (aucune hypothese) : toute sortie en trailing du systeme actuel a depasse 0.65 R, et l'excursion favorable enregistree tranche pour les trades stoppes. Au-dela de 0.65 R le chiffrage devient une approximation optimiste.")
-maxLev      = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpX, tooltip="SECURITE. Plafonne la taille de position pour que le notionnel ne depasse jamais ce multiple du capital. Sans ce plafond, un symbole dont la volatilite affichee est anormalement faible produit des tailles enormes : sur TVC:GOLD le levier atteignait 20x (128x au pire) et une perte coutait 2.72 % du capital au lieu de 1 %. Si le compteur de levier du panneau reste colle a cette valeur, c'est que le symbole fausse le calcul : change de symbole plutot que d'augmenter le plafond.")
+exitMode = input.string("Trailing (valide)", "Mode de sortie", options=["Trailing (valide)", "TP fixe"], group=grpX, tooltip="MESURE EXACTE sur 783 trades, 2020-2026, dont 200 trades hors echantillon (2020-2022).\n\nTrailing : WR 42.9 %, PF 1.231, esperance +0.144 R, drawdown -26.7 R, jusqu'a 11 pertes d'affilee.\nTP fixe a 0.50 R : WR 66.9 %, PF 1.190, esperance +0.053 R, drawdown -12.3 R, 4 pertes d'affilee au maximum.\n\nLe win rate monte de 24 points et tient hors echantillon (70.0 % sur 2020-2022). Le drawdown est divise par deux et la pire serie de pertes passe de 11 a 4. Le PRIX est l'esperance : -0.091 R par trade, soit environ -11 % de capital par an a 1 % de risque.\n\nAucun reglage ne donne un PF de 2 : sur 56 combinaisons stop x TP balayees, le maximum atteint est 1.545.", display=display.none)
+tpFixedR    = input.float(0.5, "TP fixe (x R)", minval=0.1, maxval=3.0, step=0.05, group=grpX, tooltip="N'agit que si le mode de sortie est 'TP fixe'. A 0.50 R la simulation est EXACTE (aucune hypothese) : toute sortie en trailing du systeme actuel a depasse 0.65 R, et l'excursion favorable enregistree tranche pour les trades stoppes. Au-dela de 0.65 R le chiffrage devient une approximation optimiste.", display=display.none)
+maxLev      = input.float(5.0, "Levier maximum (notionnel / capital)", minval=0.5, step=0.5, group=grpX, tooltip="SECURITE. Plafonne la taille de position pour que le notionnel ne depasse jamais ce multiple du capital. Sans ce plafond, un symbole dont la volatilite affichee est anormalement faible produit des tailles enormes : sur TVC:GOLD le levier atteignait 20x (128x au pire) et une perte coutait 2.72 % du capital au lieu de 1 %. Si le compteur de levier du panneau reste colle a cette valeur, c'est que le symbole fausse le calcul : change de symbole plutot que d'augmenter le plafond.", display=display.none)
 
 grpU = "⑨ Interface"
-panShow  = input.bool(true, "Panneau de decision", group=grpU)
-panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
-uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
-showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
-fibShow = input.bool(true, "Niveaux Fibonacci de la zone active", group=grpU, tooltip="Trace 50 / 61.8 / 70.5 / 78.6 sur le swing d'impulsion FIGE dans la zone -- celui que le moteur a reellement utilise pour la juger, pas un swing recalcule a l'affichage. Le niveau 50 % marque la separation premium / discount.")
-diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.")
-zoneMaxBars = input.int(25, "Largeur maximum d'une zone (bougies)", minval=6, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.")
+panShow  = input.bool(true, "Panneau de decision", group=grpU, display=display.none)
+panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU, display=display.none)
+uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.", display=display.none)
+showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU, display=display.none)
+fibShow = input.bool(true, "Niveaux Fibonacci de la zone active", group=grpU, tooltip="Trace 50 / 61.8 / 70.5 / 78.6 sur le swing d'impulsion FIGE dans la zone -- celui que le moteur a reellement utilise pour la juger, pas un swing recalcule a l'affichage. Le niveau 50 % marque la separation premium / discount.", display=display.none)
+diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.", display=display.none)
+zoneMaxBars = input.int(25, "Largeur maximum d'une zone (bougies)", minval=6, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -747,7 +747,7 @@ f_break(bool up, bool choch, float lvl, int fromBar) =>
         // marque l'endroit sans rien recouvrir.
         label tag = label.new(bar_index, lvl, choch ? " • CHoCH" : " • BOS", style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
         array.push(brkLb, tag)
-        while array.size(brkLb) > math.max(2, brkLabels) * 2
+        while array.size(brkLb) > math.max(1, brkLabels)
             label.delete(array.shift(brkLb))
 
 if bullBos
@@ -1544,6 +1544,15 @@ f_clear() =>
             label.delete(array.get(dLb, i))
         array.clear(dLb)
 
+// Trait COURT, pour la liquidite : elle doit se lire pres du prix sans
+// balayer tout l'ecran comme le fait f_lvl (60 bougies).
+f_liq(float y, color col, string txt) =>
+    if not na(y)
+        line l = line.new(bar_index - 18, y, bar_index + 4, y, color=col, width=1, style=line.style_solid)
+        array.push(dLn, l)
+        label lb = label.new(bar_index + 4, y, txt, style=label.style_label_left, color=color.new(cBg, 100), textcolor=col, size=size.tiny)
+        array.push(dLb, lb)
+
 f_lvl(float y, color col, string txt, string sty) =>
     if not na(y)
         line l = line.new(bar_index - 60, y, bar_index + 4, y, color=col, width=1, style=sty)
@@ -1586,10 +1595,10 @@ if barstate.islast
         // amputer la detection des sweeps ni le score de liquidite.
         if array.size(eqhL) > 0
             for i = math.max(0, array.size(eqhL) - liqShowMax) to array.size(eqhL) - 1
-                f_lvl(array.get(eqhL, i), color.new(cUp, 40), "BSL", line.style_solid)
+                f_liq(array.get(eqhL, i), color.new(cUp, 55), "BSL")
         if array.size(eqlL) > 0
             for i = math.max(0, array.size(eqlL) - liqShowMax) to array.size(eqlL) - 1
-                f_lvl(array.get(eqlL, i), color.new(cDn, 40), "SSL", line.style_solid)
+                f_liq(array.get(eqlL, i), color.new(cDn, 55), "SSL")
 
     // ---- Profil de la veille : le POC est le SEUL element saillant du fond ----
     if vShow
@@ -1710,7 +1719,7 @@ plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.
 // Pas de barre basse : elle dupliquait ces memes lignes.
 // Chaque ligne repond a une question, dans l'ordre ou elle se pose.
 // ============================================================
-var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 10, border_width=0)
+var table pan = table.new(panPos == "top_left" ? position.top_left : panPos == "top_right" ? position.top_right : panPos == "bottom_left" ? position.bottom_left : position.bottom_right, 2, 16, border_width=0)
 
 // f_cell = ligne CONTEXTE (affichee, ne decide rien). f_cellD = ligne DECIDE
 // (participe reellement a buySignal/sellSignal) : meme contenu, fond legerement
@@ -1758,78 +1767,54 @@ if barstate.islast and panShow
     //   ATTENDRE     : au moins une zone active existe, mais pas de signal
     //   PAS DE SETUP : aucune zone qualifiee
     int nZ = array.size(zTop)
-    string vd = sL ? "ENTRER · ACHAT · " + grade : sS ? "ENTRER · VENTE · " + grade : zInvNow ? "INVALIDE" : nZ > 0 ? "ATTENDRE" : "PAS DE SETUP"
-    color  vc = sL ? cUp : sS ? cDn : zInvNow ? cDn : nZ > 0 ? cGold : cMute
-    // Texte clair sur badge : les 4 couleurs de badge (cUp/cDn/cGold/cMute)
-    // sont des tons moyens-profonds sur la palette creme, pas des neons
-    // clairs -- un texte clair contraste mieux qu'un texte sombre ici.
-    table.cell(pan, 0, 0, "  " + vd, text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
-    table.cell(pan, 1, 0, "SMC PRO  ", text_color=color.rgb(12, 14, 18), text_size=size.small, text_halign=text.align_right, bgcolor=vc)
+    // ---- DASHBOARD ------------------------------------------------------
+    // Une ligne = une information, un libelle a gauche, une valeur a droite.
+    // Le diagnostic detaille, qui occupait cinq lignes denses, est reduit a une
+    // ligne STATUS ; le detail des conditions devient une colonne de coches.
+    string stat = sL ? "BUY SETUP" : sS ? "SELL SETUP" : zInvNow ? "ZONE INVALIDEE" : nZ > 0 ? "ZONE ACTIVE" : (diagShow and dgRej != "" ? dgRej : "WAITING FOR SETUP")
+    color  vc   = sL ? cUp : sS ? cDn : zInvNow ? cDn : nZ > 0 ? cGold : cMute
 
-    // 1 — BIAS. Le regime 5 niveaux. CONTEXTE : il controle l'affichage des
-    // zones, jamais buySignal/sellSignal.
-    f_cell(1, "Bias", ctxTxt, ctxCol)
+    // 0 — En-tete.
+    table.cell(pan, 0, 0, "  SMC PRO", text_color=color.rgb(12, 14, 18), text_size=size.normal, text_halign=text.align_left, bgcolor=vc)
+    table.cell(pan, 1, 0, (sL or sS ? grade + "  " : "  "), text_color=color.rgb(12, 14, 18), text_size=size.small, text_halign=text.align_right, bgcolor=vc)
 
-    // 2 — CONFLUENCE. Score /100 de la zone du cote ou penche le biais (dL) --
-    // une seule zone mise en avant, pas les deux cotes enumeres. CONTEXTE :
-    // ce score ne gate jamais un trade, seulement l'affichage de la zone.
-    // Ce n'est ni une qualite ni une probabilite : c'est un COMPTE d'elements.
+    f_cell(1, "BIAS", ctxTxt, ctxCol)
+
     float confScore = na
     if array.size(zTop) > 0
         for i = 0 to array.size(zTop) - 1
             if array.get(zSide, i) == (dL ? 1 : -1)
                 confScore := array.get(zScr, i)
                 break
-    string confBar = ""
-    if not na(confScore)
-        int filled = int(math.round(confScore / 10))
-        for k = 0 to 9
-            confBar := confBar + (k < filled ? "█" : "░")
-    string confTxt = na(confScore) ? "—" : confBar + "  " + str.tostring(int(math.round(confScore))) + "/100"
-    f_cell(2, "Confluence", confTxt, na(confScore) ? cMute : (dL ? cUp : cDn))
+    f_cell(2, "SCORE", na(confScore) ? "—" : str.tostring(int(math.round(confScore))) + "/100", na(confScore) ? cMute : (dL ? cUp : cDn))
 
-    // 3 et 4 — LES DEUX ZONES, cote par cote : bornes + confluence. La zone
-    // touchee par le prix en ce moment est marquee d'un point. CONTEXTE.
-    string bz = "—"
-    string sz = "—"
-    color  bzc = cMute
-    color  szc = cMute
-    if array.size(zTop) > 0
-        for i = 0 to array.size(zTop) - 1
-            string rg = f_px2(array.get(zBot, i)) + " – " + f_px2(array.get(zTop, i)) + "   " + str.tostring(int(math.round(array.get(zScr, i)))) + (i == zHitI ? " ●" : "")
-            if array.get(zSide, i) == 1 and bz == "—"
-                bz := rg
-                bzc := cUp
-            if array.get(zSide, i) == -1 and sz == "—"
-                sz := rg
-                szc := cDn
-    f_cell(3, "BUY Zone",  bz, bzc)
-    f_cell(4, "SELL Zone", sz, szc)
+    int nBuyZ  = 0
+    int nSellZ = 0
+    if array.size(zSide) > 0
+        for i = 0 to array.size(zSide) - 1
+            if array.get(zSide, i) == 1
+                nBuyZ += 1
+            else
+                nSellZ += 1
+    f_cell(3, "BUY ZONE",  nBuyZ  > 0 ? "✓" : "—", nBuyZ  > 0 ? cUp : cMute)
+    f_cell(4, "SELL ZONE", nSellZ > 0 ? "✓" : "—", nSellZ > 0 ? cDn : cMute)
 
-    // 5 — OBJECTIF. Prochain obstacle devant le prix. Reference de LECTURE :
-    // ne pilote ni le TP ni la sortie reelle (le trailing mesure). CONTEXTE.
-    string obTxt = na(objPx) ? "—" : f_px2(objPx) + "  (" + objSrc + ")"
-    f_cell(5, "Objectif", obTxt, na(objPx) ? cMute : cGold)
-
-    // 6 — STOP, avec la RAISON qui le place. DECIDE : c'est le stop reellement
-    // envoye par la strategie. Le prix accompagne la raison -- une raison sans
-    // prix ne permet pas de placer l'ordre.
-    string stopWhy = slMode == "ATR (actuel)" ? str.tostring(slAtr, "#.#") + " ATR" : "sous le dernier swing"
-    string stTxt = na(stopAtr) ? "—" : f_px2(stopAtr) + "  ·  " + stopWhy + (stopDevant ? "  ⚠ devant l'invalidation" : "")
-    f_cellD(6, "Stop", stTxt, stopDevant ? cDn : cTxt)
-
-    // 7 — R:R. Calcule sur l'objectif de lecture ci-dessus et le stop ATR,
-    // donc lui aussi indicatif : aucun seuil de R:R ne bloque un trade.
-    f_cellD(7, "R:R", na(rr) ? "—" : str.tostring(rr, "#.##"), na(rr) ? cMute : rr >= 2.0 ? cUp : rr >= 1.0 ? cGold : cDn)
-
-    // 8 et 9 — DIAGNOSTIC. L'etat de chaque condition, et si aucune zone
-    // n'existe, la RAISON. C'est ce qui permet de repondre a "pourquoi le
-    // graphique est-il vide ?" sans avoir a relire le code.
+    // Colonne de conditions : une par ligne, verte si remplie, grise sinon.
+    // Masquable par diagShow pour un panneau encore plus court.
     if diagShow
-        string fibTxt = (dgFib == 1 ? "✓Fib" : dgFib == 0 ? "~Fib" : "✗Fib") + (na(dgFibR) ? "" : " " + str.tostring(dgFibR * 100, "#") + "%")
-        color  diagCol = dgRej == "" ? cUp : cMute
-        f_cell(8, "Diagnostic", (dgSweep ? "✓" : "✗") + "Sweep  " + (dgChoch ? "✓" : "✗") + "CHoCH  " + (dgBos ? "✓" : "✗") + "BOS  " + (dgFvg ? "✓" : "✗") + "FVG  " + (dgOb ? "✓" : "✗") + "OB" + "\n" + fibTxt + "   " + (dgHtf ? "✓" : "✗") + "HTF   " + (dgPd ? "✓" : "✗") + (isBuyBiasNow ? "Discount" : "Premium") + "   " + (na(dgScore) ? "—" : str.tostring(int(math.round(dgScore))) + "/100"), diagCol)
-        f_cell(9, "Refus", dgRej == "" ? "—" : dgRej, dgRej == "" ? cMute : cDn)
+        f_cell(5,  "SWEEP", dgSweep ? "✓" : "—", dgSweep ? cUp : cMute)
+        f_cell(6,  "CHoCH", dgChoch ? "✓" : "—", dgChoch ? cUp : cMute)
+        f_cell(7,  "BOS",   dgBos   ? "✓" : "—", dgBos   ? cUp : cMute)
+        f_cell(8,  "OB",    dgOb    ? "✓" : "—", dgOb    ? cUp : cMute)
+        f_cell(9,  "FVG",   dgFvg   ? "✓" : "—", dgFvg   ? cUp : cMute)
+        f_cell(10, "FIB",   dgFib == 1 ? "✓" : dgFib == 0 ? "~" : "—", dgFib == 1 ? cUp : dgFib == 0 ? cGold : cMute)
+        f_cell(11, "HTF",   dgHtf   ? "✓" : "—", dgHtf   ? cUp : cMute)
+
+    f_cellD(12, "TP",  na(objPx)   ? "—" : f_px2(objPx),   na(objPx)   ? cMute : cGold)
+    f_cellD(13, "SL",  na(stopAtr) ? "—" : f_px2(stopAtr), na(stopAtr) ? cMute : cDn)
+    f_cellD(14, "R:R", na(rr) ? "—" : str.tostring(rr, "#.##"), na(rr) ? cMute : rr >= 2.0 ? cUp : rr >= 1.0 ? cGold : cDn)
+
+    f_cell(15, "STATUS", stat, vc)
 
 // ============================================================
 // TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES
@@ -1847,8 +1832,8 @@ if barstate.islast and panShow
 // comparer d'un actif a l'autre pour savoir si un systeme est structurel ou
 // ajuste a un seul marche.
 // ============================================================
-statShow = input.bool(true, "Tableau de validation", group=grpU)
-statPos  = input.string("bottom_left", "Position du tableau", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
+statShow = input.bool(true, "Tableau de validation", group=grpU, display=display.none)
+statPos  = input.string("bottom_left", "Position du tableau", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU, display=display.none)
 
 var table st = table.new(statPos == "top_left" ? position.top_left : statPos == "top_right" ? position.top_right : statPos == "bottom_left" ? position.bottom_left : position.bottom_right, 4, 8, border_width=0)
 

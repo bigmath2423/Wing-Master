@@ -65,7 +65,7 @@ vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, ste
 
 grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
 obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.", display=display.none)
-obHistMax = input.int(4, "Order Blocks valides conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un OB supplante par un nouveau CHoCH n'est pas invalide pour autant : il reste affiche tant que le prix ne l'a pas casse. Ce plafond borne l'historique. A 0, seul l'OB du dernier CHoCH est affiche. AFFICHAGE SEUL : le moteur de zones ne lit que l'OB actif.", display=display.none)
+obHistMax = input.int(12, "Order Blocks valides conserves par cote", minval=0, maxval=40, group=grpZ, tooltip="Un OB supplante par un nouveau CHoCH n'est pas invalide pour autant : il reste affiche tant que le prix ne l'a pas casse. Ce plafond borne l'historique. A 0, seul l'OB du dernier CHoCH est affiche. AFFICHAGE SEUL : le moteur de zones ne lit que l'OB actif.", display=display.none)
 bkMax     = input.int(3, "Breaker Blocks conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un Order Block casse par une cloture confirmee ne disparait pas : il devient un Breaker Block dans le sens INVERSE, memes bornes et meme bougie d'origine. Ce plafond borne l'historique conserve. A 0, les breakers ne sont pas affiches.", display=display.none)
 bkConfBars = input.int(20, "Breaker — fenetre de confirmation (bougies)", minval=1, maxval=200, group=grpZ, tooltip="D2. Une zone cassee attend une cassure de structure DANS LE SENS de la cassure pendant ce nombre de bougies. Sans confirmation, elle expire au lieu de devenir un Breaker : mieux vaut aucun Breaker qu'un Breaker invente. AFFICHAGE SEUL.", display=display.none)
 obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
@@ -114,7 +114,7 @@ uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU, display=display.none)
 fibShow = input.bool(true, "Niveaux Fibonacci de la zone active", group=grpU, tooltip="Trace 50 / 61.8 / 70.5 / 78.6 sur le swing d'impulsion FIGE dans la zone -- celui que le moteur a reellement utilise pour la juger, pas un swing recalcule a l'affichage. Le niveau 50 % marque la separation premium / discount.", display=display.none)
 diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.", display=display.none)
-zoneMaxBars = input.int(8, "Projection des zones vers la droite (bougies)", minval=0, maxval=100, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. CORRECTIF DU CORRECTIF : le bord GAUCHE n'est plus tronque du tout, c'etait lui qui detachait les rectangles de leur bougie d'origine. Ce reglage ne commande plus que la PROJECTION VERS LA DROITE, au-dela de la bougie courante. AFFICHAGE SEUL.", display=display.none)
+zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", minval=0, maxval=100, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. CORRECTIF DU CORRECTIF : le bord GAUCHE n'est plus tronque du tout, c'etait lui qui detachait les rectangles de leur bougie d'origine. Ce reglage ne commande QUE la projection AU-DELA de la bougie courante : une zone active va deja de sa bougie source jusqu'a maintenant, ce nombre s'y ajoute. Il ne commande donc pas la largeur des zones -- celle-ci est l'AGE de la zone, gouverne par obHistMax pour les OB et par fvgMax / fvgMaxAge pour les FVG. AFFICHAGE SEUL.", display=display.none)
 
 // ============================================================
 // ⑨ MODE DEBUG — OBSERVATION PURE
@@ -2100,9 +2100,30 @@ f_nearZone(float t, float b) =>
 // d'amputer l'ancrage a gauche.
 // La boite part desormais EXACTEMENT de la bougie qui l'a creee et se
 // prolonge vers la droite tant qu'elle reste valide.
-f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc, string bsty) =>
+// BORD DROIT SELON L'ETAT DE LA ZONE.
+// `right` = -1  -> zone ACTIVE : le bord droit suit la bougie courante et la
+//                  depasse de zoneMaxBars. La boite s'allonge donc a chaque
+//                  bougie, exactement comme une zone SMC projetee.
+// `right` >= 0  -> zone FIGEE a cette bougie : son extension s'arrete au
+//                  moment de son invalidation et n'avance plus jamais.
+// Le sentinel -1 est utilise plutot que na pour eviter toute question de
+// typage sur un argument entier.
+//
+// La largeur n'a JAMAIS ete bridee : le bord droit valait deja
+// bar_index + zoneMaxBars, donc une boite ancienne etait large. Si les zones
+// paraissaient de petits carres, c'est qu'elles etaient JEUNES -- voir
+// obHistMax. Le present bloc ne corrige donc pas une troncature inexistante,
+// il ajoute la seule chose qui manquait vraiment : l'arret a l'invalidation.
+//
+// f_xL protege les DEUX bords : le gauche comme le droit peuvent etre
+// anciens, et une coordonnee hors tampon d'historique arrete le script.
+// math.max(..., + 1) garantit une boite non degeneree si les deux bords sont
+// rabattus sur le meme plafond.
+f_zone(float top, float bot, int left, int right, color bord, color fill, string txt, color txtc, string bsty) =>
     if not na(top) and not na(bot) and top > bot
-        box b = box.new(f_xL(left), top, bar_index + zoneMaxBars, bot, border_color=bord, border_width=1, border_style=bsty, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
+        int xl = f_xL(left)
+        int xr = right < 0 ? bar_index + zoneMaxBars : math.max(f_xL(right), xl + 1)
+        box b = box.new(xl, top, xr, bot, border_color=bord, border_width=1, border_style=bsty, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
         array.push(dBx, b)
 
 if barstate.islast
@@ -2158,14 +2179,14 @@ if barstate.islast
                 int  obSt  = array.get(obBSt, i)
                 bool obMit = obSt >= 1
                 string obTx = (obActive ? "5. OB" : "OB") + (obSt >= 2 ? " ··" : obSt >= 1 ? " ·" : "")
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, obMit ? 55 : 40), color.new(cBlue, obMit ? 90 : 85), obTx, color.new(cBlue, 25), line.style_solid)
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), -1, color.new(cBlue, obMit ? 55 : 40), color.new(cBlue, obMit ? 90 : 85), obTx, color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
                 int  obSt  = array.get(obSSt, i)
                 bool obMit = obSt >= 1
                 string obTx = (obActive ? "5. OB" : "OB") + (obSt >= 2 ? " ··" : obSt >= 1 ? " ·" : "")
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), obTx, color.new(cPurp, 25), line.style_solid)
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), -1, color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), obTx, color.new(cPurp, 25), line.style_solid)
 
         // Historique : memes couleurs et meme style que l'OB actif -- un OB
         // valide reste un OB valide, qu'il porte ou non le setup en cours.
@@ -2173,12 +2194,12 @@ if barstate.islast
             for i = 0 to array.size(ohBT) - 1
                 int  ohSt  = array.get(ohBSt, i)
                 bool ohMit = ohSt >= 1
-                f_zone(array.get(ohBT, i), array.get(ohBB, i), array.get(ohBX, i), color.new(cBlue, ohMit ? 55 : 40), color.new(cBlue, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cBlue, 25), line.style_solid)
+                f_zone(array.get(ohBT, i), array.get(ohBB, i), array.get(ohBX, i), -1, color.new(cBlue, ohMit ? 55 : 40), color.new(cBlue, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cBlue, 25), line.style_solid)
         if array.size(ohST) > 0
             for i = 0 to array.size(ohST) - 1
                 int  ohSt  = array.get(ohSSt, i)
                 bool ohMit = ohSt >= 1
-                f_zone(array.get(ohST, i), array.get(ohSB, i), array.get(ohSX, i), color.new(cPurp, ohMit ? 55 : 40), color.new(cPurp, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cPurp, 25), line.style_solid)
+                f_zone(array.get(ohST, i), array.get(ohSB, i), array.get(ohSX, i), -1, color.new(cPurp, ohMit ? 55 : 40), color.new(cPurp, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cPurp, 25), line.style_solid)
 
         // D2 -- ZONES CASSEES EN ATTENTE DE CONFIRMATION. Couleurs du futur
         // Breaker, mais contour POINTILLE et texte "BB?" : la zone est cassee,
@@ -2186,31 +2207,31 @@ if barstate.islast
         // Aucune couleur nouvelle n'est introduite.
         if array.size(pbST) > 0
             for i = 0 to array.size(pbST) - 1
-                f_zone(array.get(pbST, i), array.get(pbSB, i), array.get(pbSX, i), color.new(cPurp, 55), color.new(cDn, 93), "BB?", color.new(cPurp, 40), line.style_dashed)
+                f_zone(array.get(pbST, i), array.get(pbSB, i), array.get(pbSX, i), array.get(pbSBk, i), color.new(cPurp, 55), color.new(cDn, 93), "BB?", color.new(cPurp, 40), line.style_dashed)
         if array.size(pbBT) > 0
             for i = 0 to array.size(pbBT) - 1
-                f_zone(array.get(pbBT, i), array.get(pbBB, i), array.get(pbBX, i), color.new(cBlue, 55), color.new(cUp, 93), "BB?", color.new(cBlue, 40), line.style_dashed)
+                f_zone(array.get(pbBT, i), array.get(pbBB, i), array.get(pbBX, i), array.get(pbBBk, i), color.new(cBlue, 55), color.new(cUp, 93), "BB?", color.new(cBlue, 40), line.style_dashed)
 
         // BREAKER BLOCKS CONFIRMES. Meme zone, meme origine, sens inverse.
         // Baissier (ex-OB haussier casse) : contour violet, fond rouge.
         // Haussier (ex-OB baissier casse) : contour bleu, fond vert.
         if array.size(bkST) > 0
             for i = 0 to array.size(bkST) - 1
-                f_zone(array.get(bkST, i), array.get(bkSB, i), array.get(bkSX, i), color.new(cPurp, 35), color.new(cDn, 88), "BB", color.new(cPurp, 20), line.style_solid)
+                f_zone(array.get(bkST, i), array.get(bkSB, i), array.get(bkSX, i), -1, color.new(cPurp, 35), color.new(cDn, 88), "BB", color.new(cPurp, 20), line.style_solid)
         if array.size(bkBT) > 0
             for i = 0 to array.size(bkBT) - 1
-                f_zone(array.get(bkBT, i), array.get(bkBB, i), array.get(bkBX, i), color.new(cBlue, 35), color.new(cUp, 88), "BB", color.new(cBlue, 20), line.style_solid)
+                f_zone(array.get(bkBT, i), array.get(bkBB, i), array.get(bkBX, i), -1, color.new(cBlue, 35), color.new(cUp, 88), "BB", color.new(cBlue, 20), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
                 bool fvActive = f_nearZone(array.get(fvBT, i), array.get(fvBB, i))
-                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 55), color.new(cUp, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
+                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), -1, color.new(cUp, 55), color.new(cUp, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
                 bool fvActive = f_nearZone(array.get(fvST, i), array.get(fvSB, i))
-                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 55), color.new(cDn, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
+                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), -1, color.new(cDn, 55), color.new(cDn, 87), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
     // ---- FIBONACCI DE LA ZONE ACTIVE -------------------------------------
     // Traces a partir du swing FIGE dans la zone, jamais du tracker glissant :

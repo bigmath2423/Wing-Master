@@ -1562,16 +1562,6 @@ f_seqChoch(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
     int ch = isBuy ? chochUpIdx : chochDnIdx
     f_seqSweep(isBuy) and not na(ch) and ch > sw and (isBuy ? chochUpFresh : chochDnFresh)
-// DIAGNOSTIC SEUL. C'est exactement l'ancienne f_seqChoch, d'avant le patch de
-// fraicheur : sweep valide, CHoCH present, CHoCH posterieur au sweep -- sans le
-// terme de fraicheur. Ce n'est donc pas une regle nouvelle, c'est l'expression
-// precedente conservee pour pouvoir distinguer deux causes de refus que la
-// nouvelle f_seqChoch confond : "aucun CHoCH exploitable" et "CHoCH present
-// mais sweep deja depense". N'entre dans AUCUNE condition de creation de zone.
-f_seqChochRaw(bool isBuy) =>
-    int sw = isBuy ? swpDnIdx : swpUpIdx
-    int ch = isBuy ? chochUpIdx : chochDnIdx
-    f_seqSweep(isBuy) and not na(ch) and ch > sw
 f_seqBos(bool isBuy) =>
     int ch = isBuy ? chochUpIdx : chochDnIdx
     int bo = isBuy ? bosUpIdx : bosDnIdx
@@ -1778,14 +1768,33 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     // Effet de bord voulu : quand chochUpIdx vaut na, f_seqChoch est faux et
     // "CHOCH MANQUANT" se declenche ICI. Le statut "OB HORS DU CYCLE COURANT",
     // qui exige lui aussi un CHoCH, ne peut donc plus etre affiche a sa place.
-    // "SWEEP PERIME" s'intercale entre CHOCH MANQUANT et BOS MANQUANT, et cet
-    // ordre est impose par la logique : tant que f_seqChochRaw est faux, on ne
-    // peut pas dire que le sweep est depense -- il n'y a simplement pas de
-    // CHoCH exploitable pour le reclamer. Une fois f_seqChochRaw vrai, le seul
-    // terme qui puisse encore faire echouer f_seqChoch est la fraicheur : le
-    // sweep a deja produit son mouvement, ce CHoCH appartient a un nouveau
-    // cycle qui doit avoir son propre sweep.
-    dgRej := not f_seqSweep(isBuyBiasNow) ? "SWEEP MANQUANT" : not f_seqChochRaw(isBuyBiasNow) ? "CHOCH MANQUANT" : not f_seqChoch(isBuyBiasNow) ? "SWEEP PERIME" : not f_seqBos(isBuyBiasNow) ? "BOS MANQUANT" : not dgOb ? "AUCUN ORDER BLOCK" : not dgFvg ? "AUCUN FVG" : ""
+    // ---- ETATS EXPLICITES DU SWEEP ET DE LA STRUCTURE -------------------
+    // f_seqSweep melange DEUX notions -- l'EXISTENCE du sweep et sa FRAICHEUR
+    // temporelle -- et ne permet donc pas de dire laquelle des deux bloque.
+    // L'echelle les separe en lisant directement les registres. Ces variables
+    // ne sont consultees QUE par le statut : aucune condition de creation de
+    // zone ne les lit.
+    //
+    // EQUIVALENCE PROUVEE, et c'est ce qui garantit qu'aucun refus ne reste
+    // sans message : l'echelle atteint "" si et seulement si
+    //   na(dSw) faux ET (bar_index-dSw) <= seqMaxBars   ==  f_seqSweep
+    //   ET not na(dCh) ET dCh > dSw ET dSwFresh         ==  f_seqChoch
+    //   ET not na(dBo) ET dBo > dCh                     ==  f_seqBos
+    //   ET dgOb ET dgFvg
+    // soit exactement les conditions testees plus bas. Aucune divergence
+    // possible entre le diagnostic et le moteur.
+    //
+    // ORDRE : "SWEEP HORS CYCLE" ne peut PAS etre teste avant l'existence du
+    // CHoCH. chochUpFresh est une propriete DU CHoCH, evaluee au moment ou il
+    // survient ; tant qu'aucun CHoCH n'a eu lieu elle vaut false par
+    // initialisation, et l'afficher alors ferait exactement l'erreur que
+    // l'etape precedente a corrigee. Il est donc place apres CHOCH MANQUANT et
+    // CHOCH HORS SEQUENCE, seule position ou il est vrai.
+    int  dSw = isBuyBiasNow ? swpDnIdx : swpUpIdx
+    int  dCh = isBuyBiasNow ? chochUpIdx : chochDnIdx
+    int  dBo = isBuyBiasNow ? bosUpIdx : bosDnIdx
+    bool dSwFresh = isBuyBiasNow ? chochUpFresh : chochDnFresh
+    dgRej := na(dSw) ? "SWEEP MANQUANT" : (bar_index - dSw) > seqMaxBars ? "SWEEP PERIME" : na(dCh) ? "CHOCH MANQUANT" : dCh <= dSw ? "CHOCH HORS SEQUENCE" : not dSwFresh ? "SWEEP HORS CYCLE" : na(dBo) ? "BOS MANQUANT" : dBo <= dCh ? "BOS HORS SEQUENCE" : not dgOb ? "OB MANQUANT" : not dgFvg ? "FVG MANQUANT" : ""
     if dgRej != ""
         dgScore := na
     float rgLo = na(wLoPrev) ? wVal : wLoPrev

@@ -571,9 +571,24 @@ var array<bool>  ohSM = array.new<bool>()
 // ecrite a l'etape 2 et jusqu'ici sans effet, selectionne desormais le FVG du
 // meme mouvement.
 if bullChoch and not na(atrV)
-    float disp = close - open
     for i = 1 to swingLen
         if close[i] < open[i]
+            // DEPLACEMENT MESURE SUR L'IMPULSION, plus sur la seule bougie de
+            // CHoCH. `disp` valait `close - open`, c'est-a-dire le corps de la
+            // bougie de CHoCH prise isolement. Or un Order Block se definit par
+            // le deplacement QUI SUIT : une impulsion de trois bougies a 1.2 $
+            // chacune -- 3.6 $ de mouvement, bien au-dela du seuil -- etait
+            // rejetee parce qu'aucune bougie seule n'atteignait 3.6 $. Erreur de
+            // quantite mesuree, pas de severite : obDispAtr reste a 1.2.
+            // On retient le plus grand corps de l'impulsion, de la bougie qui
+            // suit l'OB jusqu'a celle du CHoCH incluse. Il faut donc toujours au
+            // moins une bougie decisive ; ce n'est pas un assouplissement.
+            // Note : mesurer l'amplitude totale de la jambe aurait rendu le
+            // filtre decoratif, une amplitude multi-bougies depassant presque
+            // toujours 1.2 ATR.
+            float disp = 0.0
+            for k = 0 to i - 1
+                disp := math.max(disp, close[k] - open[k])
             if disp >= atrV * obDispAtr
                 // L'OB precedent n'est pas detruit : il passe a l'historique.
                 if array.size(obBT) > 0
@@ -591,9 +606,12 @@ if bullChoch and not na(atrV)
                 array.push(obBMit, false)
             break
 if bearChoch and not na(atrV)
-    float disp = open - close
     for i = 1 to swingLen
         if close[i] > open[i]
+            // Miroir baissier du correctif ci-dessus.
+            float disp = 0.0
+            for k = 0 to i - 1
+                disp := math.max(disp, open[k] - close[k])
             if disp >= atrV * obDispAtr
                 if array.size(obST) > 0
                     array.push(ohST, array.get(obST, 0))

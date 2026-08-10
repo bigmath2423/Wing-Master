@@ -93,6 +93,20 @@ sweepShow = input.bool(true, "Marquer les sweeps", group=grpL, display=display.n
 // setups mais des sweeps reellement exploitables.
 sweepMinPen = input.float(0.05, "Sweep — penetration minimum du niveau (x ATR)", minval=0.0, maxval=1.0, step=0.01, group=grpL, tooltip="La meche doit depasser le niveau de liquidite d'au moins cette distance. A 0, le comportement d'origine revient : un tick suffit. AFFECTE LA DETECTION, donc le nombre de zones.", display=display.none)
 sweepReject = input.float(0.10, "Sweep — rejet minimum en cloture (x ATR)", minval=0.0, maxval=1.0, step=0.01, group=grpL, tooltip="Apres avoir pris la liquidite, la cloture doit revenir de l'autre cote du niveau d'au moins cette distance. Une cloture a un tick du niveau n'est pas un rejet. AFFECTE LA DETECTION.", display=display.none)
+// FRAICHEUR DU SWEEP, decouplee de l'age d'ancre des zones.
+// Cette valeur etait reprise de wzMaxAnchorAgeH, un reglage du groupe des
+// zones hebdomadaires qui mesure tout autre chose : depuis quand l'OB ou le
+// FVG qui porte une zone a ete cree. Deux concepts sans rapport partageaient
+// donc un seul curseur, et regler l'un deplacait silencieusement l'autre.
+// La valeur par defaut reste 72 h : le comportement est IDENTIQUE au premier
+// chargement. Ce correctif separe deux reglages, il n'en change aucun -- il
+// n'y a a ce jour aucune mesure qui justifierait une autre valeur, et en
+// choisir une au jugé serait exactement le seuil arbitraire a eviter.
+// Cette fenetre n'est plus le seul garde-fou depuis la regle de cycle
+// (chochUpFresh) : elle ne sert que de plafond de dernier recours contre un
+// sweep arbitrairement ancien qu'aucune cassure de structure n'aurait encore
+// perime.
+sweepMaxAgeH = input.int(72, "Sweep — fraicheur maximum (heures)", minval=1, maxval=720, group=grpL, tooltip="Au-dela de cette anciennete un sweep ne valide plus aucune chaine, et le panneau affiche SWEEP PERIME. Exprime en HEURES, donc coherent d'une unite de temps a l'autre : 72 h font 4320 bougies en M1 et 288 en M15. Etait auparavant repris de l'Age maximum de l'ancre OB/FVG du groupe 7, qui mesure une tout autre chose.", display=display.none)
 
 grpW = "⑦ Weekly Institutional Zones (PLANIFICATION — ne declenche aucun trade)"
 wzShow      = input.bool(true, "Zones institutionnelles hebdomadaires", group=grpW, tooltip="OUTIL DE PLANIFICATION. Chaque debut de semaine, le module publie le profil de volume de la semaine ECOULEE et en deduit au plus deux zones d'achat et deux zones de vente. Il n'entre dans AUCUNE condition d'entree : buySignal et sellSignal sont inchanges.\n\nCe que le module apporte : decider a l'avance ou tu regardes, ce qui est une discipline reelle. Ce qu'il n'apporte pas : une estimation de probabilite. Sur les 100 points de Confluence, 25 seulement (la structure) reposent sur un module dont l'avantage est mesure — le detail est dans le tableau.", display=display.none)
@@ -1510,10 +1524,11 @@ newWeek = ta.change(time("W")) != 0
 // information distincte du CHoCH, et la sequence du cahier des charges est
 // respectee au lieu d'etre seulement affichee.
 //
-// La fenetre hebdomadaire est remplacee par une FRAICHEUR en heures, reprise de
-// wzMaxAnchorAgeH (deja coherente d'une unite de temps a l'autre). Effet de
-// bord voulu : plus de point mort le lundi matin, ou les drapeaux repartaient
-// tous de zero quel que soit ce que le marche venait de faire.
+// La fenetre hebdomadaire est remplacee par une FRAICHEUR en heures, desormais
+// portee par son propre reglage sweepMaxAgeH et non plus empruntee a
+// wzMaxAnchorAgeH. Effet de bord voulu : plus de point mort le lundi matin, ou
+// les drapeaux repartaient tous de zero quel que soit ce que le marche venait
+// de faire.
 var int swpDnIdx   = na   // sell side prise -> prerequis d'un setup ACHAT
 var int swpUpIdx   = na   // buy side prise  -> prerequis d'un setup VENTE
 var int chochUpIdx = na
@@ -1554,7 +1569,7 @@ if barstate.isconfirmed
     if bearBos
         bosDnIdx := bar_index
 
-int seqMaxBars = math.max(1, int(wzMaxAnchorAgeH * 3600 / timeframe.in_seconds()))
+int seqMaxBars = math.max(1, int(sweepMaxAgeH * 3600 / timeframe.in_seconds()))
 f_seqSweep(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
     not na(sw) and (bar_index - sw) <= seqMaxBars

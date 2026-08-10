@@ -206,6 +206,7 @@ var int dbgObMadeC  = 0
 var int dbgObMadeB  = 0
 var int dbgObDup    = 0
 var int dbgObCycle  = 0
+var int dbgObStruct = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -957,15 +958,55 @@ var array<int>   ohSSt = array.new<int>()
 //     cycle est alors legitime par construction.
 bool cycleB = array.size(obBCr) == 0 or (not na(lastPlIdx) and lastPlIdx > array.get(obBCr, 0))
 bool cycleS = array.size(obSCr) == 0 or (not na(lastPhIdx) and lastPhIdx > array.get(obSCr, 0))
-bool obTrigB = bullChoch or (obContinuation and bullBos and cycleB)
-bool obTrigS = bearChoch or (obContinuation and bearBos and cycleS)
+// ---- FILTRE STRUCTUREL : BOS STRUCTUREL vs MICRO-BOS --------------------
+// Le code ne distinguait NULLE PART un BOS majeur d'une cassure interne :
+// bullBos est un booleen unique, et une cassure de deux ticks d'un pivot
+// mineur produisait la meme valeur qu'une cassure decisive.
+// swingHigh et swingLow sont les deux derniers pivots confirmes : leur ecart
+// EST la structure en cours, deja presente dans le code. Un BOS n'est retenu
+// comme STRUCTUREL que si cette amplitude atteint le seuil deja exige du
+// deplacement de l'impulsion. Aucun reglage nouveau n'est introduit, et la
+// justification n'est pas arbitraire : une jambe trop courte pour contenir le
+// deplacement minimum ne peut pas etre une structure majeure.
+bool structOk = not na(swingHigh) and not na(swingLow) and not na(atrV) and (swingHigh - swingLow) >= atrV * obDispAtr
 
-// Comptage des continuations refusees faute de nouveau cycle. Elles n'entrent
-// pas dans le bloc de creation, il faut donc les compter ici.
-if barstate.isconfirmed and obContinuation
-    if bullBos and not bullChoch and not cycleB
+// ---- IDENTITE DU MOUVEMENT STRUCTUREL -----------------------------------
+// C'est le NIVEAU CASSE qui identifie le mouvement. Si le meme swingHigh a
+// deja produit un Order Block, la cassure appartient au meme mouvement et ne
+// doit rien creer -- cas du prix qui repasse sous le niveau puis le refranchit
+// sans qu'aucun nouveau pivot ne se soit confirme, ce qui rearme crossover.
+// Deux scalaires suffisent, il n'y a qu'un OB actif par cote : les tableaux du
+// cycle de vie ne sont pas touches et restent en lockstep.
+var float obBLvlUsed = na
+var float obSLvlUsed = na
+bool newMoveB = na(obBLvlUsed) or swingHigh != obBLvlUsed
+bool newMoveS = na(obSLvlUsed) or swingLow != obSLvlUsed
+
+// ---- DECLENCHEURS ------------------------------------------------------
+// CORRECTIF PRINCIPAL : la porte de cycle s'applique desormais AUSSI a la voie
+// CHoCH. Elle en etait exclue, et c'etait la fuite principale : trend est mis
+// a 1 par tout bullBos et a -1 par tout bearBos, donc en marche sans direction
+// -- le regime le plus frequent sur XAUUSD M5 -- les BOS alternent, chaque BOS
+// a trend[1] oppose, et CHAQUE BOS est donc un CHoCH. La voie CHoCH creait un
+// OB a chaque cassure sans aucun filtre.
+// Un CHoCH haussier suit par construction une phase baissiere, ou les pivots
+// bas abondent : la porte ne le penalise pas dans son cas legitime.
+bool obTrigB = structOk and newMoveB and cycleB and (bullChoch or (obContinuation and bullBos))
+bool obTrigS = structOk and newMoveS and cycleS and (bearChoch or (obContinuation and bearBos))
+
+// Comptage des refus. Ils n'entrent pas dans le bloc de creation, il faut donc
+// les compter ici. Ordre de priorite : structure, puis cycle -- on attribue le
+// refus a la premiere cause qui s'applique.
+if barstate.isconfirmed
+    bool cndB = bullChoch or (obContinuation and bullBos)
+    bool cndS = bearChoch or (obContinuation and bearBos)
+    if cndB and not (structOk and newMoveB)
+        dbgObStruct += 1
+    else if cndB and not cycleB
         dbgObCycle += 1
-    if bearBos and not bearChoch and not cycleS
+    if cndS and not (structOk and newMoveS)
+        dbgObStruct += 1
+    else if cndS and not cycleS
         dbgObCycle += 1
 
 // FILTRE DE BRUIT SUR LA BOUGIE SOURCE.
@@ -1036,6 +1077,8 @@ if obTrigB and not na(atrV)
                 array.push(obBX, bx)
                 array.push(obBCr, bar_index)
                 array.push(obBSt, 0)
+                // Le niveau structurel vient d'etre consomme par cet OB.
+                obBLvlUsed := swingHigh
             break
         disp := math.max(disp, close[i] - open[i])
     if not found and barstate.isconfirmed
@@ -1087,6 +1130,7 @@ if obTrigS and not na(atrV)
                 array.push(obSX, bx)
                 array.push(obSCr, bar_index)
                 array.push(obSSt, 0)
+                obSLvlUsed := swingLow
             break
         disp := math.max(disp, open[i] - close[i])
     if not found and barstate.isconfirmed
@@ -2834,7 +2878,7 @@ if barstate.islast and dbgOn
 
     f_dbgH(6, "ORDER BLOCK")
     f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
-    f_dbgR(8,  "rej. depl. " + sl + " doubl. " + sl + " cycle", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle))
+    f_dbgR(8,  "rej. dep " + sl + " dbl " + sl + " cyc " + sl + " struct", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
     f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
     f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
     f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))

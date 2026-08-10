@@ -72,6 +72,7 @@ grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
 obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.", display=display.none)
 obHistMax = input.int(4, "Order Blocks valides conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un OB supplante par un nouveau CHoCH n'est pas invalide pour autant : il reste affiche tant que le prix ne l'a pas casse. Ce plafond borne l'historique. A 0, seul l'OB du dernier CHoCH est affiche. AFFICHAGE SEUL : le moteur de zones ne lit que l'OB actif.", display=display.none)
 bkMax     = input.int(3, "Breaker Blocks conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un Order Block casse par une cloture confirmee ne disparait pas : il devient un Breaker Block dans le sens INVERSE, memes bornes et meme bougie d'origine. Ce plafond borne l'historique conserve. A 0, les breakers ne sont pas affiches.", display=display.none)
+bkConfBars = input.int(20, "Breaker — fenetre de confirmation (bougies)", minval=1, maxval=200, group=grpZ, tooltip="D2. Une zone cassee attend une cassure de structure DANS LE SENS de la cassure pendant ce nombre de bougies. Sans confirmation, elle expire au lieu de devenir un Breaker : mieux vaut aucun Breaker qu'un Breaker invente. AFFICHAGE SEUL.", display=display.none)
 obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
 fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.", display=display.none)
 fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ, display=display.none)
@@ -87,6 +88,14 @@ liqTolAtr = input.float(0.15, "Tolerance d'egalite (x ATR)", minval=0.02, step=0
 liqMax    = input.int(4, "Poches SUIVIES par cote (logique)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches que le moteur SUIT. Influence la detection des sweeps et les points de liquidite du score : ce n'est PAS un reglage d'affichage. Il avait ete baisse a 2 pour desencombrer le graphique, ce qui reduisait au passage le nombre de sweeps detectables -- un reglage visuel modifiait donc une decision. Remis a 4 ; la lisibilite est desormais geree par le reglage separe ci-dessous.", display=display.none)
 liqShowMax = input.int(2, "Poches AFFICHEES par cote (visuel)", minval=1, maxval=8, group=grpL, tooltip="Nombre de poches tracees a l'ecran, les plus recentes. Purement visuel : le moteur continue d'en suivre liqMax. Changer ce reglage ne peut pas modifier un signal.", display=display.none)
 sweepShow = input.bool(true, "Marquer les sweeps", group=grpL, display=display.none)
+// D4 -- SEUILS DU SWEEP. Le test etait `high > niveau` : UN TICK au-dessus
+// suffisait, d'ou les sweeps declenches par de simples meches de bruit. Ces
+// deux seuils s'appliquent a la DETECTION, pas seulement a l'etiquette : ils
+// reduisent donc volontairement le nombre de zones institutionnelles, le gate
+// de creation commencant par `cSweep`. C'est le choix assume de moins de
+// setups mais des sweeps reellement exploitables.
+sweepMinPen = input.float(0.05, "Sweep — penetration minimum du niveau (x ATR)", minval=0.0, maxval=1.0, step=0.01, group=grpL, tooltip="La meche doit depasser le niveau de liquidite d'au moins cette distance. A 0, le comportement d'origine revient : un tick suffit. AFFECTE LA DETECTION, donc le nombre de zones.", display=display.none)
+sweepReject = input.float(0.10, "Sweep — rejet minimum en cloture (x ATR)", minval=0.0, maxval=1.0, step=0.01, group=grpL, tooltip="Apres avoir pris la liquidite, la cloture doit revenir de l'autre cote du niveau d'au moins cette distance. Une cloture a un tick du niveau n'est pas un rejet. AFFECTE LA DETECTION.", display=display.none)
 
 grpW = "⑦ Weekly Institutional Zones (PLANIFICATION — ne declenche aucun trade)"
 wzShow      = input.bool(true, "Zones institutionnelles hebdomadaires", group=grpW, tooltip="OUTIL DE PLANIFICATION. Chaque debut de semaine, le module publie le profil de volume de la semaine ECOULEE et en deduit au plus deux zones d'achat et deux zones de vente. Il n'entre dans AUCUNE condition d'entree : buySignal et sellSignal sont inchanges.\n\nCe que le module apporte : decider a l'avance ou tu regardes, ce qui est une discipline reelle. Ce qu'il n'apporte pas : une estimation de probabilite. Sur les 100 points de Confluence, 25 seulement (la structure) reposent sur un module dont l'avantage est mesure — le detail est dans le tableau.", display=display.none)
@@ -128,7 +137,7 @@ uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU, display=display.none)
 fibShow = input.bool(true, "Niveaux Fibonacci de la zone active", group=grpU, tooltip="Trace 50 / 61.8 / 70.5 / 78.6 sur le swing d'impulsion FIGE dans la zone -- celui que le moteur a reellement utilise pour la juger, pas un swing recalcule a l'affichage. Le niveau 50 % marque la separation premium / discount.", display=display.none)
 diagShow = input.bool(true, "Diagnostic du setup (conditions + raison du refus)", group=grpU, tooltip="Affiche l'etat de chaque condition de creation de zone et, quand aucune zone n'existe, la raison exacte du refus. Sert a comprendre un graphique vide sans relire le code.", display=display.none)
-zoneMaxBars = input.int(8, "Projection des zones vers la droite (bougies)", minval=0, maxval=100, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.", display=display.none)
+zoneMaxBars = input.int(8, "Projection des zones vers la droite (bougies)", minval=0, maxval=100, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. CORRECTIF DU CORRECTIF : le bord GAUCHE n'est plus tronque du tout, c'etait lui qui detachait les rectangles de leur bougie d'origine. Ce reglage ne commande plus que la PROJECTION VERS LA DROITE, au-dela de la bougie courante. AFFICHAGE SEUL.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -593,26 +602,52 @@ var int swBarUp = na
 var int swBarDn = na
 bool sweepUpBar = false
 bool sweepDnBar = false
-if array.size(eqhL) > 0
+
+// D4 -- UN VRAI SWEEP, PAS UNE MECHE DE BRUIT.
+// Trois conditions cumulatives remplacent l'ancien `high > lv` / `close < lv` :
+//   1. PENETRATION  -- la meche depasse le niveau d'au moins sweepMinPen x ATR ;
+//   2. REJET        -- la cloture revient de l'autre cote d'au moins
+//                      sweepReject x ATR, et non d'un tick ;
+//   3. CONSOMMATION -- la poche n'est retiree que si la penetration est REELLE.
+// Le point 3 est un choix a expliciter : auparavant un simple effleurement d'un
+// tick consommait la poche de liquidite. Elle disparaissait alors sans qu'aucun
+// sweep n'ait eu lieu, et le vrai sweep qui serait survenu plus tard sur ce
+// meme niveau ne pouvait plus etre detecte. Un effleurement n'est ni un sweep
+// ni une prise de liquidite : la poche survit.
+//
+// SENS : sweepUpBar = la liquidite ACHETEUSE au-dessus des EQH est prise puis
+// rejetee -- signal baissier. sweepDnBar = la liquidite VENDEUSE sous les EQL
+// est prise puis rejetee -- signal haussier. Ce mapping etait deja correct.
+//
+// D5 -- L'ETIQUETTE EST POSEE AU NIVEAU REELLEMENT PRIS (lv), plus a
+// l'extremite de la meche, et porte ce niveau dans son texte : le sweep est
+// ainsi rattache visuellement a la liquidite qu'il vient de consommer.
+//
+// Un seul marqueur SWEEP par bougie et par sens : la boucle parcourt TOUTES les
+// poches, et une bougie qui en traverse deux proches -- ce qui arrive, les
+// poches etant memorisees avec une tolerance -- creait deux etiquettes.
+float swPen = na(atrV) ? na : atrV * sweepMinPen
+float swRej = na(atrV) ? na : atrV * sweepReject
+if array.size(eqhL) > 0 and not na(swPen) and not na(swRej)
     for i = array.size(eqhL) - 1 to 0
         float lv = array.get(eqhL, i)
-        if high > lv
-            if close < lv
+        if high >= lv + swPen
+            if close <= lv - swRej
                 sweepUpBar := true
                 if sweepShow and array.size(swLb) < 40 and barstate.isconfirmed and (na(swBarUp) or swBarUp != bar_index)
                     swBarUp := bar_index
-                    array.push(swLb, label.new(bar_index, high, "SWEEP", style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
+                    array.push(swLb, label.new(bar_index, lv, "SWEEP " + str.tostring(lv, format.mintick), style=label.style_label_down, color=color.new(cBg, 100), textcolor=color.new(cDn, 20), size=size.tiny))
             array.remove(eqhL, i)
             array.remove(eqhB, i)
-if array.size(eqlL) > 0
+if array.size(eqlL) > 0 and not na(swPen) and not na(swRej)
     for i = array.size(eqlL) - 1 to 0
         float lv = array.get(eqlL, i)
-        if low < lv
-            if close > lv
+        if low <= lv - swPen
+            if close >= lv + swRej
                 sweepDnBar := true
                 if sweepShow and array.size(swLb) < 40 and barstate.isconfirmed and (na(swBarDn) or swBarDn != bar_index)
                     swBarDn := bar_index
-                    array.push(swLb, label.new(bar_index, low, "SWEEP", style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
+                    array.push(swLb, label.new(bar_index, lv, "SWEEP " + str.tostring(lv, format.mintick), style=label.style_label_up, color=color.new(cBg, 100), textcolor=color.new(cUp, 20), size=size.tiny))
             array.remove(eqlL, i)
             array.remove(eqlB, i)
 if array.size(swLb) > 6
@@ -630,14 +665,28 @@ var array<float> obST = array.new<float>()
 var array<float> obSB = array.new<float>()
 var array<int>   obSX = array.new<int>()
 
-// Etat de MITIGATION de l'OB actif : vrai des que le prix est revenu dans la
-// zone. Purement descriptif -- un retest ne retire jamais l'OB, il ne change
-// que sa transparence. Mitigation et invalidation sont deux evenements
-// differents et le restent.
-var array<bool>  obBMit = array.new<bool>()
-var array<bool>  obSMit = array.new<bool>()
+// D3 -- IDENTITE DE LA ZONE.
+// obB*X est la bougie d'ORIGINE : celle qui CONSTITUE l'Order Block, celle a
+// laquelle le rectangle est ancre. obB*Cr est la bougie de CREATION : celle du
+// CHoCH qui l'a fait naitre. Les deux different toujours et servent a des
+// choses differentes -- X ancre le dessin, Cr date l'evenement et sert de
+// garde a la mitigation (voir D1 plus bas).
+var array<int>   obBCr = array.new<int>()
+var array<int>   obSCr = array.new<int>()
 
-// BREAKER BLOCKS, dans des tableaux SEPARES de obB*/obS*. C'est deliberé :
+// D3 -- ETAT : 0 = FRESH, 1 = MITIGATED, 2 = TESTED.
+//   MITIGATED : une MECHE est entree dans la zone.
+//   TESTED    : une bougie a CLOTURE a l'interieur sans la casser.
+// Les deux etats restants du cycle -- PENDING BREAK et BREAKER -- ne sont
+// volontairement PAS des valeurs de ce tableau, mais des tableaux distincts
+// (pb*, bk*). Une zone cassee n'est plus un Order Block : elle ne peut donc pas
+// porter un etat d'Order Block. L'appartenance au tableau EST l'etat, ce qui
+// supprime par construction toute possibilite de contradiction entre les deux.
+// Aucun de ces etats n'est lu par une condition de trading : rendu uniquement.
+var array<int>   obBSt = array.new<int>()
+var array<int>   obSSt = array.new<int>()
+
+// BREAKER BLOCKS, dans des tableaux SEPARES de obB*/obS*. C'est delibere :
 // le moteur de zones lit array.get(obBT, 0) et array.size(obBT). Y verser les
 // breakers les ferait apparier comme des Order Blocks et modifierait la
 // creation des zones -- donc le trading. Separes, le moteur voit exactement ce
@@ -645,12 +694,35 @@ var array<bool>  obSMit = array.new<bool>()
 // puisque array.clear ne porte que sur obB*/obS*.
 // bkS* = breaker BAISSIER, ne d'un OB haussier casse par le bas (resistance).
 // bkB* = breaker HAUSSIER, ne d'un OB baissier casse par le haut (support).
+// bk*Tr = bougie de TRANSFORMATION en breaker (D3, identite).
 var array<float> bkST = array.new<float>()
 var array<float> bkSB = array.new<float>()
 var array<int>   bkSX = array.new<int>()
+var array<int>   bkSCr = array.new<int>()
+var array<int>   bkSTr = array.new<int>()
 var array<float> bkBT = array.new<float>()
 var array<float> bkBB = array.new<float>()
 var array<int>   bkBX = array.new<int>()
+var array<int>   bkBCr = array.new<int>()
+var array<int>   bkBTr = array.new<int>()
+
+// D2 -- PENDING BREAK : zone cassee, en attente de confirmation structurelle.
+// Une cassure ne fabrique plus un Breaker a elle seule. La zone cassee attend
+// ICI une cassure de structure DANS LE SENS de la cassure ; sans elle, elle
+// expire au bout de bkConfBars bougies sans jamais devenir Breaker.
+// pbS* = ex-OB haussier casse par le bas  -> candidat breaker BAISSIER.
+// pbB* = ex-OB baissier casse par le haut -> candidat breaker HAUSSIER.
+// pb*Bk = bougie de CASSURE (D3, identite ; borne aussi la fenetre d'attente).
+var array<float> pbST = array.new<float>()
+var array<float> pbSB = array.new<float>()
+var array<int>   pbSX = array.new<int>()
+var array<int>   pbSCr = array.new<int>()
+var array<int>   pbSBk = array.new<int>()
+var array<float> pbBT = array.new<float>()
+var array<float> pbBB = array.new<float>()
+var array<int>   pbBX = array.new<int>()
+var array<int>   pbBCr = array.new<int>()
+var array<int>   pbBBk = array.new<int>()
 
 // HISTORIQUE DES ORDER BLOCKS ENCORE VALIDES, AFFICHAGE SEUL.
 // obBT/obST ne contiennent qu'UN element : celui du dernier CHoCH. C'est ce
@@ -659,56 +731,33 @@ var array<int>   bkBX = array.new<int>()
 // ANCIEN et modifierait l'appariement OB/FVG, donc le trading.
 // Un OB supplante par un nouveau CHoCH n'est pourtant pas invalide : il rejoint
 // ces tableaux au lieu d'etre detruit par array.clear, et y poursuit son cycle
-// de vie complet (mitigation, invalidation, transformation en Breaker).
+// de vie complet (mitigation, test, cassure, attente, transformation).
 var array<float> ohBT = array.new<float>()
 var array<float> ohBB = array.new<float>()
 var array<int>   ohBX = array.new<int>()
-var array<bool>  ohBM = array.new<bool>()
+var array<int>   ohBCr = array.new<int>()
+var array<int>   ohBSt = array.new<int>()
 var array<float> ohST = array.new<float>()
 var array<float> ohSB = array.new<float>()
 var array<int>   ohSX = array.new<int>()
-var array<bool>  ohSM = array.new<bool>()
+var array<int>   ohSCr = array.new<int>()
+var array<int>   ohSSt = array.new<int>()
 
 // UN SEUL Order Block par cote : celui de la derniere impulsion valide.
 // Empiler des dizaines d'OB ne renseigne sur rien — seul le dernier a encore
 // un sens operationnel. On remplace donc au lieu d'ajouter.
 // Les MECHES sont incluses : le bord reel de la zone est l'extreme atteint.
 // L'Order Block est fige a l'impulsion qui a produit le CHoCH, c'est-a-dire a
-// l'ORIGINE du mouvement. Le garde etait `if bullBos` : chaque BOS de
-// continuation vidait les tableaux et repoussait un OB pris de plus en plus
-// tard dans la jambe. Comme l'etape 3 exige un BOS POSTERIEUR au CHoCH,
-// l'Order Block apparie etait systematiquement celui de la confirmation, pres
-// du SOMMET de l'impulsion. Le retracement mesure a son bord tombait alors
-// vers 15-25 %, sous le plancher de 38,2 %, et le Fibonacci rejetait presque
-// toutes les zones -- par construction, pas par severite de reglage.
-// Avec `if bullChoch`, un BOS de continuation n'entre plus dans le bloc : il
-// ne peut donc ni vider ni repousser les tableaux. Garantie structurelle.
-// Effet attendu sur l'appariement : l'OB d'origine se trouve juste sous le FVG
-// cree par la MEME impulsion (ecart proche de zero), alors qu'un FVG plus
-// tardif est loin. La regle "retenir le FVG donnant l'union la plus serree",
-// ecrite a l'etape 2 et jusqu'ici sans effet, selectionne desormais le FVG du
-// meme mouvement.
+// l'ORIGINE du mouvement.
+//
 // DEPLACEMENT MESURE SUR L'IMPULSION, plus sur la seule bougie de CHoCH.
-// `disp` valait `close - open`, c'est-a-dire le corps de la bougie de CHoCH
-// prise isolement. Or un Order Block se definit par le deplacement QUI SUIT :
-// une impulsion de trois bougies a 1.2 $ chacune -- 3.6 $ de mouvement, bien
-// au-dela du seuil -- etait rejetee parce qu'aucune bougie seule n'atteignait
-// 3.6 $. Erreur de quantite mesuree, pas de severite : obDispAtr reste a 1.2.
-// On retient le plus grand corps de l'impulsion, de la bougie qui suit l'OB
-// jusqu'a celle du CHoCH incluse : il faut donc toujours au moins une bougie
-// decisive, ce n'est pas un assouplissement. Mesurer l'amplitude totale de la
-// jambe aurait au contraire rendu le filtre decoratif, une amplitude
-// multi-bougies depassant presque toujours 1.2 ATR.
 // L'accumulation se fait dans la boucle de recherche elle-meme, et non dans une
-// boucle imbriquee `for k = 0 to i - 1`. Cette forme-la faisait echouer le
-// script : la profondeur d'historique de `close[k]` dependait du compteur d'une
-// autre boucle, donc d'une valeur connue seulement a l'execution, et Pine ne
-// peut pas dimensionner le tampon de series dans ce cas. Ici `close[i]` reste
-// borne par swingLen, un input -- la forme qui fonctionnait deja plus haut.
+// boucle imbriquee `for k = 0 to i - 1` : cette forme-la faisait echouer le
+// script, la profondeur d'historique de `close[k]` dependant du compteur d'une
+// autre boucle. Ici `close[i]` reste borne par swingLen, un input.
 // Quantite calculee strictement identique : quand l'OB est trouve a l'indice i,
-// les bougies 1..i-1 sont haussieres par construction (la boucle ne les
-// depasse que tant que close[i] >= open[i]), donc le maximum accumule est bien
-// celui des corps 0..i-1.
+// les bougies 1..i-1 sont haussieres par construction, donc le maximum
+// accumule est bien celui des corps 0..i-1.
 if bullChoch and not na(atrV)
     float disp = close - open
     for i = 1 to swingLen
@@ -719,18 +768,21 @@ if bullChoch and not na(atrV)
                     array.push(ohBT, array.get(obBT, 0))
                     array.push(ohBB, array.get(obBB, 0))
                     array.push(ohBX, array.get(obBX, 0))
-                    array.push(ohBM, array.size(obBMit) > 0 ? array.get(obBMit, 0) : false)
+                    array.push(ohBCr, array.get(obBCr, 0))
+                    array.push(ohBSt, array.get(obBSt, 0))
                 array.clear(obBT)
                 array.clear(obBB)
                 array.clear(obBX)
-                array.clear(obBMit)
+                array.clear(obBCr)
+                array.clear(obBSt)
                 array.push(obBT, high[i])
                 array.push(obBB, low[i])
                 array.push(obBX, bar_index - i)
-                array.push(obBMit, false)
+                array.push(obBCr, bar_index)
+                array.push(obBSt, 0)
             break
         disp := math.max(disp, close[i] - open[i])
-// Miroir baissier du correctif ci-dessus.
+// Miroir baissier du bloc ci-dessus.
 if bearChoch and not na(atrV)
     float disp = open - close
     for i = 1 to swingLen
@@ -740,54 +792,143 @@ if bearChoch and not na(atrV)
                     array.push(ohST, array.get(obST, 0))
                     array.push(ohSB, array.get(obSB, 0))
                     array.push(ohSX, array.get(obSX, 0))
-                    array.push(ohSM, array.size(obSMit) > 0 ? array.get(obSMit, 0) : false)
+                    array.push(ohSCr, array.get(obSCr, 0))
+                    array.push(ohSSt, array.get(obSSt, 0))
                 array.clear(obST)
                 array.clear(obSB)
                 array.clear(obSX)
-                array.clear(obSMit)
+                array.clear(obSCr)
+                array.clear(obSSt)
                 array.push(obST, high[i])
                 array.push(obSB, low[i])
                 array.push(obSX, bar_index - i)
-                array.push(obSMit, false)
+                array.push(obSCr, bar_index)
+                array.push(obSSt, 0)
             break
         disp := math.max(disp, open[i] - close[i])
-// Un OB traverse en cloture n'a plus de sens.
+
 // ---- CYCLE DE VIE DES ORDER BLOCKS -------------------------------------
-// MITIGATION : le prix est revenu dans la zone. L'OB reste ACTIF, seule sa
-// transparence changera a l'affichage. Ce n'est pas une invalidation.
+// D1 -- UN OB N'EST JAMAIS MITIGE SUR SA PROPRE BOUGIE DE CREATION.
+// Le test porte sur le range de la bougie COURANTE, et ce bloc s'execute sur la
+// MEME bougie que la creation, juste au-dessus. L'Order Block se trouvant a une
+// a trois bougies en arriere, la bougie de CHoCH chevauchait presque toujours
+// la zone qu'elle venait de creer : l'OB naissait deja "mitige" et l'etat FRESH
+// n'existait pratiquement jamais a l'ecran. La garde `bar_index > obBCr` ferme
+// cette porte sans rien changer d'autre.
+//
+// MITIGATION (etat 1) : une meche entre dans la zone.
+// TEST       (etat 2) : une bougie CLOTURE a l'interieur sans la casser.
+// Ni l'un ni l'autre n'est une invalidation. Aucun des deux ne retire l'OB :
+// il reste affiche et actif, seule sa transparence change.
 if array.size(obBB) > 0
     for i = 0 to array.size(obBB) - 1
-        if low <= array.get(obBT, i) and high >= array.get(obBB, i)
-            array.set(obBMit, i, true)
+        if bar_index > array.get(obBCr, i)
+            float t = array.get(obBT, i)
+            float b = array.get(obBB, i)
+            if low <= t and high >= b and array.get(obBSt, i) < 1
+                array.set(obBSt, i, 1)
+            if close <= t and close >= b and barstate.isconfirmed and array.get(obBSt, i) < 2
+                array.set(obBSt, i, 2)
 if array.size(obSB) > 0
     for i = 0 to array.size(obSB) - 1
-        if low <= array.get(obST, i) and high >= array.get(obSB, i)
-            array.set(obSMit, i, true)
+        if bar_index > array.get(obSCr, i)
+            float t = array.get(obST, i)
+            float b = array.get(obSB, i)
+            if low <= t and high >= b and array.get(obSSt, i) < 1
+                array.set(obSSt, i, 1)
+            if close <= t and close >= b and barstate.isconfirmed and array.get(obSSt, i) < 2
+                array.set(obSSt, i, 2)
 
 // INVALIDATION : cloture CONFIRMEE au-dela du bord oppose. Une meche qui
 // traverse ne suffit pas -- le test porte sur close, jamais sur low/high.
-// L'OB n'est pas efface : ses bornes et sa bougie d'origine sont recopiees
-// dans les tableaux de breakers, ou il continue sa vie dans le sens inverse.
+//
+// D2 -- LA CASSURE NE FABRIQUE PLUS UN BREAKER DIRECTEMENT. La zone quitte
+// obB*/obS* exactement au meme instant et sous exactement la meme condition
+// qu'avant : c'est ce que lit le moteur de zones, il ne voit donc aucun
+// changement. Mais elle atterrit en ATTENTE (pb*), pas en Breaker.
 if array.size(obBB) > 0
     for i = array.size(obBB) - 1 to 0
         if close < array.get(obBB, i) and barstate.isconfirmed
-            array.push(bkST, array.get(obBT, i))
-            array.push(bkSB, array.get(obBB, i))
-            array.push(bkSX, array.get(obBX, i))
+            array.push(pbST, array.get(obBT, i))
+            array.push(pbSB, array.get(obBB, i))
+            array.push(pbSX, array.get(obBX, i))
+            array.push(pbSCr, array.get(obBCr, i))
+            array.push(pbSBk, bar_index)
             array.remove(obBT, i)
             array.remove(obBB, i)
             array.remove(obBX, i)
-            array.remove(obBMit, i)
+            array.remove(obBCr, i)
+            array.remove(obBSt, i)
 if array.size(obST) > 0
     for i = array.size(obST) - 1 to 0
         if close > array.get(obST, i) and barstate.isconfirmed
-            array.push(bkBT, array.get(obST, i))
-            array.push(bkBB, array.get(obSB, i))
-            array.push(bkBX, array.get(obSX, i))
+            array.push(pbBT, array.get(obST, i))
+            array.push(pbBB, array.get(obSB, i))
+            array.push(pbBX, array.get(obSX, i))
+            array.push(pbBCr, array.get(obSCr, i))
+            array.push(pbBBk, bar_index)
             array.remove(obST, i)
             array.remove(obSB, i)
             array.remove(obSX, i)
-            array.remove(obSMit, i)
+            array.remove(obSCr, i)
+            array.remove(obSSt, i)
+
+// D2 -- PROMOTION EN BREAKER, seulement apres confirmation structurelle.
+// Un OB haussier casse par le bas ne devient une resistance que si la structure
+// confirme le sens de la cassure : il faut un BOS ou un CHoCH BAISSIER
+// POSTERIEUR a la bougie de cassure (bar_index > bkBar, strictement). Une
+// simple bougie qui traverse ne suffit plus, et un retournement de tendance
+// sans cassure prealable de la zone ne transforme jamais rien -- c'est
+// exactement le cas "un OB bullish ne devient pas bearish parce que la tendance
+// devient bearish".
+// Sans confirmation dans la fenetre, la zone EXPIRE : elle ne devient pas
+// Breaker, elle disparait. Mieux vaut aucun Breaker qu'un Breaker invente.
+if array.size(pbST) > 0
+    for i = array.size(pbST) - 1 to 0
+        int bkBar = array.get(pbSBk, i)
+        bool conf = (bearBos or bearChoch) and bar_index > bkBar
+        bool aged = (bar_index - bkBar) > bkConfBars
+        if barstate.isconfirmed and (conf or aged)
+            if conf
+                array.push(bkST, array.get(pbST, i))
+                array.push(bkSB, array.get(pbSB, i))
+                array.push(bkSX, array.get(pbSX, i))
+                array.push(bkSCr, array.get(pbSCr, i))
+                array.push(bkSTr, bar_index)
+            array.remove(pbST, i)
+            array.remove(pbSB, i)
+            array.remove(pbSX, i)
+            array.remove(pbSCr, i)
+            array.remove(pbSBk, i)
+if array.size(pbBT) > 0
+    for i = array.size(pbBT) - 1 to 0
+        int bkBar = array.get(pbBBk, i)
+        bool conf = (bullBos or bullChoch) and bar_index > bkBar
+        bool aged = (bar_index - bkBar) > bkConfBars
+        if barstate.isconfirmed and (conf or aged)
+            if conf
+                array.push(bkBT, array.get(pbBT, i))
+                array.push(bkBB, array.get(pbBB, i))
+                array.push(bkBX, array.get(pbBX, i))
+                array.push(bkBCr, array.get(pbBCr, i))
+                array.push(bkBTr, bar_index)
+            array.remove(pbBT, i)
+            array.remove(pbBB, i)
+            array.remove(pbBX, i)
+            array.remove(pbBCr, i)
+            array.remove(pbBBk, i)
+while array.size(pbST) > bkMax
+    array.shift(pbST)
+    array.shift(pbSB)
+    array.shift(pbSX)
+    array.shift(pbSCr)
+    array.shift(pbSBk)
+while array.size(pbBT) > bkMax
+    array.shift(pbBT)
+    array.shift(pbBB)
+    array.shift(pbBX)
+    array.shift(pbBCr)
+    array.shift(pbBBk)
 
 // MORT DU BREAKER : un breaker baissier est une resistance, il meurt sur une
 // cloture confirmee AU-DESSUS ; le breaker haussier est un support, il meurt
@@ -798,63 +939,90 @@ if array.size(bkST) > 0
             array.remove(bkST, i)
             array.remove(bkSB, i)
             array.remove(bkSX, i)
+            array.remove(bkSCr, i)
+            array.remove(bkSTr, i)
 if array.size(bkBT) > 0
     for i = array.size(bkBT) - 1 to 0
         if close < array.get(bkBB, i) and barstate.isconfirmed
             array.remove(bkBT, i)
             array.remove(bkBB, i)
             array.remove(bkBX, i)
+            array.remove(bkBCr, i)
+            array.remove(bkBTr, i)
 while array.size(bkST) > bkMax
     array.shift(bkST)
     array.shift(bkSB)
     array.shift(bkSX)
+    array.shift(bkSCr)
+    array.shift(bkSTr)
 while array.size(bkBT) > bkMax
     array.shift(bkBT)
     array.shift(bkBB)
     array.shift(bkBX)
+    array.shift(bkBCr)
+    array.shift(bkBTr)
 
 // ---- MEME CYCLE DE VIE POUR LES OB DE L'HISTORIQUE ---------------------
-// Mitigation, puis invalidation par cloture confirmee avec passage en Breaker,
-// puis plafond. Identique a l'OB actif : un OB supplante n'est ni fige ni
-// oublie, il continue simplement sa vie hors du champ du moteur de zones.
+// Mitigation, test, cassure vers l'attente, puis plafond. Identique a l'OB
+// actif : un OB supplante n'est ni fige ni oublie, il continue simplement sa
+// vie hors du champ du moteur de zones. La garde de creation (D1) s'applique
+// aussi, meme si elle est toujours vraie ici : la coherence prime.
 if array.size(ohBB) > 0
     for i = 0 to array.size(ohBB) - 1
-        if low <= array.get(ohBT, i) and high >= array.get(ohBB, i)
-            array.set(ohBM, i, true)
+        if bar_index > array.get(ohBCr, i)
+            float t = array.get(ohBT, i)
+            float b = array.get(ohBB, i)
+            if low <= t and high >= b and array.get(ohBSt, i) < 1
+                array.set(ohBSt, i, 1)
+            if close <= t and close >= b and barstate.isconfirmed and array.get(ohBSt, i) < 2
+                array.set(ohBSt, i, 2)
 if array.size(ohSB) > 0
     for i = 0 to array.size(ohSB) - 1
-        if low <= array.get(ohST, i) and high >= array.get(ohSB, i)
-            array.set(ohSM, i, true)
+        if bar_index > array.get(ohSCr, i)
+            float t = array.get(ohST, i)
+            float b = array.get(ohSB, i)
+            if low <= t and high >= b and array.get(ohSSt, i) < 1
+                array.set(ohSSt, i, 1)
+            if close <= t and close >= b and barstate.isconfirmed and array.get(ohSSt, i) < 2
+                array.set(ohSSt, i, 2)
 if array.size(ohBB) > 0
     for i = array.size(ohBB) - 1 to 0
         if close < array.get(ohBB, i) and barstate.isconfirmed
-            array.push(bkST, array.get(ohBT, i))
-            array.push(bkSB, array.get(ohBB, i))
-            array.push(bkSX, array.get(ohBX, i))
+            array.push(pbST, array.get(ohBT, i))
+            array.push(pbSB, array.get(ohBB, i))
+            array.push(pbSX, array.get(ohBX, i))
+            array.push(pbSCr, array.get(ohBCr, i))
+            array.push(pbSBk, bar_index)
             array.remove(ohBT, i)
             array.remove(ohBB, i)
             array.remove(ohBX, i)
-            array.remove(ohBM, i)
+            array.remove(ohBCr, i)
+            array.remove(ohBSt, i)
 if array.size(ohST) > 0
     for i = array.size(ohST) - 1 to 0
         if close > array.get(ohST, i) and barstate.isconfirmed
-            array.push(bkBT, array.get(ohST, i))
-            array.push(bkBB, array.get(ohSB, i))
-            array.push(bkBX, array.get(ohSX, i))
+            array.push(pbBT, array.get(ohST, i))
+            array.push(pbBB, array.get(ohSB, i))
+            array.push(pbBX, array.get(ohSX, i))
+            array.push(pbBCr, array.get(ohSCr, i))
+            array.push(pbBBk, bar_index)
             array.remove(ohST, i)
             array.remove(ohSB, i)
             array.remove(ohSX, i)
-            array.remove(ohSM, i)
+            array.remove(ohSCr, i)
+            array.remove(ohSSt, i)
 while array.size(ohBT) > obHistMax
     array.shift(ohBT)
     array.shift(ohBB)
     array.shift(ohBX)
-    array.shift(ohBM)
+    array.shift(ohBCr)
+    array.shift(ohBSt)
 while array.size(ohST) > obHistMax
     array.shift(ohST)
     array.shift(ohSB)
     array.shift(ohSX)
-    array.shift(ohSM)
+    array.shift(ohSCr)
+    array.shift(ohSSt)
 
 // --- Fair Value Gaps : taille ET deplacement ------------------------------
 // Un FVG n'est retenu que si l'ecart depasse fvgMinAtr ET que la bougie qui
@@ -1810,31 +1978,54 @@ if barstate.islast
     // Le prefixe "5. " reste, mais il ne fait plus que METTRE EN VALEUR l'OB
     // ancre de la zone active : il ne conditionne plus l'affichage.
     if obShow
+        // D3 -- L'ETAT SE LIT DANS LE TEXTE, la palette et les deux niveaux de
+        // transparence d'origine sont conserves tels quels.
+        //   "OB"    = FRESH, jamais retouche
+        //   "OB ·"  = MITIGATED, une meche est entree
+        //   "OB ··" = TESTED, une bougie a cloture dedans sans casser
+        // Un OB mitige ou teste reste ACTIF et VISIBLE : seule sa transparence
+        // change. Il ne disparait que casse, et meme alors il ne disparait pas
+        // vraiment -- il passe en attente (voir plus bas).
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
                 bool obActive = f_nearZone(array.get(obBT, i), array.get(obBB, i))
-                // Un OB deja mitige reste ACTIF : il est seulement un peu plus
-                // efface, pour distinguer "jamais retouche" de "deja teste".
-                bool obMit = array.size(obBMit) > i and array.get(obBMit, i)
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, obMit ? 55 : 40), color.new(cBlue, obMit ? 90 : 85), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
+                int  obSt  = array.get(obBSt, i)
+                bool obMit = obSt >= 1
+                string obTx = (obActive ? "5. OB" : "OB") + (obSt >= 2 ? " ··" : obSt >= 1 ? " ·" : "")
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, obMit ? 55 : 40), color.new(cBlue, obMit ? 90 : 85), obTx, color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
-                bool obMit = array.size(obSMit) > i and array.get(obSMit, i)
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+                int  obSt  = array.get(obSSt, i)
+                bool obMit = obSt >= 1
+                string obTx = (obActive ? "5. OB" : "OB") + (obSt >= 2 ? " ··" : obSt >= 1 ? " ·" : "")
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), obTx, color.new(cPurp, 25), line.style_solid)
 
         // Historique : memes couleurs et meme style que l'OB actif -- un OB
         // valide reste un OB valide, qu'il porte ou non le setup en cours.
         if array.size(ohBT) > 0
             for i = 0 to array.size(ohBT) - 1
-                bool ohMit = array.get(ohBM, i)
-                f_zone(array.get(ohBT, i), array.get(ohBB, i), array.get(ohBX, i), color.new(cBlue, ohMit ? 55 : 40), color.new(cBlue, ohMit ? 90 : 85), "OB", color.new(cBlue, 25), line.style_solid)
+                int  ohSt  = array.get(ohBSt, i)
+                bool ohMit = ohSt >= 1
+                f_zone(array.get(ohBT, i), array.get(ohBB, i), array.get(ohBX, i), color.new(cBlue, ohMit ? 55 : 40), color.new(cBlue, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cBlue, 25), line.style_solid)
         if array.size(ohST) > 0
             for i = 0 to array.size(ohST) - 1
-                bool ohMit = array.get(ohSM, i)
-                f_zone(array.get(ohST, i), array.get(ohSB, i), array.get(ohSX, i), color.new(cPurp, ohMit ? 55 : 40), color.new(cPurp, ohMit ? 90 : 85), "OB", color.new(cPurp, 25), line.style_solid)
+                int  ohSt  = array.get(ohSSt, i)
+                bool ohMit = ohSt >= 1
+                f_zone(array.get(ohST, i), array.get(ohSB, i), array.get(ohSX, i), color.new(cPurp, ohMit ? 55 : 40), color.new(cPurp, ohMit ? 90 : 85), "OB" + (ohSt >= 2 ? " ··" : ohSt >= 1 ? " ·" : ""), color.new(cPurp, 25), line.style_solid)
 
-        // BREAKER BLOCKS. Meme zone, meme origine, sens inverse.
+        // D2 -- ZONES CASSEES EN ATTENTE DE CONFIRMATION. Couleurs du futur
+        // Breaker, mais contour POINTILLE et texte "BB?" : la zone est cassee,
+        // elle n'est pas encore un Breaker et ne le sera peut-etre jamais.
+        // Aucune couleur nouvelle n'est introduite.
+        if array.size(pbST) > 0
+            for i = 0 to array.size(pbST) - 1
+                f_zone(array.get(pbST, i), array.get(pbSB, i), array.get(pbSX, i), color.new(cPurp, 55), color.new(cDn, 93), "BB?", color.new(cPurp, 40), line.style_dashed)
+        if array.size(pbBT) > 0
+            for i = 0 to array.size(pbBT) - 1
+                f_zone(array.get(pbBT, i), array.get(pbBB, i), array.get(pbBX, i), color.new(cBlue, 55), color.new(cUp, 93), "BB?", color.new(cBlue, 40), line.style_dashed)
+
+        // BREAKER BLOCKS CONFIRMES. Meme zone, meme origine, sens inverse.
         // Baissier (ex-OB haussier casse) : contour violet, fond rouge.
         // Haussier (ex-OB baissier casse) : contour bleu, fond vert.
         if array.size(bkST) > 0

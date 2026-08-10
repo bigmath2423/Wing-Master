@@ -623,7 +623,22 @@ var array<int>   obSX = array.new<int>()
 // Empiler des dizaines d'OB ne renseigne sur rien — seul le dernier a encore
 // un sens operationnel. On remplace donc au lieu d'ajouter.
 // Les MECHES sont incluses : le bord reel de la zone est l'extreme atteint.
-if bullBos and not na(atrV)
+// L'Order Block est fige a l'impulsion qui a produit le CHoCH, c'est-a-dire a
+// l'ORIGINE du mouvement. Le garde etait `if bullBos` : chaque BOS de
+// continuation vidait les tableaux et repoussait un OB pris de plus en plus
+// tard dans la jambe. Comme l'etape 3 exige un BOS POSTERIEUR au CHoCH,
+// l'Order Block apparie etait systematiquement celui de la confirmation, pres
+// du SOMMET de l'impulsion. Le retracement mesure a son bord tombait alors
+// vers 15-25 %, sous le plancher de 38,2 %, et le Fibonacci rejetait presque
+// toutes les zones -- par construction, pas par severite de reglage.
+// Avec `if bullChoch`, un BOS de continuation n'entre plus dans le bloc : il
+// ne peut donc ni vider ni repousser les tableaux. Garantie structurelle.
+// Effet attendu sur l'appariement : l'OB d'origine se trouve juste sous le FVG
+// cree par la MEME impulsion (ecart proche de zero), alors qu'un FVG plus
+// tardif est loin. La regle "retenir le FVG donnant l'union la plus serree",
+// ecrite a l'etape 2 et jusqu'ici sans effet, selectionne desormais le FVG du
+// meme mouvement.
+if bullChoch and not na(atrV)
     float disp = close - open
     for i = 1 to swingLen
         if close[i] < open[i]
@@ -635,7 +650,7 @@ if bullBos and not na(atrV)
                 array.push(obBB, low[i])
                 array.push(obBX, bar_index - i)
             break
-if bearBos and not na(atrV)
+if bearChoch and not na(atrV)
     float disp = open - close
     for i = 1 to swingLen
         if close[i] > open[i]
@@ -1096,7 +1111,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 dgScore := na
 
             if not na(zT)
-                // Epaisseur plancher : une intersection de quelques ticks
+                // Epaisseur plancher : une union de quelques ticks
                 // serait invisible a l'ecran. wzWidthAtr sert desormais de
                 // MINIMUM, plus de largeur imposee.
                 float minH = atrV * wzWidthAtr * 0.25
@@ -1138,7 +1153,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 // 15 — FIBONACCI de l'impulsion du BOS, mesure au niveau
                 //      d'execution de la zone (haut pour un achat, bas pour une
                 //      vente). Ces 15 points etaient auparavant "Zone SMC" -- une
-                //      CONSTANTE depuis que la zone EST l'intersection OB x FVG :
+                //      CONSTANTE depuis que la zone EST l'union OB x FVG :
                 //      15 points toujours accordes, qui ne discriminaient donc
                 //      jamais rien. Ils sont reaffectes ici a une mesure qui,
                 //      elle, varie. L'echelle reste sur 100, sans inflation.
@@ -1540,7 +1555,7 @@ f_lvl(float y, color col, string txt, string sty) =>
 // reelle tant qu'elle est recente, et cesse de balayer tout l'ecran quand
 // elle vieillit. Les bornes de PRIX (top/bot) ne sont jamais touchees.
 // Une boite OB/FVG appartient-elle au setup en cours ? Vraie si elle
-// CHEVAUCHE une zone active. Comme la zone EST l'intersection OB x FVG, les
+// CHEVAUCHE une zone active. Comme la zone EST l'union OB x FVG, les
 // deux ancres de cette zone la chevauchent forcement -- un seul test suffit
 // donc pour les deux types, sans avoir a memoriser le FVG separement.
 f_nearZone(float t, float b) =>

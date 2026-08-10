@@ -1732,8 +1732,24 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     else
         dgFvg := array.size(fvST) > 0
         dgOb  := array.size(obST) > 0
-    if not dgFvg or not dgOb
-        dgRej := not dgOb ? "AUCUN ORDER BLOCK" : "AUCUN FVG"
+    // ---- DIAGNOSTIC : HIERARCHIE UNIQUE, NIVEAUX 1 A 5 ------------------
+    // Le statut etait ecrit a trois endroits sans ordre de priorite, et les
+    // deux premiers masquaient le troisieme : la chaine structurelle
+    // (SWEEP/CHOCH/BOS) n'etait evaluee QUE si l'appariement OB x FVG avait
+    // reussi, puisqu'elle vivait dans `if not na(zT)`. Un sweep absent restait
+    // donc invisible des que l'appariement echouait.
+    //
+    // f_seqSweep / f_seqChoch / f_seqBos ne lisent que des index persistants
+    // -- swpDnIdx, chochUpIdx, bosUpIdx, tous figes bien avant ce point. Les
+    // appeler ici rend EXACTEMENT les memes valeurs que cSweep/cChoch/cBos
+    // plus bas : aucune regle n'est dupliquee, seule la LECTURE est avancee.
+    // Rien de ce bloc n'est lu par une condition de creation de zone.
+    //
+    // Effet de bord voulu : quand chochUpIdx vaut na, f_seqChoch est faux et
+    // "CHOCH MANQUANT" se declenche ICI. Le statut "OB HORS DU CYCLE COURANT",
+    // qui exige lui aussi un CHoCH, ne peut donc plus etre affiche a sa place.
+    dgRej := not f_seqSweep(isBuyBiasNow) ? "SWEEP MANQUANT" : not f_seqChoch(isBuyBiasNow) ? "CHOCH MANQUANT" : not f_seqBos(isBuyBiasNow) ? "BOS MANQUANT" : not dgOb ? "AUCUN ORDER BLOCK" : not dgFvg ? "AUCUN FVG" : ""
+    if dgRej != ""
         dgScore := na
     float rgLo = na(wLoPrev) ? wVal : wLoPrev
     float rgHi = na(wHiPrev) ? wVah : wHiPrev
@@ -1799,6 +1815,11 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             float zB = na
             int   zX = na
             float bestH = na
+            // Vrai des qu'un FVG au moins appartient a l'impulsion de l'OB.
+            // Sert UNIQUEMENT a distinguer, dans le diagnostic, "FVG hors du
+            // cycle" de "OB et FVG trop eloignes". N'entre dans aucune
+            // condition d'appariement ni de creation.
+            bool anyFvCycle = false
             for j = 0 to nFv - 1
                 float fT = isBuy ? array.get(fvBT, j) : array.get(fvST, j)
                 float fB = isBuy ? array.get(fvBB, j) : array.get(fvSB, j)
@@ -1808,6 +1829,8 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 float uT  = math.max(obT, fT)
                 float uB  = math.min(obB, fB)
                 float uH  = uT - uB
+                if fX >= obX
+                    anyFvCycle := true
                 if obSameCycle and fX >= obX and gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
                     if na(bestH) or uH < bestH
                         bestH := uH
@@ -1816,8 +1839,11 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         zX := math.min(obX, fX)
 
             // Diagnostic : OB et FVG presents mais jamais appariables.
-            if na(zT) and isBuy == isBuyBiasNow
-                dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
+            // NIVEAUX 6 A 8. La garde `dgRej == ""` est ce qui rend la
+            // hierarchie stricte : si la structure ou la presence d'un OB/FVG
+            // bloquait deja, ce statut-ci ne peut plus recouvrir le vrai motif.
+            if na(zT) and isBuy == isBuyBiasNow and dgRej == ""
+                dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : not anyFvCycle ? "FVG HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
                 dgScore := na
 
             if not na(zT)
@@ -1918,7 +1944,13 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                     dgHtf   := f_ctxAllow(isBuy)
                     dgPd    := fibOk
                     dgScore := score
-                    dgRej := not cSweep ? "SWEEP MANQUANT" : not cChoch ? "CHOCH MANQUANT" : not cBos ? "BOS MANQUANT" : not fibNotInvalid ? "FIBONACCI INVALIDE" : not fibOk ? "CONFLIT PREMIUM/DISCOUNT" : not f_ctxAllow(isBuy) ? "CONTEXTE HTF OPPOSE" : score < wzMinScore ? "CONFLUENCE " + str.tostring(int(math.round(score))) + " < " + str.tostring(wzMinScore) : not better ? "ZONE EXISTANTE MEILLEURE" : ""
+                    // NIVEAUX 9 A 13. Meme garde : ce statut n'ecrase jamais un motif
+                    // de rang superieur. Les trois premieres branches sont desormais
+                    // inatteignables ici -- si dgRej vaut "", la chaine est validee --
+                    // mais elles sont conservees comme filet : en cas de divergence
+                    // elles rendraient le bon motif plutot qu'un motif faux.
+                    if dgRej == ""
+                        dgRej := not cSweep ? "SWEEP MANQUANT" : not cChoch ? "CHOCH MANQUANT" : not cBos ? "BOS MANQUANT" : not fibNotInvalid ? "FIBONACCI INVALIDE" : not fibOk ? "CONFLIT PREMIUM/DISCOUNT" : not f_ctxAllow(isBuy) ? "CONTEXTE HTF OPPOSE" : score < wzMinScore ? "CONFLUENCE " + str.tostring(int(math.round(score))) + " < " + str.tostring(wzMinScore) : not better ? "ZONE EXISTANTE MEILLEURE" : ""
 
                 if cSweep and cChoch and cBos and fibNotInvalid and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
                     dbgZone += 1

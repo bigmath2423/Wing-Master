@@ -1930,9 +1930,30 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     dgRej := na(dSw) ? "SWEEP MANQUANT" : (bar_index - dSw) > seqMaxBars ? "SWEEP PERIME" : na(dCh) ? "CHOCH MANQUANT" : dCh <= dSw ? "CHOCH HORS SEQUENCE" : not dSwFresh ? "SWEEP HORS CYCLE" : na(dBo) ? "BOS MANQUANT" : dBo <= dCh ? "BOS HORS SEQUENCE" : not dgOb ? "OB MANQUANT" : not dgFvg ? "FVG MANQUANT" : ""
     if dgRej != ""
         dgScore := na
-    float rgLo = na(wLoPrev) ? wVal : wLoPrev
-    float rgHi = na(wHiPrev) ? wVah : wHiPrev
-    float mid  = na(rgHi) or na(rgLo) ? na : (rgHi + rgLo) / 2.0
+    // ---- REFERENCE PREMIUM / DISCOUNT : STRUCTURELLE, PLUS CALENDAIRE ----
+    // Le gate combine DEUX tests Fibonacci qui, en ICT, sont legitimement
+    // distincts et n'ont pas la meme reference :
+    //   fibNotInvalid -> RETRACEMENT, mesure sur l'IMPULSION (impHi/impLo) ;
+    //   fibOk         -> PREMIUM/DISCOUNT, mesure sur le DEALING RANGE.
+    // Avoir deux references n'est donc pas l'erreur. L'erreur etait que la
+    // seconde etait CALENDAIRE : rgLo/rgHi valaient le bas et le haut de la
+    // SEMAINE PRECEDENTE (repli sur la Value Area), un decoupage sans aucun
+    // rapport avec le cycle structurel en cours -- exactement la classe de
+    // probleme corrigee partout ailleurs dans cette chaine.
+    // Pathologie concrete : dans une semaine fortement directionnelle, le prix
+    // reste des jours au-dessus du milieu de la semaine ecoulee, `zB <= mid`
+    // est faux pour TOUTE zone d'achat, et le cote acheteur se trouve bloque
+    // par une date plutot que par la structure.
+    // swingLow/swingHigh sont les deux derniers pivots CONFIRMES : c'est la
+    // definition meme du dealing range, la reference deja utilisee par le BOS,
+    // non repeinte, et coherente d'une unite de temps a l'autre. Aucun nouveau
+    // parametre.
+    // La garde rgHi > rgLo couvre le cas degenere ou le dernier pivot haut
+    // serait sous le dernier pivot bas ; mid vaut alors na et le test passe,
+    // comme il le faisait deja quand la semaine precedente etait indisponible.
+    float rgLo = swingLow
+    float rgHi = swingHigh
+    float mid  = na(rgHi) or na(rgLo) or rgHi <= rgLo ? na : (rgHi + rgLo) / 2.0
 
     for side = 0 to 1
         bool isBuy = side == 0

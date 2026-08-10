@@ -177,6 +177,20 @@ atrV = ta.atr(atrLen)
 float ph = ta.pivothigh(high, swingLen, swingLen)
 float pl = ta.pivotlow(low, swingLen, swingLen)
 
+// ---- BOUGIE DE CONFIRMATION DU DERNIER PIVOT ----------------------------
+// Sert uniquement de marqueur de CYCLE STRUCTUREL au module Order Block (voir
+// la porte de cycle plus bas). Deux variables independantes du module de
+// liquidite, qui memorise deja des pivots pour un usage different : les
+// melanger creerait un couplage entre deux modules qui n'ont rien a partager.
+// Non repeint : ta.pivothigh/pivotlow ne renvoient une valeur qu'a la bougie
+// de confirmation, swingLen bougies APRES l'extreme reel.
+var int lastPhIdx = na
+var int lastPlIdx = na
+if not na(ph)
+    lastPhIdx := bar_index
+if not na(pl)
+    lastPlIdx := bar_index
+
 // ---- COMPTEURS DEBUG ----------------------------------------------------
 // Tous incrementes sous barstate.isconfirmed : un evenement = une bougie
 // close, jamais un tick intermediaire. Aucun n'ecrit dans un tableau du
@@ -191,6 +205,7 @@ var int dbgObNoCnd  = 0
 var int dbgObMadeC  = 0
 var int dbgObMadeB  = 0
 var int dbgObDup    = 0
+var int dbgObCycle  = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -913,8 +928,45 @@ var array<int>   ohSSt = array.new<int>()
 // obContinuation ouvre la seconde voie. Tout le reste est identique : meme
 // recherche de bougie source, meme seuil de deplacement, meme ancrage
 // high/low meches incluses, meme cycle de vie, meme historique.
-bool obTrigB = bullChoch or (obContinuation and bullBos)
-bool obTrigS = bearChoch or (obContinuation and bearBos)
+// ---- PORTE DE CYCLE STRUCTUREL ------------------------------------------
+// CAUSE DE L'EXPLOSION D'OB, et c'est une erreur de conception de l'anti-
+// doublon precedent : il comparait la BOUGIE SOURCE, alors que l'invariant
+// necessaire porte sur la JAMBE.
+// Mecanisme : swingHigh est reecrit des qu'un nouveau pivot haut se confirme,
+// et en jambe haussiere soutenue il s'en confirme un tous les ~swingLen
+// bougies. Chaque nouveau franchissement produit donc un nouveau bullBos, qui
+// remonte depuis SA PROPRE bougie et trouve une bougie source DIFFERENTE. Le
+// bx differait, l'anti-doublon ne se declenchait pas, et une seule impulsion
+// fabriquait une chaine d'Order Blocks empiles.
+//
+// L'invariant correct : un nouvel OB de continuation exige un NOUVEAU CYCLE,
+// c'est-a-dire un vrai pullback. Traduit en structure : un pivot confirme EN
+// SENS OPPOSE doit etre apparu depuis la creation du dernier OB de ce cote.
+// Un creux structurel pour un OB haussier, un sommet pour un OB baissier.
+// A l'interieur d'une impulsion continue, aucun pivot oppose ne se confirme :
+// la chaine s'effondre a un seul Order Block, celui de l'origine.
+//
+// Choix deliberes :
+//   - AUCUN nouveau seuil ATR. L'invariant est purement structurel et
+//     reutilise ta.pivothigh/pivotlow, deja calcules et deja non repeints.
+//   - La voie CHoCH n'est PAS soumise a cette porte : un retournement est par
+//     definition un nouveau cycle. Les OB de retournement sont donc
+//     rigoureusement inchanges.
+//   - Si aucun OB actif n'existe de ce cote -- au demarrage, ou apres une
+//     invalidation qui a vide le tableau -- la porte est ouverte : un nouveau
+//     cycle est alors legitime par construction.
+bool cycleB = array.size(obBCr) == 0 or (not na(lastPlIdx) and lastPlIdx > array.get(obBCr, 0))
+bool cycleS = array.size(obSCr) == 0 or (not na(lastPhIdx) and lastPhIdx > array.get(obSCr, 0))
+bool obTrigB = bullChoch or (obContinuation and bullBos and cycleB)
+bool obTrigS = bearChoch or (obContinuation and bearBos and cycleS)
+
+// Comptage des continuations refusees faute de nouveau cycle. Elles n'entrent
+// pas dans le bloc de creation, il faut donc les compter ici.
+if barstate.isconfirmed and obContinuation
+    if bullBos and not bullChoch and not cycleB
+        dbgObCycle += 1
+    if bearBos and not bearChoch and not cycleS
+        dbgObCycle += 1
 
 // FILTRE DE BRUIT SUR LA BOUGIE SOURCE.
 // Le parcours s'arretait (`break`) sur la PREMIERE bougie opposee, quelle que
@@ -2782,7 +2834,7 @@ if barstate.islast and dbgOn
 
     f_dbgH(6, "ORDER BLOCK")
     f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
-    f_dbgR(8,  "rejetes — deplacem. " + sl + " doublon", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup))
+    f_dbgR(8,  "rej. depl. " + sl + " doubl. " + sl + " cycle", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle))
     f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
     f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
     f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))

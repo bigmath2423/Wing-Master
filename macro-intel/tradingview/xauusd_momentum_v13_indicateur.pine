@@ -570,25 +570,31 @@ var array<bool>  ohSM = array.new<bool>()
 // tardif est loin. La regle "retenir le FVG donnant l'union la plus serree",
 // ecrite a l'etape 2 et jusqu'ici sans effet, selectionne desormais le FVG du
 // meme mouvement.
+// DEPLACEMENT MESURE SUR L'IMPULSION, plus sur la seule bougie de CHoCH.
+// `disp` valait `close - open`, c'est-a-dire le corps de la bougie de CHoCH
+// prise isolement. Or un Order Block se definit par le deplacement QUI SUIT :
+// une impulsion de trois bougies a 1.2 $ chacune -- 3.6 $ de mouvement, bien
+// au-dela du seuil -- etait rejetee parce qu'aucune bougie seule n'atteignait
+// 3.6 $. Erreur de quantite mesuree, pas de severite : obDispAtr reste a 1.2.
+// On retient le plus grand corps de l'impulsion, de la bougie qui suit l'OB
+// jusqu'a celle du CHoCH incluse : il faut donc toujours au moins une bougie
+// decisive, ce n'est pas un assouplissement. Mesurer l'amplitude totale de la
+// jambe aurait au contraire rendu le filtre decoratif, une amplitude
+// multi-bougies depassant presque toujours 1.2 ATR.
+// L'accumulation se fait dans la boucle de recherche elle-meme, et non dans une
+// boucle imbriquee `for k = 0 to i - 1`. Cette forme-la faisait echouer le
+// script : la profondeur d'historique de `close[k]` dependait du compteur d'une
+// autre boucle, donc d'une valeur connue seulement a l'execution, et Pine ne
+// peut pas dimensionner le tampon de series dans ce cas. Ici `close[i]` reste
+// borne par swingLen, un input -- la forme qui fonctionnait deja lignes 575+.
+// Quantite calculee strictement identique : quand l'OB est trouve a l'indice i,
+// les bougies 1..i-1 sont haussieres par construction (la boucle ne les
+// depasse que tant que close[i] >= open[i]), donc le maximum accumule est bien
+// celui des corps 0..i-1.
 if bullChoch and not na(atrV)
+    float disp = close - open
     for i = 1 to swingLen
         if close[i] < open[i]
-            // DEPLACEMENT MESURE SUR L'IMPULSION, plus sur la seule bougie de
-            // CHoCH. `disp` valait `close - open`, c'est-a-dire le corps de la
-            // bougie de CHoCH prise isolement. Or un Order Block se definit par
-            // le deplacement QUI SUIT : une impulsion de trois bougies a 1.2 $
-            // chacune -- 3.6 $ de mouvement, bien au-dela du seuil -- etait
-            // rejetee parce qu'aucune bougie seule n'atteignait 3.6 $. Erreur de
-            // quantite mesuree, pas de severite : obDispAtr reste a 1.2.
-            // On retient le plus grand corps de l'impulsion, de la bougie qui
-            // suit l'OB jusqu'a celle du CHoCH incluse. Il faut donc toujours au
-            // moins une bougie decisive ; ce n'est pas un assouplissement.
-            // Note : mesurer l'amplitude totale de la jambe aurait rendu le
-            // filtre decoratif, une amplitude multi-bougies depassant presque
-            // toujours 1.2 ATR.
-            float disp = 0.0
-            for k = 0 to i - 1
-                disp := math.max(disp, close[k] - open[k])
             if disp >= atrV * obDispAtr
                 // L'OB precedent n'est pas detruit : il passe a l'historique.
                 if array.size(obBT) > 0
@@ -605,13 +611,12 @@ if bullChoch and not na(atrV)
                 array.push(obBX, bar_index - i)
                 array.push(obBMit, false)
             break
+        disp := math.max(disp, close[i] - open[i])
+// Miroir baissier du correctif ci-dessus.
 if bearChoch and not na(atrV)
+    float disp = open - close
     for i = 1 to swingLen
         if close[i] > open[i]
-            // Miroir baissier du correctif ci-dessus.
-            float disp = 0.0
-            for k = 0 to i - 1
-                disp := math.max(disp, open[k] - close[k])
             if disp >= atrV * obDispAtr
                 if array.size(obST) > 0
                     array.push(ohST, array.get(obST, 0))
@@ -627,6 +632,7 @@ if bearChoch and not na(atrV)
                 array.push(obSX, bar_index - i)
                 array.push(obSMit, false)
             break
+        disp := math.max(disp, open[i] - close[i])
 // Un OB traverse en cloture n'a plus de sens.
 // ---- CYCLE DE VIE DES ORDER BLOCKS -------------------------------------
 // MITIGATION : le prix est revenu dans la zone. L'OB reste ACTIF, seule sa

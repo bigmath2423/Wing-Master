@@ -198,6 +198,34 @@ var int dbgObMadeB  = 0
 var int dbgObDup    = 0
 var int dbgObCycle  = 0
 var int dbgObStruct = 0
+
+// ---- POURQUOI AUCUNE ZONE : UN COMPTEUR PAR MOTIF DE REFUS --------------
+// dgRej porte deja, a chaque bougie, la PREMIERE condition bloquante selon la
+// hierarchie de diagnostic. Mais l'information etait perdue des la bougie
+// suivante : le panneau montrait l'INSTANT, jamais la DISTRIBUTION. On ne
+// pouvait donc pas savoir lequel des motifs tue les zones -- il fallait le
+// deduire, et c'est exactement ce raisonnement indirect qui a produit un
+// diagnostic faux sur fvgMax.
+// Purement observationnel : aucun de ces compteurs n'est lu par une condition.
+var int dgcSwMiss  = 0
+var int dgcSwOld   = 0
+var int dgcSwCyc   = 0
+var int dgcChMiss  = 0
+var int dgcChSeq   = 0
+var int dgcBoMiss  = 0
+var int dgcBoSeq   = 0
+var int dgcObMiss  = 0
+var int dgcFvMiss  = 0
+var int dgcObCyc   = 0
+var int dgcFvCyc   = 0
+var int dgcFar     = 0
+var int dgcFib     = 0
+var int dgcPd      = 0
+var int dgcHtf     = 0
+var int dgcScore   = 0
+var int dgcBetter  = 0
+var int dgcSame    = 0
+var int dgcOk      = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -2118,6 +2146,52 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                     array.push(zBox, zb)
                     array.push(zLab, zl)
 
+    // ---- COMPTAGE CUMULE DU MOTIF DE REFUS ------------------------------
+    // Place APRES les trois points d'ecriture de dgRej et apres la boucle
+    // `for side` : on compte donc la valeur FINALE, exactement celle que le
+    // panneau affiche, ni avant ni apres. Le bloc englobant porte deja
+    // barstate.isconfirmed.
+    // Un seul compteur s'incremente par bougie : la somme des 19 vaut le
+    // nombre de bougies confirmees ou le moteur a tourne. Si elle ne boucle
+    // pas, c'est l'instrumentation qu'il faut corriger, pas le moteur.
+    if dgRej == "SWEEP MANQUANT"
+        dgcSwMiss += 1
+    else if dgRej == "SWEEP PERIME"
+        dgcSwOld += 1
+    else if dgRej == "SWEEP HORS CYCLE"
+        dgcSwCyc += 1
+    else if dgRej == "CHOCH MANQUANT"
+        dgcChMiss += 1
+    else if dgRej == "CHOCH HORS SEQUENCE"
+        dgcChSeq += 1
+    else if dgRej == "BOS MANQUANT"
+        dgcBoMiss += 1
+    else if dgRej == "BOS HORS SEQUENCE"
+        dgcBoSeq += 1
+    else if dgRej == "OB MANQUANT"
+        dgcObMiss += 1
+    else if dgRej == "FVG MANQUANT"
+        dgcFvMiss += 1
+    else if dgRej == "OB HORS DU CYCLE COURANT"
+        dgcObCyc += 1
+    else if dgRej == "FVG HORS DU CYCLE COURANT"
+        dgcFvCyc += 1
+    else if dgRej == "OB ET FVG TROP ELOIGNES"
+        dgcFar += 1
+    else if dgRej == "FIBONACCI INVALIDE"
+        dgcFib += 1
+    else if dgRej == "CONFLIT PREMIUM/DISCOUNT"
+        dgcPd += 1
+    else if dgRej == "CONTEXTE HTF OPPOSE"
+        dgcHtf += 1
+    else if str.startswith(dgRej, "CONFLUENCE")
+        dgcScore += 1
+    else if dgRej == "ZONE EXISTANTE MEILLEURE"
+        dgcBetter += 1
+    else if dgRej == "ZONE DEJA AFFICHEE"
+        dgcSame += 1
+    else
+        dgcOk += 1
     while array.size(zScr) > wzMax * 2
         box.delete(array.shift(zBox))
         label.delete(array.shift(zLab))
@@ -2802,7 +2876,7 @@ if barstate.islast and panShow
 // close[i]/open[i] dans f_dbgScan, borne par swingLen exactement comme la
 // boucle reelle ; et le tableau n'utilise aucune coordonnee bar_index.
 // ============================================================
-var table dbgT = table.new(position.middle_left, 2, 27, border_width=0)
+var table dbgT = table.new(position.middle_left, 2, 33, border_width=0)
 f_dbgH(int r, string t) =>
     table.cell(dbgT, 0, r, t, text_color=cGold, text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cGold, 88))
     table.cell(dbgT, 1, r, "", bgcolor=color.new(cGold, 88))
@@ -2865,3 +2939,10 @@ if barstate.islast and dbgOn
     f_dbgR(24, "   dont penetration " + sl + " rejet", str.tostring(dbgSwNoPen) + " " + sl + " " + str.tostring(dbgSwNoRej))
     f_dbgR(25, "poches consommees " + sl + " expirees", str.tostring(dbgPockUse) + " " + sl + " " + str.tostring(dbgPockExp))
     f_dbgR(26, "SWING SIMPLE non vus  |  ZONES",     str.tostring(dbgSwSingle) + "  |  " + str.tostring(dbgZone))
+
+    f_dbgH(27, "POURQUOI PAS DE ZONE  (motif bloquant)")
+    f_dbgR(28, "sweep manq " + sl + " perime " + sl + " h.cycle", str.tostring(dgcSwMiss) + " " + sl + " " + str.tostring(dgcSwOld) + " " + sl + " " + str.tostring(dgcSwCyc))
+    f_dbgR(29, "choch manq " + sl + " h.seq " + sl + " bos manq " + sl + " h.seq", str.tostring(dgcChMiss) + " " + sl + " " + str.tostring(dgcChSeq) + " " + sl + " " + str.tostring(dgcBoMiss) + " " + sl + " " + str.tostring(dgcBoSeq))
+    f_dbgR(30, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
+    f_dbgR(31, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
+    f_dbgR(32, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))

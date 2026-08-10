@@ -1795,6 +1795,34 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
     else
         dgFvg := array.size(fvST) > 0
         dgOb  := array.size(obST) > 0
+    // ---- COCHES DU PANNEAU : ETAT COURANT, PLUS DERNIER SUCCES ----------
+    // dgSweep/dgChoch/dgBos/dgFib/dgFibR/dgHtf/dgPd n'etaient ecrits qu'au
+    // bloc de fin, sous `if not na(zT)` -- c'est-a-dire UNIQUEMENT quand
+    // l'appariement OB x FVG avait abouti. Comme cela n'arrive presque jamais,
+    // ces `var` conservaient un instantane fige du dernier succes, parfois
+    // vieux de milliers de bougies, pendant que dgRej, lui, etait recalcule a
+    // chaque bougie. Le panneau melangeait donc deux horloges : cinq coches
+    // decrivant le passe, un statut decrivant l'instant.
+    //
+    // On reinitialise ici, dans le bloc deja recalcule a chaque bougie
+    // confirmee, avec EXACTEMENT les fonctions que le gate utilise --
+    // f_seqSweep/f_seqChoch/f_seqBos sont litteralement ce que cSweep/cChoch/
+    // cBos valent plus bas, et f_ctxAllow est celle du gate. Aucune detection
+    // nouvelle, aucune logique parallele.
+    //
+    // FIB et PREMIUM/DISCOUNT font exception, et c'est une limite reelle :
+    // f_fibState et fibOk portent sur les bornes zT/zB d'une zone CANDIDATE.
+    // Sans candidat elles n'ont pas de valeur, et en fabriquer une sur un
+    // autre support serait precisement la logique parallele a eviter. Elles
+    // sont donc remises a "non evalue" -- dgFib = -1 affiche un tiret. Le bloc
+    // de fin les renseigne ensuite, sur la MEME bougie, si un candidat existe.
+    dgSweep := f_seqSweep(isBuyBiasNow)
+    dgChoch := f_seqChoch(isBuyBiasNow)
+    dgBos   := f_seqBos(isBuyBiasNow)
+    dgHtf   := f_ctxAllow(isBuyBiasNow)
+    dgFib   := -1
+    dgFibR  := na
+    dgPd    := false
     // ---- DIAGNOSTIC : HIERARCHIE UNIQUE, NIVEAUX 1 A 5 ------------------
     // Le statut etait ecrit a trois endroits sans ordre de priorite, et les
     // deux premiers masquaient le troisieme : la chaine structurelle

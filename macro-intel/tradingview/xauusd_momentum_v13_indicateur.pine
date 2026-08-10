@@ -1990,13 +1990,25 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                     dgHtf   := f_ctxAllow(isBuy)
                     dgPd    := fibOk
                     dgScore := score
-                    // NIVEAUX 9 A 13. Meme garde : ce statut n'ecrase jamais un motif
+                    // NIVEAUX 9 A 14. Meme garde : ce statut n'ecrase jamais un motif
+                    // de rang superieur.
+                    // "ZONE DEJA AFFICHEE" ferme le dernier angle mort du
+                    // diagnostic : le gate exige `better and not same`, alors que
+                    // l'echelle ne couvrait que `not better`. Une zone de bornes
+                    // STRICTEMENT IDENTIQUES mais de score superieur passait donc
+                    // `better`, echouait sur `not same`, et le statut restait vide
+                    // -- un refus sans message. Le cas est rare mais atteignable :
+                    // les composantes du score bougent d'une bougie a l'autre alors
+                    // que zT et zB, eux, peuvent ne pas changer.
+                    // Il est place APRES "ZONE EXISTANTE MEILLEURE" : si le score
+                    // est inferieur, c'est cette raison-la qui prime, que les bornes
+                    // soient identiques ou non.
                     // de rang superieur. Les trois premieres branches sont desormais
                     // inatteignables ici -- si dgRej vaut "", la chaine est validee --
                     // mais elles sont conservees comme filet : en cas de divergence
                     // elles rendraient le bon motif plutot qu'un motif faux.
                     if dgRej == ""
-                        dgRej := not cSweep ? "SWEEP MANQUANT" : not cChoch ? "CHOCH MANQUANT" : not cBos ? "BOS MANQUANT" : not fibNotInvalid ? "FIBONACCI INVALIDE" : not fibOk ? "CONFLIT PREMIUM/DISCOUNT" : not f_ctxAllow(isBuy) ? "CONTEXTE HTF OPPOSE" : score < wzMinScore ? "CONFLUENCE " + str.tostring(int(math.round(score))) + " < " + str.tostring(wzMinScore) : not better ? "ZONE EXISTANTE MEILLEURE" : ""
+                        dgRej := not cSweep ? "SWEEP MANQUANT" : not cChoch ? "CHOCH MANQUANT" : not cBos ? "BOS MANQUANT" : not fibNotInvalid ? "FIBONACCI INVALIDE" : not fibOk ? "CONFLIT PREMIUM/DISCOUNT" : not f_ctxAllow(isBuy) ? "CONTEXTE HTF OPPOSE" : score < wzMinScore ? "CONFLUENCE " + str.tostring(int(math.round(score))) + " < " + str.tostring(wzMinScore) : not better ? "ZONE EXISTANTE MEILLEURE" : same ? "ZONE DEJA AFFICHEE" : ""
 
                 if cSweep and cChoch and cBos and fibNotInvalid and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
                     dbgZone += 1

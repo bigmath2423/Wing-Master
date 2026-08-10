@@ -249,6 +249,37 @@ var int dgcScore   = 0
 var int dgcBetter  = 0
 var int dgcSame    = 0
 var int dgcOk      = 0
+
+// ---- SWEEPS PAR DIRECTION ------------------------------------------------
+// CONVENTION, jamais melangee : la liquidite SELL-SIDE (sous les EQL) est
+// prise puis rejetee -> retournement HAUSSIER -> elle alimente les setups BUY
+// via swpDnIdx. La liquidite BUY-SIDE (au-dessus des EQH) alimente les setups
+// SELL via swpUpIdx. Les compteurs Ss* portent donc sur le cote SELL-SIDE et
+// servent la chaine BUY ; les Bs* sur le cote BUY-SIDE et servent SELL.
+var int dbgSsCand  = 0
+var int dbgSsOk    = 0
+var int dbgSsNoPen = 0
+var int dbgSsNoRej = 0
+var int dbgBsCand  = 0
+var int dbgBsOk    = 0
+var int dbgBsNoPen = 0
+var int dbgBsNoRej = 0
+
+// ---- CHAINE PAR DIRECTION ------------------------------------------------
+// Comptes par BOUGIE CONFIRMEE, exclusifs entre eux pour les trois premiers :
+// chaque bougie tombe dans exactement un de SwNone / SwOld / SwOk.
+var int dbgBuySwNone  = 0
+var int dbgBuySwOld   = 0
+var int dbgBuySwOk    = 0
+var int dbgBuyFreshOk = 0
+var int dbgBuyFreshKo = 0
+var int dbgBuyBosOk   = 0
+var int dbgSellSwNone  = 0
+var int dbgSellSwOld   = 0
+var int dbgSellSwOk    = 0
+var int dbgSellFreshOk = 0
+var int dbgSellFreshKo = 0
+var int dbgSellBosOk   = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -762,24 +793,39 @@ if barstate.isconfirmed and not na(atrV)
     bool dCand = false
     bool dPent = false
     bool dOk   = false
+    // Drapeaux PAR COTE, poses a cote des drapeaux globaux existants. Les
+    // conditions testees sont rigoureusement les memes : aucune detection
+    // nouvelle, seulement une ventilation.
+    bool bCand = false
+    bool bPent = false
+    bool bOk   = false
+    bool sCand = false
+    bool sPent = false
+    bool sOk   = false
     if array.size(eqhL) > 0
         for i = 0 to array.size(eqhL) - 1
             float lv = array.get(eqhL, i)
             if high > lv
                 dCand := true
+                bCand := true
                 if high >= lv + dPen
                     dPent := true
+                    bPent := true
                     if close <= lv - dRej
                         dOk := true
+                        bOk := true
     if array.size(eqlL) > 0
         for i = 0 to array.size(eqlL) - 1
             float lv = array.get(eqlL, i)
             if low < lv
                 dCand := true
+                sCand := true
                 if low <= lv - dPen
                     dPent := true
+                    sPent := true
                     if close >= lv + dRej
                         dOk := true
+                        sOk := true
     if dCand
         dbgSwCand += 1
         if dOk
@@ -788,6 +834,24 @@ if barstate.isconfirmed and not na(atrV)
             dbgSwNoRej += 1
         else
             dbgSwNoPen += 1
+    // BUY-SIDE : liquidite au-dessus des EQH -> alimente les setups SELL.
+    if bCand
+        dbgBsCand += 1
+        if bOk
+            dbgBsOk += 1
+        else if bPent
+            dbgBsNoRej += 1
+        else
+            dbgBsNoPen += 1
+    // SELL-SIDE : liquidite sous les EQL -> alimente les setups BUY.
+    if sCand
+        dbgSsCand += 1
+        if sOk
+            dbgSsOk += 1
+        else if sPent
+            dbgSsNoRej += 1
+        else
+            dbgSsNoPen += 1
 
 float swPen = na(atrV) ? na : atrV * sweepMinPen
 float swRej = na(atrV) ? na : atrV * sweepReject
@@ -1751,6 +1815,41 @@ if barstate.isconfirmed
         dbgSeqFull += 1
     dbgPrevB := fB
     dbgPrevS := fS
+
+    // --- DEBUG : la chaine, VENTILEE PAR DIRECTION ----------------------
+    // La chaine BUY ne lit que swpDnIdx / chochUpIdx / bosUpIdx /
+    // chochUpFresh. La chaine SELL ne lit que swpUpIdx / chochDnIdx /
+    // bosDnIdx / chochDnFresh. Les deux registres ne se croisent jamais.
+    // Les trois premiers compteurs de chaque sens sont EXCLUSIFS : chaque
+    // bougie confirmee tombe dans exactement un de absent / perime / frais,
+    // donc leur somme vaut dbgBars pour chaque sens. C'est le controle de
+    // coherence de cette section.
+    if na(swpDnIdx)
+        dbgBuySwNone += 1
+    else if (bar_index - swpDnIdx) > seqMaxBars
+        dbgBuySwOld += 1
+    else
+        dbgBuySwOk += 1
+        if not na(chochUpIdx) and chochUpIdx > swpDnIdx
+            if chochUpFresh
+                dbgBuyFreshOk += 1
+            else
+                dbgBuyFreshKo += 1
+    if fB
+        dbgBuyBosOk += 1
+    if na(swpUpIdx)
+        dbgSellSwNone += 1
+    else if (bar_index - swpUpIdx) > seqMaxBars
+        dbgSellSwOld += 1
+    else
+        dbgSellSwOk += 1
+        if not na(chochDnIdx) and chochDnIdx > swpUpIdx
+            if chochDnFresh
+                dbgSellFreshOk += 1
+            else
+                dbgSellFreshKo += 1
+    if fS
+        dbgSellBosOk += 1
 
 // ---- IMPULSION DU BOS : la plage sur laquelle le Fibonacci est calcule ----
 // Le module existant appelait "fib" un test a 50 % sur le haut/bas de la
@@ -3128,7 +3227,7 @@ if barstate.islast and statShow and strategy.closedtrades > 0
 // close[i]/open[i] dans f_dbgScan, borne par swingLen exactement comme la
 // boucle reelle ; et le tableau n'utilise aucune coordonnee bar_index.
 // ============================================================
-var table dbgT = table.new(position.middle_left, 2, 33, border_width=0)
+var table dbgT = table.new(position.middle_left, 2, 43, border_width=0)
 f_dbgH(int r, string t) =>
     table.cell(dbgT, 0, r, t, text_color=cGold, text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cGold, 88))
     table.cell(dbgT, 1, r, "", bgcolor=color.new(cGold, 88))
@@ -3198,3 +3297,16 @@ if barstate.islast and dbgOn
     f_dbgR(30, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
     f_dbgR(31, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
     f_dbgR(32, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))
+
+    f_dbgH(33, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
+    f_dbgR(34, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
+    f_dbgR(35, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+
+    f_dbgH(36, "CHAINE BUY   (lit swpDnIdx)")
+    f_dbgR(37, "sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgBuySwNone) + " " + sl + " " + str.tostring(dbgBuySwOld) + " " + sl + " " + str.tostring(dbgBuySwOk))
+    f_dbgR(38, "fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgBuyFreshOk) + " " + sl + " " + str.tostring(dbgBuyFreshKo) + " " + sl + " " + str.tostring(dbgBuyBosOk))
+
+    f_dbgH(39, "CHAINE SELL  (lit swpUpIdx)")
+    f_dbgR(40, "sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
+    f_dbgR(41, "fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
+    f_dbgR(42, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))

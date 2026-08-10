@@ -951,6 +951,42 @@ if array.size(fvST) > 0
             array.remove(fvSB, i)
             array.remove(fvSX, i)
 
+// ---- PLAFOND DES COORDONNEES DE DESSIN ----------------------------------
+// Pine resout toute coordonnee x exprimee en bar_index via le TAMPON
+// D'HISTORIQUE. Demander une bougie plus ancienne que ce tampon leve
+// "The requested historical offset (N) is beyond the historical buffer's
+// limit (M)" et arrete le script. C'est un plafond de DESSIN, pas d'analyse.
+//
+// Trois sources d'ancres arbitrairement vieilles existent :
+//   - ohB*/ohS* (OB de l'historique), pb* (zones cassees en attente) et bk*
+//     (breakers) sont plafonnes EN NOMBRE mais pas EN AGE. Un Order Block
+//     jamais mitige ni casse y reste indefiniment ; c'est lui qui a leve
+//     l'erreur a 4480 bougies, sur l'appel f_zone(ohST...) ;
+//   - l'ancre des zones institutionnelles (zX/zBar), bornee par
+//     wzMaxAnchorAgeH : 72 h par defaut, soit deja 4320 bougies en M1, et
+//     jusqu'a 43200 au reglage maximum ;
+//   - le pivot d'origine d'un trait de BOS/CHoCH (fromBar).
+// Les trois passent par la meme porte et meritent la meme protection.
+//
+// RIEN N'EST SUPPRIME et aucune regle ne change : seul le BORD GAUCHE DESSINE
+// est plafonne. Une boite dont l'origine depasse le plafond conserve ses
+// bornes de prix exactes et reste affichee -- elle commence simplement a
+// DRAW_MAX_OFF bougies en arriere au lieu de son origine reelle, soit 2 jours
+// en M1, 10 en M5, 31 en M15. Tres au-dela de ce qui tient a l'ecran.
+//
+// Le plafond est fixe a 3000 et non a la limite observee : la valeur du tampon
+// varie d'un graphique a l'autre, une marge large est le seul moyen d'etre
+// robuste sans la connaitre. Aucun `max_bars_back` n'est declare : forcer
+// 5000 sur TOUTES les series couterait de la memoire sur chaque serie du
+// script, alors que borner la demande la supprime a la source.
+int DRAW_MAX_OFF = 3000
+f_xL(int b) =>
+    // int() explicite : box.new/line.new exigent un `series int` pour la
+    // coordonnee x et Pine ne convertit PAS float -> int implicitement. Si
+    // math.max resolvait la surcharge flottante, le script ne compilerait pas.
+    // Le cast supprime la question.
+    int(na(b) ? bar_index : math.max(b, bar_index - DRAW_MAX_OFF))
+
 // ============================================================
 // PLAN 2 — LA STRUCTURE : BOS / CHoCH
 // Un trait du niveau casse jusqu'a la bougie qui le casse, une pastille sur
@@ -965,7 +1001,7 @@ f_break(bool up, bool choch, float lvl, int fromBar) =>
         // Le CHoCH est un RETOURNEMENT : trait plein et epais, en or.
         // Le BOS est une CONTINUATION : trait fin, dans la couleur du sens.
         color col = choch ? cGold : (up ? cUp : cDn)
-        line ln = line.new(fromBar, lvl, bar_index, lvl, color=color.new(col, choch ? 0 : 30), width=choch ? 2 : 1, style=choch ? line.style_solid : line.style_dashed)
+        line ln = line.new(f_xL(fromBar), lvl, bar_index, lvl, color=color.new(col, choch ? 0 : 30), width=choch ? 2 : 1, style=choch ? line.style_solid : line.style_dashed)
         array.push(brkLn, ln)
         if array.size(brkLn) > 14
             line.delete(array.shift(brkLn))
@@ -1461,7 +1497,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         array.remove(zLab, exI)
                     color bord = isBuy ? color.new(cUp, 25) : color.new(cDn, 25)
                     color fill = isBuy ? color.new(cUp, 90) : color.new(cDn, 90)
-                    box   zb = box.new(zX, zT, bar_index, zB, border_color=bord, border_width=2, bgcolor=fill)
+                    box   zb = box.new(f_xL(zX), zT, bar_index, zB, border_color=bord, border_width=2, bgcolor=fill)
                     label zl = label.new(bar_index, isBuy ? zB : zT, (isBuy ? "BUY ZONE  " : "SELL ZONE  ") + str.tostring(int(math.round(score))) + "/100", style=isBuy ? label.style_label_up : label.style_label_down, color=color.new(cBg, 100), textcolor=isBuy ? cUp : cDn, size=size.tiny)
                     array.push(zTop, zT)
                     array.push(zBot, zB)
@@ -1586,7 +1622,7 @@ if array.size(zTop) > 0
 // colle a la bougie de creation, donc hors ecran des le mardi.
 if array.size(zBox) > 0
     for i = 0 to array.size(zBox) - 1
-        box.set_left(array.get(zBox, i), array.get(zBar, i))
+        box.set_left(array.get(zBox, i), f_xL(array.get(zBar, i)))
         box.set_right(array.get(zBox, i), bar_index + zoneMaxBars)
         label.set_x(array.get(zLab, i), bar_index + zoneMaxBars)
 
@@ -1818,7 +1854,7 @@ f_nearZone(float t, float b) =>
 // prolonge vers la droite tant qu'elle reste valide.
 f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc, string bsty) =>
     if not na(top) and not na(bot) and top > bot
-        box b = box.new(left, top, bar_index + zoneMaxBars, bot, border_color=bord, border_width=1, border_style=bsty, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
+        box b = box.new(f_xL(left), top, bar_index + zoneMaxBars, bot, border_color=bord, border_width=1, border_style=bsty, bgcolor=fill, text=txt, text_color=txtc, text_size=size.tiny, text_halign=text.align_right, text_valign=text.align_top)
         array.push(dBx, b)
 
 if barstate.islast

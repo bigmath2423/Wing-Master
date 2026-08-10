@@ -65,6 +65,7 @@ vVaPct   = input.float(70, "Value Area (% du volume)", minval=50, maxval=95, ste
 
 grpZ = "⑤ Zones SMC (LECTURE — ne filtrent rien)"
 obShow    = input.bool(true, "Order Block — derniere impulsion", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : -0.188 en apprentissage, +0.378 en validation — le signe s'inverse, aucun des deux n'est significatif.\n\nUN SEUL Order Block par cote : celui de la DERNIERE impulsion institutionnelle valide. Il doit remplir trois conditions cumulatives — un deplacement d'au moins obDispAtr derriere lui, une cassure de structure effectivement provoquee, et une zone jamais traversee en cloture. Les MECHES sont incluses : le vrai bord de la zone est l'extreme atteint, pas la limite du corps.", display=display.none)
+bkMax     = input.int(3, "Breaker Blocks conserves par cote", minval=0, maxval=10, group=grpZ, tooltip="Un Order Block casse par une cloture confirmee ne disparait pas : il devient un Breaker Block dans le sens INVERSE, memes bornes et meme bougie d'origine. Ce plafond borne l'historique conserve. A 0, les breakers ne sont pas affiches.", display=display.none)
 obDispAtr = input.float(1.2, "OB — deplacement minimum (x ATR)", minval=0.3, step=0.1, group=grpZ, display=display.none)
 fvgShow   = input.bool(true, "Fair Value Gaps significatifs", group=grpZ, tooltip="AFFICHAGE SEUL. Effet mesure : +0.134 puis -0.028, signe instable. Seuls les FVG avec un vrai deplacement derriere sont traces.", display=display.none)
 fvgMinAtr = input.float(0.35, "FVG — taille minimum (x ATR)", minval=0.05, step=0.05, group=grpZ, display=display.none)
@@ -500,6 +501,28 @@ var array<float> obST = array.new<float>()
 var array<float> obSB = array.new<float>()
 var array<int>   obSX = array.new<int>()
 
+// Etat de MITIGATION de l'OB actif : vrai des que le prix est revenu dans la
+// zone. Purement descriptif -- un retest ne retire jamais l'OB, il ne change
+// que sa transparence. Mitigation et invalidation sont deux evenements
+// differents et le restent.
+var array<bool>  obBMit = array.new<bool>()
+var array<bool>  obSMit = array.new<bool>()
+
+// BREAKER BLOCKS, dans des tableaux SEPARES de obB*/obS*. C'est deliberé :
+// le moteur de zones lit array.get(obBT, 0) et array.size(obBT). Y verser les
+// breakers les ferait apparier comme des Order Blocks et modifierait la
+// creation des zones -- donc le trading. Separes, le moteur voit exactement ce
+// qu'il voyait avant, et aucun CHoCH ulterieur ne peut effacer un breaker
+// puisque array.clear ne porte que sur obB*/obS*.
+// bkS* = breaker BAISSIER, ne d'un OB haussier casse par le bas (resistance).
+// bkB* = breaker HAUSSIER, ne d'un OB baissier casse par le haut (support).
+var array<float> bkST = array.new<float>()
+var array<float> bkSB = array.new<float>()
+var array<int>   bkSX = array.new<int>()
+var array<float> bkBT = array.new<float>()
+var array<float> bkBB = array.new<float>()
+var array<int>   bkBX = array.new<int>()
+
 // UN SEUL Order Block par cote : celui de la derniere impulsion valide.
 // Empiler des dizaines d'OB ne renseigne sur rien — seul le dernier a encore
 // un sens operationnel. On remplace donc au lieu d'ajouter.
@@ -527,9 +550,11 @@ if bullChoch and not na(atrV)
                 array.clear(obBT)
                 array.clear(obBB)
                 array.clear(obBX)
+                array.clear(obBMit)
                 array.push(obBT, high[i])
                 array.push(obBB, low[i])
                 array.push(obBX, bar_index - i)
+                array.push(obBMit, false)
             break
 if bearChoch and not na(atrV)
     float disp = open - close
@@ -539,23 +564,73 @@ if bearChoch and not na(atrV)
                 array.clear(obST)
                 array.clear(obSB)
                 array.clear(obSX)
+                array.clear(obSMit)
                 array.push(obST, high[i])
                 array.push(obSB, low[i])
                 array.push(obSX, bar_index - i)
+                array.push(obSMit, false)
             break
 // Un OB traverse en cloture n'a plus de sens.
+// ---- CYCLE DE VIE DES ORDER BLOCKS -------------------------------------
+// MITIGATION : le prix est revenu dans la zone. L'OB reste ACTIF, seule sa
+// transparence changera a l'affichage. Ce n'est pas une invalidation.
+if array.size(obBB) > 0
+    for i = 0 to array.size(obBB) - 1
+        if low <= array.get(obBT, i) and high >= array.get(obBB, i)
+            array.set(obBMit, i, true)
+if array.size(obSB) > 0
+    for i = 0 to array.size(obSB) - 1
+        if low <= array.get(obST, i) and high >= array.get(obSB, i)
+            array.set(obSMit, i, true)
+
+// INVALIDATION : cloture CONFIRMEE au-dela du bord oppose. Une meche qui
+// traverse ne suffit pas -- le test porte sur close, jamais sur low/high.
+// L'OB n'est pas efface : ses bornes et sa bougie d'origine sont recopiees
+// dans les tableaux de breakers, ou il continue sa vie dans le sens inverse.
 if array.size(obBB) > 0
     for i = array.size(obBB) - 1 to 0
-        if close < array.get(obBB, i)
+        if close < array.get(obBB, i) and barstate.isconfirmed
+            array.push(bkST, array.get(obBT, i))
+            array.push(bkSB, array.get(obBB, i))
+            array.push(bkSX, array.get(obBX, i))
             array.remove(obBT, i)
             array.remove(obBB, i)
             array.remove(obBX, i)
+            array.remove(obBMit, i)
 if array.size(obST) > 0
     for i = array.size(obST) - 1 to 0
-        if close > array.get(obST, i)
+        if close > array.get(obST, i) and barstate.isconfirmed
+            array.push(bkBT, array.get(obST, i))
+            array.push(bkBB, array.get(obSB, i))
+            array.push(bkBX, array.get(obSX, i))
             array.remove(obST, i)
             array.remove(obSB, i)
             array.remove(obSX, i)
+            array.remove(obSMit, i)
+
+// MORT DU BREAKER : un breaker baissier est une resistance, il meurt sur une
+// cloture confirmee AU-DESSUS ; le breaker haussier est un support, il meurt
+// sur une cloture SOUS. Plafond d'historique pour eviter l'accumulation.
+if array.size(bkST) > 0
+    for i = array.size(bkST) - 1 to 0
+        if close > array.get(bkST, i) and barstate.isconfirmed
+            array.remove(bkST, i)
+            array.remove(bkSB, i)
+            array.remove(bkSX, i)
+if array.size(bkBT) > 0
+    for i = array.size(bkBT) - 1 to 0
+        if close < array.get(bkBB, i) and barstate.isconfirmed
+            array.remove(bkBT, i)
+            array.remove(bkBB, i)
+            array.remove(bkBX, i)
+while array.size(bkST) > bkMax
+    array.shift(bkST)
+    array.shift(bkSB)
+    array.shift(bkSX)
+while array.size(bkBT) > bkMax
+    array.shift(bkBT)
+    array.shift(bkBB)
+    array.shift(bkBX)
 
 // --- Fair Value Gaps : taille ET deplacement ------------------------------
 // Un FVG n'est retenu que si l'ecart depasse fvgMinAtr ET que la bougie qui
@@ -1514,11 +1589,25 @@ if barstate.islast
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
                 bool obActive = f_nearZone(array.get(obBT, i), array.get(obBB, i))
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 40), color.new(cBlue, 85), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
+                // Un OB deja mitige reste ACTIF : il est seulement un peu plus
+                // efface, pour distinguer "jamais retouche" de "deja teste".
+                bool obMit = array.size(obBMit) > i and array.get(obBMit, i)
+                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, obMit ? 55 : 40), color.new(cBlue, obMit ? 90 : 85), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
                 bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 40), color.new(cPurp, 85), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+                bool obMit = array.size(obSMit) > i and array.get(obSMit, i)
+                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, obMit ? 55 : 40), color.new(cPurp, obMit ? 90 : 85), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+
+        // BREAKER BLOCKS. Meme zone, meme origine, sens inverse.
+        // Baissier (ex-OB haussier casse) : contour violet, fond rouge.
+        // Haussier (ex-OB baissier casse) : contour bleu, fond vert.
+        if array.size(bkST) > 0
+            for i = 0 to array.size(bkST) - 1
+                f_zone(array.get(bkST, i), array.get(bkSB, i), array.get(bkSX, i), color.new(cPurp, 35), color.new(cDn, 88), "BB", color.new(cPurp, 20), line.style_solid)
+        if array.size(bkBT) > 0
+            for i = 0 to array.size(bkBT) - 1
+                f_zone(array.get(bkBT, i), array.get(bkBB, i), array.get(bkBX, i), color.new(cBlue, 35), color.new(cUp, 88), "BB", color.new(cBlue, 20), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow

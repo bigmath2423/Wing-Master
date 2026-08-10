@@ -98,7 +98,8 @@ panShow  = input.bool(true, "Panneau de decision", group=grpU)
 panPos   = input.string("top_right", "Position", options=["top_left","top_right","bottom_left","bottom_right"], group=grpU)
 uiTint   = input.bool(true, "Teinte de fond selon le biais", group=grpU, tooltip="Le seul dispositif qui donne le biais sans aucun deplacement du regard. Volontairement a la limite du perceptible.")
 showLvls = input.bool(true, "Entree / Stop / Objectifs du setup en cours", group=grpU)
-zoneMaxBars = input.int(80, "Largeur maximum d'une zone (bougies)", minval=20, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est desormais tronque a cette distance. AFFICHAGE SEUL.")
+zoneOnly = input.bool(true, "N'afficher que les OB/FVG du setup actif", group=grpU, tooltip="Coche : seuls les Order Blocks et FVG qui appartiennent a une zone active sont dessines. Sans zone active, le graphique reste VIDE -- c'est le comportement voulu, pas un bug. Decoche pour revoir tous les OB/FVG detectes.")
+zoneMaxBars = input.int(25, "Largeur maximum d'une zone (bougies)", minval=6, maxval=400, group=grpU, tooltip="CORRECTIF VISUEL. Une boite etait dessinee depuis sa bougie d'origine jusqu'a maintenant : un FVG vieux de 200 bougies faisait 200 bougies de large, une zone hebdomadaire creee lundi en faisait ~480 le vendredi en M15. Les BORNES DE PRIX etaient deja exactes (le FVG va bien de high[2] a low, l'OB est le high/low d'une seule bougie) -- seule la largeur etait absurde. Le bord gauche est tronque a cette distance. Ramene de 80 a 25 : a 80, une boite couvrait encore 'plusieurs dizaines de bougies'. AFFICHAGE SEUL.")
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -661,6 +662,47 @@ var array<label> zLab  = array.new<label>()
 
 newWeek = ta.change(time("W")) != 0
 
+// ---- Etat hebdomadaire sweep / CHoCH / BOS -------------------------
+// REMONTE ICI (etait declare plus bas) : le moteur de zones a besoin de
+// ces trois confirmations comme CONDITIONS DE CREATION, et Pine exige
+// qu'une variable soit declaree avant d'etre lue.
+var bool wzSweepUp = false
+var bool wzSweepDn = false
+// CHoCH/BOS de la semaine, meme portee que wzSweepUp/Dn : pas specifique a
+// une zone -- si l'evenement a eu lieu N'IMPORTE QUAND cette semaine, meme
+// avant la creation de la zone courante, la coche s'allume. Comportement
+// identique a wzCfSweep aujourd'hui, etendu pour rester coherent plutot que
+// d'inventer un systeme de portee par zone.
+var bool wzChochUp = false
+var bool wzChochDn = false
+var bool wzBosUp   = false
+var bool wzBosDn   = false
+if newWeek
+    wzSweepUp := false
+    wzSweepDn := false
+    wzChochUp := false
+    wzChochDn := false
+    wzBosUp   := false
+    wzBosDn   := false
+// Sweep : une poche de liquidite prise puis rejetee, dans la semaine en cours.
+if array.size(eqlL) > 0
+    for i = 0 to array.size(eqlL) - 1
+        if low < array.get(eqlL, i) and close > array.get(eqlL, i)
+            wzSweepDn := true
+if array.size(eqhL) > 0
+    for i = 0 to array.size(eqhL) - 1
+        if high > array.get(eqhL, i) and close < array.get(eqhL, i)
+            wzSweepUp := true
+if bullChoch
+    wzChochUp := true
+if bearChoch
+    wzChochDn := true
+if bullBos
+    wzBosUp := true
+if bearBos
+    wzBosDn := true
+
+
 if newWeek
     // ---- Profil de la semaine ECOULEE : POC, Value Area, noeud de volume ----
     if array.size(wPx) > 20
@@ -821,7 +863,20 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 bool same   = exI >= 0 and array.get(zTop, exI) == zT and array.get(zBot, exI) == zB
                 bool better = exI < 0 or score > array.get(zScr, exI)
 
-                if fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
+                // ---- LES TROIS CONFIRMATIONS OBLIGATOIRES ------------------
+                // Repond directement aux TEST 2/3/4 : jusqu'ici le gate ne
+                // contenait NI sweep, NI CHoCH, NI BOS -- une zone pouvait donc
+                // naitre sans aucun des trois. Desormais les trois sont exiges,
+                // dans le bon sens :
+                //   BUY  : sell side liquidity sweepee + CHoCH haussier + BOS haussier
+                //   SELL : buy side liquidity sweepee + CHoCH baissier + BOS baissier
+                // Ces trois drapeaux sont hebdomadaires et derivent de pivots
+                // CONFIRMES (+ trend garde par barstate.isconfirmed) : aucun
+                // lookahead, aucun repaint.
+                bool cSweep = isBuy ? wzSweepDn : wzSweepUp
+                bool cChoch = isBuy ? wzChochUp : wzChochDn
+                bool cBos   = isBuy ? wzBosUp   : wzBosDn
+                if cSweep and cChoch and cBos and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
                     if exI >= 0
                         box.delete(array.get(zBox, exI))
                         label.delete(array.get(zLab, exI))
@@ -978,24 +1033,6 @@ if array.size(zBox) > 0 and not na(atrV) and atrV > 0
 // Une zone atteinte ne suffit pas : le systeme attend le sweep, la cassure et
 // la zone SMC. Et meme les trois reunis ne declenchent rien — c'est buySignal
 // et sellSignal qui decident, et eux seuls.
-var bool wzSweepUp = false
-var bool wzSweepDn = false
-// CHoCH/BOS de la semaine, meme portee que wzSweepUp/Dn : pas specifique a
-// une zone -- si l'evenement a eu lieu N'IMPORTE QUAND cette semaine, meme
-// avant la creation de la zone courante, la coche s'allume. Comportement
-// identique a wzCfSweep aujourd'hui, etendu pour rester coherent plutot que
-// d'inventer un systeme de portee par zone.
-var bool wzChochUp = false
-var bool wzChochDn = false
-var bool wzBosUp   = false
-var bool wzBosDn   = false
-if newWeek
-    wzSweepUp := false
-    wzSweepDn := false
-    wzChochUp := false
-    wzChochDn := false
-    wzBosUp   := false
-    wzBosDn   := false
 int  zHit  = 0
 int  zHitI = -1
 if array.size(zTop) > 0
@@ -1003,23 +1040,6 @@ if array.size(zTop) > 0
         if close <= array.get(zTop, i) and close >= array.get(zBot, i)
             zHit  := array.get(zSide, i)
             zHitI := i
-// Sweep : une poche de liquidite prise puis rejetee, dans la semaine en cours.
-if array.size(eqlL) > 0
-    for i = 0 to array.size(eqlL) - 1
-        if low < array.get(eqlL, i) and close > array.get(eqlL, i)
-            wzSweepDn := true
-if array.size(eqhL) > 0
-    for i = 0 to array.size(eqhL) - 1
-        if high > array.get(eqhL, i) and close < array.get(eqhL, i)
-            wzSweepUp := true
-if bullChoch
-    wzChochUp := true
-if bearChoch
-    wzChochDn := true
-if bullBos
-    wzBosUp := true
-if bearBos
-    wzBosDn := true
 
 bool wzCfSweep = zHit == 1 ? wzSweepDn : zHit == -1 ? wzSweepUp : false
 bool wzCfStruc = zHit == 1 ? (bullBos or bullChoch) : zHit == -1 ? (bearBos or bearChoch) : false
@@ -1192,6 +1212,18 @@ f_lvl(float y, color col, string txt, string sty) =>
 // Le bord gauche est tronque a zoneMaxBars : une boite garde son origine
 // reelle tant qu'elle est recente, et cesse de balayer tout l'ecran quand
 // elle vieillit. Les bornes de PRIX (top/bot) ne sont jamais touchees.
+// Une boite OB/FVG appartient-elle au setup en cours ? Vraie si elle
+// CHEVAUCHE une zone active. Comme la zone EST l'intersection OB x FVG, les
+// deux ancres de cette zone la chevauchent forcement -- un seul test suffit
+// donc pour les deux types, sans avoir a memoriser le FVG separement.
+f_nearZone(float t, float b) =>
+    bool r = false
+    if array.size(zTop) > 0
+        for q = 0 to array.size(zTop) - 1
+            if math.min(t, array.get(zTop, q)) > math.max(b, array.get(zBot, q))
+                r := true
+    r
+
 f_zone(float top, float bot, int left, color bord, color fill, string txt, color txtc, string bsty) =>
     if not na(top) and not na(bot) and top > bot
         int l = math.max(left, bar_index - zoneMaxBars)
@@ -1226,23 +1258,27 @@ if barstate.islast
     if obShow
         if array.size(obBT) > 0
             for i = 0 to array.size(obBT) - 1
-                bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obBT, i) and array.get(zSmcBot, zHitI) == array.get(obBB, i)
-                f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
+                bool obActive = f_nearZone(array.get(obBT, i), array.get(obBB, i))
+                if obActive or not zoneOnly
+                    f_zone(array.get(obBT, i), array.get(obBB, i), array.get(obBX, i), color.new(cBlue, 60), color.new(cBlue, 93), (obActive ? "5. OB" : "OB"), color.new(cBlue, 25), line.style_solid)
         if array.size(obST) > 0
             for i = 0 to array.size(obST) - 1
-                bool obActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 1 and array.get(zSmcTop, zHitI) == array.get(obST, i) and array.get(zSmcBot, zHitI) == array.get(obSB, i)
-                f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
+                bool obActive = f_nearZone(array.get(obST, i), array.get(obSB, i))
+                if obActive or not zoneOnly
+                    f_zone(array.get(obST, i), array.get(obSB, i), array.get(obSX, i), color.new(cPurp, 60), color.new(cPurp, 93), (obActive ? "5. OB" : "OB"), color.new(cPurp, 25), line.style_solid)
 
     // ---- Fair Value Gaps retenus ----
     if fvgShow
         if array.size(fvBT) > 0
             for i = 0 to array.size(fvBT) - 1
-                bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvBT, i) and array.get(zSmcBot, zHitI) == array.get(fvBB, i)
-                f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
+                bool fvActive = f_nearZone(array.get(fvBT, i), array.get(fvBB, i))
+                if fvActive or not zoneOnly
+                    f_zone(array.get(fvBT, i), array.get(fvBB, i), array.get(fvBX, i), color.new(cUp, 70), color.new(cUp, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cUp, 30), line.style_dashed)
         if array.size(fvST) > 0
             for i = 0 to array.size(fvST) - 1
-                bool fvActive = zHitI >= 0 and array.get(zSmcType, zHitI) == 2 and array.get(zSmcTop, zHitI) == array.get(fvST, i) and array.get(zSmcBot, zHitI) == array.get(fvSB, i)
-                f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
+                bool fvActive = f_nearZone(array.get(fvST, i), array.get(fvSB, i))
+                if fvActive or not zoneOnly
+                    f_zone(array.get(fvST, i), array.get(fvSB, i), array.get(fvSX, i), color.new(cDn, 70), color.new(cDn, 94), (fvActive ? "5. FVG" : "FVG"), color.new(cDn, 30), line.style_dashed)
 
     // ---- ENTREE PLANIFIEE : le bord de la zone ou l'on attend le prix ----
     // Repond a "l'Entry doit etre DANS ou au bord logique de la zone" -- mais

@@ -360,6 +360,30 @@ var int dbgSwBNoCh  = 0   // mort remplace sans avoir jamais produit de CHoCH
 var int dbgSwBChOld = 0   // 1er CHoCH arrive AU-DELA de seqMaxBars
 var int dbgSwSNoCh  = 0
 var int dbgSwSChOld = 0
+
+// ---- SENSIBILITE DE liqTolAtr : LES CINQ SEUILS EN UN SEUL PASSAGE ------
+// Balayer 0.10 / 0.15 / 0.20 / 0.25 / 0.30 en rechargeant l'indicateur cinq
+// fois par timeframe demande vingt captures. Le meme ecart de pivots peut
+// etre teste contre les cinq seuils sur la MEME bougie : un seul passage
+// suffit pour obtenir la courbe complete du nombre de poches.
+// Comptes CUMULES : chaque compteur retient les paires dont l'ecart est
+// INFERIEUR OU EGAL a son seuil, donc la suite est croissante par
+// construction. AUTO-CONTROLE : la colonne 0.15 doit egaler exactement
+// dbgPockL / dbgPockH tant que liqTolAtr vaut 0.15. Si les deux different,
+// l'instrumentation est fausse et rien ne doit en etre conclu.
+// AUCUNE poche n'est creee ici, aucun tableau du moteur n'est lu ni ecrit :
+// ces compteurs ne disent que ce que le moteur AURAIT apparie. Ils ne
+// disent rien des sweeps, qui demandent, eux, un vrai passage du moteur.
+var int dbgTL10 = 0
+var int dbgTL15 = 0
+var int dbgTL20 = 0
+var int dbgTL25 = 0
+var int dbgTL30 = 0
+var int dbgTH10 = 0
+var int dbgTH15 = 0
+var int dbgTH20 = 0
+var int dbgTH25 = 0
+var int dbgTH30 = 0
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -864,11 +888,34 @@ if barstate.isconfirmed and not na(liqTol)
         dbgPrH += 1
         if math.abs(phA - phB) <= liqTol
             dbgPockH += 1
+        // SENSIBILITE : le meme ecart, confronte aux cinq seuils.
+        float dH = math.abs(phA - phB)
+        if dH <= atrV * 0.10
+            dbgTH10 += 1
+        if dH <= atrV * 0.15
+            dbgTH15 += 1
+        if dH <= atrV * 0.20
+            dbgTH20 += 1
+        if dH <= atrV * 0.25
+            dbgTH25 += 1
+        if dH <= atrV * 0.30
+            dbgTH30 += 1
     if not na(pl) and not na(plB)
         dbgEqPair += 1
         dbgPrL += 1
         if math.abs(plA - plB) <= liqTol
             dbgPockL += 1
+        float dL = math.abs(plA - plB)
+        if dL <= atrV * 0.10
+            dbgTL10 += 1
+        if dL <= atrV * 0.15
+            dbgTL15 += 1
+        if dL <= atrV * 0.20
+            dbgTL20 += 1
+        if dL <= atrV * 0.25
+            dbgTL25 += 1
+        if dL <= atrV * 0.30
+            dbgTL30 += 1
 
 // --- DEBUG : pourquoi un sweep est accepte ou rejete ---------------------
 // Rejoue le test sur les MEMES poches, AVANT que le bloc reel ne les consomme.
@@ -3527,6 +3574,10 @@ if barstate.islast and dbgOn
         f_dbgH(14, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
         f_dbgR(15, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
         f_dbgR(16, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+
+        f_dbgH(17, "SENSIBILITE liqTolAtr — POCHES si le seuil valait…")
+        f_dbgR(18, "EQL  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTL10) + " " + sl + " " + str.tostring(dbgTL15) + " " + sl + " " + str.tostring(dbgTL20) + " " + sl + " " + str.tostring(dbgTL25) + " " + sl + " " + str.tostring(dbgTL30))
+        f_dbgR(19, "EQH  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTH10) + " " + sl + " " + str.tostring(dbgTH15) + " " + sl + " " + str.tostring(dbgTH20) + " " + sl + " " + str.tostring(dbgTH25) + " " + sl + " " + str.tostring(dbgTH30))
 
     else if dbgPage == "③ CYCLE"
         f_dbgH(0, "DEBUG ③ CYCLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")

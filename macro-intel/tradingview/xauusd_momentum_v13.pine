@@ -163,6 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en trois pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -3373,7 +3374,7 @@ if barstate.islast and statShow and strategy.closedtrades > 0
 // close[i]/open[i] dans f_dbgScan, borne par swingLen exactement comme la
 // boucle reelle ; et le tableau n'utilise aucune coordonnee bar_index.
 // ============================================================
-var table dbgT = table.new(position.middle_left, 2, 55, border_width=0)
+var table dbgT = table.new(position.middle_left, 2, 20, border_width=0)
 f_dbgH(int r, string t) =>
     table.cell(dbgT, 0, r, t, text_color=cGold, text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cGold, 88))
     table.cell(dbgT, 1, r, "", bgcolor=color.new(cGold, 88))
@@ -3405,68 +3406,81 @@ if barstate.islast and dbgOn
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
     // que quatre captures M1/M3/M5/M15 soient identifiables sans ambiguite.
     string tfLbl = timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : timeframe.isminutes ? (timeframe.multiplier >= 60 and timeframe.multiplier % 60 == 0 ? "H" + str.tostring(int(timeframe.multiplier / 60)) : "M" + str.tostring(timeframe.multiplier)) : timeframe.isdaily ? "D1" : timeframe.isweekly ? "W1" : timeframe.ismonthly ? "MN" : timeframe.period
-    f_dbgH(0, "DEBUG  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-    f_dbgR(1, "swing " + str.tostring(swingLen) + " · fvgAge " + str.tostring(fvgMaxAge) + " · bkConf " + str.tostring(bkConfBars), "cool " + str.tostring(cooldown) + " · seq " + str.tostring(seqMaxBars))
+    // Le tableau est repagine : au-dela d'une vingtaine de lignes il deborde
+    // du graphique en haut ET en bas, et les sections du bas ne sont tout
+    // simplement jamais rendues visibles. table.clear efface la page
+    // precedente, sans quoi les cellules d'une page persisteraient sous la
+    // suivante -- les cellules d'un tableau var survivent d'une bougie a
+    // l'autre tant qu'on ne les reecrit pas.
+    table.clear(dbgT, 0, 0, 1, 19)
 
-    f_dbgH(2, "STRUCTURE")
-    f_dbgR(3, "CHoCH " + sl + " BOS",                str.tostring(dbgChoch) + " " + sl + " " + str.tostring(dbgBos))
-    f_dbgR(4, "Sweep>CHoCH " + sl + " CHoCH>BOS",    str.tostring(dbgSeqSC) + " " + sl + " " + str.tostring(dbgSeqCB))
-    f_dbgR(5, "sequences COMPLETES",                 str.tostring(dbgSeqFull))
+    if dbgPage == "① MOTEUR"
+        f_dbgH(0, "DEBUG ① MOTEUR  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+        f_dbgR(1, "swing " + str.tostring(swingLen) + " · fvgAge " + str.tostring(fvgMaxAge) + " · bkConf " + str.tostring(bkConfBars), "cool " + str.tostring(cooldown) + " · seq " + str.tostring(seqMaxBars))
 
-    f_dbgH(6, "ORDER BLOCK")
-    f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
-    f_dbgR(8,  "rej. dep " + sl + " dbl " + sl + " cyc " + sl + " struct", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
-    f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
-    f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
-    f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))
-    f_dbgR(12, "invalides " + sl + " evinces",       str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict))
-    f_dbgR(13, "breakers confirmes",                 str.tostring(dbgBkMade))
+        f_dbgH(2, "STRUCTURE")
+        f_dbgR(3, "CHoCH " + sl + " BOS",                str.tostring(dbgChoch) + " " + sl + " " + str.tostring(dbgBos))
+        f_dbgR(4, "Sweep>CHoCH " + sl + " CHoCH>BOS",    str.tostring(dbgSeqSC) + " " + sl + " " + str.tostring(dbgSeqCB))
+        f_dbgR(5, "sequences COMPLETES",                 str.tostring(dbgSeqFull))
 
-    f_dbgH(14, "FVG")
-    f_dbgR(15, "potentiels " + sl + " crees",        str.tostring(dbgFvCand) + " " + sl + " " + str.tostring(dbgFvOk))
-    f_dbgR(16, "rejetes — taille " + sl + " corps",  str.tostring(dbgFvNoGap) + " " + sl + " " + str.tostring(dbgFvNoBod))
-    f_dbgR(17, "rejetes — autre condition",          str.tostring(dbgFvOther))
-    f_dbgR(18, "combles " + sl + " ages " + sl + " evinces", str.tostring(dbgFvFill) + " " + sl + " " + str.tostring(dbgFvAge) + " " + sl + " " + str.tostring(dbgFvEvict))
-    f_dbgR(19, "actifs",                             str.tostring(array.size(fvBT) + array.size(fvST)))
+        f_dbgH(6, "ORDER BLOCK")
+        f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
+        f_dbgR(8,  "rej. dep " + sl + " dbl " + sl + " cyc " + sl + " struct", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
+        f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
+        f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
+        f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))
+        f_dbgR(12, "invalides " + sl + " evinces",       str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict))
+        f_dbgR(13, "breakers confirmes",                 str.tostring(dbgBkMade))
 
-    f_dbgH(20, "LIQUIDITE " + sl + " SWEEP")
-    f_dbgR(21, "paires evaluees",                    str.tostring(dbgEqPair))
-    f_dbgR(22, "poches EQH " + sl + " EQL",          str.tostring(dbgPockH) + " " + sl + " " + str.tostring(dbgPockL))
-    f_dbgR(23, "sweeps cand. > acceptes " + sl + " rejetes", str.tostring(dbgSwCand) + " > " + str.tostring(dbgSwOk) + " " + sl + " " + str.tostring(dbgSwNoPen + dbgSwNoRej))
-    f_dbgR(24, "   dont penetration " + sl + " rejet", str.tostring(dbgSwNoPen) + " " + sl + " " + str.tostring(dbgSwNoRej))
-    f_dbgR(25, "poches consommees " + sl + " expirees", str.tostring(dbgPockUse) + " " + sl + " " + str.tostring(dbgPockExp))
-    f_dbgR(26, "SWING SIMPLE non vus  |  ZONES",     str.tostring(dbgSwSingle) + "  |  " + str.tostring(dbgZone))
+        f_dbgH(14, "FVG")
+        f_dbgR(15, "potentiels " + sl + " crees",        str.tostring(dbgFvCand) + " " + sl + " " + str.tostring(dbgFvOk))
+        f_dbgR(16, "rejetes — taille " + sl + " corps",  str.tostring(dbgFvNoGap) + " " + sl + " " + str.tostring(dbgFvNoBod))
+        f_dbgR(17, "rejetes — autre condition",          str.tostring(dbgFvOther))
+        f_dbgR(18, "combles " + sl + " ages " + sl + " evinces", str.tostring(dbgFvFill) + " " + sl + " " + str.tostring(dbgFvAge) + " " + sl + " " + str.tostring(dbgFvEvict))
+        f_dbgR(19, "actifs",                             str.tostring(array.size(fvBT) + array.size(fvST)))
 
-    f_dbgH(27, "POURQUOI PAS DE ZONE  (motif bloquant)")
-    f_dbgR(28, "sweep manq " + sl + " perime " + sl + " h.cycle", str.tostring(dgcSwMiss) + " " + sl + " " + str.tostring(dgcSwOld) + " " + sl + " " + str.tostring(dgcSwCyc))
-    f_dbgR(29, "choch manq " + sl + " h.seq " + sl + " bos manq " + sl + " h.seq", str.tostring(dgcChMiss) + " " + sl + " " + str.tostring(dgcChSeq) + " " + sl + " " + str.tostring(dgcBoMiss) + " " + sl + " " + str.tostring(dgcBoSeq))
-    f_dbgR(30, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
-    f_dbgR(31, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
-    f_dbgR(32, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))
+    else if dbgPage == "② ZONES"
+        f_dbgH(0, "DEBUG ② ZONES  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
 
-    f_dbgH(33, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
-    f_dbgR(34, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
-    f_dbgR(35, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+        f_dbgH(1, "LIQUIDITE " + sl + " SWEEP")
+        f_dbgR(2, "paires evaluees",                    str.tostring(dbgEqPair))
+        f_dbgR(3, "poches EQH " + sl + " EQL",          str.tostring(dbgPockH) + " " + sl + " " + str.tostring(dbgPockL))
+        f_dbgR(4, "sweeps cand. > acceptes " + sl + " rejetes", str.tostring(dbgSwCand) + " > " + str.tostring(dbgSwOk) + " " + sl + " " + str.tostring(dbgSwNoPen + dbgSwNoRej))
+        f_dbgR(5, "   dont penetration " + sl + " rejet", str.tostring(dbgSwNoPen) + " " + sl + " " + str.tostring(dbgSwNoRej))
+        f_dbgR(6, "poches consommees " + sl + " expirees", str.tostring(dbgPockUse) + " " + sl + " " + str.tostring(dbgPockExp))
+        f_dbgR(7, "SWING SIMPLE non vus  |  ZONES",     str.tostring(dbgSwSingle) + "  |  " + str.tostring(dbgZone))
 
-    f_dbgH(36, "CHAINE BUY   (lit swpDnIdx)")
-    f_dbgR(37, "sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgBuySwNone) + " " + sl + " " + str.tostring(dbgBuySwOld) + " " + sl + " " + str.tostring(dbgBuySwOk))
-    f_dbgR(38, "fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgBuyFreshOk) + " " + sl + " " + str.tostring(dbgBuyFreshKo) + " " + sl + " " + str.tostring(dbgBuyBosOk))
+        f_dbgH(8, "POURQUOI PAS DE ZONE  (motif bloquant)")
+        f_dbgR(9,  "sweep manq " + sl + " perime " + sl + " h.cycle", str.tostring(dgcSwMiss) + " " + sl + " " + str.tostring(dgcSwOld) + " " + sl + " " + str.tostring(dgcSwCyc))
+        f_dbgR(10, "choch manq " + sl + " h.seq " + sl + " bos manq " + sl + " h.seq", str.tostring(dgcChMiss) + " " + sl + " " + str.tostring(dgcChSeq) + " " + sl + " " + str.tostring(dgcBoMiss) + " " + sl + " " + str.tostring(dgcBoSeq))
+        f_dbgR(11, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
+        f_dbgR(12, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
+        f_dbgR(13, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))
 
-    f_dbgH(39, "CHAINE SELL  (lit swpUpIdx)")
-    f_dbgR(40, "sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
-    f_dbgR(41, "fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
-    f_dbgR(42, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))
+        f_dbgH(14, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
+        f_dbgR(15, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
+        f_dbgR(16, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
 
-    f_dbgH(43, "CHOCH " + sl + " CYCLE EVENT  (par CHoCH, pas par bougie)")
-    f_dbgR(44, "BUY  total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvBTot - dbgEvBKo) + " " + sl + " " + str.tostring(dbgEvBKo))
-    f_dbgR(45, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvBKoB) + " " + sl + " " + str.tostring(dbgEvBKoN) + " " + sl + " (" + str.tostring(dbgEvBKoO) + ")")
-    f_dbgR(46, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvBDone) + " " + sl + " " + str.tostring(dbgEvBOkO))
-    f_dbgR(47, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
-    f_dbgR(48, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
-    f_dbgR(49, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))
+    else
+        f_dbgH(0, "DEBUG ③ CYCLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
 
-    f_dbgH(50, "SWEEP -> CHAINE  (par SWEEP, pas par bougie)")
-    f_dbgR(51, "BUY  sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
-    f_dbgR(52, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
-    f_dbgR(53, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
-    f_dbgR(54, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))
+        f_dbgH(1, "CHAINE PAR BOUGIE  (BUY lit swpDnIdx)")
+        f_dbgR(2, "BUY  sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgBuySwNone) + " " + sl + " " + str.tostring(dbgBuySwOld) + " " + sl + " " + str.tostring(dbgBuySwOk))
+        f_dbgR(3, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgBuyFreshOk) + " " + sl + " " + str.tostring(dbgBuyFreshKo) + " " + sl + " " + str.tostring(dbgBuyBosOk))
+        f_dbgR(4, "SELL sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
+        f_dbgR(5, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
+        f_dbgR(6, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))
+
+        f_dbgH(7, "CHOCH EVENT  (par CHoCH, pas par bougie)")
+        f_dbgR(8,  "BUY  total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvBTot - dbgEvBKo) + " " + sl + " " + str.tostring(dbgEvBKo))
+        f_dbgR(9,  "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvBKoB) + " " + sl + " " + str.tostring(dbgEvBKoN) + " " + sl + " (" + str.tostring(dbgEvBKoO) + ")")
+        f_dbgR(10, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvBDone) + " " + sl + " " + str.tostring(dbgEvBOkO))
+        f_dbgR(11, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
+        f_dbgR(12, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
+        f_dbgR(13, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))
+
+        f_dbgH(14, "SWEEP -> CHAINE  (par SWEEP, pas par bougie)")
+        f_dbgR(15, "BUY  sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+        f_dbgR(16, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
+        f_dbgR(17, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+        f_dbgR(18, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))

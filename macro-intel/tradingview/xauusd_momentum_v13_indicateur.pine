@@ -406,6 +406,31 @@ var int dbgOsNa   = 0   // refus : obCr ou chIdx vaut na
 var int dbgOsCh   = 0   // refus : obCr < chIdx
 var int dbgOsPv   = 0   // refus : pvIdx > obCr
 var int dbgOsBoth = 0   // refus : les deux a la fois (recouvrement)
+
+// ---- NATURE DU PIVOT QUI CASSE LE CYCLE ---------------------------------
+// Une fois l'horloge corrigee, tout rejet vient de pvBar > obCr : un pivot
+// oppose s'est bien forme APRES l'evenement structurel. Reste a savoir s'il
+// ouvre un vrai nouveau cycle ou s'il appartient encore a la meme impulsion.
+// Trois lectures, toutes construites sur des variables deja calculees :
+//   1. un CHoCH est-il survenu depuis obCr, et dans quel sens ;
+//   2. a quelle distance en bougies le pivot se trouve de obCr ;
+//   3. l'Order Block avait-il deja ete mitige au moment du rejet.
+// Le point 3 est le plus parlant : si le pivot est le pullback qui ramene le
+// prix SUR l'Order Block, ce n'est pas un nouveau cycle, c'est l'entree
+// recherchee.
+// CHoCH meme sens : obSameCycle exige deja obCr >= chIdx, donc ce compteur
+// doit rester a zero. Il est conserve comme controle de coherence.
+// CONSERVATION : ChS + ChO + ChN = D05 + D10 + D20 + D50 + D99 = dbgOsPv.
+var int dbgPvChS  = 0   // CHoCH de MEME sens depuis obCr (doit valoir 0)
+var int dbgPvChO  = 0   // CHoCH de sens OPPOSE depuis obCr -> vrai retournement
+var int dbgPvChN  = 0   // aucun CHoCH depuis obCr -> meme impulsion
+var int dbgPvD05  = 0   // pvBar - obCr <=  5 bougies
+var int dbgPvD10  = 0   //              <= 10
+var int dbgPvD20  = 0   //              <= 20
+var int dbgPvD50  = 0   //              <= 50
+var int dbgPvD99  = 0   //               > 50
+var int dbgPvDSum = 0   // somme des distances, pour la moyenne
+var int dbgPvMit  = 0   // l'OB etait deja mitige ou teste (etat >= 1)
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -2575,6 +2600,31 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                             dbgOsCh += 1
                         if fPv
                             dbgOsPv += 1
+                            // --- NATURE DU PIVOT POSTERIEUR ---------------
+                            // Lecture seule : chochUpIdx / chochDnIdx / obBSt
+                            // sont deja calcules, rien n'est ecrit ailleurs
+                            // que dans ces compteurs.
+                            int chOpp = isBuy ? chochDnIdx : chochUpIdx
+                            int dPv   = pvBar - obCr
+                            if not na(chIdx) and chIdx > obCr
+                                dbgPvChS += 1
+                            else if not na(chOpp) and chOpp > obCr
+                                dbgPvChO += 1
+                            else
+                                dbgPvChN += 1
+                            if dPv <= 5
+                                dbgPvD05 += 1
+                            else if dPv <= 10
+                                dbgPvD10 += 1
+                            else if dPv <= 20
+                                dbgPvD20 += 1
+                            else if dPv <= 50
+                                dbgPvD50 += 1
+                            else
+                                dbgPvD99 += 1
+                            dbgPvDSum += dPv
+                            if (isBuy ? array.get(obBSt, 0) : array.get(obSSt, 0)) >= 1
+                                dbgPvMit += 1
                         if fCh and fPv
                             dbgOsBoth += 1
 
@@ -3689,3 +3739,8 @@ if barstate.islast and dbgOn
         f_dbgR(13, "actifs " + sl + " historique", str.tostring(obActN) + " " + sl + " " + str.tostring(obHisN))
         f_dbgR(14, "invalides " + sl + " evinces " + sl + " breakers", str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict) + " " + sl + " " + str.tostring(dbgBkMade))
         f_dbgR(15, "OB manquant  |  OB hors cycle", str.tostring(dgcObMiss) + "  |  " + str.tostring(dgcObCyc))
+
+        f_dbgH(16, "pvBar>obCr — NATURE DU PIVOT POSTERIEUR")
+        f_dbgR(17, "CHoCH depuis obCr : meme sens " + sl + " oppose " + sl + " aucun", str.tostring(dbgPvChS) + " " + sl + " " + str.tostring(dbgPvChO) + " " + sl + " " + str.tostring(dbgPvChN))
+        f_dbgR(18, "distance <=5 " + sl + " <=10 " + sl + " <=20 " + sl + " <=50 " + sl + " >50", str.tostring(dbgPvD05) + " " + sl + " " + str.tostring(dbgPvD10) + " " + sl + " " + str.tostring(dbgPvD20) + " " + sl + " " + str.tostring(dbgPvD50) + " " + sl + " " + str.tostring(dbgPvD99))
+        f_dbgR(19, "dist. moy " + sl + " OB deja mitige " + sl + " ctrl", (dbgOsPv > 0 ? str.tostring(dbgPvDSum * 1.0 / dbgOsPv, "#.#") : "—") + " " + sl + " " + str.tostring(dbgPvMit) + " " + sl + " " + str.tostring(dbgPvD05 + dbgPvD10 + dbgPvD20 + dbgPvD50 + dbgPvD99))

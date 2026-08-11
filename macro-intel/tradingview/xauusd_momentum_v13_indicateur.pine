@@ -140,7 +140,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en cinq pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en six pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -383,6 +383,29 @@ var int dbgPvEvH  = 0   // evinces par liqMax sans avoir servi
 var int dbgPvEvL  = 0
 var int dbgPvNoPenH = 0 // BOUGIES touchant un niveau sans penetration suffisante
 var int dbgPvNoPenL = 0
+
+// ---- POURQUOI UN OB EXISTANT EST DIT HORS CYCLE -------------------------
+// obSameCycle = not na(obCr) and not na(chIdx) and obCr >= chIdx
+//                                            and (na(pvIdx) or pvIdx <= obCr)
+// Trois facons d'echouer, et une seule combinaison possible d'echec :
+//   obCr < chIdx  -- l'OB est ne AVANT le dernier CHoCH du sens ;
+//   pvIdx > obCr  -- un pivot OPPOSE s'est confirme depuis sa creation ;
+//   une des deux ancres est na.
+// Il n'existe PAS de quatrieme cas : si les deux inegalites sont satisfaites
+// et qu'aucune ancre n'est na, obSameCycle est vrai par construction. Le
+// "satisfont les deux mais echouent autrement" demande est donc vide, ce
+// n'est pas une limite de mesure mais une propriete de l'expression.
+// Les deux premiers ne sont PAS exclusifs : dbgOsBoth mesure leur
+// recouvrement, il ne s'ajoute pas.
+// CONSERVATION : dbgOsNa + dbgOsCh + dbgOsPv - dbgOsBoth = dgcObCyc, car
+// l'increment est place au point EXACT ou "OB HORS DU CYCLE COURANT" est
+// affecte, sous la meme garde hierarchique.
+var int dbgOsTot  = 0   // evaluations de obSameCycle, cote du biais courant
+var int dbgOsOk   = 0   // ... dont vraies
+var int dbgOsNa   = 0   // refus : obCr ou chIdx vaut na
+var int dbgOsCh   = 0   // refus : obCr < chIdx
+var int dbgOsPv   = 0   // refus : pvIdx > obCr
+var int dbgOsBoth = 0   // refus : les deux a la fois (recouvrement)
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -2451,6 +2474,13 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             int  chIdx = isBuy ? chochUpIdx : chochDnIdx
             int  pvIdx = isBuy ? lastPlIdx : lastPhIdx
             bool obSameCycle = not na(obCr) and not na(chIdx) and obCr >= chIdx and (na(pvIdx) or pvIdx <= obCr)
+            // DEBUG : taux de base, sur le seul cote du biais courant pour
+            // rester comparable aux compteurs de motif. Le bloc englobant
+            // porte deja barstate.isconfirmed.
+            if isBuy == isBuyBiasNow
+                dbgOsTot += 1
+                if obSameCycle
+                    dbgOsOk += 1
 
             // ---- APPARIEMENT ORDER BLOCK <-> FVG -------------------------
             // La version precedente exigeait un CHEVAUCHEMENT STRICT
@@ -2504,6 +2534,22 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             if na(zT) and isBuy == isBuyBiasNow and dgRej == ""
                 dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : not anyFvCycle ? "FVG HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
                 dgScore := na
+                // DEBUG : ventilation exacte du motif OB HORS DU CYCLE
+                // COURANT. Place ICI et non au calcul de obSameCycle, pour que
+                // la somme egale dgcObCyc exactement -- meme garde, meme
+                // hierarchie, meme instant.
+                if not obSameCycle
+                    if na(obCr) or na(chIdx)
+                        dbgOsNa += 1
+                    else
+                        bool fCh = obCr < chIdx
+                        bool fPv = not na(pvIdx) and pvIdx > obCr
+                        if fCh
+                            dbgOsCh += 1
+                        if fPv
+                            dbgOsPv += 1
+                        if fCh and fPv
+                            dbgOsBoth += 1
 
             if not na(zT)
                 // Epaisseur plancher : une union de quelques ticks
@@ -3566,7 +3612,7 @@ if barstate.islast and dbgOn
         f_dbgR(17, "SWING SIMPLE non vus (hors EQH" + sl + "EQL)", str.tostring(dbgSwSingle))
         f_dbgR(18, "liqMax " + str.tostring(liqMax) + " · pen " + str.tostring(sweepMinPen) + " · rej " + str.tostring(sweepReject), "seq " + str.tostring(seqMaxBars))
 
-    else
+    else if dbgPage == "⑤ SIMPLE"
         int pvVivL = array.size(pvLL)
         int pvVivH = array.size(pvHL)
         f_dbgH(0, "DEBUG ⑤ SWING SIMPLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
@@ -3592,3 +3638,27 @@ if barstate.islast and dbgOn
         f_dbgR(16, "BUY   > CHoCH " + sl + " > BOS", str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
         f_dbgR(17, "SELL  > CHoCH " + sl + " > BOS", str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
         f_dbgR(18, "ZONES  |  SWING SIMPLE non vus (debug)", str.tostring(dbgZone) + "  |  " + str.tostring(dbgSwSingle))
+
+    else
+        int obActN = array.size(obBT) + array.size(obST)
+        int obHisN = array.size(ohBT) + array.size(ohST)
+        int osKo   = dbgOsTot - dbgOsOk
+        f_dbgH(0, "DEBUG ⑥ OB  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+        f_dbgH(1, "obSameCycle — taux de base (cote du biais)")
+        f_dbgR(2, "evaluations " + sl + " OK " + sl + " KO", str.tostring(dbgOsTot) + " " + sl + " " + str.tostring(dbgOsOk) + " " + sl + " " + str.tostring(osKo))
+
+        f_dbgH(3, "OB HORS CYCLE — cause exacte")
+        f_dbgR(4, "ancre na " + sl + " obCr<chIdx " + sl + " pvIdx>obCr", str.tostring(dbgOsNa) + " " + sl + " " + str.tostring(dbgOsCh) + " " + sl + " " + str.tostring(dbgOsPv))
+        f_dbgR(5, "dont les DEUX a la fois (recouvrement)", str.tostring(dbgOsBoth))
+        f_dbgR(6, "na+ch+pv-both  |  OB h.cyc (doit etre egal)", str.tostring(dbgOsNa + dbgOsCh + dbgOsPv - dbgOsBoth) + "  |  " + str.tostring(dgcObCyc))
+
+        f_dbgH(7, "CREATION DES ORDER BLOCKS")
+        f_dbgR(8,  "potentiels " + sl + " crees", str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
+        f_dbgR(9,  "rejetes deplacement " + sl + " doublon", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup))
+        f_dbgR(10, "refus cycle " + sl + " structure (avant recherche)", str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
+        f_dbgR(11, "aucune bougie source dans swingLen", str.tostring(dbgObNoCnd))
+        f_dbgR(12, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
+        f_dbgR(13, "actifs " + sl + " historique", str.tostring(obActN) + " " + sl + " " + str.tostring(obHisN))
+        f_dbgR(14, "invalides " + sl + " evinces " + sl + " breakers", str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict) + " " + sl + " " + str.tostring(dbgBkMade))
+        f_dbgR(15, "OB manquant  |  OB hors cycle", str.tostring(dgcObMiss) + "  |  " + str.tostring(dgcObCyc))

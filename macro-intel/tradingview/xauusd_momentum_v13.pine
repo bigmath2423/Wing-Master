@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en six pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en sept pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -454,6 +454,20 @@ var int dbgPvD50  = 0   //              <= 50
 var int dbgPvD99  = 0   //               > 50
 var int dbgPvDSum = 0   // somme des distances, pour la moyenne
 var int dbgPvMit  = 0   // l'OB etait deja mitige ou teste (etat >= 1)
+
+// ---- DISTRIBUTION DE disp / atrV ---------------------------------------
+// On enregistre la VALEUR, pas un verdict binaire : c'est la seule facon
+// d'obtenir mediane et percentiles EXACTS plutot qu'interpoles sur des
+// tranches. Pine fournit array.median, array.avg, array.min, array.max et
+// array.percentile_linear_interpolation, qui operent directement dessus.
+// Volume negligeable : le nombre de valeurs egale le nombre de candidats OB,
+// soit environ 290 sur M1 pour 8900 bougies.
+// dbgDspRej et dbgDspOk sont redondants avec un seuillage de dbgDspAll a 1.2
+// -- le filtre EST exactement disp/atrV < obDispAtr -- mais ils servent de
+// controle : leurs tailles doivent egaler dbgObNoDsp et dbgObCand-dbgObNoDsp.
+var array<float> dbgDspAll = array.new<float>()
+var array<float> dbgDspRej = array.new<float>()
+var array<float> dbgDspOk  = array.new<float>()
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -1509,6 +1523,15 @@ if obTrigB and not na(atrV)
                         dup := true
             if barstate.isconfirmed
                 dbgObCand += 1
+                // DEBUG : la valeur exacte du deplacement, en multiples
+                // d'ATR, relevee a l'instant meme du test. Lecture seule,
+                // aucune condition du moteur ne lit ces tableaux.
+                float dspR = disp / atrV
+                array.push(dbgDspAll, dspR)
+                if disp < atrV * obDispAtr
+                    array.push(dbgDspRej, dspR)
+                else
+                    array.push(dbgDspOk, dspR)
             if disp < atrV * obDispAtr
                 if barstate.isconfirmed
                     dbgObNoDsp += 1
@@ -1563,6 +1586,15 @@ if obTrigS and not na(atrV)
                         dup := true
             if barstate.isconfirmed
                 dbgObCand += 1
+                // DEBUG : la valeur exacte du deplacement, en multiples
+                // d'ATR, relevee a l'instant meme du test. Lecture seule,
+                // aucune condition du moteur ne lit ces tableaux.
+                float dspR = disp / atrV
+                array.push(dbgDspAll, dspR)
+                if disp < atrV * obDispAtr
+                    array.push(dbgDspRej, dspR)
+                else
+                    array.push(dbgDspOk, dspR)
             if disp < atrV * obDispAtr
                 if barstate.isconfirmed
                     dbgObNoDsp += 1
@@ -3993,6 +4025,44 @@ f_dbgP6(string sl, string tfLbl) =>
     0
 
 
+f_dbgP7(string sl, string tfLbl) =>
+    int nA = array.size(dbgDspAll)
+    int nR = array.size(dbgDspRej)
+    int nO = array.size(dbgDspOk)
+    // Histogramme construit a l'affichage a partir des valeurs brutes : pas
+    // de compteur de tranche a maintenir, et la granularite reste modifiable
+    // sans retoucher l'enregistrement.
+    array<int> h = array.new<int>(21, 0)
+    if nA > 0
+        for i = 0 to nA - 1
+            float v = array.get(dbgDspAll, i)
+            int b = v >= 2.0 ? 20 : int(math.floor(v / 0.1))
+            b := math.max(0, math.min(20, b))
+            array.set(h, b, array.get(h, b) + 1)
+    f_dbgH(0, "DEBUG ⑦ DISP  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "disp/ATR — STATISTIQUES EXACTES")
+    f_dbgR(2, "candidats " + sl + " rejetes " + sl + " passes", str.tostring(nA) + " " + sl + " " + str.tostring(nR) + " " + sl + " " + str.tostring(nO))
+    f_dbgR(3, "taux rejet " + sl + " moyenne " + sl + " mediane", (nA > 0 ? str.tostring(nR * 100.0 / nA, "#.#") + " %" : "—") + " " + sl + " " + (nA > 0 ? str.tostring(array.avg(dbgDspAll), "#.###") : "—") + " " + sl + " " + (nA > 0 ? str.tostring(array.median(dbgDspAll), "#.###") : "—"))
+    f_dbgR(4, "P25 " + sl + " P75 " + sl + " P90", nA > 0 ? str.tostring(array.percentile_linear_interpolation(dbgDspAll, 25), "#.###") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgDspAll, 75), "#.###") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgDspAll, 90), "#.###") : "—")
+    f_dbgR(5, "min " + sl + " max", nA > 0 ? str.tostring(array.min(dbgDspAll), "#.###") + " " + sl + " " + str.tostring(array.max(dbgDspAll), "#.###") : "—")
+    f_dbgR(6, "CTRL  n|potentiels   rej|rej.deplacement", str.tostring(nA) + "|" + str.tostring(dbgObCand) + "   " + str.tostring(nR) + "|" + str.tostring(dbgObNoDsp))
+
+    f_dbgH(7, "HISTOGRAMME pas 0.10 — rejetes < 1.2 <= passes")
+    f_dbgR(8,  "0.0 " + sl + " 0.1 " + sl + " 0.2", str.tostring(array.get(h, 0)) + " " + sl + " " + str.tostring(array.get(h, 1)) + " " + sl + " " + str.tostring(array.get(h, 2)))
+    f_dbgR(9,  "0.3 " + sl + " 0.4 " + sl + " 0.5", str.tostring(array.get(h, 3)) + " " + sl + " " + str.tostring(array.get(h, 4)) + " " + sl + " " + str.tostring(array.get(h, 5)))
+    f_dbgR(10, "0.6 " + sl + " 0.7 " + sl + " 0.8", str.tostring(array.get(h, 6)) + " " + sl + " " + str.tostring(array.get(h, 7)) + " " + sl + " " + str.tostring(array.get(h, 8)))
+    f_dbgR(11, "0.9 " + sl + " 1.0 " + sl + " 1.1", str.tostring(array.get(h, 9)) + " " + sl + " " + str.tostring(array.get(h, 10)) + " " + sl + " " + str.tostring(array.get(h, 11)))
+    f_dbgR(12, "1.2 " + sl + " 1.3 " + sl + " 1.4", str.tostring(array.get(h, 12)) + " " + sl + " " + str.tostring(array.get(h, 13)) + " " + sl + " " + str.tostring(array.get(h, 14)))
+    f_dbgR(13, "1.5 " + sl + " 1.6 " + sl + " 1.7", str.tostring(array.get(h, 15)) + " " + sl + " " + str.tostring(array.get(h, 16)) + " " + sl + " " + str.tostring(array.get(h, 17)))
+    f_dbgR(14, "1.8 " + sl + " 1.9 " + sl + " >2.0", str.tostring(array.get(h, 18)) + " " + sl + " " + str.tostring(array.get(h, 19)) + " " + sl + " " + str.tostring(array.get(h, 20)))
+
+    f_dbgH(15, "FRONTIERE 1.2 — zoom")
+    f_dbgR(16, "REJETES  1.0-1.1 " + sl + " 1.1-1.2", str.tostring(array.get(h, 10)) + " " + sl + " " + str.tostring(array.get(h, 11)))
+    f_dbgR(17, "PASSES   1.2-1.3 " + sl + " 1.3-1.4 " + sl + " >1.4", str.tostring(array.get(h, 12)) + " " + sl + " " + str.tostring(array.get(h, 13)) + " " + sl + " " + str.tostring(array.get(h,14)+array.get(h,15)+array.get(h,16)+array.get(h,17)+array.get(h,18)+array.get(h,19)+array.get(h,20)))
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -4011,6 +4081,8 @@ if barstate.islast and dbgOn
         f_dbgP4(sl, tfLbl)
     else if dbgPage == "⑤ SIMPLE"
         f_dbgP5(sl, tfLbl)
-    else
+    else if dbgPage == "⑥ OB"
         f_dbgP6(sl, tfLbl)
+    else
+        f_dbgP7(sl, tfLbl)
 

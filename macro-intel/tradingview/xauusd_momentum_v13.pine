@@ -3548,7 +3548,17 @@ f_cellD(int r, string k, string v, color vc) =>
 
 f_px2(float p) => na(p) ? "—" : str.tostring(p, format.mintick)
 
-if barstate.islast and panShow
+// CE10295 -- LE CORPS PRINCIPAL DU SCRIPT ETAIT TROP LONG.
+// TradingView borne la taille du scope GLOBAL, pas celle du fichier. Les deux
+// blocs de rendu ci-dessous, purement visuels, pesaient a eux seuls plus de
+// trois cents lignes de ce scope. Ils sont donc encapsules dans des fonctions,
+// exactement le remede indique par le message d'erreur.
+// AUCUNE LOGIQUE N'EST DEPLACEE NI MODIFIEE : le corps de chaque bloc est
+// repris a l'identique, indentation comprise, et la condition d'origine reste
+// au point d'appel. Ces deux blocs ne contiennent aucune affectation ':=' vers
+// une variable globale -- ce que Pine interdirait dans une fonction -- le seul
+// ':=' present portant sur confScore, declaree localement dans le bloc.
+f_panDraw() =>
     // 0 — LE VERDICT. La seule ligne a lire si tu n'as que deux secondes.
     bool sL = rawLong
     bool sS = rawShort
@@ -3636,6 +3646,11 @@ if barstate.islast and panShow
     string aH4 = dirH4 == 1 ? "↑" : dirH4 == -1 ? "↓" : "–"
     string aH1 = dirH1 == 1 ? "↑" : dirH1 == -1 ? "↓" : "–"
     f_cell(16, "HTF BIAS", "D1 " + aD + "   H4 " + aH4 + "   H1 " + aH1, ctxCol)
+
+    0
+
+if barstate.islast and panShow
+    f_panDraw()
 
 // ============================================================
 // TABLEAU DE VALIDATION — statistiques sur les trades EXECUTES
@@ -3780,7 +3795,7 @@ f_dbgR(int r, string k, string v) =>
     table.cell(dbgT, 0, r, "  " + k, text_color=color.new(cTxt, 30), text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cBg, 8))
     table.cell(dbgT, 1, r, v + "  ", text_color=cTxt, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cBg, 8))
 
-if barstate.islast and dbgOn
+f_dbgDraw() =>
     int obAct = array.size(obBT) + array.size(obST) + array.size(ohBT) + array.size(ohST)
     int obMitN = 0
     if array.size(obBSt) > 0
@@ -3968,3 +3983,7 @@ if barstate.islast and dbgOn
         f_dbgR(17, "CHoCH depuis obCr : meme sens " + sl + " oppose " + sl + " aucun", str.tostring(dbgPvChS) + " " + sl + " " + str.tostring(dbgPvChO) + " " + sl + " " + str.tostring(dbgPvChN))
         f_dbgR(18, "distance <=5 " + sl + " <=10 " + sl + " <=20 " + sl + " <=50 " + sl + " >50", str.tostring(dbgPvD05) + " " + sl + " " + str.tostring(dbgPvD10) + " " + sl + " " + str.tostring(dbgPvD20) + " " + sl + " " + str.tostring(dbgPvD50) + " " + sl + " " + str.tostring(dbgPvD99))
         f_dbgR(19, "dist. moy " + sl + " OB deja mitige " + sl + " ctrl", (dbgOsPv > 0 ? str.tostring(dbgPvDSum * 1.0 / dbgOsPv, "#.#") : "—") + " " + sl + " " + str.tostring(dbgPvMit) + " " + sl + " " + str.tostring(dbgPvD05 + dbgPvD10 + dbgPvD20 + dbgPvD50 + dbgPvD99))
+    0
+
+if barstate.islast and dbgOn
+    f_dbgDraw()

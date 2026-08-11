@@ -2473,7 +2473,34 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             int  obCr  = isBuy ? array.get(obBCr, 0) : array.get(obSCr, 0)
             int  chIdx = isBuy ? chochUpIdx : chochDnIdx
             int  pvIdx = isBuy ? lastPlIdx : lastPhIdx
-            bool obSameCycle = not na(obCr) and not na(chIdx) and obCr >= chIdx and (na(pvIdx) or pvIdx <= obCr)
+            // ---- CORRECTIF DE PENDULE ------------------------------------
+            // lastPlIdx / lastPhIdx sont des dates de CONFIRMATION : ils sont
+            // ecrits a la bougie ou ta.pivotlow/pivothigh renvoie une valeur,
+            // soit swingLen bougies APRES l'extreme reel (cf. L177-178).
+            // obCr, lui, est une date d'EVENEMENT : bar_index a la bougie du
+            // BOS. Les comparer directement revient a confronter P + swingLen
+            // a une date d'evenement -- deux horloges differentes. Ce n'etait
+            // pas un seuil mal calibre mais une erreur d'unite.
+            //
+            // Consequence mesuree : le creux qui PRECEDE l'impulsion, donc
+            // l'origine meme de l'Order Block, se confirme quelques bougies
+            // APRES sa creation et etait lu comme le debut d'un nouveau cycle.
+            // 100 % des rejets "OB HORS DU CYCLE COURANT" venaient de la, sur
+            // les quatre timeframes : 883/883, 496/496, 580/580, 654/654.
+            //
+            // pvBar ramene le pivot sur l'horloge des evenements. swingLen
+            // n'est pas un seuil introduit ici : c'est litteralement
+            // l'argument de decalage de ta.pivotlow(low, swingLen, swingLen),
+            // donc le retard de confirmation lui-meme.
+            //
+            // LA PROTECTION RESTE ENTIERE, et la borne ne bouge pas :
+            //   P <= obCr  -> le pivot appartient a l'impulsion qui a produit
+            //                 le BOS, y compris son creux d'origine : meme
+            //                 cycle, l'OB survit ;
+            //   P >  obCr  -> le pivot s'est forme APRES l'evenement
+            //                 structurel : vrai nouveau cycle, l'OB tombe.
+            int  pvBar = na(pvIdx) ? na : pvIdx - swingLen
+            bool obSameCycle = not na(obCr) and not na(chIdx) and obCr >= chIdx and (na(pvBar) or pvBar <= obCr)
             // DEBUG : taux de base, sur le seul cote du biais courant pour
             // rester comparable aux compteurs de motif. Le bloc englobant
             // porte deja barstate.isconfirmed.
@@ -2543,7 +2570,7 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         dbgOsNa += 1
                     else
                         bool fCh = obCr < chIdx
-                        bool fPv = not na(pvIdx) and pvIdx > obCr
+                        bool fPv = not na(pvBar) and pvBar > obCr
                         if fCh
                             dbgOsCh += 1
                         if fPv
@@ -3649,7 +3676,7 @@ if barstate.islast and dbgOn
         f_dbgR(2, "evaluations " + sl + " OK " + sl + " KO", str.tostring(dbgOsTot) + " " + sl + " " + str.tostring(dbgOsOk) + " " + sl + " " + str.tostring(osKo))
 
         f_dbgH(3, "OB HORS CYCLE — cause exacte")
-        f_dbgR(4, "ancre na " + sl + " obCr<chIdx " + sl + " pvIdx>obCr", str.tostring(dbgOsNa) + " " + sl + " " + str.tostring(dbgOsCh) + " " + sl + " " + str.tostring(dbgOsPv))
+        f_dbgR(4, "ancre na " + sl + " obCr<chIdx " + sl + " pvBar>obCr", str.tostring(dbgOsNa) + " " + sl + " " + str.tostring(dbgOsCh) + " " + sl + " " + str.tostring(dbgOsPv))
         f_dbgR(5, "dont les DEUX a la fois (recouvrement)", str.tostring(dbgOsBoth))
         f_dbgR(6, "na+ch+pv-both  |  OB h.cyc (doit etre egal)", str.tostring(dbgOsNa + dbgOsCh + dbgOsPv - dbgOsBoth) + "  |  " + str.tostring(dgcObCyc))
 

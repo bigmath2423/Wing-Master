@@ -140,7 +140,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP", "⑧ SENSI"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en huit pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP", "⑧ SENSI", "⑨ GATE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en neuf pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -445,6 +445,48 @@ var int dbgPvMit  = 0   // l'OB etait deja mitige ou teste (etat >= 1)
 var array<float> dbgDspAll = array.new<float>()
 var array<float> dbgDspRej = array.new<float>()
 var array<float> dbgDspOk  = array.new<float>()
+
+// ---- GATE ZONE : DEUX TROUS DE MESURE COMBLES --------------------------
+// 1. "OB ET FVG TROP ELOIGNES" fusionnait DEUX echecs distincts : l'ecart
+//    entre les deux boites au-dela de wzPairGapAtr, et la hauteur de leur
+//    union au-dela de wzMaxHeightAtr. Un seul compteur pour deux causes, donc
+//    impossible de savoir laquelle bloque. Les trois compteurs ci-dessous les
+//    separent, avec leur recouvrement.
+//    CONSERVATION : Gap + Hgt - Both = dgcFar.
+var int dgcFarGap  = 0   // au moins un FVG refuse par l'ecart
+var int dgcFarHgt  = 0   // au moins un FVG refuse par la hauteur de l'union
+var int dgcFarBoth = 0   // les deux motifs presents sur la meme bougie
+//
+// 2. Les compteurs dgc* comptent des BOUGIES. La question "combien de chaines
+//    completes trouvent un OB" demande un etat PAR CHAINE, qui n'existait pas.
+//    Une chaine est ici l'intervalle pendant lequel f_seqBos est vrai pour un
+//    sweep donne ; elle est soldee quand un nouveau sweep du meme cote la
+//    remplace. Le denominateur dbgChTot* doit donc coller a dbgSwBBos /
+//    dbgSwSBos, le nombre de sweeps ayant atteint le BOS.
+//    Les drapeaux ch* memorisent ce que la chaine a VU pendant sa duree de
+//    vie ; ils sont remis a zero a chaque nouveau sweep.
+var bool chObB = false   // la chaine BUY a vu au moins un OB
+var bool chFvB = false   // ... au moins un FVG
+var bool chBoB = false   // ... les deux EN MEME TEMPS
+var bool chPrB = false   // ... un appariement reussi
+var bool chZnB = false   // ... une zone creee
+var bool chObS = false
+var bool chFvS = false
+var bool chBoS = false
+var bool chPrS = false
+var bool chZnS = false
+var int dbgChTotB = 0
+var int dbgChObB  = 0
+var int dbgChFvB  = 0
+var int dbgChBoB  = 0
+var int dbgChPrB  = 0
+var int dbgChZnB  = 0
+var int dbgChTotS = 0
+var int dbgChObS  = 0
+var int dbgChFvS  = 0
+var int dbgChBoS  = 0
+var int dbgChPrS  = 0
+var int dbgChZnS  = 0
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -2044,6 +2086,26 @@ if barstate.isconfirmed
             dbgSwBRepl += 1
             if not dbgCurBCh
                 dbgSwBNoCh += 1
+        // DEBUG : solde de la chaine BUY qui s'acheve. Comptee seulement si
+        // elle avait reellement atteint le BOS, pour que le denominateur
+        // colle a dbgSwBBos.
+        if dbgCurBBos
+            dbgChTotB += 1
+            if chObB
+                dbgChObB += 1
+            if chFvB
+                dbgChFvB += 1
+            if chBoB
+                dbgChBoB += 1
+            if chPrB
+                dbgChPrB += 1
+            if chZnB
+                dbgChZnB += 1
+        chObB := false
+        chFvB := false
+        chBoB := false
+        chPrB := false
+        chZnB := false
         swpDnIdx := bar_index
         dbgSwBTot  += 1
         // COTE DU BIAIS a l'instant du sweep. f_ctxAllow est la fonction du
@@ -2061,6 +2123,23 @@ if barstate.isconfirmed
             dbgSwSRepl += 1
             if not dbgCurSCh
                 dbgSwSNoCh += 1
+        if dbgCurSBos
+            dbgChTotS += 1
+            if chObS
+                dbgChObS += 1
+            if chFvS
+                dbgChFvS += 1
+            if chBoS
+                dbgChBoS += 1
+            if chPrS
+                dbgChPrS += 1
+            if chZnS
+                dbgChZnS += 1
+        chObS := false
+        chFvS := false
+        chBoS := false
+        chPrS := false
+        chZnS := false
         swpUpIdx := bar_index
         dbgSwSTot  += 1
         if f_ctxAllow(false)
@@ -2499,6 +2578,18 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
         int want = isBuy ? 1 : -1
         int nOb = isBuy ? array.size(obBT) : array.size(obST)
         int nFv = isBuy ? array.size(fvBT) : array.size(fvST)
+        // DEBUG : ce que la chaine complete a sous la main a cet instant.
+        // Garde par f_seqBos : hors chaine complete, la question n'a pas de
+        // sens puisque le gate rejetterait de toute facon plus haut.
+        if f_seqBos(isBuy)
+            if isBuy
+                chObB := chObB or nOb > 0
+                chFvB := chFvB or nFv > 0
+                chBoB := chBoB or (nOb > 0 and nFv > 0)
+            else
+                chObS := chObS or nOb > 0
+                chFvS := chFvS or nFv > 0
+                chBoS := chBoS or (nOb > 0 and nFv > 0)
         if nOb > 0 and nFv > 0
             float obT = isBuy ? array.get(obBT, 0) : array.get(obST, 0)
             float obB = isBuy ? array.get(obBB, 0) : array.get(obSB, 0)
@@ -2593,6 +2684,9 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             // cycle" de "OB et FVG trop eloignes". N'entre dans aucune
             // condition d'appariement ni de creation.
             bool anyFvCycle = false
+            // DEBUG : les deux causes de refus d'appariement, separees.
+            bool farGap = false
+            bool farHgt = false
             for j = 0 to nFv - 1
                 float fT = isBuy ? array.get(fvBT, j) : array.get(fvST, j)
                 float fB = isBuy ? array.get(fvBB, j) : array.get(fvSB, j)
@@ -2604,6 +2698,13 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 float uH  = uT - uB
                 if fX >= obX
                     anyFvCycle := true
+                // Rejoue les deux sous-conditions a l'identique, sans les
+                // modifier ni changer l'appariement reel une ligne plus bas.
+                if obSameCycle and fX >= obX
+                    if gap > atrV * wzPairGapAtr
+                        farGap := true
+                    if uH > atrV * wzMaxHeightAtr
+                        farHgt := true
                 if obSameCycle and fX >= obX and gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
                     if na(bestH) or uH < bestH
                         bestH := uH
@@ -2618,6 +2719,15 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             if na(zT) and isBuy == isBuyBiasNow and dgRej == ""
                 dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : not anyFvCycle ? "FVG HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
                 dgScore := na
+                // DEBUG : ventilation du motif ELOIGNES. Place au point exact
+                // ou il est affecte, donc Gap + Hgt - Both doit egaler dgcFar.
+                if obSameCycle and anyFvCycle
+                    if farGap
+                        dgcFarGap += 1
+                    if farHgt
+                        dgcFarHgt += 1
+                    if farGap and farHgt
+                        dgcFarBoth += 1
                 // DEBUG : ventilation exacte du motif OB HORS DU CYCLE
                 // COURANT. Place ICI et non au calcul de obSameCycle, pour que
                 // la somme egale dgcObCyc exactement -- meme garde, meme
@@ -2816,6 +2926,10 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
 
                 if cSweep and cChoch and cBos and fibNotInvalid and fibOk and f_ctxAllow(isBuy) and score >= wzMinScore and better and not same
                     dbgZone += 1
+                    if isBuy
+                        chZnB := true
+                    else
+                        chZnS := true
                     if exI >= 0
                         box.delete(array.get(zBox, exI))
                         label.delete(array.get(zLab, exI))
@@ -3880,6 +3994,32 @@ f_dbgP8(string sl, string tfLbl) =>
     0
 
 
+f_dbgP9(string sl, string tfLbl) =>
+    int mSum = dgcSwMiss + dgcSwOld + dgcSwCyc + dgcChMiss + dgcChSeq + dgcBoMiss + dgcBoSeq + dgcObMiss + dgcFvMiss + dgcObCyc + dgcFvCyc + dgcFar + dgcFib + dgcPd + dgcHtf + dgcScore + dgcBetter + dgcSame + dgcOk
+    f_dbgH(0, "⑨ GATE  ·  " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "PAR BOUGIE — motif bloquant du gate ZONE")
+    f_dbgR(2, "A · OB manq " + sl + " FVG manq", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss))
+    f_dbgR(3, "A · OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
+    f_dbgR(4, "B · eloignes TOTAL", str.tostring(dgcFar))
+    f_dbgR(5, "B ·   dont ecart " + sl + " hauteur " + sl + " les deux", str.tostring(dgcFarGap) + " " + sl + " " + str.tostring(dgcFarHgt) + " " + sl + " " + str.tostring(dgcFarBoth))
+    f_dbgR(6, "B ·   CTRL gap+hgt-both | eloignes", str.tostring(dgcFarGap + dgcFarHgt - dgcFarBoth) + " | " + str.tostring(dgcFar))
+    f_dbgR(7, "C · fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
+    f_dbgR(8, "C · score<70 " + sl + " meilleure " + sl + " deja aff.", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame))
+    f_dbgR(9, "ZONE creee (RIEN) " + sl + " amont sweep/choch/bos", str.tostring(dgcOk) + " " + sl + " " + str.tostring(dgcSwMiss + dgcSwOld + dgcSwCyc + dgcChMiss + dgcChSeq + dgcBoMiss + dgcBoSeq))
+    f_dbgR(10, "CTRL somme 19 motifs | bougies", str.tostring(mSum) + " | " + str.tostring(dbgBars))
+
+    f_dbgH(11, "PAR EVENEMENT — chaines completes soldees")
+    f_dbgR(12, "BUY  soldees " + sl + " ref. dbgSwBBos", str.tostring(dbgChTotB) + " " + sl + " " + str.tostring(dbgSwBBos))
+    f_dbgR(13, "BUY  vu OB " + sl + " vu FVG " + sl + " vu les DEUX", str.tostring(dbgChObB) + " " + sl + " " + str.tostring(dbgChFvB) + " " + sl + " " + str.tostring(dbgChBoB))
+    f_dbgR(14, "BUY  appariees " + sl + " ZONE", str.tostring(dbgChPrB) + " " + sl + " " + str.tostring(dbgChZnB))
+    f_dbgR(15, "SELL soldees " + sl + " ref. dbgSwSBos", str.tostring(dbgChTotS) + " " + sl + " " + str.tostring(dbgSwSBos))
+    f_dbgR(16, "SELL vu OB " + sl + " vu FVG " + sl + " vu les DEUX", str.tostring(dbgChObS) + " " + sl + " " + str.tostring(dbgChFvS) + " " + sl + " " + str.tostring(dbgChBoS))
+    f_dbgR(17, "SELL appariees " + sl + " ZONE", str.tostring(dbgChPrS) + " " + sl + " " + str.tostring(dbgChZnS))
+    f_dbgR(18, "FVG actifs " + sl + " OB actifs", str.tostring(array.size(fvBT) + array.size(fvST)) + " " + sl + " " + str.tostring(array.size(obBT) + array.size(obST)))
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -3902,6 +4042,8 @@ if barstate.islast and dbgOn
         f_dbgP6(sl, tfLbl)
     else if dbgPage == "⑦ DISP"
         f_dbgP7(sl, tfLbl)
-    else
+    else if dbgPage == "⑧ SENSI"
         f_dbgP8(sl, tfLbl)
+    else
+        f_dbgP9(sl, tfLbl)
 

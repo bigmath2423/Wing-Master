@@ -3795,7 +3795,18 @@ f_dbgR(int r, string k, string v) =>
     table.cell(dbgT, 0, r, "  " + k, text_color=color.new(cTxt, 30), text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cBg, 8))
     table.cell(dbgT, 1, r, v + "  ", text_color=cTxt, text_size=size.tiny, text_halign=text.align_right, bgcolor=color.new(cBg, 8))
 
-f_dbgDraw() =>
+// CE10116 -- UNE FONCTION PINE NE PEUT LIRE QU'UN NOMBRE BORNE DE GLOBALES.
+// La limite est de 254 "elements externes", et un int, un float ou un bool y
+// comptent DOUBLE. Le tableau complet lit environ 176 compteurs : encapsule
+// d'un seul bloc, il en demandait 352. Le decoupage par PAGE resout le
+// probleme a la racine, chaque fonction ne lisant que ses propres compteurs --
+// entre 40 et 102 elements selon la page.
+// sl et tfLbl sont passes en parametres : deux chaines, donc deux elements,
+// plutot que d'etre recalcules six fois.
+// Aucune ligne de contenu n'est modifiee : les corps de page sont repris a
+// l'identique, simplement desindentes d'un cran puisqu'ils passent d'un
+// `else if` imbrique au corps d'une fonction.
+f_dbgP1(string sl, string tfLbl) =>
     int obAct = array.size(obBT) + array.size(obST) + array.size(ohBT) + array.size(ohST)
     int obMitN = 0
     if array.size(obBSt) > 0
@@ -3814,176 +3825,192 @@ f_dbgDraw() =>
         for i = 0 to array.size(ohSSt) - 1
             if array.get(ohSSt, i) >= 1
                 obMitN += 1
-    string sl = "/"
+    f_dbgH(0, "DEBUG ① MOTEUR  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+    f_dbgR(1, "swing " + str.tostring(swingLen) + " · fvgAge " + str.tostring(fvgMaxAge) + " · bkConf " + str.tostring(bkConfBars), "cool " + str.tostring(cooldown) + " · seq " + str.tostring(seqMaxBars))
 
+    f_dbgH(2, "STRUCTURE")
+    f_dbgR(3, "CHoCH " + sl + " BOS",                str.tostring(dbgChoch) + " " + sl + " " + str.tostring(dbgBos))
+    f_dbgR(4, "Sweep>CHoCH " + sl + " CHoCH>BOS",    str.tostring(dbgSeqSC) + " " + sl + " " + str.tostring(dbgSeqCB))
+    f_dbgR(5, "sequences COMPLETES",                 str.tostring(dbgSeqFull))
+
+    f_dbgH(6, "ORDER BLOCK")
+    f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
+    f_dbgR(8,  "rej. dep " + sl + " dbl " + sl + " cyc " + sl + " struct", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
+    f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
+    f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
+    f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))
+    f_dbgR(12, "invalides " + sl + " evinces",       str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict))
+    f_dbgR(13, "breakers confirmes",                 str.tostring(dbgBkMade))
+
+    f_dbgH(14, "FVG")
+    f_dbgR(15, "potentiels " + sl + " crees",        str.tostring(dbgFvCand) + " " + sl + " " + str.tostring(dbgFvOk))
+    f_dbgR(16, "rejetes — taille " + sl + " corps",  str.tostring(dbgFvNoGap) + " " + sl + " " + str.tostring(dbgFvNoBod))
+    f_dbgR(17, "rejetes — autre condition",          str.tostring(dbgFvOther))
+    f_dbgR(18, "combles " + sl + " ages " + sl + " evinces", str.tostring(dbgFvFill) + " " + sl + " " + str.tostring(dbgFvAge) + " " + sl + " " + str.tostring(dbgFvEvict))
+    f_dbgR(19, "actifs",                             str.tostring(array.size(fvBT) + array.size(fvST)))
+
+    0
+
+f_dbgP2(string sl, string tfLbl) =>
+    f_dbgH(0, "DEBUG ② ZONES  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "LIQUIDITE " + sl + " SWEEP")
+    f_dbgR(2, "paires evaluees",                    str.tostring(dbgEqPair))
+    f_dbgR(3, "poches EQH " + sl + " EQL",          str.tostring(dbgPockH) + " " + sl + " " + str.tostring(dbgPockL))
+    f_dbgR(4, "sweeps cand. > acceptes " + sl + " rejetes", str.tostring(dbgSwCand) + " > " + str.tostring(dbgSwOk) + " " + sl + " " + str.tostring(dbgSwNoPen + dbgSwNoRej))
+    f_dbgR(5, "   dont penetration " + sl + " rejet", str.tostring(dbgSwNoPen) + " " + sl + " " + str.tostring(dbgSwNoRej))
+    f_dbgR(6, "poches consommees " + sl + " expirees", str.tostring(dbgPockUse) + " " + sl + " " + str.tostring(dbgPockExp))
+    f_dbgR(7, "SWING SIMPLE non vus  |  ZONES",     str.tostring(dbgSwSingle) + "  |  " + str.tostring(dbgZone))
+
+    f_dbgH(8, "POURQUOI PAS DE ZONE  (motif bloquant)")
+    f_dbgR(9,  "sweep manq " + sl + " perime " + sl + " h.cycle", str.tostring(dgcSwMiss) + " " + sl + " " + str.tostring(dgcSwOld) + " " + sl + " " + str.tostring(dgcSwCyc))
+    f_dbgR(10, "choch manq " + sl + " h.seq " + sl + " bos manq " + sl + " h.seq", str.tostring(dgcChMiss) + " " + sl + " " + str.tostring(dgcChSeq) + " " + sl + " " + str.tostring(dgcBoMiss) + " " + sl + " " + str.tostring(dgcBoSeq))
+    f_dbgR(11, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
+    f_dbgR(12, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
+    f_dbgR(13, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))
+
+    f_dbgH(14, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
+    f_dbgR(15, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
+    f_dbgR(16, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+
+    f_dbgH(17, "SENSIBILITE liqTolAtr — POCHES si le seuil valait…")
+    f_dbgR(18, "EQL  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTL10) + " " + sl + " " + str.tostring(dbgTL15) + " " + sl + " " + str.tostring(dbgTL20) + " " + sl + " " + str.tostring(dbgTL25) + " " + sl + " " + str.tostring(dbgTL30))
+    f_dbgR(19, "EQH  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTH10) + " " + sl + " " + str.tostring(dbgTH15) + " " + sl + " " + str.tostring(dbgTH20) + " " + sl + " " + str.tostring(dbgTH25) + " " + sl + " " + str.tostring(dbgTH30))
+
+    0
+
+f_dbgP3(string sl, string tfLbl) =>
+    f_dbgH(0, "DEBUG ③ CYCLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "CHAINE PAR BOUGIE  (BUY lit swpDnIdx)")
+    f_dbgR(2, "BUY  sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgBuySwNone) + " " + sl + " " + str.tostring(dbgBuySwOld) + " " + sl + " " + str.tostring(dbgBuySwOk))
+    f_dbgR(3, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgBuyFreshOk) + " " + sl + " " + str.tostring(dbgBuyFreshKo) + " " + sl + " " + str.tostring(dbgBuyBosOk))
+    f_dbgR(4, "SELL sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
+    f_dbgR(5, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
+    f_dbgR(6, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))
+
+    f_dbgH(7, "CHOCH EVENT  (par CHoCH, pas par bougie)")
+    f_dbgR(8,  "BUY  total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvBTot - dbgEvBKo) + " " + sl + " " + str.tostring(dbgEvBKo))
+    f_dbgR(9,  "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvBKoB) + " " + sl + " " + str.tostring(dbgEvBKoN) + " " + sl + " (" + str.tostring(dbgEvBKoO) + ")")
+    f_dbgR(10, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvBDone) + " " + sl + " " + str.tostring(dbgEvBOkO))
+    f_dbgR(11, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
+    f_dbgR(12, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
+    f_dbgR(13, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))
+
+    f_dbgH(14, "SWEEP -> CHAINE  (par SWEEP, pas par bougie)")
+    f_dbgR(15, "BUY  sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+    f_dbgR(16, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
+    f_dbgR(17, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+    f_dbgR(18, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))
+
+    0
+
+f_dbgP4(string sl, string tfLbl) =>
+    int pkVivL = array.size(eqlL)
+    int pkVivH = array.size(eqhL)
+    f_dbgH(0, "DEBUG ④ SWEEP  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "SELL-SIDE : EQL " + sl + "> sweep bas " + sl + "> setups BUY")
+    f_dbgR(2, "paires evaluees " + sl + " poches formees", str.tostring(dbgPrL) + " " + sl + " " + str.tostring(dbgPockL))
+    f_dbgR(3, "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvL) + " " + sl + " " + str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPkKiL))
+    f_dbgR(4, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
+    f_dbgR(5, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBSideOk) + " " + sl + " " + str.tostring(dbgSwBSideKo))
+    f_dbgR(6, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwBNoCh) + " " + sl + " " + str.tostring(dbgSwBChOld) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+
+    f_dbgH(7, "BUY-SIDE : EQH " + sl + "> sweep haut " + sl + "> setups SELL")
+    f_dbgR(8,  "paires evaluees " + sl + " poches formees", str.tostring(dbgPrH) + " " + sl + " " + str.tostring(dbgPockH))
+    f_dbgR(9,  "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvH) + " " + sl + " " + str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPkKiH))
+    f_dbgR(10, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+    f_dbgR(11, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSSideOk) + " " + sl + " " + str.tostring(dbgSwSSideKo))
+    f_dbgR(12, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwSNoCh) + " " + sl + " " + str.tostring(dbgSwSChOld) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+
+    f_dbgH(13, "CONSERVATION  (les deux nombres doivent etre egaux)")
+    f_dbgR(14, "EQL creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockL) + "  |  " + str.tostring(dbgPkEvL + dbgPkSwL + dbgPkKiL + pkVivL))
+    f_dbgR(15, "EQH creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockH) + "  |  " + str.tostring(dbgPkEvH + dbgPkSwH + dbgPkKiH + pkVivH))
+    f_dbgR(16, "poches vivantes EQL " + sl + " EQH", str.tostring(pkVivL) + " " + sl + " " + str.tostring(pkVivH))
+    f_dbgR(17, "SWING SIMPLE non vus (hors EQH" + sl + "EQL)", str.tostring(dbgSwSingle))
+    f_dbgR(18, "liqMax " + str.tostring(liqMax) + " · pen " + str.tostring(sweepMinPen) + " · rej " + str.tostring(sweepReject), "seq " + str.tostring(seqMaxBars))
+
+    0
+
+f_dbgP5(string sl, string tfLbl) =>
+    int pvVivL = array.size(pvLL)
+    int pvVivH = array.size(pvHL)
+    f_dbgH(0, "DEBUG ⑤ SWING SIMPLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "SELL-SIDE : swing LOW simple " + sl + "> setups BUY")
+    f_dbgR(2, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddL) + " " + sl + " " + str.tostring(dbgPvDupL) + " " + sl + " " + str.tostring(dbgPvPurL))
+    f_dbgR(3, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwL) + " " + sl + " " + str.tostring(dbgPvKiL) + " " + sl + " " + str.tostring(dbgPvEvL))
+    f_dbgR(4, "vivants  |  bougies penetration insuff.", str.tostring(pvVivL) + "  |  " + str.tostring(dbgPvNoPenL))
+
+    f_dbgH(5, "BUY-SIDE : swing HIGH simple " + sl + "> setups SELL")
+    f_dbgR(6, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddH) + " " + sl + " " + str.tostring(dbgPvDupH) + " " + sl + " " + str.tostring(dbgPvPurH))
+    f_dbgR(7, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwH) + " " + sl + " " + str.tostring(dbgPvKiH) + " " + sl + " " + str.tostring(dbgPvEvH))
+    f_dbgR(8, "vivants  |  bougies penetration insuff.", str.tostring(pvVivH) + "  |  " + str.tostring(dbgPvNoPenH))
+
+    f_dbgH(9, "CONSERVATION  (les deux nombres doivent etre egaux)")
+    f_dbgR(10, "LOW  ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddL) + "  |  " + str.tostring(dbgPvSwL + dbgPvKiL + dbgPvEvL + dbgPvPurL + pvVivL))
+    f_dbgR(11, "HIGH ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddH) + "  |  " + str.tostring(dbgPvSwH + dbgPvKiH + dbgPvEvH + dbgPvPurH + pvVivH))
+
+    f_dbgH(12, "LES DEUX SOURCES  (poches " + sl + " swing simple)")
+    f_dbgR(13, "sweeps SELL-SIDE  EQL " + sl + " swing LOW", str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPvSwL))
+    f_dbgR(14, "sweeps BUY-SIDE   EQH " + sl + " swing HIGH", str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPvSwH))
+    f_dbgR(15, "SWEEPS acceptes   BUY " + sl + " SELL", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwSTot))
+    f_dbgR(16, "BUY   > CHoCH " + sl + " > BOS", str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+    f_dbgR(17, "SELL  > CHoCH " + sl + " > BOS", str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+    f_dbgR(18, "ZONES  |  SWING SIMPLE non vus (debug)", str.tostring(dbgZone) + "  |  " + str.tostring(dbgSwSingle))
+
+    0
+
+f_dbgP6(string sl, string tfLbl) =>
+    int obActN = array.size(obBT) + array.size(obST)
+    int obHisN = array.size(ohBT) + array.size(ohST)
+    int osKo   = dbgOsTot - dbgOsOk
+    f_dbgH(0, "DEBUG ⑥ OB  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+    f_dbgH(1, "obSameCycle — taux de base (cote du biais)")
+    f_dbgR(2, "evaluations " + sl + " OK " + sl + " KO", str.tostring(dbgOsTot) + " " + sl + " " + str.tostring(dbgOsOk) + " " + sl + " " + str.tostring(osKo))
+
+    f_dbgH(3, "OB HORS CYCLE — cause exacte")
+    f_dbgR(4, "ancre na " + sl + " obCr<chIdx " + sl + " pvBar>obCr", str.tostring(dbgOsNa) + " " + sl + " " + str.tostring(dbgOsCh) + " " + sl + " " + str.tostring(dbgOsPv))
+    f_dbgR(5, "dont les DEUX a la fois (recouvrement)", str.tostring(dbgOsBoth))
+    f_dbgR(6, "na+ch+pv-both  |  OB h.cyc (doit etre egal)", str.tostring(dbgOsNa + dbgOsCh + dbgOsPv - dbgOsBoth) + "  |  " + str.tostring(dgcObCyc))
+
+    f_dbgH(7, "CREATION DES ORDER BLOCKS")
+    f_dbgR(8,  "potentiels " + sl + " crees", str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
+    f_dbgR(9,  "rejetes deplacement " + sl + " doublon", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup))
+    f_dbgR(10, "refus cycle " + sl + " structure (avant recherche)", str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
+    f_dbgR(11, "aucune bougie source dans swingLen", str.tostring(dbgObNoCnd))
+    f_dbgR(12, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
+    f_dbgR(13, "actifs " + sl + " historique", str.tostring(obActN) + " " + sl + " " + str.tostring(obHisN))
+    f_dbgR(14, "invalides " + sl + " evinces " + sl + " breakers", str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict) + " " + sl + " " + str.tostring(dbgBkMade))
+    f_dbgR(15, "OB manquant  |  OB hors cycle", str.tostring(dgcObMiss) + "  |  " + str.tostring(dgcObCyc))
+
+    f_dbgH(16, "pvBar>obCr — NATURE DU PIVOT POSTERIEUR")
+    f_dbgR(17, "CHoCH depuis obCr : meme sens " + sl + " oppose " + sl + " aucun", str.tostring(dbgPvChS) + " " + sl + " " + str.tostring(dbgPvChO) + " " + sl + " " + str.tostring(dbgPvChN))
+    f_dbgR(18, "distance <=5 " + sl + " <=10 " + sl + " <=20 " + sl + " <=50 " + sl + " >50", str.tostring(dbgPvD05) + " " + sl + " " + str.tostring(dbgPvD10) + " " + sl + " " + str.tostring(dbgPvD20) + " " + sl + " " + str.tostring(dbgPvD50) + " " + sl + " " + str.tostring(dbgPvD99))
+    f_dbgR(19, "dist. moy " + sl + " OB deja mitige " + sl + " ctrl", (dbgOsPv > 0 ? str.tostring(dbgPvDSum * 1.0 / dbgOsPv, "#.#") : "—") + " " + sl + " " + str.tostring(dbgPvMit) + " " + sl + " " + str.tostring(dbgPvD05 + dbgPvD10 + dbgPvD20 + dbgPvD50 + dbgPvD99))
+    0
+
+
+if barstate.islast and dbgOn
+    string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
     // que quatre captures M1/M3/M5/M15 soient identifiables sans ambiguite.
     string tfLbl = timeframe.isseconds ? "S" + str.tostring(timeframe.multiplier) : timeframe.isminutes ? (timeframe.multiplier >= 60 and timeframe.multiplier % 60 == 0 ? "H" + str.tostring(int(timeframe.multiplier / 60)) : "M" + str.tostring(timeframe.multiplier)) : timeframe.isdaily ? "D1" : timeframe.isweekly ? "W1" : timeframe.ismonthly ? "MN" : timeframe.period
-    // Le tableau est repagine : au-dela d'une vingtaine de lignes il deborde
-    // du graphique en haut ET en bas, et les sections du bas ne sont tout
-    // simplement jamais rendues visibles. table.clear efface la page
-    // precedente, sans quoi les cellules d'une page persisteraient sous la
-    // suivante -- les cellules d'un tableau var survivent d'une bougie a
-    // l'autre tant qu'on ne les reecrit pas.
+    // table.clear efface la page precedente : les cellules d'un tableau var
+    // survivent d'une bougie a l'autre tant qu'on ne les reecrit pas.
     table.clear(dbgT, 0, 0, 1, 19)
-
     if dbgPage == "① MOTEUR"
-        f_dbgH(0, "DEBUG ① MOTEUR  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-        f_dbgR(1, "swing " + str.tostring(swingLen) + " · fvgAge " + str.tostring(fvgMaxAge) + " · bkConf " + str.tostring(bkConfBars), "cool " + str.tostring(cooldown) + " · seq " + str.tostring(seqMaxBars))
-
-        f_dbgH(2, "STRUCTURE")
-        f_dbgR(3, "CHoCH " + sl + " BOS",                str.tostring(dbgChoch) + " " + sl + " " + str.tostring(dbgBos))
-        f_dbgR(4, "Sweep>CHoCH " + sl + " CHoCH>BOS",    str.tostring(dbgSeqSC) + " " + sl + " " + str.tostring(dbgSeqCB))
-        f_dbgR(5, "sequences COMPLETES",                 str.tostring(dbgSeqFull))
-
-        f_dbgH(6, "ORDER BLOCK")
-        f_dbgR(7,  "potentiels " + sl + " crees",        str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
-        f_dbgR(8,  "rej. dep " + sl + " dbl " + sl + " cyc " + sl + " struct", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup) + " " + sl + " " + str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
-        f_dbgR(9,  "non trouves — impulsion > swingLen", str.tostring(dbgObNoCnd))
-        f_dbgR(10, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
-        f_dbgR(11, "actifs " + sl + " mitiges",          str.tostring(obAct) + " " + sl + " " + str.tostring(obMitN))
-        f_dbgR(12, "invalides " + sl + " evinces",       str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict))
-        f_dbgR(13, "breakers confirmes",                 str.tostring(dbgBkMade))
-
-        f_dbgH(14, "FVG")
-        f_dbgR(15, "potentiels " + sl + " crees",        str.tostring(dbgFvCand) + " " + sl + " " + str.tostring(dbgFvOk))
-        f_dbgR(16, "rejetes — taille " + sl + " corps",  str.tostring(dbgFvNoGap) + " " + sl + " " + str.tostring(dbgFvNoBod))
-        f_dbgR(17, "rejetes — autre condition",          str.tostring(dbgFvOther))
-        f_dbgR(18, "combles " + sl + " ages " + sl + " evinces", str.tostring(dbgFvFill) + " " + sl + " " + str.tostring(dbgFvAge) + " " + sl + " " + str.tostring(dbgFvEvict))
-        f_dbgR(19, "actifs",                             str.tostring(array.size(fvBT) + array.size(fvST)))
-
+        f_dbgP1(sl, tfLbl)
     else if dbgPage == "② ZONES"
-        f_dbgH(0, "DEBUG ② ZONES  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-
-        f_dbgH(1, "LIQUIDITE " + sl + " SWEEP")
-        f_dbgR(2, "paires evaluees",                    str.tostring(dbgEqPair))
-        f_dbgR(3, "poches EQH " + sl + " EQL",          str.tostring(dbgPockH) + " " + sl + " " + str.tostring(dbgPockL))
-        f_dbgR(4, "sweeps cand. > acceptes " + sl + " rejetes", str.tostring(dbgSwCand) + " > " + str.tostring(dbgSwOk) + " " + sl + " " + str.tostring(dbgSwNoPen + dbgSwNoRej))
-        f_dbgR(5, "   dont penetration " + sl + " rejet", str.tostring(dbgSwNoPen) + " " + sl + " " + str.tostring(dbgSwNoRej))
-        f_dbgR(6, "poches consommees " + sl + " expirees", str.tostring(dbgPockUse) + " " + sl + " " + str.tostring(dbgPockExp))
-        f_dbgR(7, "SWING SIMPLE non vus  |  ZONES",     str.tostring(dbgSwSingle) + "  |  " + str.tostring(dbgZone))
-
-        f_dbgH(8, "POURQUOI PAS DE ZONE  (motif bloquant)")
-        f_dbgR(9,  "sweep manq " + sl + " perime " + sl + " h.cycle", str.tostring(dgcSwMiss) + " " + sl + " " + str.tostring(dgcSwOld) + " " + sl + " " + str.tostring(dgcSwCyc))
-        f_dbgR(10, "choch manq " + sl + " h.seq " + sl + " bos manq " + sl + " h.seq", str.tostring(dgcChMiss) + " " + sl + " " + str.tostring(dgcChSeq) + " " + sl + " " + str.tostring(dgcBoMiss) + " " + sl + " " + str.tostring(dgcBoSeq))
-        f_dbgR(11, "OB manq " + sl + " FVG manq " + sl + " OB h.cyc " + sl + " FVG h.cyc", str.tostring(dgcObMiss) + " " + sl + " " + str.tostring(dgcFvMiss) + " " + sl + " " + str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcFvCyc))
-        f_dbgR(12, "eloignes " + sl + " fib " + sl + " prem/disc " + sl + " htf", str.tostring(dgcFar) + " " + sl + " " + str.tostring(dgcFib) + " " + sl + " " + str.tostring(dgcPd) + " " + sl + " " + str.tostring(dgcHtf))
-        f_dbgR(13, "score<70 " + sl + " meilleure " + sl + " deja aff. " + sl + " RIEN", str.tostring(dgcScore) + " " + sl + " " + str.tostring(dgcBetter) + " " + sl + " " + str.tostring(dgcSame) + " " + sl + " " + str.tostring(dgcOk))
-
-        f_dbgH(14, "SWEEP PAR DIRECTION  (cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej)")
-        f_dbgR(15, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
-        f_dbgR(16, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
-
-        f_dbgH(17, "SENSIBILITE liqTolAtr — POCHES si le seuil valait…")
-        f_dbgR(18, "EQL  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTL10) + " " + sl + " " + str.tostring(dbgTL15) + " " + sl + " " + str.tostring(dbgTL20) + " " + sl + " " + str.tostring(dbgTL25) + " " + sl + " " + str.tostring(dbgTL30))
-        f_dbgR(19, "EQH  .10 " + sl + " .15 " + sl + " .20 " + sl + " .25 " + sl + " .30", str.tostring(dbgTH10) + " " + sl + " " + str.tostring(dbgTH15) + " " + sl + " " + str.tostring(dbgTH20) + " " + sl + " " + str.tostring(dbgTH25) + " " + sl + " " + str.tostring(dbgTH30))
-
+        f_dbgP2(sl, tfLbl)
     else if dbgPage == "③ CYCLE"
-        f_dbgH(0, "DEBUG ③ CYCLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-
-        f_dbgH(1, "CHAINE PAR BOUGIE  (BUY lit swpDnIdx)")
-        f_dbgR(2, "BUY  sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgBuySwNone) + " " + sl + " " + str.tostring(dbgBuySwOld) + " " + sl + " " + str.tostring(dbgBuySwOk))
-        f_dbgR(3, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgBuyFreshOk) + " " + sl + " " + str.tostring(dbgBuyFreshKo) + " " + sl + " " + str.tostring(dbgBuyBosOk))
-        f_dbgR(4, "SELL sw absent " + sl + " perime " + sl + " frais", str.tostring(dbgSellSwNone) + " " + sl + " " + str.tostring(dbgSellSwOld) + " " + sl + " " + str.tostring(dbgSellSwOk))
-        f_dbgR(5, "   fresh OK " + sl + " fresh KO " + sl + " BOS OK", str.tostring(dbgSellFreshOk) + " " + sl + " " + str.tostring(dbgSellFreshKo) + " " + sl + " " + str.tostring(dbgSellBosOk))
-        f_dbgR(6, "age sweep SS " + sl + " BS (bougies)", (na(swpDnIdx) ? "—" : str.tostring(bar_index - swpDnIdx)) + " " + sl + " " + (na(swpUpIdx) ? "—" : str.tostring(bar_index - swpUpIdx)))
-
-        f_dbgH(7, "CHOCH EVENT  (par CHoCH, pas par bougie)")
-        f_dbgR(8,  "BUY  total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvBTot - dbgEvBKo) + " " + sl + " " + str.tostring(dbgEvBKo))
-        f_dbgR(9,  "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvBKoB) + " " + sl + " " + str.tostring(dbgEvBKoN) + " " + sl + " (" + str.tostring(dbgEvBKoO) + ")")
-        f_dbgR(10, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvBDone) + " " + sl + " " + str.tostring(dbgEvBOkO))
-        f_dbgR(11, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
-        f_dbgR(12, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
-        f_dbgR(13, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))
-
-        f_dbgH(14, "SWEEP -> CHAINE  (par SWEEP, pas par bougie)")
-        f_dbgR(15, "BUY  sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
-        f_dbgR(16, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
-        f_dbgR(17, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
-        f_dbgR(18, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))
-
+        f_dbgP3(sl, tfLbl)
     else if dbgPage == "④ SWEEP"
-        int pkVivL = array.size(eqlL)
-        int pkVivH = array.size(eqhL)
-        f_dbgH(0, "DEBUG ④ SWEEP  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-
-        f_dbgH(1, "SELL-SIDE : EQL " + sl + "> sweep bas " + sl + "> setups BUY")
-        f_dbgR(2, "paires evaluees " + sl + " poches formees", str.tostring(dbgPrL) + " " + sl + " " + str.tostring(dbgPockL))
-        f_dbgR(3, "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvL) + " " + sl + " " + str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPkKiL))
-        f_dbgR(4, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
-        f_dbgR(5, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBSideOk) + " " + sl + " " + str.tostring(dbgSwBSideKo))
-        f_dbgR(6, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwBNoCh) + " " + sl + " " + str.tostring(dbgSwBChOld) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
-
-        f_dbgH(7, "BUY-SIDE : EQH " + sl + "> sweep haut " + sl + "> setups SELL")
-        f_dbgR(8,  "paires evaluees " + sl + " poches formees", str.tostring(dbgPrH) + " " + sl + " " + str.tostring(dbgPockH))
-        f_dbgR(9,  "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvH) + " " + sl + " " + str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPkKiH))
-        f_dbgR(10, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
-        f_dbgR(11, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSSideOk) + " " + sl + " " + str.tostring(dbgSwSSideKo))
-        f_dbgR(12, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwSNoCh) + " " + sl + " " + str.tostring(dbgSwSChOld) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
-
-        f_dbgH(13, "CONSERVATION  (les deux nombres doivent etre egaux)")
-        f_dbgR(14, "EQL creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockL) + "  |  " + str.tostring(dbgPkEvL + dbgPkSwL + dbgPkKiL + pkVivL))
-        f_dbgR(15, "EQH creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockH) + "  |  " + str.tostring(dbgPkEvH + dbgPkSwH + dbgPkKiH + pkVivH))
-        f_dbgR(16, "poches vivantes EQL " + sl + " EQH", str.tostring(pkVivL) + " " + sl + " " + str.tostring(pkVivH))
-        f_dbgR(17, "SWING SIMPLE non vus (hors EQH" + sl + "EQL)", str.tostring(dbgSwSingle))
-        f_dbgR(18, "liqMax " + str.tostring(liqMax) + " · pen " + str.tostring(sweepMinPen) + " · rej " + str.tostring(sweepReject), "seq " + str.tostring(seqMaxBars))
-
+        f_dbgP4(sl, tfLbl)
     else if dbgPage == "⑤ SIMPLE"
-        int pvVivL = array.size(pvLL)
-        int pvVivH = array.size(pvHL)
-        f_dbgH(0, "DEBUG ⑤ SWING SIMPLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
-
-        f_dbgH(1, "SELL-SIDE : swing LOW simple " + sl + "> setups BUY")
-        f_dbgR(2, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddL) + " " + sl + " " + str.tostring(dbgPvDupL) + " " + sl + " " + str.tostring(dbgPvPurL))
-        f_dbgR(3, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwL) + " " + sl + " " + str.tostring(dbgPvKiL) + " " + sl + " " + str.tostring(dbgPvEvL))
-        f_dbgR(4, "vivants  |  bougies penetration insuff.", str.tostring(pvVivL) + "  |  " + str.tostring(dbgPvNoPenL))
-
-        f_dbgH(5, "BUY-SIDE : swing HIGH simple " + sl + "> setups SELL")
-        f_dbgR(6, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddH) + " " + sl + " " + str.tostring(dbgPvDupH) + " " + sl + " " + str.tostring(dbgPvPurH))
-        f_dbgR(7, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwH) + " " + sl + " " + str.tostring(dbgPvKiH) + " " + sl + " " + str.tostring(dbgPvEvH))
-        f_dbgR(8, "vivants  |  bougies penetration insuff.", str.tostring(pvVivH) + "  |  " + str.tostring(dbgPvNoPenH))
-
-        f_dbgH(9, "CONSERVATION  (les deux nombres doivent etre egaux)")
-        f_dbgR(10, "LOW  ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddL) + "  |  " + str.tostring(dbgPvSwL + dbgPvKiL + dbgPvEvL + dbgPvPurL + pvVivL))
-        f_dbgR(11, "HIGH ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddH) + "  |  " + str.tostring(dbgPvSwH + dbgPvKiH + dbgPvEvH + dbgPvPurH + pvVivH))
-
-        f_dbgH(12, "LES DEUX SOURCES  (poches " + sl + " swing simple)")
-        f_dbgR(13, "sweeps SELL-SIDE  EQL " + sl + " swing LOW", str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPvSwL))
-        f_dbgR(14, "sweeps BUY-SIDE   EQH " + sl + " swing HIGH", str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPvSwH))
-        f_dbgR(15, "SWEEPS acceptes   BUY " + sl + " SELL", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwSTot))
-        f_dbgR(16, "BUY   > CHoCH " + sl + " > BOS", str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
-        f_dbgR(17, "SELL  > CHoCH " + sl + " > BOS", str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
-        f_dbgR(18, "ZONES  |  SWING SIMPLE non vus (debug)", str.tostring(dbgZone) + "  |  " + str.tostring(dbgSwSingle))
-
+        f_dbgP5(sl, tfLbl)
     else
-        int obActN = array.size(obBT) + array.size(obST)
-        int obHisN = array.size(ohBT) + array.size(ohST)
-        int osKo   = dbgOsTot - dbgOsOk
-        f_dbgH(0, "DEBUG ⑥ OB  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+        f_dbgP6(sl, tfLbl)
 
-        f_dbgH(1, "obSameCycle — taux de base (cote du biais)")
-        f_dbgR(2, "evaluations " + sl + " OK " + sl + " KO", str.tostring(dbgOsTot) + " " + sl + " " + str.tostring(dbgOsOk) + " " + sl + " " + str.tostring(osKo))
-
-        f_dbgH(3, "OB HORS CYCLE — cause exacte")
-        f_dbgR(4, "ancre na " + sl + " obCr<chIdx " + sl + " pvBar>obCr", str.tostring(dbgOsNa) + " " + sl + " " + str.tostring(dbgOsCh) + " " + sl + " " + str.tostring(dbgOsPv))
-        f_dbgR(5, "dont les DEUX a la fois (recouvrement)", str.tostring(dbgOsBoth))
-        f_dbgR(6, "na+ch+pv-both  |  OB h.cyc (doit etre egal)", str.tostring(dbgOsNa + dbgOsCh + dbgOsPv - dbgOsBoth) + "  |  " + str.tostring(dgcObCyc))
-
-        f_dbgH(7, "CREATION DES ORDER BLOCKS")
-        f_dbgR(8,  "potentiels " + sl + " crees", str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
-        f_dbgR(9,  "rejetes deplacement " + sl + " doublon", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup))
-        f_dbgR(10, "refus cycle " + sl + " structure (avant recherche)", str.tostring(dbgObCycle) + " " + sl + " " + str.tostring(dbgObStruct))
-        f_dbgR(11, "aucune bougie source dans swingLen", str.tostring(dbgObNoCnd))
-        f_dbgR(12, "crees CHoCH " + sl + " CONTINUATION", str.tostring(dbgObMadeC) + " " + sl + " " + str.tostring(dbgObMadeB))
-        f_dbgR(13, "actifs " + sl + " historique", str.tostring(obActN) + " " + sl + " " + str.tostring(obHisN))
-        f_dbgR(14, "invalides " + sl + " evinces " + sl + " breakers", str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgObEvict) + " " + sl + " " + str.tostring(dbgBkMade))
-        f_dbgR(15, "OB manquant  |  OB hors cycle", str.tostring(dgcObMiss) + "  |  " + str.tostring(dgcObCyc))
-
-        f_dbgH(16, "pvBar>obCr — NATURE DU PIVOT POSTERIEUR")
-        f_dbgR(17, "CHoCH depuis obCr : meme sens " + sl + " oppose " + sl + " aucun", str.tostring(dbgPvChS) + " " + sl + " " + str.tostring(dbgPvChO) + " " + sl + " " + str.tostring(dbgPvChN))
-        f_dbgR(18, "distance <=5 " + sl + " <=10 " + sl + " <=20 " + sl + " <=50 " + sl + " >50", str.tostring(dbgPvD05) + " " + sl + " " + str.tostring(dbgPvD10) + " " + sl + " " + str.tostring(dbgPvD20) + " " + sl + " " + str.tostring(dbgPvD50) + " " + sl + " " + str.tostring(dbgPvD99))
-        f_dbgR(19, "dist. moy " + sl + " OB deja mitige " + sl + " ctrl", (dbgOsPv > 0 ? str.tostring(dbgPvDSum * 1.0 / dbgOsPv, "#.#") : "—") + " " + sl + " " + str.tostring(dbgPvMit) + " " + sl + " " + str.tostring(dbgPvD05 + dbgPvD10 + dbgPvD20 + dbgPvD50 + dbgPvD99))
-    0
-
-if barstate.islast and dbgOn
-    f_dbgDraw()

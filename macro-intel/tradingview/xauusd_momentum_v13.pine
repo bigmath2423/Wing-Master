@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en sept pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP", "⑧ SENSI"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en huit pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -4063,6 +4063,47 @@ f_dbgP7(string sl, string tfLbl) =>
     0
 
 
+// ---- PAGE DE CAMPAGNE : TOUT SUR UN ECRAN -------------------------------
+// Une analyse de sensibilite demande cinq valeurs de seuil sur quatre
+// timeframes, soit vingt executions. Les metriques utiles etant reparties
+// entre les pages ⑥ et ②, cela ferait quarante captures. Cette page les
+// rassemble : une execution, une capture.
+// L en-tete rappelle la valeur d obDispAtr en vigueur, sans quoi vingt
+// photos deviennent indiscernables une fois melangees.
+// Le bloc AMONT est un CONTROLE, pas une variable : aucune ligne du script
+// ne melange la chaine sweep / CHoCH / BOS avec les tableaux d Order Blocks,
+// le seul retour etant cycleB / cycleS qui ne nourrit que le moteur OB. Ces
+// trois lignes doivent donc rester identiques d un seuil a l autre ; si elles
+// bougent, l experience est invalide.
+f_dbgP8(string sl, string tfLbl) =>
+    int obActN = array.size(obBT) + array.size(obST)
+    int obHisN = array.size(ohBT) + array.size(ohST)
+    int chTot  = dbgSwBBos + dbgSwSBos
+    f_dbgH(0, "⑧ SENSI  ·  " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS  ·  disp " + str.tostring(obDispAtr))
+
+    f_dbgH(1, "OB — VARIE AVEC obDispAtr")
+    f_dbgR(2, "candidats " + sl + " crees", str.tostring(dbgObCand) + " " + sl + " " + str.tostring(dbgObMade))
+    f_dbgR(3, "rej. deplacement " + sl + " doublons", str.tostring(dbgObNoDsp) + " " + sl + " " + str.tostring(dbgObDup))
+    f_dbgR(4, "CTRL  cand | rej+dbl+crees", str.tostring(dbgObCand) + " | " + str.tostring(dbgObNoDsp + dbgObDup + dbgObMade))
+    f_dbgR(5, "invalides " + sl + " breakers", str.tostring(dbgObBrk) + " " + sl + " " + str.tostring(dbgBkMade))
+    f_dbgR(6, "actifs " + sl + " historiques", str.tostring(obActN) + " " + sl + " " + str.tostring(obHisN))
+    f_dbgR(7, "hors cycle " + sl + " manquants", str.tostring(dgcObCyc) + " " + sl + " " + str.tostring(dgcObMiss))
+
+    f_dbgH(8, "SORTIE")
+    f_dbgR(9, "ZONES creees", str.tostring(dbgZone))
+
+    f_dbgH(10, "AMONT — DOIT RESTER IDENTIQUE (controle)")
+    f_dbgR(11, "sweeps BUY " + sl + " SELL", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwSTot))
+    f_dbgR(12, "CHoCH BUY " + sl + " SELL", str.tostring(dbgEvBTot) + " " + sl + " " + str.tostring(dbgEvSTot))
+    f_dbgR(13, "chaines completes BUY " + sl + " SELL", str.tostring(dbgSwBBos) + " " + sl + " " + str.tostring(dbgSwSBos))
+
+    f_dbgH(14, "TAUX DE CONVERSION")
+    f_dbgR(15, "candidat > OB", dbgObCand > 0 ? str.tostring(dbgObMade * 100.0 / dbgObCand, "#.#") + " %" : "—")
+    f_dbgR(16, "OB crees " + sl + " chaines (independantes)", str.tostring(dbgObMade) + " " + sl + " " + str.tostring(chTot))
+    f_dbgR(17, "chaine > zone", chTot > 0 ? str.tostring(dbgZone * 100.0 / chTot, "#.##") + " %" : "—")
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -4083,6 +4124,8 @@ if barstate.islast and dbgOn
         f_dbgP5(sl, tfLbl)
     else if dbgPage == "⑥ OB"
         f_dbgP6(sl, tfLbl)
-    else
+    else if dbgPage == "⑦ DISP"
         f_dbgP7(sl, tfLbl)
+    else
+        f_dbgP8(sl, tfLbl)
 

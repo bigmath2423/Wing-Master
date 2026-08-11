@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en quatre pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en cinq pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -384,6 +384,28 @@ var int dbgTH15 = 0
 var int dbgTH20 = 0
 var int dbgTH25 = 0
 var int dbgTH30 = 0
+
+// ---- SWING SIMPLE BRANCHE AU MOTEUR : COMPTEURS D'OBSERVATION ----------
+// Unite : LE NIVEAU. Un niveau entre une fois et sort une fois.
+// CONSERVATION : ajoutes = sweep + penetres sans rejet + evinces + purges
+//                          + vivants.
+// "rejete par penetration" n'est pas un sort de niveau : une bougie qui
+// touche sans penetrer assez laisse le niveau intact. dbgPvNoPen compte donc
+// des BOUGIES, pas des niveaux, et n'entre pas dans la conservation.
+var int dbgPvAddH = 0   // pivots hauts entres dans la liste moteur
+var int dbgPvAddL = 0
+var int dbgPvDupH = 0   // ecartes a l'entree : deja couverts par une poche
+var int dbgPvDupL = 0
+var int dbgPvPurH = 0   // purges apres coup : une poche est venue les couvrir
+var int dbgPvPurL = 0
+var int dbgPvSwH  = 0   // ont produit un sweep
+var int dbgPvSwL  = 0
+var int dbgPvKiH  = 0   // penetres sans rejet suffisant -> detruits sans sweep
+var int dbgPvKiL  = 0
+var int dbgPvEvH  = 0   // evinces par liqMax sans avoir servi
+var int dbgPvEvL  = 0
+var int dbgPvNoPenH = 0 // BOUGIES touchant un niveau sans penetration suffisante
+var int dbgPvNoPenL = 0
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -777,6 +799,22 @@ var array<float> eqhL = array.new<float>()
 var array<int>   eqhB = array.new<int>()
 var array<float> eqlL = array.new<float>()
 var array<int>   eqlB = array.new<int>()
+
+// ---- SECONDE SOURCE DE LIQUIDITE : LE SWING SIMPLE ----------------------
+// Un pivot confirme par ta.pivothigh/pivotlow(swingLen) domine swingLen
+// bougies de chaque cote : c'est deja, par definition, un swing clair.
+// Aucun seuil supplementaire n'est introduit pour le qualifier.
+// pvHL porte la liquidite ACHETEUSE au-dessus des sommets -> setups SELL,
+// pvLL la liquidite VENDEUSE sous les creux -> setups BUY. Meme mapping que
+// eqhL / eqlL, et comme pour elles la direction est portee par la boucle qui
+// teste le niveau, jamais par le niveau lui-meme.
+// Plafond liqMax, identique aux poches. Le module DEBUG dbgPvH / dbgPvL, qui
+// plafonne a 8, reste separe et inchange : il continue de mesurer le
+// majorant, pas ce que le moteur suit.
+var array<float> pvHL = array.new<float>()
+var array<int>   pvHB = array.new<int>()
+var array<float> pvLL = array.new<float>()
+var array<int>   pvLB = array.new<int>()
 var array<line>  liqLn = array.new<line>()
 var array<label> liqLb = array.new<label>()
 var array<label> swLb  = array.new<label>()
@@ -823,6 +861,80 @@ if not na(pl) and not na(plB) and not na(liqTol)
             array.shift(eqlB)
             dbgPockExp += 1
             dbgPkEvL += 1
+
+// ---- ALIMENTATION DE LA LISTE DES SWINGS SIMPLES -----------------------
+// Place APRES la creation des poches : une poche nee sur cette bougie est
+// donc visible du test de couverture ci-dessous.
+// ANTI-REPAINT : entree sous barstate.isconfirmed. Un pivot ne rejoint la
+// liste qu'une fois la bougie close, jamais sur un tick intermediaire.
+// DEDOUBLONNAGE, SEUIL EMPRUNTE : liqTol = atrV * liqTolAtr est deja, dans
+// ce script, la distance en dessous de laquelle deux prix sont "le meme
+// niveau". Aucun parametre nouveau n'est cree.
+//   sens 1 -- un pivot n'entre pas s'il est deja couvert par une poche ;
+//   sens 2 -- un niveau simple deja en liste est purge si une poche nee plus
+//             tard vient le couvrir. Sans ce second sens, un pivot entre seul
+//             puis apparie existerait en double et pourrait produire deux
+//             sweeps sur DEUX bougies differentes -- le booleen unique ne
+//             protege que du double sur la MEME bougie.
+if barstate.isconfirmed and not na(liqTol)
+    if array.size(pvHL) > 0 and array.size(eqhL) > 0
+        for i = array.size(pvHL) - 1 to 0
+            float sv = array.get(pvHL, i)
+            bool cov = false
+            for j = 0 to array.size(eqhL) - 1
+                if math.abs(array.get(eqhL, j) - sv) <= liqTol
+                    cov := true
+                    break
+            if cov
+                array.remove(pvHL, i)
+                array.remove(pvHB, i)
+                dbgPvPurH += 1
+    if array.size(pvLL) > 0 and array.size(eqlL) > 0
+        for i = array.size(pvLL) - 1 to 0
+            float sv = array.get(pvLL, i)
+            bool cov = false
+            for j = 0 to array.size(eqlL) - 1
+                if math.abs(array.get(eqlL, j) - sv) <= liqTol
+                    cov := true
+                    break
+            if cov
+                array.remove(pvLL, i)
+                array.remove(pvLB, i)
+                dbgPvPurL += 1
+    if not na(ph)
+        bool covH = false
+        if array.size(eqhL) > 0
+            for i = 0 to array.size(eqhL) - 1
+                if math.abs(array.get(eqhL, i) - ph) <= liqTol
+                    covH := true
+                    break
+        if covH
+            dbgPvDupH += 1
+        else
+            array.push(pvHL, ph)
+            array.push(pvHB, bar_index - swingLen)
+            dbgPvAddH += 1
+            if array.size(pvHL) > liqMax
+                array.shift(pvHL)
+                array.shift(pvHB)
+                dbgPvEvH += 1
+    if not na(pl)
+        bool covL = false
+        if array.size(eqlL) > 0
+            for i = 0 to array.size(eqlL) - 1
+                if math.abs(array.get(eqlL, i) - pl) <= liqTol
+                    covL := true
+                    break
+        if covL
+            dbgPvDupL += 1
+        else
+            array.push(pvLL, pl)
+            array.push(pvLB, bar_index - swingLen)
+            dbgPvAddL += 1
+            if array.size(pvLL) > liqMax
+                array.shift(pvLL)
+                array.shift(pvLB)
+                dbgPvEvL += 1
 
 // Une poche prise disparait. Si la cloture revient de l'autre cote, c'est un sweep.
 //
@@ -1026,6 +1138,55 @@ if array.size(eqlL) > 0 and not na(swPen) and not na(swRej)
                     dbgPkSwL += 1
                 else
                     dbgPkKiL += 1
+// ---- SWEEP SUR SWING SIMPLE : LA SECONDE SOURCE ------------------------
+// Meme test, mot pour mot, que les deux boucles EQH/EQL ci-dessus : meme
+// swPen, meme swRej, meme consommation du niveau des qu'il est PENETRE --
+// array.remove hors du test de rejet, exactement comme pour les poches.
+// sweepUpBar et sweepDnBar sont des booleens : les allumer depuis deux
+// sources sur la meme bougie ne peut pas produire deux sweeps. Le pipeline
+// aval (swpUpIdx / swpDnIdx -> f_seqSweep -> CHoCH -> BOS -> zones) est
+// inchange et ne sait pas de quelle source vient le sweep.
+// Aucune etiquette n'est dessinee : l'affichage reste celui d'aujourd'hui.
+bool pvTouchH = false
+bool pvTouchL = false
+if array.size(pvHL) > 0 and not na(swPen) and not na(swRej)
+    for i = array.size(pvHL) - 1 to 0
+        float lv = array.get(pvHL, i)
+        if high > lv
+            if high >= lv + swPen
+                if close <= lv - swRej
+                    sweepUpBar := true
+                    if barstate.isconfirmed
+                        dbgPvSwH += 1
+                else
+                    if barstate.isconfirmed
+                        dbgPvKiH += 1
+                array.remove(pvHL, i)
+                array.remove(pvHB, i)
+            else
+                pvTouchH := true
+if array.size(pvLL) > 0 and not na(swPen) and not na(swRej)
+    for i = array.size(pvLL) - 1 to 0
+        float lv = array.get(pvLL, i)
+        if low < lv
+            if low <= lv - swPen
+                if close >= lv + swRej
+                    sweepDnBar := true
+                    if barstate.isconfirmed
+                        dbgPvSwL += 1
+                else
+                    if barstate.isconfirmed
+                        dbgPvKiL += 1
+                array.remove(pvLL, i)
+                array.remove(pvLB, i)
+            else
+                pvTouchL := true
+if barstate.isconfirmed
+    if pvTouchH
+        dbgPvNoPenH += 1
+    if pvTouchL
+        dbgPvNoPenL += 1
+
 if array.size(swLb) > 6
     label.delete(array.shift(swLb))
 
@@ -3603,7 +3764,7 @@ if barstate.islast and dbgOn
         f_dbgR(17, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
         f_dbgR(18, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))
 
-    else
+    else if dbgPage == "④ SWEEP"
         int pkVivL = array.size(eqlL)
         int pkVivH = array.size(eqhL)
         f_dbgH(0, "DEBUG ④ SWEEP  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
@@ -3628,3 +3789,30 @@ if barstate.islast and dbgOn
         f_dbgR(16, "poches vivantes EQL " + sl + " EQH", str.tostring(pkVivL) + " " + sl + " " + str.tostring(pkVivH))
         f_dbgR(17, "SWING SIMPLE non vus (hors EQH" + sl + "EQL)", str.tostring(dbgSwSingle))
         f_dbgR(18, "liqMax " + str.tostring(liqMax) + " · pen " + str.tostring(sweepMinPen) + " · rej " + str.tostring(sweepReject), "seq " + str.tostring(seqMaxBars))
+
+    else
+        int pvVivL = array.size(pvLL)
+        int pvVivH = array.size(pvHL)
+        f_dbgH(0, "DEBUG ⑤ SWING SIMPLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+        f_dbgH(1, "SELL-SIDE : swing LOW simple " + sl + "> setups BUY")
+        f_dbgR(2, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddL) + " " + sl + " " + str.tostring(dbgPvDupL) + " " + sl + " " + str.tostring(dbgPvPurL))
+        f_dbgR(3, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwL) + " " + sl + " " + str.tostring(dbgPvKiL) + " " + sl + " " + str.tostring(dbgPvEvL))
+        f_dbgR(4, "vivants  |  bougies penetration insuff.", str.tostring(pvVivL) + "  |  " + str.tostring(dbgPvNoPenL))
+
+        f_dbgH(5, "BUY-SIDE : swing HIGH simple " + sl + "> setups SELL")
+        f_dbgR(6, "ajoutes " + sl + " dedoublonnes " + sl + " purges", str.tostring(dbgPvAddH) + " " + sl + " " + str.tostring(dbgPvDupH) + " " + sl + " " + str.tostring(dbgPvPurH))
+        f_dbgR(7, "sweep " + sl + " penetres ss rejet " + sl + " evinces", str.tostring(dbgPvSwH) + " " + sl + " " + str.tostring(dbgPvKiH) + " " + sl + " " + str.tostring(dbgPvEvH))
+        f_dbgR(8, "vivants  |  bougies penetration insuff.", str.tostring(pvVivH) + "  |  " + str.tostring(dbgPvNoPenH))
+
+        f_dbgH(9, "CONSERVATION  (les deux nombres doivent etre egaux)")
+        f_dbgR(10, "LOW  ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddL) + "  |  " + str.tostring(dbgPvSwL + dbgPvKiL + dbgPvEvL + dbgPvPurL + pvVivL))
+        f_dbgR(11, "HIGH ajoutes  |  sw+ki+ev+pur+vivants", str.tostring(dbgPvAddH) + "  |  " + str.tostring(dbgPvSwH + dbgPvKiH + dbgPvEvH + dbgPvPurH + pvVivH))
+
+        f_dbgH(12, "LES DEUX SOURCES  (poches " + sl + " swing simple)")
+        f_dbgR(13, "sweeps SELL-SIDE  EQL " + sl + " swing LOW", str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPvSwL))
+        f_dbgR(14, "sweeps BUY-SIDE   EQH " + sl + " swing HIGH", str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPvSwH))
+        f_dbgR(15, "SWEEPS acceptes   BUY " + sl + " SELL", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwSTot))
+        f_dbgR(16, "BUY   > CHoCH " + sl + " > BOS", str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+        f_dbgR(17, "SELL  > CHoCH " + sl + " > BOS", str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+        f_dbgR(18, "ZONES  |  SWING SIMPLE non vus (debug)", str.tostring(dbgZone) + "  |  " + str.tostring(dbgSwSingle))

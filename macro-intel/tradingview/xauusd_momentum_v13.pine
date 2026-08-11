@@ -304,6 +304,33 @@ var int dbgEvSKoO  = 0
 var int dbgEvSKoN  = 0
 var int dbgEvSOkO  = 0
 var int dbgEvSDone = 0
+
+// ---- SUIVI DU CYCLE PAR SWEEP -------------------------------------------
+// Compter "combien de sweeps atteignent le BOS" exige de se souvenir, POUR LE
+// SWEEP COURANT, jusqu'ou il est alle. Les six registres du moteur ne le
+// disent pas : ils ne gardent que la derniere occurrence de chaque evenement.
+// Les trois variables dbgCur* ci-dessous portent cet etat.
+// CE NE SONT PAS swpDnUsed / swpUpUsed : AUCUNE condition du moteur ne les
+// lit. Elles n'apparaissent que dans des increments dbg* et dans le tableau
+// debug. Retirer le bloc debug les rendrait orphelines sans changer un signal.
+var bool dbgCurBCh  = false   // le sweep sell-side courant a produit un CHoCH
+var bool dbgCurBBos = false   // ... puis un BOS posterieur -> chaine complete
+var int  dbgCurBChI = na      // bougie du PREMIER CHoCH post-sweep
+var bool dbgCurSCh  = false
+var bool dbgCurSBos = false
+var int  dbgCurSChI = na
+var int dbgSwBTot  = 0   // sweeps sell-side enregistres
+var int dbgSwBCh   = 0   // ... ayant produit au moins un CHoCH haussier
+var int dbgSwBBos  = 0   // ... ayant atteint sweep -> CHoCH -> BOS
+var int dbgSwBRepl = 0   // ... remplaces par un nouveau sweep avant la chaine
+var int dbgEvBKoT  = 0   // refus proxy AVEC chaine reellement complete (juste)
+var int dbgEvBKoF  = 0   // refus proxy SANS chaine complete (refus abusif)
+var int dbgSwSTot  = 0
+var int dbgSwSCh   = 0
+var int dbgSwSBos  = 0
+var int dbgSwSRepl = 0
+var int dbgEvSKoT  = 0
+var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
 var int dbgObBrk    = 0
 var int dbgBkMade   = 0
@@ -1792,9 +1819,23 @@ var bool chochUpFresh = false
 var bool chochDnFresh = false
 if barstate.isconfirmed
     if sweepDnBar
+        // DEBUG : solder le sweep sortant AVANT que swpDnIdx soit ecrase.
+        // S'il n'avait pas atteint le BOS, il est mort remplace.
+        if not na(swpDnIdx) and not dbgCurBBos
+            dbgSwBRepl += 1
         swpDnIdx := bar_index
+        dbgSwBTot  += 1
+        dbgCurBCh  := false
+        dbgCurBBos := false
+        dbgCurBChI := na
     if sweepUpBar
+        if not na(swpUpIdx) and not dbgCurSBos
+            dbgSwSRepl += 1
         swpUpIdx := bar_index
+        dbgSwSTot  += 1
+        dbgCurSCh  := false
+        dbgCurSBos := false
+        dbgCurSChI := na
     // ORDRE CRITIQUE : ce bloc s'execute AVANT l'ecriture de bosUpIdx/bosDnIdx
     // plus bas. bosUpIdx contient donc encore le BOS haussier PRECEDENT, ce
     // qui est exactement la valeur a comparer. Ne pas deplacer ces blocs.
@@ -1818,6 +1859,15 @@ if barstate.isconfirmed
                 dbgEvBKoN += 1
             else
                 dbgEvBKoB += 1
+                // LE POINT DECISIF. Le proxy refuse parce qu'un BOS haussier
+                // est posterieur au sweep. Mais un BOS peut survenir sans
+                // qu'aucun CHoCH ne l'ait precede depuis le sweep (simple
+                // continuation quand trend valait deja 1). dbgCurBBos dit si
+                // la chaine sweep -> CHoCH -> BOS a VRAIMENT ete parcourue.
+                if dbgCurBBos
+                    dbgEvBKoT += 1
+                else
+                    dbgEvBKoF += 1
             if evOldB
                 dbgEvBKoO += 1
         // CHAINE DEJA COMPLETE pour le sweep courant : le CHoCH precedent est
@@ -1828,6 +1878,13 @@ if barstate.isconfirmed
         // chochUpIdx a ete ecrase et le cas n'est plus visible.
         if not na(swpDnIdx) and not na(evChPrevB) and evChPrevB > swpDnIdx and not na(bosUpIdx) and bosUpIdx > evChPrevB
             dbgEvBDone += 1
+        // PROGRESSION DU SWEEP COURANT : premier CHoCH strictement posterieur
+        // au sweep. Strict comme f_seqChoch (ch > sw) : un CHoCH sur la bougie
+        // meme du sweep ne compte pas, exactement comme dans le moteur.
+        if not na(swpDnIdx) and bar_index > swpDnIdx and not dbgCurBCh
+            dbgCurBCh  := true
+            dbgCurBChI := bar_index
+            dbgSwBCh   += 1
     if bearChoch
         int evChPrevS = chochDnIdx
         chochDnIdx := bar_index
@@ -1843,14 +1900,31 @@ if barstate.isconfirmed
                 dbgEvSKoN += 1
             else
                 dbgEvSKoB += 1
+                if dbgCurSBos
+                    dbgEvSKoT += 1
+                else
+                    dbgEvSKoF += 1
             if evOldS
                 dbgEvSKoO += 1
         if not na(swpUpIdx) and not na(evChPrevS) and evChPrevS > swpUpIdx and not na(bosDnIdx) and bosDnIdx > evChPrevS
             dbgEvSDone += 1
+        if not na(swpUpIdx) and bar_index > swpUpIdx and not dbgCurSCh
+            dbgCurSCh  := true
+            dbgCurSChI := bar_index
+            dbgSwSCh   += 1
     if bullBos
         bosUpIdx := bar_index
+        // Cloture de la chaine du sweep courant. Strict comme f_seqBos
+        // (bo > ch) : la bougie de CHoCH allume aussi bullBos, elle ne peut
+        // donc pas se confirmer elle-meme.
+        if dbgCurBCh and not dbgCurBBos and not na(dbgCurBChI) and bar_index > dbgCurBChI
+            dbgCurBBos := true
+            dbgSwBBos  += 1
     if bearBos
         bosDnIdx := bar_index
+        if dbgCurSCh and not dbgCurSBos and not na(dbgCurSChI) and bar_index > dbgCurSChI
+            dbgCurSBos := true
+            dbgSwSBos  += 1
 
 f_seqSweep(bool isBuy) =>
     int sw = isBuy ? swpDnIdx : swpUpIdx
@@ -3299,7 +3373,7 @@ if barstate.islast and statShow and strategy.closedtrades > 0
 // close[i]/open[i] dans f_dbgScan, borne par swingLen exactement comme la
 // boucle reelle ; et le tableau n'utilise aucune coordonnee bar_index.
 // ============================================================
-var table dbgT = table.new(position.middle_left, 2, 50, border_width=0)
+var table dbgT = table.new(position.middle_left, 2, 55, border_width=0)
 f_dbgH(int r, string t) =>
     table.cell(dbgT, 0, r, t, text_color=cGold, text_size=size.tiny, text_halign=text.align_left, bgcolor=color.new(cGold, 88))
     table.cell(dbgT, 1, r, "", bgcolor=color.new(cGold, 88))
@@ -3390,3 +3464,9 @@ if barstate.islast and dbgOn
     f_dbgR(47, "SELL total " + sl + " fresh OK " + sl + " fresh KO", str.tostring(dbgEvSTot) + " " + sl + " " + str.tostring(dbgEvSTot - dbgEvSKo) + " " + sl + " " + str.tostring(dbgEvSKo))
     f_dbgR(48, "   refus BOS>sw " + sl + " sw absent " + sl + " (dont perime)", str.tostring(dbgEvSKoB) + " " + sl + " " + str.tostring(dbgEvSKoN) + " " + sl + " (" + str.tostring(dbgEvSKoO) + ")")
     f_dbgR(49, "   chaine deja compl. " + sl + " freshOK mais perime", str.tostring(dbgEvSDone) + " " + sl + " " + str.tostring(dbgEvSOkO))
+
+    f_dbgH(50, "SWEEP -> CHAINE  (par SWEEP, pas par bougie)")
+    f_dbgR(51, "BUY  sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+    f_dbgR(52, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
+    f_dbgR(53, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+    f_dbgR(54, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))

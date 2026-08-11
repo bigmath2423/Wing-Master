@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en trois pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en quatre pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -330,6 +330,36 @@ var int dbgSwSTot  = 0
 var int dbgSwSCh   = 0
 var int dbgSwSBos  = 0
 var int dbgSwSRepl = 0
+
+// ---- ENTONNOIR DU SWEEP : PAR EVENEMENT ET PAR COTE ---------------------
+// L'unite d'evenement retenue ici est LA POCHE, pas la bougie. Une poche est
+// creee une fois et meurt une fois : c'est le seul compteur qui se conserve.
+// dbgSsCand / dbgBsCand, eux, comptent des BOUGIES -- une bougie qui traverse
+// deux poches ne compte qu'une fois. Les deux mesures repondent a des
+// questions differentes et ne doivent pas etre additionnees.
+// CONSERVATION : poches creees = evincees + mortes en sweep + tuees sans
+//                rejet + encore vivantes.
+var int dbgPrH   = 0   // paires de pivots HAUTS reellement comparees
+var int dbgPrL   = 0   // paires de pivots BAS
+var int dbgPkEvH = 0   // poche EQH evincee par liqMax, sans jamais servir
+var int dbgPkEvL = 0
+var int dbgPkSwH = 0   // poche EQH morte EN PRODUISANT un sweep
+var int dbgPkSwL = 0
+var int dbgPkKiH = 0   // poche EQH penetree mais NON rejetee : detruite quand
+var int dbgPkKiL = 0   // meme, sans sweep. array.remove est hors du test de
+                       // rejet dans la boucle reelle -- c'est une fuite que
+                       // rien ne mesurait jusqu'ici.
+// Cote du biais A L'INSTANT du sweep, lu avec f_ctxAllow, la fonction meme du
+// gate de creation de zone. Un sweep sell-side sert un setup BUY.
+var int dbgSwBSideOk = 0
+var int dbgSwBSideKo = 0
+var int dbgSwSSideOk = 0
+var int dbgSwSSideKo = 0
+// Sort des sweeps acceptes qui n'aboutissent pas.
+var int dbgSwBNoCh  = 0   // mort remplace sans avoir jamais produit de CHoCH
+var int dbgSwBChOld = 0   // 1er CHoCH arrive AU-DELA de seqMaxBars
+var int dbgSwSNoCh  = 0
+var int dbgSwSChOld = 0
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -759,6 +789,7 @@ if not na(ph) and not na(phB) and not na(liqTol)
             array.shift(eqhL)
             array.shift(eqhB)
             dbgPockExp += 1
+            dbgPkEvH += 1
 if not na(pl) and not na(plB) and not na(liqTol)
     if math.abs(plA - plB) <= liqTol
         array.push(eqlL, math.min(plA, plB))
@@ -767,6 +798,7 @@ if not na(pl) and not na(plB) and not na(liqTol)
             array.shift(eqlL)
             array.shift(eqlB)
             dbgPockExp += 1
+            dbgPkEvL += 1
 
 // Une poche prise disparait. Si la cloture revient de l'autre cote, c'est un sweep.
 //
@@ -829,10 +861,12 @@ bool sweepDnBar = false
 if barstate.isconfirmed and not na(liqTol)
     if not na(ph) and not na(phB)
         dbgEqPair += 1
+        dbgPrH += 1
         if math.abs(phA - phB) <= liqTol
             dbgPockH += 1
     if not na(pl) and not na(plB)
         dbgEqPair += 1
+        dbgPrL += 1
         if math.abs(plA - plB) <= liqTol
             dbgPockL += 1
 
@@ -919,6 +953,15 @@ if array.size(eqhL) > 0 and not na(swPen) and not na(swRej)
             array.remove(eqhL, i)
             array.remove(eqhB, i)
             dbgPockUse += 1
+            // DEBUG : la poche vient d'etre detruite. A-t-elle produit un
+            // sweep, ou a-t-elle seulement ete penetree ? Le test rejoue la
+            // condition de rejet a l'identique, sur le meme lv, sans la
+            // modifier ni la deplacer.
+            if barstate.isconfirmed
+                if close <= lv - swRej
+                    dbgPkSwH += 1
+                else
+                    dbgPkKiH += 1
 if array.size(eqlL) > 0 and not na(swPen) and not na(swRej)
     for i = array.size(eqlL) - 1 to 0
         float lv = array.get(eqlL, i)
@@ -931,6 +974,11 @@ if array.size(eqlL) > 0 and not na(swPen) and not na(swRej)
             array.remove(eqlL, i)
             array.remove(eqlB, i)
             dbgPockUse += 1
+            if barstate.isconfirmed
+                if close >= lv + swRej
+                    dbgPkSwL += 1
+                else
+                    dbgPkKiL += 1
 if array.size(swLb) > 6
     label.delete(array.shift(swLb))
 
@@ -1824,16 +1872,31 @@ if barstate.isconfirmed
         // S'il n'avait pas atteint le BOS, il est mort remplace.
         if not na(swpDnIdx) and not dbgCurBBos
             dbgSwBRepl += 1
+            if not dbgCurBCh
+                dbgSwBNoCh += 1
         swpDnIdx := bar_index
         dbgSwBTot  += 1
+        // COTE DU BIAIS a l'instant du sweep. f_ctxAllow est la fonction du
+        // gate de creation de zone : on lit le meme contexte que lui, on n'en
+        // definit pas un second.
+        if f_ctxAllow(true)
+            dbgSwBSideOk += 1
+        else
+            dbgSwBSideKo += 1
         dbgCurBCh  := false
         dbgCurBBos := false
         dbgCurBChI := na
     if sweepUpBar
         if not na(swpUpIdx) and not dbgCurSBos
             dbgSwSRepl += 1
+            if not dbgCurSCh
+                dbgSwSNoCh += 1
         swpUpIdx := bar_index
         dbgSwSTot  += 1
+        if f_ctxAllow(false)
+            dbgSwSSideOk += 1
+        else
+            dbgSwSSideKo += 1
         dbgCurSCh  := false
         dbgCurSBos := false
         dbgCurSChI := na
@@ -1886,6 +1949,8 @@ if barstate.isconfirmed
             dbgCurBCh  := true
             dbgCurBChI := bar_index
             dbgSwBCh   += 1
+            if (bar_index - swpDnIdx) > seqMaxBars
+                dbgSwBChOld += 1
     if bearChoch
         int evChPrevS = chochDnIdx
         chochDnIdx := bar_index
@@ -1913,6 +1978,8 @@ if barstate.isconfirmed
             dbgCurSCh  := true
             dbgCurSChI := bar_index
             dbgSwSCh   += 1
+            if (bar_index - swpUpIdx) > seqMaxBars
+                dbgSwSChOld += 1
     if bullBos
         bosUpIdx := bar_index
         // Cloture de la chaine du sweep courant. Strict comme f_seqBos
@@ -3461,7 +3528,7 @@ if barstate.islast and dbgOn
         f_dbgR(15, "SELL-SIDE  (sert les BUY)", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
         f_dbgR(16, "BUY-SIDE   (sert les SELL)", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
 
-    else
+    else if dbgPage == "③ CYCLE"
         f_dbgH(0, "DEBUG ③ CYCLE  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
 
         f_dbgH(1, "CHAINE PAR BOUGIE  (BUY lit swpDnIdx)")
@@ -3484,3 +3551,29 @@ if barstate.islast and dbgOn
         f_dbgR(16, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwBRepl) + " " + sl + " " + str.tostring(dbgEvBKoT) + " " + sl + " " + str.tostring(dbgEvBKoF))
         f_dbgR(17, "SELL sweeps " + sl + " > CHoCH " + sl + " > BOS", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
         f_dbgR(18, "   remplaces " + sl + " refus JUSTE " + sl + " refus FAUX", str.tostring(dbgSwSRepl) + " " + sl + " " + str.tostring(dbgEvSKoT) + " " + sl + " " + str.tostring(dbgEvSKoF))
+
+    else
+        int pkVivL = array.size(eqlL)
+        int pkVivH = array.size(eqhL)
+        f_dbgH(0, "DEBUG ④ SWEEP  ·  TF " + tfLbl + "  ·  " + str.tostring(dbgBars) + " BARS")
+
+        f_dbgH(1, "SELL-SIDE : EQL " + sl + "> sweep bas " + sl + "> setups BUY")
+        f_dbgR(2, "paires evaluees " + sl + " poches formees", str.tostring(dbgPrL) + " " + sl + " " + str.tostring(dbgPockL))
+        f_dbgR(3, "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvL) + " " + sl + " " + str.tostring(dbgPkSwL) + " " + sl + " " + str.tostring(dbgPkKiL))
+        f_dbgR(4, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgSsCand) + " " + sl + " " + str.tostring(dbgSsOk) + " " + sl + " " + str.tostring(dbgSsNoPen) + " " + sl + " " + str.tostring(dbgSsNoRej))
+        f_dbgR(5, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwBTot) + " " + sl + " " + str.tostring(dbgSwBSideOk) + " " + sl + " " + str.tostring(dbgSwBSideKo))
+        f_dbgR(6, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwBNoCh) + " " + sl + " " + str.tostring(dbgSwBChOld) + " " + sl + " " + str.tostring(dbgSwBCh) + " " + sl + " " + str.tostring(dbgSwBBos))
+
+        f_dbgH(7, "BUY-SIDE : EQH " + sl + "> sweep haut " + sl + "> setups SELL")
+        f_dbgR(8,  "paires evaluees " + sl + " poches formees", str.tostring(dbgPrH) + " " + sl + " " + str.tostring(dbgPockH))
+        f_dbgR(9,  "poches: evincees " + sl + " sweep " + sl + " penetrees ss rejet", str.tostring(dbgPkEvH) + " " + sl + " " + str.tostring(dbgPkSwH) + " " + sl + " " + str.tostring(dbgPkKiH))
+        f_dbgR(10, "bougies cand " + sl + " ok " + sl + " r.pen " + sl + " r.rej", str.tostring(dbgBsCand) + " " + sl + " " + str.tostring(dbgBsOk) + " " + sl + " " + str.tostring(dbgBsNoPen) + " " + sl + " " + str.tostring(dbgBsNoRej))
+        f_dbgR(11, "SWEEPS acceptes " + sl + " bon cote " + sl + " mauvais cote", str.tostring(dbgSwSTot) + " " + sl + " " + str.tostring(dbgSwSSideOk) + " " + sl + " " + str.tostring(dbgSwSSideKo))
+        f_dbgR(12, "sans CHoCH " + sl + " CHoCH perime " + sl + "> CHoCH " + sl + "> BOS", str.tostring(dbgSwSNoCh) + " " + sl + " " + str.tostring(dbgSwSChOld) + " " + sl + " " + str.tostring(dbgSwSCh) + " " + sl + " " + str.tostring(dbgSwSBos))
+
+        f_dbgH(13, "CONSERVATION  (les deux nombres doivent etre egaux)")
+        f_dbgR(14, "EQL creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockL) + "  |  " + str.tostring(dbgPkEvL + dbgPkSwL + dbgPkKiL + pkVivL))
+        f_dbgR(15, "EQH creees  |  ev+sw+ki+vivantes", str.tostring(dbgPockH) + "  |  " + str.tostring(dbgPkEvH + dbgPkSwH + dbgPkKiH + pkVivH))
+        f_dbgR(16, "poches vivantes EQL " + sl + " EQH", str.tostring(pkVivL) + " " + sl + " " + str.tostring(pkVivH))
+        f_dbgR(17, "SWING SIMPLE non vus (hors EQH" + sl + "EQL)", str.tostring(dbgSwSingle))
+        f_dbgR(18, "liqMax " + str.tostring(liqMax) + " · pen " + str.tostring(sweepMinPen) + " · rej " + str.tostring(sweepReject), "seq " + str.tostring(seqMaxBars))

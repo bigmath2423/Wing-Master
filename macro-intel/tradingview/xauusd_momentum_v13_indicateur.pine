@@ -140,7 +140,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP", "⑧ SENSI", "⑨ GATE", "⑩ UNION", "⑪ COMPOS", "⑫ HISTO"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en douze pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "③ CYCLE", "④ SWEEP", "⑤ SIMPLE", "⑥ OB", "⑦ DISP", "⑧ SENSI", "⑨ GATE", "⑩ UNION", "⑪ COMPOS", "⑫ HISTO", "⑬ MODELES"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en treize pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -523,6 +523,30 @@ var int dbgUhBoth  = 0   // les deux KO
 var array<float> dbgObHA = array.new<float>()   // hauteur OB / ATR
 var array<float> dbgFvHA = array.new<float>()   // hauteur FVG / ATR
 var array<float> dbgGpA  = array.new<float>()   // ecart vertical / ATR
+
+// ---- TROIS DEFINITIONS DE HAUTEUR, COMPAREES A PAIRE EGALE --------------
+// Les trois modeles sont evalues sur LA MEME paire, au meme instant, avec le
+// MEME filtre de proximite gap <= wzPairGapAtr, qui reste independant de la
+// hauteur : il ne lit que gap, jamais obH ni fvH.
+//   A : hauteur = obH          (le FVG confirme la proximite)
+//   B : hauteur = fvH          (l'OB confirme la proximite)
+//   C : hauteur = obH + fvH    (sans l'espace vide entre les deux)
+// Le modele actuel est uH = obH + ecart + fvH.
+// Ces drapeaux ne sont lus par AUCUNE condition du moteur : ni la creation de
+// zone, ni le score, ni le cycle. Retirer le bloc debug les rendrait
+// orphelins sans changer un seul signal.
+var bool chMaB = false
+var bool chMbB = false
+var bool chMcB = false
+var bool chMaS = false
+var bool chMbS = false
+var bool chMcS = false
+var int dbgChMaB = 0
+var int dbgChMbB = 0
+var int dbgChMcB = 0
+var int dbgChMaS = 0
+var int dbgChMbS = 0
+var int dbgChMcS = 0
 var int dbgEvSKoT  = 0
 var int dbgEvSKoF  = 0
 var int dbgObEvict  = 0
@@ -2137,11 +2161,20 @@ if barstate.isconfirmed
                 dbgChPrB += 1
             if chZnB
                 dbgChZnB += 1
+            if chMaB
+                dbgChMaB += 1
+            if chMbB
+                dbgChMbB += 1
+            if chMcB
+                dbgChMcB += 1
         chObB := false
         chFvB := false
         chBoB := false
         chPrB := false
         chZnB := false
+        chMaB := false
+        chMbB := false
+        chMcB := false
         swpDnIdx := bar_index
         dbgSwBTot  += 1
         // COTE DU BIAIS a l'instant du sweep. f_ctxAllow est la fonction du
@@ -2171,11 +2204,20 @@ if barstate.isconfirmed
                 dbgChPrS += 1
             if chZnS
                 dbgChZnS += 1
+            if chMaS
+                dbgChMaS += 1
+            if chMbS
+                dbgChMbS += 1
+            if chMcS
+                dbgChMcS += 1
         chObS := false
         chFvS := false
         chBoS := false
         chPrS := false
         chZnS := false
+        chMaS := false
+        chMbS := false
+        chMcS := false
         swpUpIdx := bar_index
         dbgSwSTot  += 1
         if f_ctxAllow(false)
@@ -2755,6 +2797,20 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         dbgUhHgtKo += 1
                     else
                         dbgUhOkOk += 1
+                    // DEBUG : la meme paire sous les trois definitions de
+                    // hauteur, sous le meme filtre de proximite. Lecture seule.
+                    if gap <= atrV * wzPairGapAtr and f_seqBos(isBuy)
+                        bool mA = (obT - obB) <= atrV * wzMaxHeightAtr
+                        bool mB = (fT - fB) <= atrV * wzMaxHeightAtr
+                        bool mC = ((obT - obB) + (fT - fB)) <= atrV * wzMaxHeightAtr
+                        if isBuy
+                            chMaB := chMaB or mA
+                            chMbB := chMbB or mB
+                            chMcB := chMcB or mC
+                        else
+                            chMaS := chMaS or mA
+                            chMbS := chMbS or mB
+                            chMcS := chMcS or mC
                     if gap > atrV * wzPairGapAtr
                         farGap := true
                     if uH > atrV * wzMaxHeightAtr
@@ -4218,6 +4274,66 @@ f_dbgP12(string sl, string tfLbl) =>
     0
 
 
+f_dbgP13(string sl, string tfLbl) =>
+    // Les quatre tableaux sont alignes : un meme indice designe UNE paire.
+    // Les trois modeles travaillent donc rigoureusement sur la meme
+    // population, et aucune paire ne peut etre comptee deux fois.
+    int n = array.size(dbgUhAll)
+    array<float> aO = array.new<float>()
+    array<float> aF = array.new<float>()
+    array<float> aC = array.new<float>()
+    array<float> aU = array.new<float>()
+    int okA = 0
+    int okB = 0
+    int okC = 0
+    int okU = 0
+    if n > 0
+        for i = 0 to n - 1
+            if array.get(dbgGpA, i) <= wzPairGapAtr
+                float o = array.get(dbgObHA, i)
+                float f = array.get(dbgFvHA, i)
+                float u = array.get(dbgUhAll, i)
+                array.push(aO, o)
+                array.push(aF, f)
+                array.push(aC, o + f)
+                array.push(aU, u)
+                if o <= wzMaxHeightAtr
+                    okA += 1
+                if f <= wzMaxHeightAtr
+                    okB += 1
+                if o + f <= wzMaxHeightAtr
+                    okC += 1
+                if u <= wzMaxHeightAtr
+                    okU += 1
+    int g = array.size(aO)
+    f_dbgH(0, "⑬ MODELES  ·  " + tfLbl + "  ·  " + str.tostring(n) + " PAIRES")
+
+    f_dbgH(1, "POPULATION COMMUNE aux trois modeles")
+    f_dbgR(2, "evaluees " + sl + " passant gap <= " + str.tostring(wzPairGapAtr), str.tostring(n) + " " + sl + " " + str.tostring(g))
+
+    f_dbgH(3, "A — ZONE = OB   (FVG confirme la proximite)")
+    f_dbgR(4, "passent haut. " + sl + " med " + sl + " P25", g > 0 ? str.tostring(okA) + " " + sl + " " + str.tostring(array.median(aO), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aO, 25), "#.##") : "—")
+    f_dbgR(5, "P75 " + sl + " P90", g > 0 ? str.tostring(array.percentile_linear_interpolation(aO, 75), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aO, 90), "#.##") : "—")
+
+    f_dbgH(6, "B — ZONE = FVG   (OB confirme la proximite)")
+    f_dbgR(7, "passent haut. " + sl + " med " + sl + " P25", g > 0 ? str.tostring(okB) + " " + sl + " " + str.tostring(array.median(aF), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aF, 25), "#.##") : "—")
+    f_dbgR(8, "P75 " + sl + " P90", g > 0 ? str.tostring(array.percentile_linear_interpolation(aF, 75), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aF, 90), "#.##") : "—")
+
+    f_dbgH(9, "C — ZONE = OB + FVG   (sans l'espace vide)")
+    f_dbgR(10, "passent haut. " + sl + " med " + sl + " P25", g > 0 ? str.tostring(okC) + " " + sl + " " + str.tostring(array.median(aC), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aC, 25), "#.##") : "—")
+    f_dbgR(11, "P75 " + sl + " P90", g > 0 ? str.tostring(array.percentile_linear_interpolation(aC, 75), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aC, 90), "#.##") : "—")
+
+    f_dbgH(12, "ACTUEL — ZONE = OB + ecart + FVG")
+    f_dbgR(13, "passent haut. " + sl + " med " + sl + " P25", g > 0 ? str.tostring(okU) + " " + sl + " " + str.tostring(array.median(aU), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aU, 25), "#.##") : "—")
+    f_dbgR(14, "P75 " + sl + " P90", g > 0 ? str.tostring(array.percentile_linear_interpolation(aU, 75), "#.##") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(aU, 90), "#.##") : "—")
+
+    f_dbgH(15, "CHAINES — actuel " + sl + " A " + sl + " B " + sl + " C")
+    f_dbgR(16, "BUY   sur " + str.tostring(dbgChTotB) + " soldees", str.tostring(dbgChPrB) + " " + sl + " " + str.tostring(dbgChMaB) + " " + sl + " " + str.tostring(dbgChMbB) + " " + sl + " " + str.tostring(dbgChMcB))
+    f_dbgR(17, "SELL  sur " + str.tostring(dbgChTotS) + " soldees", str.tostring(dbgChPrS) + " " + sl + " " + str.tostring(dbgChMaS) + " " + sl + " " + str.tostring(dbgChMbS) + " " + sl + " " + str.tostring(dbgChMcS))
+    f_dbgR(18, "ZONES reellement creees (moteur actuel)", str.tostring(dbgZone))
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -4248,6 +4364,8 @@ if barstate.islast and dbgOn
         f_dbgP10(sl, tfLbl)
     else if dbgPage == "⑪ COMPOS"
         f_dbgP11(sl, tfLbl)
-    else
+    else if dbgPage == "⑫ HISTO"
         f_dbgP12(sl, tfLbl)
+    else
+        f_dbgP13(sl, tfLbl)
 

@@ -2831,15 +2831,32 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             // configuration ICT normale -- c'etait le second verrou apres le
             // bug du sweep.
             //
-            // Desormais les deux doivent seulement etre PROCHES, et la zone est
-            // leur UNION : une seule zone qui fusionne les deux, comme demande.
-            // Deux garde-fous contre les zones enormes :
-            //   - wzPairGapAtr : ecart maximum entre les deux boites ;
-            //   - wzMaxHeightAtr : hauteur maximale de l'union. Au-dela, la
-            //     paire est REJETEE plutot que dessinee trop large -- mieux
-            //     vaut aucune zone qu'une zone imprecise.
-            // Parmi tous les FVG candidats, on retient celui qui donne l'union
-            // la PLUS SERREE (auparavant : le premier trouve, arbitraire).
+            // MODELE A -- LA ZONE EST L'ORDER BLOCK, PAS L'UNION.
+            // L'union faisait payer a la zone l'espace VIDE entre les deux
+            // boites : deux boites de 0.8 ATR separees de 3 ATR produisaient
+            // une zone de 4.6 ATR dont 3 ne contenaient ni OB ni FVG. Mesure
+            // sur 9987 paires : mediane de l'union 2.3 a 3.0 ATR, maximum 17.2.
+            // Et meme a ecart nul, les deux boites medianes pesaient deja 1.5 a
+            // 1.8 ATR, au-dessus du plafond : le seuil etait inatteignable par
+            // construction.
+            // Trois definitions ont ete comparees a paire egale sur les quatre
+            // unites de temps. Zone = OB : mediane 0.77 a 0.91 ATR, P90 borne
+            // sous 1.55, 71 chaines atteignant un appariement valide. Zone =
+            // FVG : 66 chaines mais P90 jusqu'a 2.66. Zone = OB + FVG sans
+            // l'ecart : 39 chaines, exactement comme l'union -- aucun gain,
+            // le plafond etant deja consomme par les deux boites.
+            //
+            // Le FVG reste indispensable et son role est inchange : il doit
+            // exister, appartenir au meme cycle (fX >= obX) et etre PROCHE
+            // (wzPairGapAtr). Il confirme le desequilibre ; l'Order Block est
+            // le lieu d'execution. C'est la lecture ICT standard.
+            // wzMaxHeightAtr s'applique desormais a la hauteur de l'Order
+            // Block seul -- meme valeur, meme role : refuser une zone trop
+            // large plutot que la dessiner imprecise.
+            // bestH continue de mesurer l'union : il ne choisit plus la
+            // geometrie de la zone, qui est celle de l'OB quel que soit le FVG
+            // retenu, mais SELECTIONNE le FVG le plus proche, donc la meilleure
+            // confluence.
             float zT = na
             float zB = na
             int   zX = na
@@ -2902,11 +2919,11 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                         farGap := true
                     if uH > atrV * wzMaxHeightAtr
                         farHgt := true
-                if obSameCycle and fX >= obX and gap <= atrV * wzPairGapAtr and uH <= atrV * wzMaxHeightAtr
+                if obSameCycle and fX >= obX and gap <= atrV * wzPairGapAtr and (obT - obB) <= atrV * wzMaxHeightAtr
                     if na(bestH) or uH < bestH
                         bestH := uH
-                        zT := uT
-                        zB := uB
+                        zT := obT
+                        zB := obB
                         zX := math.min(obX, fX)
 
             // Diagnostic : OB et FVG presents mais jamais appariables.

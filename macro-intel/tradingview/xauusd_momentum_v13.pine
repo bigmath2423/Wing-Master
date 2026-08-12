@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "⑬ MODELES"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en treize pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "⑬ MODELES", "⑭ SCORE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en treize pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -250,6 +250,38 @@ var int dgcScore   = 0
 var int dgcBetter  = 0
 var int dgcSame    = 0
 var int dgcOk      = 0
+
+// ---- AUDIT DU SCORE (page ⑭) ---------------------------------------------
+// POPULATION : une evaluation = une bougie x un cote ou la chaine complete
+// (sweep + CHoCH + BOS du bon sens) tient ET ou un appariement OB<->FVG a
+// produit une zone candidate. C'est exactement ce qui ARRIVE au filtre de
+// score. Les deux cotes sont comptes.
+// A DIRE CLAIREMENT : la page ② ne renseigne dgRej que pour le cote du biais
+// (garde `isBuy == (biasDir >= 0)`). Ses motifs post-appariement sont donc
+// UNILATERAUX. Cette page-ci ne porte aucune garde de biais : les deux
+// populations ne sont pas les memes et n'ont aucune raison de coincider.
+// Les compteurs de motif ci-dessous sont INDEPENDANTS, pas en cascade : une
+// meme evaluation peut echouer sur plusieurs a la fois. Ils ne s'additionnent
+// donc pas. La cascade, elle, est en page ②.
+var array<float> dbgScA = array.new<float>()
+var array<int>   dbgScH = array.new<int>(10, 0)
+var int dbgScBuy = 0
+var int dbgScV30 = 0
+var int dbgScV15 = 0
+var int dbgScV7  = 0
+var int dbgScV0  = 0
+var int dbgScSt  = 0
+var int dbgScLq  = 0
+var int dbgScM15 = 0
+var int dbgScM7  = 0
+var int dbgScM0  = 0
+var int dbgScF10 = 0
+var int dbgScF6  = 0
+var int dbgScF3  = 0
+var int dbgScF0  = 0
+var int dbgScWna = 0
+var int dbgScHtf = 0
+var int dbgScPd  = 0
 
 // ---- SWEEPS PAR DIRECTION ------------------------------------------------
 // CONVENTION, jamais melangee : la liquidite SELL-SIDE (sous les EQL) est
@@ -3112,6 +3144,48 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                 // la selection, il ne bloque pas tout.
                 bool fibNotInvalid = fibSt >= 0
 
+                // DEBUG : audit du score. Lecture seule, place APRES cSweep /
+                // cChoch / cBos pour que la population soit celle qui atteint
+                // reellement le filtre, et AVANT toute decision.
+                if cSweep and cChoch and cBos
+                    array.push(dbgScA, score)
+                    if isBuy
+                        dbgScBuy += 1
+                    int sBk = int(math.max(0, math.min(9, math.floor(score / 10.0))))
+                    array.set(dbgScH, sBk, array.get(dbgScH, sBk) + 1)
+                    if sVp >= 30
+                        dbgScV30 += 1
+                    else if sVp >= 15
+                        dbgScV15 += 1
+                    else if sVp >= 7
+                        dbgScV7 += 1
+                    else
+                        dbgScV0 += 1
+                    if sSt >= 25
+                        dbgScSt += 1
+                    if sLq >= 20
+                        dbgScLq += 1
+                    if fibSt == 1
+                        dbgScM15 += 1
+                    else if fibSt == 0
+                        dbgScM7 += 1
+                    else
+                        dbgScM0 += 1
+                    if sMtf >= 10
+                        dbgScF10 += 1
+                    else if sMtf >= 6
+                        dbgScF6 += 1
+                    else if sMtf >= 3
+                        dbgScF3 += 1
+                    else
+                        dbgScF0 += 1
+                    if na(wVal) or na(wVah)
+                        dbgScWna += 1
+                    if not f_ctxAllow(isBuy)
+                        dbgScHtf += 1
+                    if not fibOk
+                        dbgScPd += 1
+
                 // ---- DIAGNOSTIC : etat de chaque condition + raison du refus --
                 // Renseigne pour le cote qui correspond au biais affiche, afin
                 // que le panneau puisse expliquer POURQUOI aucune zone n'existe.
@@ -4189,6 +4263,79 @@ f_dbgP13(string sl, string tfLbl) =>
     0
 
 
+// ---- PAGE ⑭ : AUDIT DU SCORE ET DES TROIS FILTRES AVAL --------------------
+// Aucune de ces lignes ne participe a une decision. Fonction separee pour la
+// meme raison que les autres pages : une fonction Pine ne peut lire que 254
+// elements externes, un int en compte deux.
+f_dbgP14(string sl, string tfLbl) =>
+    int    n  = array.size(dbgScA)
+    float  sm = n > 0 ? array.sum(dbgScA) : 0.0
+    // Somme des points reellement distribues par chaque composante, deduite
+    // des paliers : chaque composante n'a que deux a quatre valeurs possibles,
+    // les compteurs de palier donnent donc la distribution EXACTE, pas une
+    // approximation.
+    float pVp  = 30.0 * dbgScV30 + 15.0 * dbgScV15 + 7.0 * dbgScV7
+    float pSt  = 25.0 * dbgScSt
+    float pLq  = 20.0 * dbgScLq
+    float pSmc = 15.0 * dbgScM15 + 7.0 * dbgScM7
+    float pMtf = 10.0 * dbgScF10 + 20.0 / 3.0 * dbgScF6 + 10.0 / 3.0 * dbgScF3
+    // Bornes de passage : nombre d'evaluations dont le score atteint chaque
+    // seuil. C'est une borne de PASSAGE DU SCORE, pas un nombre de zones :
+    // Fibonacci, premium/discount, contexte, `better` et `same` restent en
+    // aval et ne sont pas simules ici.
+    int b50 = 0
+    int b55 = 0
+    int b60 = 0
+    int b65 = 0
+    int b70 = 0
+    int b75 = 0
+    int b80 = 0
+    int b85 = 0
+    if n > 0
+        for i = 0 to n - 1
+            float s = array.get(dbgScA, i)
+            if s >= 50
+                b50 += 1
+            if s >= 55
+                b55 += 1
+            if s >= 60
+                b60 += 1
+            if s >= 65
+                b65 += 1
+            if s >= 70
+                b70 += 1
+            if s >= 75
+                b75 += 1
+            if s >= 80
+                b80 += 1
+            if s >= 85
+                b85 += 1
+    f_dbgH(0, "⑭ SCORE  ·  " + tfLbl + "  ·  " + str.tostring(n) + " EVALUATIONS")
+
+    f_dbgH(1, "DISTRIBUTION  (les DEUX cotes, sans garde de biais)")
+    f_dbgR(2, "evaluations " + sl + " BUY " + sl + " SELL", str.tostring(n) + " " + sl + " " + str.tostring(dbgScBuy) + " " + sl + " " + str.tostring(n - dbgScBuy))
+    f_dbgR(3, "moy " + sl + " med " + sl + " min " + sl + " max", n > 0 ? str.tostring(sm / n, "#.#") + " " + sl + " " + str.tostring(array.median(dbgScA), "#.#") + " " + sl + " " + str.tostring(array.min(dbgScA), "#.#") + " " + sl + " " + str.tostring(array.max(dbgScA), "#.#") : "—")
+    f_dbgR(4, "P25 " + sl + " P75 " + sl + " P90", n > 0 ? str.tostring(array.percentile_linear_interpolation(dbgScA, 25), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgScA, 75), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgScA, 90), "#.#") : "—")
+
+    f_dbgH(5, "HISTOGRAMME du score")
+    f_dbgR(6, "0-9 " + sl + " 10-19 " + sl + " 20-29 " + sl + " 30-39 " + sl + " 40-49", str.tostring(array.get(dbgScH, 0)) + " " + sl + " " + str.tostring(array.get(dbgScH, 1)) + " " + sl + " " + str.tostring(array.get(dbgScH, 2)) + " " + sl + " " + str.tostring(array.get(dbgScH, 3)) + " " + sl + " " + str.tostring(array.get(dbgScH, 4)))
+    f_dbgR(7, "50-59 " + sl + " 60-69 " + sl + " 70-79 " + sl + " 80-89 " + sl + " 90-100", str.tostring(array.get(dbgScH, 5)) + " " + sl + " " + str.tostring(array.get(dbgScH, 6)) + " " + sl + " " + str.tostring(array.get(dbgScH, 7)) + " " + sl + " " + str.tostring(array.get(dbgScH, 8)) + " " + sl + " " + str.tostring(array.get(dbgScH, 9)))
+
+    f_dbgH(8, "COMPOSANTES  —  nombre d'evaluations par palier")
+    f_dbgR(9,  "sVp  30 " + sl + " 15 " + sl + " 7 " + sl + " 0   (max 30)", str.tostring(dbgScV30) + " " + sl + " " + str.tostring(dbgScV15) + " " + sl + " " + str.tostring(dbgScV7) + " " + sl + " " + str.tostring(dbgScV0))
+    f_dbgR(10, "sSt  25 " + sl + " 0   (max 25)", str.tostring(dbgScSt) + " " + sl + " " + str.tostring(n - dbgScSt))
+    f_dbgR(11, "sLq  20 " + sl + " 0   (max 20)", str.tostring(dbgScLq) + " " + sl + " " + str.tostring(n - dbgScLq))
+    f_dbgR(12, "sSmc 15 " + sl + " 7 " + sl + " 0   (max 15)", str.tostring(dbgScM15) + " " + sl + " " + str.tostring(dbgScM7) + " " + sl + " " + str.tostring(dbgScM0))
+    f_dbgR(13, "sMtf 10 " + sl + " 6.7 " + sl + " 3.3 " + sl + " 0   (max 10)", str.tostring(dbgScF10) + " " + sl + " " + str.tostring(dbgScF6) + " " + sl + " " + str.tostring(dbgScF3) + " " + sl + " " + str.tostring(dbgScF0))
+    f_dbgR(14, "part du total  Vp " + sl + " St " + sl + " Lq " + sl + " Smc " + sl + " Mtf", sm > 0 ? str.tostring(pVp / sm * 100.0, "#") + " " + sl + " " + str.tostring(pSt / sm * 100.0, "#") + " " + sl + " " + str.tostring(pLq / sm * 100.0, "#") + " " + sl + " " + str.tostring(pSmc / sm * 100.0, "#") + " " + sl + " " + str.tostring(pMtf / sm * 100.0, "#") : "—")
+
+    f_dbgH(15, "BORNES DE PASSAGE DU SCORE  (PAS un nombre de zones)")
+    f_dbgR(16, "50 " + sl + " 55 " + sl + " 60 " + sl + " 65", str.tostring(b50) + " " + sl + " " + str.tostring(b55) + " " + sl + " " + str.tostring(b60) + " " + sl + " " + str.tostring(b65))
+    f_dbgR(17, "70 (actuel) " + sl + " 75 " + sl + " 80 " + sl + " 85", str.tostring(b70) + " " + sl + " " + str.tostring(b75) + " " + sl + " " + str.tostring(b80) + " " + sl + " " + str.tostring(b85))
+    f_dbgR(18, "Value Area na " + sl + " HTF bloque " + sl + " prem/disc bloque", str.tostring(dbgScWna) + " " + sl + " " + str.tostring(dbgScHtf) + " " + sl + " " + str.tostring(dbgScPd))
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -4201,6 +4348,8 @@ if barstate.islast and dbgOn
         f_dbgP1(sl, tfLbl)
     else if dbgPage == "② ZONES"
         f_dbgP2(sl, tfLbl)
-    else
+    else if dbgPage == "⑬ MODELES"
         f_dbgP13(sl, tfLbl)
+    else
+        f_dbgP14(sl, tfLbl)
 

@@ -163,7 +163,7 @@ zoneMaxBars = input.int(15, "Projection des zones vers la droite (bougies)", min
 // corrigee sur sweepShow. Aucun compteur n'est lu par une condition.
 // ============================================================
 dbgOn = input.bool(false, "DEBUG MODE — tableau de mesure", group="⑨ Debug (observation seule)", tooltip="Compte les evenements REELLEMENT rencontres sur l'historique charge : Order Blocks, FVG, poches de liquidite, sweeps, chaine Sweep -> CHoCH -> BOS. Aucune estimation, aucune regle modifiee. Le tableau s'affiche en bas a gauche.", display=display.none)
-dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "⑬ MODELES", "⑭ SCORE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en treize pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
+dbgPage = input.string("① MOTEUR", "PAGE affichee", options=["① MOTEUR", "② ZONES", "⑬ MODELES", "⑭ SCORE", "⑮ COMPACITE"], group="⑨ Debug (observation seule)", tooltip="Le tableau complet fait plus de cinquante lignes : il deborde de l'ecran en haut comme en bas et les dernieres sections deviennent invisibles. Il est donc decoupe en treize pages de vingt lignes au maximum. Choix d'affichage uniquement : les compteurs tournent tous en permanence, quelle que soit la page selectionnee.", display=display.none)
 
 // --- palette : sombre, deux accents, le reste en gris ---
 // Les 8 constantes pilotent TOUT l'habillage (panneau, zones, lignes,
@@ -282,6 +282,30 @@ var int dbgScF0  = 0
 var int dbgScWna = 0
 var int dbgScHtf = 0
 var int dbgScPd  = 0
+
+// ---- COMPACITE DE LA CHAINE (page ⑮) --------------------------------------
+// PHASE 1 de l'audit sSt. Observation seule : ces trois distances ne sont
+// utilisees par AUCUNE decision, elles ne font qu'etre enregistrees.
+// Population identique a la page ⑭ -- meme point de collecte, meme garde
+// `cSweep and cChoch and cBos` -- pour que size(dbgCpSC) soit directement
+// comparable au n de la page ⑭. C'est le premier controle de conservation.
+// Les trois distances sont liees par une IDENTITE exacte :
+//     (bosIdx - swpIdx) = (chochIdx - swpIdx) + (bosIdx - chochIdx)
+// La somme des trois tableaux doit donc verifier sum(SC) + sum(CB) = sum(SB)
+// au terme pres. Un ecart non nul signale une erreur d'instrumentation, pas
+// un fait de marche.
+// Deux minorants sont garantis par le code et servent de filet :
+//   f_seqChoch exige ch > sw  ->  min(SC) >= 1
+//   f_seqBos   exige bo > ch  ->  min(CB) >= 1
+// Et f_seqSweep borne l'age du sweep : max(bar_index - swpIdx) <= seqMaxBars.
+// Cet age n'est pas une des trois distances demandees : il est suivi par un
+// simple maximum courant, sans tableau supplementaire.
+var array<float> dbgCpSC = array.new<float>()
+var array<float> dbgCpCB = array.new<float>()
+var array<float> dbgCpSB = array.new<float>()
+var array<int>   dbgCpH  = array.new<int>(10, 0)
+var int dbgCpBuy = 0
+var int dbgCpAge = 0
 
 // ---- SWEEPS PAR DIRECTION ------------------------------------------------
 // CONVENTION, jamais melangee : la liquidite SELL-SIDE (sous les EQL) est
@@ -3186,6 +3210,28 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
                     if not fibOk
                         dbgScPd += 1
 
+                    // DEBUG : compacite de la chaine. Les trois indices sont
+                    // non na par construction -- cSweep / cChoch / cBos sont
+                    // vrais ici. La garde n'est donc pas defensive : si elle
+                    // ecarte une seule observation, size(dbgCpSC) cessera
+                    // d'egaler n et le controle 1 le dira.
+                    int cpSw = isBuy ? swpDnIdx    : swpUpIdx
+                    int cpCh = isBuy ? chochUpIdx  : chochDnIdx
+                    int cpBo = isBuy ? bosUpIdx    : bosDnIdx
+                    if not na(cpSw) and not na(cpCh) and not na(cpBo)
+                        array.push(dbgCpSC, cpCh - cpSw)
+                        array.push(dbgCpCB, cpBo - cpCh)
+                        array.push(dbgCpSB, cpBo - cpSw)
+                        if isBuy
+                            dbgCpBuy += 1
+                        dbgCpAge := math.max(dbgCpAge, bar_index - cpSw)
+                        // Tranches en puissances de deux : aucun seuil choisi,
+                        // l'echelle couvre 1 a 512+ bougies, donc les quatre
+                        // unites de temps sans re-parametrage.
+                        int cpD = cpBo - cpSw
+                        int cpB = cpD <= 1 ? 0 : cpD <= 3 ? 1 : cpD <= 7 ? 2 : cpD <= 15 ? 3 : cpD <= 31 ? 4 : cpD <= 63 ? 5 : cpD <= 127 ? 6 : cpD <= 255 ? 7 : cpD <= 511 ? 8 : 9
+                        array.set(dbgCpH, cpB, array.get(dbgCpH, cpB) + 1)
+
                 // ---- DIAGNOSTIC : etat de chaque condition + raison du refus --
                 // Renseigne pour le cote qui correspond au biais affiche, afin
                 // que le panneau puisse expliquer POURQUOI aucune zone n'existe.
@@ -4336,6 +4382,43 @@ f_dbgP14(string sl, string tfLbl) =>
     0
 
 
+// ---- PAGE ⑮ : COMPACITE DE LA CHAINE SWEEP -> CHoCH -> BOS ----------------
+// Observation seule. Aucune de ces lignes n'entre dans une decision.
+f_dbgP15(string sl, string tfLbl) =>
+    int n = array.size(dbgCpSC)
+    // Identite exacte attendue : sum(SC) + sum(CB) - sum(SB) = 0.
+    float idn = n > 0 ? array.sum(dbgCpSC) + array.sum(dbgCpCB) - array.sum(dbgCpSB) : 0.0
+    int hSum = 0
+    for i = 0 to 9
+        hSum += array.get(dbgCpH, i)
+    f_dbgH(0, "⑮ COMPACITE  ·  " + tfLbl + "  ·  " + str.tostring(n) + " EVALUATIONS")
+
+    f_dbgH(1, "POPULATION  (identique a la page ⑭)")
+    f_dbgR(2, "evaluations " + sl + " BUY " + sl + " SELL", str.tostring(n) + " " + sl + " " + str.tostring(dbgCpBuy) + " " + sl + " " + str.tostring(n - dbgCpBuy))
+
+    f_dbgH(3, "CHoCH − SWEEP   (bougies)")
+    f_dbgR(4, "min " + sl + " P25 " + sl + " med " + sl + " P75", n > 0 ? str.tostring(array.min(dbgCpSC), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpSC, 25), "#.#") + " " + sl + " " + str.tostring(array.median(dbgCpSC), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpSC, 75), "#.#") : "—")
+    f_dbgR(5, "P90 " + sl + " max", n > 0 ? str.tostring(array.percentile_linear_interpolation(dbgCpSC, 90), "#.#") + " " + sl + " " + str.tostring(array.max(dbgCpSC), "#.#") : "—")
+
+    f_dbgH(6, "BOS − CHoCH   (bougies)")
+    f_dbgR(7, "min " + sl + " P25 " + sl + " med " + sl + " P75", n > 0 ? str.tostring(array.min(dbgCpCB), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpCB, 25), "#.#") + " " + sl + " " + str.tostring(array.median(dbgCpCB), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpCB, 75), "#.#") : "—")
+    f_dbgR(8, "P90 " + sl + " max", n > 0 ? str.tostring(array.percentile_linear_interpolation(dbgCpCB, 90), "#.#") + " " + sl + " " + str.tostring(array.max(dbgCpCB), "#.#") : "—")
+
+    f_dbgH(9, "BOS − SWEEP   (bougies)")
+    f_dbgR(10, "min " + sl + " P25 " + sl + " med " + sl + " P75", n > 0 ? str.tostring(array.min(dbgCpSB), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpSB, 25), "#.#") + " " + sl + " " + str.tostring(array.median(dbgCpSB), "#.#") + " " + sl + " " + str.tostring(array.percentile_linear_interpolation(dbgCpSB, 75), "#.#") : "—")
+    f_dbgR(11, "P90 " + sl + " max", n > 0 ? str.tostring(array.percentile_linear_interpolation(dbgCpSB, 90), "#.#") + " " + sl + " " + str.tostring(array.max(dbgCpSB), "#.#") : "—")
+
+    f_dbgH(12, "HISTOGRAMME BOS − SWEEP   (bougies, puissances de 2)")
+    f_dbgR(13, "1 " + sl + " 2-3 " + sl + " 4-7 " + sl + " 8-15 " + sl + " 16-31", str.tostring(array.get(dbgCpH, 0)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 1)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 2)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 3)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 4)))
+    f_dbgR(14, "32-63 " + sl + " 64-127 " + sl + " 128-255 " + sl + " 256-511 " + sl + " 512+", str.tostring(array.get(dbgCpH, 5)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 6)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 7)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 8)) + " " + sl + " " + str.tostring(array.get(dbgCpH, 9)))
+
+    f_dbgH(15, "CONTROLES  —  tout ECHEC est une erreur d'instrumentation")
+    f_dbgR(16, "min(CHoCH−Sweep)>=1 " + sl + " min(BOS−CHoCH)>=1", n > 0 ? (array.min(dbgCpSC) >= 1 ? "OK" : "ECHEC " + str.tostring(array.min(dbgCpSC), "#.#")) + " " + sl + " " + (array.min(dbgCpCB) >= 1 ? "OK" : "ECHEC " + str.tostring(array.min(dbgCpCB), "#.#")) : "—")
+    f_dbgR(17, "histo=n " + sl + " age max sweep " + sl + " seqMaxBars", (hSum == n ? "OK" : "ECHEC " + str.tostring(hSum)) + " " + sl + " " + str.tostring(dbgCpAge) + " " + sl + " " + str.tostring(seqMaxBars) + (dbgCpAge <= seqMaxBars ? "  OK" : "  ECHEC"))
+    f_dbgR(18, "identite  sum(SC)+sum(CB)−sum(SB)  (attendu 0)", str.tostring(idn, "#.###") + (idn == 0 ? "   OK" : "   ECHEC"))
+    0
+
+
 if barstate.islast and dbgOn
     string sl = "/"
     // timeframe.period renvoie "1", "3", "15", "240"... Libelle en clair pour
@@ -4350,6 +4433,8 @@ if barstate.islast and dbgOn
         f_dbgP2(sl, tfLbl)
     else if dbgPage == "⑬ MODELES"
         f_dbgP13(sl, tfLbl)
-    else
+    else if dbgPage == "⑭ SCORE"
         f_dbgP14(sl, tfLbl)
+    else
+        f_dbgP15(sl, tfLbl)
 

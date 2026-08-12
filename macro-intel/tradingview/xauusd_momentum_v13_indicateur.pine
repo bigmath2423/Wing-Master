@@ -2716,6 +2716,14 @@ if wzShow and barstate.isconfirmed and not na(atrV) and atrV > 0
             // NIVEAUX 6 A 8. La garde `dgRej == ""` est ce qui rend la
             // hierarchie stricte : si la structure ou la presence d'un OB/FVG
             // bloquait deja, ce statut-ci ne peut plus recouvrir le vrai motif.
+            // DEBUG : l'appariement a reussi pour cette chaine. CORRECTIF --
+            // cette affectation manquait, chPrB / chPrS n'etaient jamais mis a
+            // vrai et la ligne "appariees" affichait 0 par construction.
+            if not na(zT) and f_seqBos(isBuy)
+                if isBuy
+                    chPrB := true
+                else
+                    chPrS := true
             if na(zT) and isBuy == isBuyBiasNow and dgRej == ""
                 dgRej := not obSameCycle ? "OB HORS DU CYCLE COURANT" : not anyFvCycle ? "FVG HORS DU CYCLE COURANT" : "OB ET FVG TROP ELOIGNES"
                 dgScore := na

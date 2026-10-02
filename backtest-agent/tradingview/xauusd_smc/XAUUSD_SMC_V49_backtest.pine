@@ -1597,6 +1597,8 @@ if barstate.islast or barstate.islastconfirmedhistory
 // backtest-agent (sl= et tp= servent au calcul du R).
 gBT = "08 • BACKTEST"
 btMode   = input.string("V48 fidèle", "Gestion de l'ordre LIMIT", options=["V48 fidèle", "Ordre gelé (H1)"], group=gBT, tooltip="V48 fidèle : l’ordre suit la zone à chaque bougie et disparaît quand elle n’est plus valide, comme le tableau ORDRES LIMIT. Ordre gelé : l’ordre garde ses niveaux jusqu’au remplissage, à l’expiration ou à une clôture au-delà du SL.")
+btEntryType = input.string("LIMIT (V48)", "Type d'entrée", options=["LIMIT (V48)", "Confirmation"], group=gBT, tooltip="LIMIT (V48) : ordre limite passif dans la zone, comme le tableau ORDRES LIMIT. Confirmation : on attend que le prix touche la zone puis qu’une bougie clôture en rejet (au-dessus de la zone pour un achat, en dessous pour une vente) ; entrée au marché à l’ouverture suivante, SL derrière la zone et la mèche du test.")
+btConfirmBars = input.int(6, "Délai max de confirmation (bougies)", minval=1, maxval=50, group=gBT, tooltip="Mode Confirmation : nombre de bougies après le premier contact avec la zone pendant lesquelles la bougie de rejet est attendue.")
 btExpiry = input.int(24, "Expiration de l'ordre gelé (bougies)", minval=1, maxval=500, group=gBT)
 btExit   = input.string("TP2", "Sortie", options=["TP2", "TP1", "50 % TP1 + 50 % TP2"], group=gBT, tooltip="Avec la sortie partielle, l’export compte deux trades par position : préférer TP2 ou TP1 pour l’analyse en R.")
 btQty    = input.float(1.0, "Quantité par trade", minval=0.01, step=0.01, group=gBT, tooltip="Le capital initial est de 10 000 avec une marge de 100 % : au-delà d’environ 2 onces, TradingView refuse les ordres. L’analyse se fait en R, la quantité n’influence pas le résultat en R.")
@@ -1606,6 +1608,7 @@ btStart  = input.time(timestamp("01 Jan 2020 00:00 +0000"), "Début du backtest"
 btEnd    = input.time(timestamp("31 Dec 2099 00:00 +0000"), "Fin du backtest", group=gBT)
 
 btInWindow = time >= btStart and time <= btEnd
+btConfirm = btEntryType == "Confirmation"
 btFrozen = btMode == "Ordre gelé (H1)"
 btPartial = btExit == "50 % TP1 + 50 % TP2"
 btTpL = btExit == "TP1" ? buyTP1 : buyTP2
@@ -1664,8 +1667,8 @@ if btCountNow != btTradeCount
     btPendDir := 0
     btTradeCount := btCountNow
 
-bool btWantLong = btLong and btInWindow and buyLimitValid
-bool btWantShort = btShort and btInWindow and sellLimitValid
+bool btWantLong = not btConfirm and btLong and btInWindow and buyLimitValid
+bool btWantShort = not btConfirm and btShort and btInWindow and sellLimitValid
 bool btSendLong = false
 bool btSendShort = false
 
@@ -1715,6 +1718,134 @@ if btSendShort
         btPendDir := -1
         btPendSince := bar_index
         btPendSL := sellSL
+
+// ── ENTRÉE SUR CONFIRMATION ─────────────────────────────────────────────────
+// Même zone que l'ordre LIMIT (buyTop/buyBot, mêmes conditions de validité),
+// mais au lieu d'un ordre passif :
+//   1. la zone est « armée » tant que l'ordre LIMIT est valide et non touché ;
+//   2. au premier contact (low ≤ haut de zone pour un achat), elle est figée ;
+//   3. une bougie qui clôture au-dessus de la zone ET haussière confirme :
+//      entrée au marché à l'ouverture suivante ;
+//   4. une clôture sous la zone, ou l'absence de confirmation après
+//      « Délai max de confirmation » bougies, annule.
+// SL : sous le plus bas entre la zone et la mèche du test, moins le buffer V48.
+// TP : mêmes règles que V48 (TP1 = 1R ; TP2 = dernier pivot, sinon RR minimum),
+// et même condition RR ≥ RR minimum. Le spread n'étant pas payé par un ordre
+// au marché dans le Strategy Tester, il est écrit dans le commentaire
+// (spread=) et déduit du R dans le tableau STATS.
+var bool cfLArmed = false
+var bool cfLTouched = false
+var int cfLTouchBar = na
+var float cfLTop = na
+var float cfLBot = na
+var float cfLExt = na
+var string cfLReason = ""
+var int cfLBorn = na
+var bool cfSArmed = false
+var bool cfSTouched = false
+var int cfSTouchBar = na
+var float cfSTop = na
+var float cfSBot = na
+var float cfSExt = na
+var string cfSReason = ""
+var int cfSBorn = na
+
+bool cfGoLong = false
+bool cfGoShort = false
+float cfLSL = na
+float cfLTP1 = na
+float cfLTP2 = na
+float cfLRR = na
+float cfSSL = na
+float cfSTP1 = na
+float cfSTP2 = na
+float cfSRR = na
+
+if btConfirm and strategy.position_size == 0 and btInWindow
+    // Achat : contact, confirmation ou annulation de la zone armée.
+    if cfLArmed
+        if not cfLTouched and low <= cfLTop
+            cfLTouched := true
+            cfLTouchBar := bar_index
+            cfLExt := low
+        if cfLTouched
+            cfLExt := math.min(cfLExt, low)
+            if close < cfLBot or bar_index - cfLTouchBar > btConfirmBars
+                cfLArmed := false
+            else if close > cfLTop and close > open
+                cfLSL := math.min(cfLBot, cfLExt) - a_bt * limitBufferAtr
+                float riskL = close - cfLSL
+                if riskL > syminfo.mintick
+                    cfLTP1 := close + riskL
+                    cfLTP2 := not na(lastHigh) and lastHigh > close ? lastHigh : close + riskL * limitMinRR
+                    cfLRR := (cfLTP2 - close) / riskL
+                    cfGoLong := btLong and cfLRR >= limitMinRR - 1e-9
+                cfLArmed := false
+    // Vente : symétrique.
+    if cfSArmed
+        if not cfSTouched and high >= cfSBot
+            cfSTouched := true
+            cfSTouchBar := bar_index
+            cfSExt := high
+        if cfSTouched
+            cfSExt := math.max(cfSExt, high)
+            if close > cfSTop or bar_index - cfSTouchBar > btConfirmBars
+                cfSArmed := false
+            else if close < cfSBot and close < open
+                cfSSL := math.max(cfSTop, cfSExt) + a_bt * limitBufferAtr
+                float riskS = cfSSL - close
+                if riskS > syminfo.mintick
+                    cfSTP1 := close - riskS
+                    cfSTP2 := not na(lastLow) and lastLow < close ? lastLow : close - riskS * limitMinRR
+                    cfSRR := (close - cfSTP2) / riskS
+                    cfGoShort := btShort and cfSRR >= limitMinRR - 1e-9 and not cfGoLong
+                cfSArmed := false
+    // (Ré)armement : tant que la zone n'est pas touchée, elle suit l'ordre
+    // LIMIT de V48, comme le tableau ; elle disparaît s'il n'est plus valide.
+    if not cfLTouched or not cfLArmed
+        cfLArmed := buyLimitValid and not cfGoLong and not cfGoShort
+        cfLTouched := false
+        if cfLArmed
+            cfLTop := buyTop
+            cfLBot := buyBot
+            cfLReason := buyReason
+            cfLBorn := buyBorn
+    if not cfSTouched or not cfSArmed
+        cfSArmed := sellLimitValid and not cfGoLong and not cfGoShort
+        cfSTouched := false
+        if cfSArmed
+            cfSTop := sellTop
+            cfSBot := sellBot
+            cfSReason := sellReason
+            cfSBorn := sellBorn
+else
+    cfLArmed := false
+    cfLTouched := false
+    cfSArmed := false
+    cfSTouched := false
+
+if cfGoLong
+    float cfTpL = btExit == "TP1" ? cfLTP1 : cfLTP2
+    strategy.entry("LC", strategy.long, qty=btQty,
+         comment=f_context(true, cfLReason, cfLTop, cfLBot, close, cfLSL, cfLTP1, cfTpL, cfLRR, cfLBorn) + " entry_type=conf spread=" + str.tostring(limitSpread))
+    if btPartial
+        strategy.exit("LC-TP1", "LC", qty_percent=50, stop=cfLSL, limit=cfLTP1, comment_loss="SL", comment_profit="TP1")
+        strategy.exit("LC-TP2", "LC", stop=cfLSL, limit=cfLTP2, comment_loss="SL", comment_profit="TP2")
+    else
+        strategy.exit("LC-X", "LC", stop=cfLSL, limit=cfTpL, comment_loss="SL", comment_profit=btExit)
+
+if cfGoShort
+    float cfTpS = btExit == "TP1" ? cfSTP1 : cfSTP2
+    strategy.entry("SC", strategy.short, qty=btQty,
+         comment=f_context(false, cfSReason, cfSTop, cfSBot, close, cfSSL, cfSTP1, cfTpS, cfSRR, cfSBorn) + " entry_type=conf spread=" + str.tostring(limitSpread))
+    if btPartial
+        strategy.exit("SC-TP1", "SC", qty_percent=50, stop=cfSSL, limit=cfSTP1, comment_loss="SL", comment_profit="TP1")
+        strategy.exit("SC-TP2", "SC", stop=cfSSL, limit=cfSTP2, comment_loss="SL", comment_profit="TP2")
+    else
+        strategy.exit("SC-X", "SC", stop=cfSSL, limit=cfTpS, comment_loss="SL", comment_profit=btExit)
+
+plotshape(cfGoLong, "BT • confirmation BUY", shape.triangleup, location.belowbar, color.new(color.lime, 0), size=size.tiny)
+plotshape(cfGoShort, "BT • confirmation SELL", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.tiny)
 
 // Repère visuel des ordres envoyés au moteur de backtest.
 plot(btSendLong ? buyEntry : na, "BT • entrée BUY", color=color.new(color.lime, 20), style=plot.style_circles, linewidth=2)
@@ -1778,7 +1909,8 @@ while stProcessed < strategy.closedtrades
     float sz = strategy.closedtrades.size(idx)
     float risk = math.abs(ePx - slPx)
     if not na(slPx) and risk > 0
-        float r = (sz > 0 ? xPx - ePx : ePx - xPx) / risk
+        float spreadCost = nz(str.tonumber(f_kv(cmt, "spread")))
+        float r = ((sz > 0 ? xPx - ePx : ePx - xPx) - spreadCost) / risk
         f_stAdd("TOUS", r)
         f_stAdd(sz > 0 ? "BUY" : "SELL", r)
         f_stAdd("setup=" + f_kv(cmt, "setup"), r)
@@ -1820,6 +1952,6 @@ if barstate.islast or barstate.islastconfirmedhistory
                 row += 1
         table.cell(stTable, 0, row, "Drawdown max", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny, text_halign=text.align_left)
         table.cell(stTable, 1, row, str.tostring(stMaxDD, "0.0") + " R", text_color=color.orange, bgcolor=hdrBg, text_size=size.tiny)
-        table.cell(stTable, 2, row, btMode, text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 2, row, btConfirm ? "Confirmation" : btMode, text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
         table.cell(stTable, 3, row, "Sortie " + btExit, text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
         table.cell(stTable, 4, row, btPartial ? "2 lignes / position" : "", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)

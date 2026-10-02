@@ -19,6 +19,8 @@ logique.
 | Réglage | Effet |
 |---------|-------|
 | Gestion de l'ordre LIMIT | **V48 fidèle** (par défaut) : l'ordre suit la zone à chaque bougie et est annulé dès que le tableau ORDRES LIMIT n'affiche plus rien. **Ordre gelé (H1)** : l'ordre garde ses niveaux jusqu'au remplissage, à l'expiration ou à une clôture au-delà du SL. |
+| Type d'entrée | **LIMIT (V48)** (par défaut) : ordre limite passif dans la zone. **Confirmation** : la zone est figée au premier contact, puis on attend une bougie qui clôture en rejet (au-dessus de la zone pour un achat, haussière). Entrée au marché à l'ouverture suivante, SL sous le plus bas de la zone et de la mèche du test. Annulé sur clôture sous la zone ou après le délai. Le spread est déduit du R dans le tableau STATS. |
+| Délai max de confirmation | Mode Confirmation : bougies d'attente après le premier contact (6 par défaut). |
 | Expiration de l'ordre gelé | Nombre de bougies avant annulation, en mode gelé uniquement. |
 | Sortie | TP2 (par défaut, c'est lui qui sert au calcul du RR dans V48), TP1, ou 50 % / 50 %. |
 | Début / fin du backtest | Pour découper une période d'apprentissage et une période de test. |

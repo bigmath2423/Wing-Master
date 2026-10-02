@@ -1,10 +1,14 @@
 // XAUUSD SMC V49 — WRAPPER DE BACKTEST (P0)
-// Copie EXACTE de XAUUSD_SMC_V49_delta.pine, avec deux différences seulement :
+// Copie de XAUUSD_SMC_V49_delta.pine, avec deux différences principales :
 //   1. `indicator(...)` devient `strategy(...)` ;
 //   2. le bloc « 08 • BACKTEST » ajouté en fin de fichier exécute les ordres
 //      LIMIT déjà calculés par V49 (buyLimitValid, buyEntry, buySL, buyTP1/2…)
 //      sans modifier leur logique, et écrit le contexte de chaque trade dans le
 //      commentaire d'entrée (colonne « Signal » de l'export List of Trades).
+// Seule autre adaptation : les blocs `if barstate.islast` (tableaux, profil,
+// lignes de liquidité) s'exécutent aussi sur `barstate.islastconfirmedhistory`.
+// Une stratégie ne recalcule qu'à la clôture des bougies : sans cela, les
+// tableaux n'apparaissent qu'à la fin de la bougie en cours.
 // Voir README.md pour le mode d'emploi.
 // ================================================================
 
@@ -1000,7 +1004,7 @@ f_setMajorLiquidity(line ln, label lb, float price, string txt, bool isAbove, bo
             outLb := na
     [outLn, outLb]
 
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     if showLiquidity
         [newPdhLine, newPdhLbl] = f_setMajorLiquidity(pdhLine, pdhLbl, pdh, "PDH • BSL", true, true)
         pdhLine := newPdhLine
@@ -1125,7 +1129,7 @@ rangeMid2 = (rangeHigh + rangeLow) / 2.0
 pdText = close >= rangeMid2 ? "PREMIUM" : "DISCOUNT"
 pdCol = close >= rangeMid2 ? color.red : color.lime
 var line pdMidLine = na
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     if showPD
         if na(pdMidLine)
             pdMidLine := line.new(bar_index - rangeLookback, rangeMid2, bar_index + liqProjection, rangeMid2, color=color.new(color.gray, 65), width=1, style=line.style_dotted)
@@ -1358,7 +1362,7 @@ else if not sellLimitValid
 
 // ── LIMIT ORDERS TABLE ───────────────────────────────────────────────────────
 var table limitTable = table.new(position.bottom_right, 6, 3, border_width=1, frame_width=1)
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     table.clear(limitTable, 0, 0, 5, 2)
     table.cell(limitTable, 0, 0, "ORDRES LIMIT", text_color=color.white, bgcolor=color.new(color.black, 5), text_size=size.tiny)
     table.cell(limitTable, 1, 0, "ENTRY", text_color=color.silver, bgcolor=color.new(color.black, 5), text_size=size.tiny)
@@ -1420,7 +1424,7 @@ var float dpDelta = na
 var float dpPocBuy = na
 var float dpPocSell = na
 
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     while array.size(dpBoxes) > 0
         box.delete(array.pop(dpBoxes))
     while array.size(dpLabels) > 0
@@ -1533,7 +1537,7 @@ pd = close >= rangeMid ? "PREMIUM" : "DISCOUNT"
 vwapText = close >= vwap ? "AU-DESSUS" : "SOUS"
 
 var table dash = table.new(position.top_right, 2, 19, border_width=1, frame_width=1)
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     if showDashboard
         table.cell(dash, 0, 0, "MARKET CONTEXT", text_color=color.white, bgcolor=color.new(color.black, 8), text_size=size.small)
         table.cell(dash, 1, 0, syminfo.ticker + "  " + timeframe.period, text_color=color.white, bgcolor=color.new(color.black, 8), text_size=size.small)
@@ -1787,7 +1791,7 @@ while stProcessed < strategy.closedtrades
     stProcessed += 1
 
 var table stTable = table.new(position.bottom_left, 6, 33, border_width=1, frame_width=1)
-if barstate.islast
+if barstate.islast or barstate.islastconfirmedhistory
     table.clear(stTable, 0, 0, 5, 32)
     if showStats
         color hdrBg = color.new(color.black, 5)

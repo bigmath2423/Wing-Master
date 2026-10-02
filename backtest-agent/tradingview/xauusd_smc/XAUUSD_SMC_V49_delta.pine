@@ -1401,6 +1401,14 @@ dpPocPlus    = input.color(color.blue, "POC +", group=gDP)
 dpPocMinus   = input.color(color.rgb(218, 131, 0), "POC -", group=gDP)
 
 dpAtr = ta.atr(200)
+// Le profil relit jusqu'à 500 bougies, mais seulement sur la dernière : Pine ne
+// peut pas le deviner et réserve un historique trop court (erreur « historical
+// offset beyond the historical buffer's limit »). On le réserve explicitement.
+max_bars_back(high, 500)
+max_bars_back(low, 500)
+max_bars_back(open, 500)
+max_bars_back(close, 500)
+max_bars_back(volume, 500)
 
 var box[] dpBoxes = array.new_box()
 var label[] dpLabels = array.new_label()

@@ -206,6 +206,32 @@ def _parse_score_signal(text: object) -> dict[str, int] | None:
     return dict(zip(_SCORE_FIELDS, (int(g) for g in match.groups())))
 
 
+# Décodage d'un Signal d'entrée au format `clé=valeur` (wrapper de backtest
+# XAUUSD SMC, `tradingview/xauusd_smc/`) : « SMC setup=OB sl=4170.25 tp=4190.1
+# sweep=1 … ». `sl`/`tp` alimentent stop_loss/take_profit — indispensables au
+# calcul du R, que l'export List of Trades ne contient pas — et toutes les
+# autres clés deviennent des colonnes de contexte. Au moins deux paires sont
+# exigées pour ne pas confondre un texte libre contenant un « = » isolé.
+_KV_TOKEN_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(\S+)")
+_KV_CANONICAL = {"sl": "stop_loss", "tp": "take_profit"}
+
+
+def _parse_kv_signal(text: object) -> dict[str, object] | None:
+    """Décode un Signal `clé=valeur` ; retourne None s'il n'en contient pas
+    au moins deux. Les valeurs numériques sont converties en float."""
+    pairs = _KV_TOKEN_RE.findall(str(text))
+    if len(pairs) < 2:
+        return None
+    decoded: dict[str, object] = {}
+    for key, value in pairs:
+        name = _KV_CANONICAL.get(key.lower(), key.lower())
+        try:
+            decoded[name] = float(value)
+        except ValueError:
+            decoded[name] = value
+    return decoded
+
+
 def _find_col(columns: Iterable[str], *substrings: str) -> str | None:
     """Cherche la première colonne dont le nom nettoyé CONTIENT l'un des motifs.
 
@@ -288,6 +314,10 @@ def _pivot_entry_exit_pairs(df: pd.DataFrame) -> pd.DataFrame | None:
             score = _parse_score_signal(e[signal_col])
             if score is not None:
                 row.update(score)
+            contexte = _parse_kv_signal(e[signal_col])
+            if contexte is not None:
+                # Les champs issus de l'export (prix, date, P&L…) priment.
+                row.update({k: v for k, v in contexte.items() if k not in row})
         if duree_col is not None:
             row["duration_bars"] = s[duree_col]
         if commission_col is not None:

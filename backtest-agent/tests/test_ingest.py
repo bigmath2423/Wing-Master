@@ -237,6 +237,50 @@ def test_parse_score_signal_ignore_le_texte_non_conforme():
     assert _parse_score_signal(float("nan")) is None
 
 
+# --- Décodage du contexte clé=valeur (wrapper XAUUSD SMC) --------------------
+
+def _export_smc(signal_entree: str) -> pd.DataFrame:
+    return pd.DataFrame([
+        {"Numéro de trade": 1, "Type": "Entrer long",
+         "Date et heure": "2025-01-01 10:00", "Signal": signal_entree,
+         "Prix USD": 4180.0, "P&L net USD": 10.0},
+        {"Numéro de trade": 1, "Type": "Sortir du long",
+         "Date et heure": "2025-01-01 11:00", "Signal": "L-TP2",
+         "Prix USD": 4190.0, "P&L net USD": 10.0},
+    ])
+
+
+def test_contexte_cle_valeur_donne_le_stop_et_le_r():
+    """L'export List of Trades ne contient pas le stop : sans le `sl=` du
+    Signal, le multiple de R serait impossible à calculer."""
+    df = normalize(_export_smc(
+        "SMC setup=OB sl=4175 tp=4190 tp1=4185 sweep=1 htf=0 rr_plan=2"))
+    row = df.iloc[0]
+    assert row["stop_loss"] == pytest.approx(4175.0)
+    assert row["take_profit"] == pytest.approx(4190.0)
+    assert row["pnl_r"] == pytest.approx(2.0)   # (4190 − 4180) / (4180 − 4175)
+    assert row["setup"] == "OB"
+    assert row["sweep"] == 1
+    assert "setup" in df.attrs["conditions"]
+    assert "sweep" in df.attrs["conditions"]
+
+
+def test_contexte_ne_remplace_pas_les_champs_de_l_export():
+    """Une clé homonyme d'un champ déjà lu dans l'export (ici `pnl`) ne doit
+    pas écraser la valeur réelle du Strategy Tester."""
+    df = normalize(_export_smc("SMC sl=4175 pnl=999"))
+    assert df.iloc[0]["pnl"] == pytest.approx(10.0)
+
+
+def test_parse_kv_signal_exige_deux_paires():
+    from backtest_agent.ingest import _parse_kv_signal
+    assert _parse_kv_signal("BUY") is None
+    assert _parse_kv_signal("a=1") is None
+    assert _parse_kv_signal(float("nan")) is None
+    assert _parse_kv_signal("S100 L20 T20 Z12 W10 H10 V5 P5") is None
+    assert _parse_kv_signal("x=1 setup=FVG") == {"x": 1.0, "setup": "FVG"}
+
+
 def test_pivot_retourne_none_sans_colonnes_indispensables():
     from backtest_agent.ingest import _pivot_entry_exit_pairs
     df = pd.DataFrame([

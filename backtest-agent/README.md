@@ -67,7 +67,7 @@ par-dessus les mêmes chiffres.
 | `backtest_agent/jsonutil.py` | Sérialisation JSON stricte (jamais de `NaN`/`Infinity`, non conformes RFC 8259). |
 | `backtest_agent/htmlview.py` | Convertisseur Markdown → HTML minimal (sans dépendance), pour afficher un rapport dans le navigateur. |
 | `backtest_agent/cli.py` | Ligne de commande (`analyze`, `walkforward`, `propose`, `validate`, `compare`, `rolling`, `view`, `pipeline`). |
-| `tests/` | 135 tests, dont la vérification de la discipline anti-sur-optimisation. |
+| `tests/` | 138 tests, dont la vérification de la discipline anti-sur-optimisation. |
 | `tradingview/strategy_template.pine` | Gabarit pour transformer ton indicateur en stratégie exportable. |
 | `tradingview/webhook_server.py` | Récepteur d'alertes TradingView → CSV (suivi forward). |
 
@@ -91,7 +91,7 @@ pip install -e ".[dev]"       # pytest
 ### Vérifier que tout marche
 
 ```bash
-pytest                        # 135 tests
+pytest                        # 138 tests
 ```
 
 La suite couvre l'ingestion, les métriques, le walk-forward, la traduction Pine,

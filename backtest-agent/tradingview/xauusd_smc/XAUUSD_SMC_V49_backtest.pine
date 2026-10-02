@@ -1590,8 +1590,8 @@ btExit   = input.string("TP2", "Sortie", options=["TP2", "TP1", "50 % TP1 + 50 %
 btQty    = input.float(1.0, "Quantité par trade", minval=0.01, step=0.01, group=gBT, tooltip="Le capital initial est de 10 000 avec une marge de 100 % : au-delà d’environ 2 onces, TradingView refuse les ordres. L’analyse se fait en R, la quantité n’influence pas le résultat en R.")
 btLong   = input.bool(true, "Autoriser les BUY", group=gBT)
 btShort  = input.bool(true, "Autoriser les SELL", group=gBT)
-btStart  = input.time(timestamp("UTC", 2020, 1, 1, 0, 0), "Début du backtest", group=gBT)
-btEnd    = input.time(timestamp("UTC", 2099, 12, 31, 0, 0), "Fin du backtest", group=gBT)
+btStart  = input.time(timestamp("01 Jan 2020 00:00 +0000"), "Début du backtest", group=gBT)
+btEnd    = input.time(timestamp("31 Dec 2099 00:00 +0000"), "Fin du backtest", group=gBT)
 
 btInWindow = time >= btStart and time <= btEnd
 btFrozen = btMode == "Ordre gelé (H1)"

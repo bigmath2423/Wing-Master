@@ -52,11 +52,33 @@ zone_atr=0.85 dist_atr=1.2 atr=4.12
 stop_loss et take_profit, donc le **R de chaque trade est calculé**. Toutes les
 autres clés deviennent des conditions analysables.
 
+### Sans abonnement payant : le tableau « STATS (R) »
+
+TradingView réserve l'export de la List of Trades aux abonnements payants. Le
+wrapper calcule donc lui-même les statistiques et les affiche en bas à gauche du
+graphique (groupe « 09 • STATISTIQUES ») : **une capture d'écran suffit**.
+
+| Colonne | Contenu |
+|---------|---------|
+| N | Nombre de trades du segment |
+| Réussite | % de trades gagnants |
+| Esp. R | Gain moyen par trade, en R (la colonne qui compte) |
+| PF | Profit factor : somme des gains / somme des pertes, en R |
+| Total R | Somme des R du segment |
+
+Les lignes couvrent tous les trades, BUY/SELL, le type de setup, la séance
+d'entrée (heures UTC : Asie 0h-7h, Londres 7h-12h, New York 12h-21h) et chaque
+critère du contexte à 1 et à 0. Exemple de lecture : si `htf=1` a une Esp. R
+nettement supérieure à `htf=0` avec assez de trades, la confluence HTF (H10)
+mérite d'être testée comme filtre. Une ligne grisée a moins de trades que
+« Échantillon minimum » (20 par défaut) : n'en tirez rien.
+
 ### Mode d'emploi
 
 1. Ajoutez `XAUUSD_SMC_V49_backtest.pine` au graphique, sur le symbole et le
    timeframe que vous tradez réellement.
-2. Ouvrez le Strategy Tester, puis exportez la **List of Trades** en CSV.
+2. Ouvrez le Strategy Tester, puis exportez la **List of Trades** en CSV
+   (abonnement payant). Sinon, faites une capture du tableau « STATS (R) ».
 3. Lancez l'analyse :
    ```bash
    cd backtest-agent

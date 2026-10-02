@@ -1715,3 +1715,107 @@ if btSendShort
 // Repère visuel des ordres envoyés au moteur de backtest.
 plot(btSendLong ? buyEntry : na, "BT • entrée BUY", color=color.new(color.lime, 20), style=plot.style_circles, linewidth=2)
 plot(btSendShort ? sellEntry : na, "BT • entrée SELL", color=color.new(color.red, 20), style=plot.style_circles, linewidth=2)
+
+// ── 09 • STATISTIQUES SUR LE GRAPHIQUE ──────────────────────────────────────
+// Sans abonnement payant, TradingView ne permet pas d'exporter la List of
+// Trades. Ce tableau calcule les statistiques en R directement dans le script,
+// par segment de contexte, pour qu'une capture d'écran suffise à l'analyse.
+// R = (sortie − entrée) / |entrée − SL|, avec le SL lu dans le commentaire.
+gST = "09 • STATISTIQUES"
+showStats = input.bool(true, "Afficher le tableau de statistiques", group=gST)
+statsMinN = input.int(20, "Échantillon minimum", minval=1, group=gST, tooltip="En dessous, la ligne est grisée : trop peu de trades pour conclure.")
+
+var map<string, float> stN = map.new<string, float>()
+var map<string, float> stW = map.new<string, float>()
+var map<string, float> stR = map.new<string, float>()
+var map<string, float> stGW = map.new<string, float>()
+var map<string, float> stGL = map.new<string, float>()
+var string[] stOrder = array.from("TOUS", "BUY", "SELL",
+     "setup=FVG", "setup=OB", "setup=SR",
+     "session=Asie", "session=Londres", "session=New York", "session=Hors séance",
+     "htf=1", "htf=0", "sweep=1", "sweep=0", "aplus=1", "aplus=0",
+     "tp_synth=0", "tp_synth=1", "trend=1", "trend=0", "vwap=1", "vwap=0",
+     "pd=1", "pd=0", "struct=1", "struct=0", "vol=1", "vol=0", "zone=1", "zone=0")
+var int stProcessed = 0
+var float stCumR = 0.0
+var float stPeakR = 0.0
+var float stMaxDD = 0.0
+
+// Valeur d'une clé dans le commentaire « clé=valeur » ; "" si absente.
+f_kv(string s, string key) =>
+    string src = " " + s + " "
+    string pat = " " + key + "="
+    int p = str.pos(src, pat)
+    string out = ""
+    if not na(p)
+        string rest = str.substring(src, p + str.length(pat))
+        int q = str.pos(rest, " ")
+        out := na(q) ? rest : str.substring(rest, 0, q)
+    out
+
+f_stAdd(string key, float r) =>
+    map.put(stN, key, nz(map.get(stN, key)) + 1)
+    map.put(stW, key, nz(map.get(stW, key)) + (r > 0 ? 1 : 0))
+    map.put(stR, key, nz(map.get(stR, key)) + r)
+    map.put(stGW, key, nz(map.get(stGW, key)) + math.max(r, 0))
+    map.put(stGL, key, nz(map.get(stGL, key)) + math.max(-r, 0))
+
+// Séances en heure UTC : Asie 00h-07h, Londres 07h-12h, New York 12h-21h.
+f_session(int t) =>
+    int h = hour(t, "UTC")
+    h < 7 ? "Asie" : h < 12 ? "Londres" : h < 21 ? "New York" : "Hors séance"
+
+while stProcessed < strategy.closedtrades
+    int idx = stProcessed
+    string cmt = strategy.closedtrades.entry_comment(idx)
+    float slPx = str.tonumber(f_kv(cmt, "sl"))
+    float ePx = strategy.closedtrades.entry_price(idx)
+    float xPx = strategy.closedtrades.exit_price(idx)
+    float sz = strategy.closedtrades.size(idx)
+    float risk = math.abs(ePx - slPx)
+    if not na(slPx) and risk > 0
+        float r = (sz > 0 ? xPx - ePx : ePx - xPx) / risk
+        f_stAdd("TOUS", r)
+        f_stAdd(sz > 0 ? "BUY" : "SELL", r)
+        f_stAdd("setup=" + f_kv(cmt, "setup"), r)
+        f_stAdd("session=" + f_session(strategy.closedtrades.entry_time(idx)), r)
+        for k in array.from("htf", "sweep", "aplus", "tp_synth", "trend", "vwap", "pd", "struct", "vol", "zone")
+            f_stAdd(k + "=" + f_kv(cmt, k), r)
+        stCumR += r
+        stPeakR := math.max(stPeakR, stCumR)
+        stMaxDD := math.max(stMaxDD, stPeakR - stCumR)
+    stProcessed += 1
+
+var table stTable = table.new(position.bottom_left, 6, 33, border_width=1, frame_width=1)
+if barstate.islast
+    table.clear(stTable, 0, 0, 5, 32)
+    if showStats
+        color hdrBg = color.new(color.black, 5)
+        color rowBg = color.new(color.black, 15)
+        table.cell(stTable, 0, 0, "STATS (R)", text_color=color.white, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 1, 0, "N", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 2, 0, "Réussite", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 3, 0, "Esp. R", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 4, 0, "PF", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 5, 0, "Total R", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        int row = 1
+        for key in stOrder
+            float n = nz(map.get(stN, key))
+            if n > 0
+                float sumR = nz(map.get(stR, key))
+                float gw = nz(map.get(stGW, key))
+                float gl = nz(map.get(stGL, key))
+                float expR = sumR / n
+                color tc = n < statsMinN ? color.gray : expR > 0 ? color.lime : color.red
+                table.cell(stTable, 0, row, key, text_color=color.silver, bgcolor=rowBg, text_size=size.tiny, text_halign=text.align_left)
+                table.cell(stTable, 1, row, str.tostring(n, "0"), text_color=tc, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(stTable, 2, row, str.tostring(nz(map.get(stW, key)) / n * 100, "0") + " %", text_color=tc, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(stTable, 3, row, (expR > 0 ? "+" : "") + str.tostring(expR, "0.00"), text_color=tc, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(stTable, 4, row, gl > 0 ? str.tostring(gw / gl, "0.00") : "∞", text_color=tc, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(stTable, 5, row, (sumR > 0 ? "+" : "") + str.tostring(sumR, "0.0"), text_color=tc, bgcolor=rowBg, text_size=size.tiny)
+                row += 1
+        table.cell(stTable, 0, row, "Drawdown max", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny, text_halign=text.align_left)
+        table.cell(stTable, 1, row, str.tostring(stMaxDD, "0.0") + " R", text_color=color.orange, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 2, row, btMode, text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 3, row, "Sortie " + btExit, text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
+        table.cell(stTable, 4, row, btPartial ? "2 lignes / position" : "", text_color=color.silver, bgcolor=hdrBg, text_size=size.tiny)
